@@ -96,14 +96,14 @@ interface ITreasury {
      *    the last rewards claim will be eligible?
      *  - Does Treasury mint and hold FLOOR token, as well as the reward token?
      */
-    function distributeFloorRewards();
+    function distributeFloorRewards() external;
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this
      * and create additional FLOOR tokens if needed
      */
-    function mint(uint amount);
+    function mint(uint amount) external;
 
     /**
      * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
@@ -137,20 +137,20 @@ interface ITreasury {
      *
      * @dev Should we allow this to be updated or should be immutable?
      */
-    function setRewardsLedgerContract(address contract);
+    function setRewardsLedgerContract(address contractAddr) external;
 
     /**
      * Allows the GWV contract address to be set.
      *
      * @dev Should we allow this to be updated or should be immutable?
      */
-    function setGaugeWeightVoteContract(address contract);
+    function setGaugeWeightVoteContract(address contractAddr) external;
 
     /**
      * Sets the percentage of treasury rewards yield to be retained by the treasury, with
      * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
      */
-    function setRetainedTreasuryYieldPercentage(uint percent);
+    function setRetainedTreasuryYieldPercentage(uint percent) external;
 
     /**
      * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward
@@ -159,7 +159,7 @@ interface ITreasury {
      *
      * @dev This will only be actionable by {TreasuryManager}
      */
-    function toggleFloorMinting(bool enabled);
+    function toggleFloorMinting(bool enabled) external;
 
     /**
      * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
@@ -181,6 +181,6 @@ interface ITreasury {
      *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
      *   in direct comparison.
      */
-     function getTokenFloorPrice(address token);
+     function getTokenFloorPrice(address token) external;
 
 }
