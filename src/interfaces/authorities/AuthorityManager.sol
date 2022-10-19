@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-// import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @dev This contract will be heavily based on the standardised OpenZeppelin `AccessControl`
@@ -35,8 +34,7 @@ pragma solidity ^0.8.0;
  * by using {_setRoleAdmin}.
  */
 
-
-interface AuthorityManagerInterface {
+interface IAuthorityManager {
 
    /**
      * @dev Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`
