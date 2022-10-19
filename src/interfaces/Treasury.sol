@@ -9,22 +9,25 @@ pragma solidity ^0.8.0;
 
 interface ITreasury {
 
-    /// @notice When an ERC20 is depositted into the vault
-    event DepositERC20(uint256 _amount, address _token);
+    /// @dev When native network token is withdrawn from the Treasury
+    event Deposit(uint amount);
 
-    /// @notice When an ERC721 is depositted into the vault
-    event DepositERC721(address _token, uint256 _tokenId);
+    /// @dev When an ERC20 is depositted into the vault
+    event DepositERC20(uint amount, address token);
 
-    /// @notice When native network token is withdrawn from the Treasury
-    event Withdraw(uint256 amount);
+    /// @dev When an ERC721 is depositted into the vault
+    event DepositERC721(address token, uint tokenId);
 
-    /// @notice When an ERC20 token is withdrawn from the Treasury
-    event WithdrawERC20(address token, uint256 amount);
+    /// @dev When native network token is withdrawn from the Treasury
+    event Withdraw(uint amount);
 
-    /// @notice When an ERC721 token is withdrawn from the Treasury
-    event WithdrawERC721(address token, uint256 tokenId);
+    /// @dev When an ERC20 token is withdrawn from the Treasury
+    event WithdrawERC20(address token, uint amount);
 
-    /// @notice When FLOOR is minted
+    /// @dev When an ERC721 token is withdrawn from the Treasury
+    event WithdrawERC721(address token, uint tokenId);
+
+    /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
 
 
