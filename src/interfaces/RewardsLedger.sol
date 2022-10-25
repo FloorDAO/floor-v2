@@ -10,6 +10,9 @@ pragma solidity ^0.8.0;
  *
  * The {RewardsLedger} will have the ability to transfer assets from {Treasury}
  * to recipient as it sees fit, whilst providing some separation of concerns.
+ *
+ * Used the X2Y2 Drop contract as a starting point:
+ * https://etherscan.io/address/0xe6949137b24ad50cce2cf6b124b3b874449a41fa#readContract
  */
 
 interface IRewardsLedger {
