@@ -5,6 +5,15 @@ pragma solidity ^0.8.0;
 
 interface IBaseStrategy {
 
+    /// @dev When strategy receives a deposit
+    event Deposit(uint amount);
+
+    /// @dev When strategy is harvested
+    event Harvest(uint amount[]);
+
+    /// @dev When a staked user exits their position
+    event Exit(uint amount[]);
+
     /**
      * Return the the address of the yield token.
      */
