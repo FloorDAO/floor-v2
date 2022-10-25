@@ -96,7 +96,7 @@ interface ITreasury {
      *    the last rewards claim will be eligible?
      *  - Does Treasury mint and hold FLOOR token from rewards?
      */
-    function distributeFloorRewards() external;
+    function distributeRewards() external;
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
