@@ -43,12 +43,12 @@ interface ITreasury {
      * will grant the holder access to the position, and also the rewards from the position. This
      * will be handled by transfer hooks in the token and will update vault data accordingly.
      *
-     * When a token deposit comes in, we can find the matching vault and find the holdings of all
-     * users. The treasury user is a special case, but the others will have a holding percentage
-     * determined for their. Only users that are eligible (see note below on rewards cycle) will
-     * have their holdings percentage calculated. This holdings percentage will get them FLOOR
-     * rewards of all non-treasury yield, plus non-retained treasury yield based on
-     * {setRetainedTreasuryYieldPercentage}. So in this example:
+     * When a token deposit from strategy reward yield comes in, we can find the matching vault and
+     * find the holdings of all users. The treasury user is a special case, but the others will have
+     * a holding percentage determined for their reward share. Only users that are eligible (see note
+     * below on rewards cycle) will have their holdings percentage calculated. This holdings
+     * percentage will get them FLOOR rewards of all non-treasury yield, plus non-retained treasury
+     * yield based on {setRetainedTreasuryYieldPercentage}. So in this example:
      *
      * +----------------+-----------------+-------------------+
      * | Staker         | Amount          | Percent           |
@@ -58,7 +58,7 @@ interface ITreasury {
      * | Treasury       | 60              | 60%               |
      * +----------------+-----------------+-------------------+
      *
-     * The strategy collects 10 tokens in reward in this cycle, and all staked partied are eligible
+     * The strategy collects 10 tokens in reward in this cycle, and all staked parties are eligible
      * to receive their reward allocation. The Treasury does not mint FLOOR against their reward token,
      * but instead just holds it inside of the Treasury.
      *
@@ -69,7 +69,7 @@ interface ITreasury {
      *
      * The Treasury in this instance would be allocated 6 reward tokens (as they hold 60% of the vault
      * share) and would convert 50% of this reward yield to FLOOR (due to 50% retention). This means
-     * that 3 of the reward tokens would generate an additional 15 FLOOR is distributed to non-Treasry
+     * that 3 of the reward tokens would generate an additional 15 FLOOR, distributed to non-Treasry
      * holders, giving a total of 35.
      *
      * +----------------+--------------------+
@@ -94,14 +94,17 @@ interface ITreasury {
      *  - How will we determine a user's eligibility for rewards? Will the user need to have
      *    had their token for a full rewards cycle? E.g. only users with a vault stake since
      *    the last rewards claim will be eligible?
-     *  - Does Treasury mint and hold FLOOR token, as well as the reward token?
+     *  - Does Treasury mint and hold FLOOR token from rewards?
      */
     function distributeFloorRewards() external;
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this
-     * and create additional FLOOR tokens if needed
+     * and create additional FLOOR tokens if needed.
+     *
+     * @dev We only want to do this on creation and for inflation. Have a think on how
+     * we can implement this!
      */
     function mint(uint amount) external;
 
@@ -159,7 +162,7 @@ interface ITreasury {
      *
      * @dev This will only be actionable by {TreasuryManager}
      */
-    function toggleFloorMinting(bool enabled) external;
+    function pauseFloorMinting(bool enabled) external;
 
     /**
      * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
@@ -179,7 +182,7 @@ interface ITreasury {
      * Questions:
      * - Can we just compare FLOOR <-> TOKEN on Uniswap? Rather than each to ETH? It wouldn't need
      *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
-     *   in direct comparison.
+     *   in direct comparison due to hops.
      */
      function getTokenFloorPrice(address token) external;
 
