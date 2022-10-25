@@ -3,6 +3,9 @@
 pragma solidity ^0.8.0;
 
 
+/**
+ * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
+ */
 interface INFTXInventoryStakingStrategy is IBaseStrategy {
 
     /**
@@ -10,14 +13,14 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *
      * The reward yield will be a vault xToken as defined by the InventoryStaking contract.
      */
-    function yieldToken() external view returns (address);
+    function yieldToken() external view returns (address[]);
 
     /**
      * Return the the address of the underlying token.
      *
      * The underlying token will be the same as the address of the NFTX vault.
      */
-    function underlyingToken() external view returns (address);
+    function underlyingToken() external view returns (address[]);
 
     /**
      * Deposit underlying token or yield token to corresponding strategy.
@@ -35,7 +38,7 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *
      * @return _yieldAmount The amount of yield token deposited.
      */
-    function deposit(uint256 _amount) external returns (uint256 _yieldAmount);
+    function deposit(uint256 _amount[]) external returns (uint256 _yieldAmount[]);
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
@@ -49,7 +52,7 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *
      * @return _returnAmount The amount of yield token harvested.
      */
-    function harvest() external returns (uint256 _returnAmount);
+    function harvest() external returns (uint256 _returnAmount[]);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
@@ -57,7 +60,7 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *
      * @return _returnAmount The amount of underlying token claimed from exit.
      */
-    function exit(address _recipient, uint256 _amount) external returns (uint256 _returnAmount);
+    function exit(address _recipient, uint256 _amount[]) external returns (uint256 _returnAmount[]);
 
     /**
      * Emergency function to execute arbitrary call.
