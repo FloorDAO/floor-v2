@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 
 
 /**
- * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool
- * https://etherscan.io/tx/0x9da1baff6c4b33468875a16f79ea73967f5221f6ed0c10a9285b8ba913ac79fb
+ * https://sudoswap.xyz/#/manage/0xf99A0383921ee80D86f531B809DBC94a8422E06C
+ * https://etherscan.io/tx/0x6b1f0ee0ec425b68e903a3b839cb6a13201255df4b6de7d2477219316892bdff
  */
-interface IUniswapV3DoubleSidedLiquidityStrategy {
+interface ISudoswapDoubleSidedLiquidityStrategy {
 
     /**
      * Return the the address of the yield token.
@@ -22,19 +22,20 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
 
     /**
      * A deposit of token0 and token1 that will increase the liquidity position of
-     * the existing UniswapV3 pool. We will need to verify that the token amounts
-     * provided match our existing token ratio, but this should be handled by Uniswap
-     * in their function calls.
+     * the existing Sudoswap pool. We will need to verify that the token amounts
+     * provided match our existing token ratio. This should be handled by Sudoswap
+     * in their function calls, but we can get the `delta`, `NFTQuote` and `spotPrice`
+     * data from the contract.
      *
      * We will call `increaseLiquidity` on the {INonfungiblePositionManager}.
      *
-     * This liquidity must be infinite range.
-     *
      * If this is the first time a deposit has been made, then we will need to
-     * initialise our pool, minting the ERC721 and storing it within this
+     * initialise our pool using the `initialize` call and storing it within this
      * strategy as the owner.
      *
-     * https://docs.uniswap.org/protocol/guides/providing-liquidity/increase-liquidity
+     * When a deposit is made, we can just send it directly to the contract and the
+     * contract's {onERC721Received} and {receive} functions handle the logic from
+     * there.
      *
      * @return _yieldAmount The amount of yield tokens deposited.
      */
@@ -45,10 +46,9 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
      * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
      * turn be made available in the {RewardsLedger}.
      *
-     * To harvest our fees, we can simply calls the `collect` function against our pool's
-     * ERC721 token.
-     *
-     * https://docs.uniswap.org/protocol/guides/providing-liquidity/collect-fees
+     * To harvest our fees, we will need to determine the ETH change and then make
+     * requests to withdraw the difference. We would be interested in both ETH and
+     * token gain.
      *
      * @return _returnAmount The amount of yield token harvested.
      */
