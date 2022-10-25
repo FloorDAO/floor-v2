@@ -12,13 +12,13 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
     /**
      * Return the the address of the yield token.
      */
-    function yieldToken() external view returns (address[]);
+    function yieldToken() external view returns (address[] calldata);
 
     /**
      * Return the the address of the underlying token. This will be the same as
      * the yield token for Uniswap V3 positions.
      */
-    function underlyingToken() external view returns (address[]);
+    function underlyingToken() external view returns (address[] calldata);
 
     /**
      * A deposit of token0 and token1 that will increase the liquidity position of
@@ -35,10 +35,8 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
      * strategy as the owner.
      *
      * https://docs.uniswap.org/protocol/guides/providing-liquidity/increase-liquidity
-     *
-     * @return _yieldAmount The amount of yield tokens deposited.
      */
-    function deposit(uint256 _amount[]) external returns (uint256 _yieldAmount[]);
+    function deposit(address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata yieldAmount_);
 
     /**
      * Harvest potential rewards from strategy. The rewards generated from the strategy
@@ -49,10 +47,8 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
      * ERC721 token.
      *
      * https://docs.uniswap.org/protocol/guides/providing-liquidity/collect-fees
-     *
-     * @return _returnAmount The amount of yield token harvested.
      */
-    function harvest() external returns (uint256 _returnAmount[]);
+    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Allows a staked user to exit their strategy position. For UV3, we will need to
@@ -63,10 +59,8 @@ interface IUniswapV3DoubleSidedLiquidityStrategy {
      * {NonfungiblePositionManager}.
      *
      * https://docs.uniswap.org/protocol/guides/providing-liquidity/decrease-liquidity
-     *
-     * @return _returnAmount The amount of underlying token claimed from exit.
      */
-    function exit(address _recipient, uint256 _amount[]) external returns (uint256 _returnAmount[]);
+    function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Emergency function to execute arbitrary call.

@@ -26,7 +26,7 @@ interface IStrategyFactory {
     /**
      * Provides a strategy struct at the stored index.
      */
-    function getStrategy(uint index) external returns (Strategy);
+    function getStrategy(uint index) external returns (Strategy memory);
 
     /**
      * Provides a list of all approved strategy structs.

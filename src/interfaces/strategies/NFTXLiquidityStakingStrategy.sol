@@ -1,11 +1,3 @@
-NFTXLiquidityStakingStrategy.sol
-_addLiquidityAndLock
-receiveRewards
-deposit
-exit
-
-
-
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
@@ -14,21 +6,21 @@ pragma solidity ^0.8.0;
 /**
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-interface INFTXLiquidityStakingStrategy is IBaseStrategy {
+interface INFTXLiquidityStakingStrategy {
 
     /**
      * Return the the address of the yield token.
      *
      * The reward yield token will be the token defined in the {LiquidityStaking} contract.
      */
-    function yieldToken() external view returns (address[]);
+    function yieldToken() external view returns (address[] calldata);
 
     /**
      * Return the the address of the underlying token.
      *
      * The underlying token will be a liquidity SLP as defined by the {LiquidityStaking} contract.
      */
-    function underlyingToken() external view returns (address[]);
+    function underlyingToken() external view returns (address[] calldata);
 
     /**
      * Deposit underlying token or yield token to corresponding strategy.
@@ -43,12 +35,8 @@ interface INFTXLiquidityStakingStrategy is IBaseStrategy {
      *   - If the pool currently has no liquidity, it will additionally
      *     initialise the pool
      * - We receive xSLP back to the strategy
-     *
-     * @param _amount The amount of token to deposit.
-     *
-     * @return _yieldAmount The amount of yield token deposited.
      */
-    function deposit(uint256 _amount[]) external returns (uint256 _yieldAmount[]);
+    function deposit(address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata yieldAmount_);
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
@@ -58,18 +46,14 @@ interface INFTXLiquidityStakingStrategy is IBaseStrategy {
      * - Get the vaultID from the underlying address
      * - LiquidityStaking.receiveRewards
      * - Distribute yield
-     *
-     * @return _returnAmount The amount of yield token harvested.
      */
-    function harvest() external returns (uint256 _returnAmount[]);
+    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
      * xSLP to retrieve all their underlying tokens.
-     *
-     * @return _returnAmount The amount of underlying token claimed from exit.
      */
-    function exit(address _recipient, uint256 _amount[]) external returns (uint256 _returnAmount[]);
+    function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Emergency function to execute arbitrary call.

@@ -35,14 +35,14 @@ interface IRewardsLedger {
     /**
      * Returns the address of the {Treasury} contract.
      */
-    function treasury() returns (address);
+    function treasury() external pure returns (address);
 
     /**
      * Allocated a set amount of a specific token to be accessible by the recipient. This
      * information will be stored in a {RewardToken}, either creating or updating the
      * struct.
      */
-    function allocate(address recipient, address token, uint amount) returns (uint available);
+    function allocate(address recipient, address token, uint amount) external returns (uint available);
 
     /**
      * These tokens are stored in the {Treasury}, but will be allowed access from
@@ -52,13 +52,13 @@ interface IRewardsLedger {
      * the respective token (which it always should) and has sufficient balance
      * in `available`.
      */
-    function claim(address token, uint amount) return (uint totalClaimed);
+    function claim(address token, uint amount) external returns (uint totalClaimed);
 
     /**
      * Allows our governance to pause rewards being claimed. This should be used
      * if an issue is found in the code causing incorrect rewards being distributed,
      * until a fix can be put in place.
      */
-    function pause(bool pause);
+    function pause(bool pause) external;
 
 }

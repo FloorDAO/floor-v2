@@ -6,21 +6,21 @@ pragma solidity ^0.8.0;
 /**
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-interface INFTXInventoryStakingStrategy is IBaseStrategy {
+interface INFTXInventoryStakingStrategy {
 
     /**
      * Return the the address of the yield token.
      *
      * The reward yield will be a vault xToken as defined by the InventoryStaking contract.
      */
-    function yieldToken() external view returns (address[]);
+    function yieldToken() external view returns (address[] calldata);
 
     /**
      * Return the the address of the underlying token.
      *
      * The underlying token will be the same as the address of the NFTX vault.
      */
-    function underlyingToken() external view returns (address[]);
+    function underlyingToken() external view returns (address[] calldata);
 
     /**
      * Deposit underlying token or yield token to corresponding strategy.
@@ -33,12 +33,8 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
-     *
-     * @param _amount The amount of token to deposit.
-     *
-     * @return _yieldAmount The amount of yield token deposited.
      */
-    function deposit(uint256 _amount[]) external returns (uint256 _yieldAmount[]);
+    function deposit(address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata yieldAmount_);
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
@@ -49,18 +45,14 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      * - Calculate the additional xToken held, above the staking token
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
-     *
-     * @return _returnAmount The amount of yield token harvested.
      */
-    function harvest() external returns (uint256 _returnAmount[]);
+    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
      * xToken to retrieve all their underlying tokens.
-     *
-     * @return _returnAmount The amount of underlying token claimed from exit.
      */
-    function exit(address _recipient, uint256 _amount[]) external returns (uint256 _returnAmount[]);
+    function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
     /**
      * Emergency function to execute arbitrary call.
