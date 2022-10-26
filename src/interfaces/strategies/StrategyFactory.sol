@@ -15,29 +15,15 @@ pragma solidity ^0.8.0;
 interface IStrategyFactory {
 
     /**
-     * Allows for our strategy contract address reference to be stored, along with
-     * a short name that better defines the strategy implementation.
+     * Provides a list of all approved strategy addresses.
      */
-    struct Strategy {
-        bytes32 name;
-        address contractAddr;
-    }
-
-    /**
-     * Provides a strategy struct at the stored index.
-     */
-    function getStrategy(uint index) external returns (Strategy memory);
-
-    /**
-     * Provides a list of all approved strategy structs.
-     */
-    function getStrategies() external returns (Strategy[] memory);
+    function getStrategies() external returns (address[] memory);
 
     /**
      * Approves a strategy contract to be used for vaults. The strategy must hold a defined
      * implementation and conform to the {IStrategy} interface.
      */
-    function approveStrategy(bytes32 name, address contractAddr) external;
+    function approveStrategy(address contractAddr) external;
 
     /**
      * Revokes a strategy from being eligible for a vault. This cannot be run if a

@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
 /**
  * @dev The Treasury will hold all assets.
  */
-
 interface ITreasury {
 
     /// @dev When native network token is withdrawn from the Treasury
@@ -26,6 +25,9 @@ interface ITreasury {
 
     /// @dev When an ERC721 token is withdrawn from the Treasury
     event WithdrawERC721(address token, uint tokenId);
+
+    /// @dev When multiplier pool has been updated
+    event MultiplierPoolUpdated(uint percent);
 
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
@@ -89,12 +91,8 @@ interface ITreasury {
      * | Reward Token   | 10                 |
      * +----------------+--------------------+
      *
-     *
-     * Questions:
-     *  - How will we determine a user's eligibility for rewards? Will the user need to have
-     *    had their token for a full rewards cycle? E.g. only users with a vault stake since
-     *    the last rewards claim will be eligible?
-     *  - Does Treasury mint and hold FLOOR token from rewards?
+     * A user will only be eligible if they have been staked for a complete
+     * rewards epoch
      */
     function distributeRewards() external;
 
@@ -107,6 +105,16 @@ interface ITreasury {
      * we can implement this!
      */
     function mint(uint amount) external;
+
+    /**
+     * Allows a trusted contract to mint floor based on the recorded token > Floor
+     * ratio. This will mean that we don't have to transact the token before
+     * running our calculations.
+     *
+     * @dev If the pricing is deemed stale, we will need to ensure that the pricing
+     * ratio is updated before minting.
+     */
+    function mintTokenFloor(address token, uint amount) external;
 
     /**
      * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
@@ -156,6 +164,24 @@ interface ITreasury {
     function setRetainedTreasuryYieldPercentage(uint percent) external;
 
     /**
+     * With simple inflation you have people voting for pools that are not necessarily good
+     * for yield. With a yield multiplier people will only benefit if they vote for vaults
+     * that are productive. Users could vote to distribute from a multiplier pool, say 200%,
+     * boost and split that multiplier across vaults in the GWV.
+     *
+     * The DAO can adjust the size of the multiplier pool.
+     *
+     * So if all users voted for the PUNK vault it'd have a 200% multiplier. This would act
+     * as ongoing inflation (tied to yield), which the DAO can adjust to target some overall
+     * inflation amount. Then treasury yield can be left in treasury and not redirected to
+     * vaults. The DAO can use that yield to do giveaways/promotions.
+     *
+     * So the treasury can have logic that allows us to set a multiplier pool and then a GWV
+     * mechanic can decide the distribution
+     */
+    function setPoolMultiplierPercentage(uint percent) external;
+
+    /**
      * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward
      * tokens will be distributed directly, otherwise they will be converted to FLOOR token
      * first and then distributed.
@@ -185,5 +211,10 @@ interface ITreasury {
      *   in direct comparison due to hops.
      */
      function getTokenFloorPrice(address token) external;
+
+    /**
+     * Will give the specified contract permissions to run trusted function calls.
+     */
+    function setTrustedContract(address contractAddr, bool trusted) external;
 
 }

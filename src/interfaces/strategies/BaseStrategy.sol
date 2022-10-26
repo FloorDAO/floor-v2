@@ -3,6 +3,14 @@
 pragma solidity ^0.8.0;
 
 
+/**
+ * Strategies will hold the logic for interacting with external platforms to stake
+ * and harvest reward yield. Each vault will require its own strategy implementation
+ * to allow for different immutable variables to be defined during construct.
+ *
+ * This will follow a similar approach to how NFTX offer their eligibility module
+ * logic, with a lot of the power coming from inheritence.
+ */
 interface IBaseStrategy {
 
     /// @dev When strategy receives a deposit
@@ -13,6 +21,11 @@ interface IBaseStrategy {
 
     /// @dev When a staked user exits their position
     event Exit(address token, uint amount);
+
+    /**
+     * Name of the strategy.
+     */
+    function name() external view returns (string);
 
     /**
      * Return the the address of the yield token.
