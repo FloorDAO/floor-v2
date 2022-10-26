@@ -25,7 +25,7 @@ interface IBaseStrategy {
     /**
      * Name of the strategy.
      */
-    function name() external view returns (string);
+    function name() external view returns (string memory);
 
     /**
      * Return the the address of the yield token.

@@ -32,7 +32,7 @@ interface IVaultFactory {
     /**
      * Creates a vault with an approved strategy and collection.
      */
-    function createVault(string memory _name, string memory _symbol, address _strategy, address _collection) returns (uint vaultId_, address vaultAddr_);
+    function createVault(string memory _name, string memory _symbol, address _strategy, address _collection) external returns (uint vaultId_, address vaultAddr_);
 
     /**
      * Allows our governance to pause vaults being create. This should be used

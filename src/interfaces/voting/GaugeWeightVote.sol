@@ -22,12 +22,12 @@ interface IGaugeWeightVote {
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
      */
-    function userVotingPower(address _user) returns (uint);
+    function userVotingPower(address _user) external view returns (uint);
 
     /**
      * A collection of votes that the user currently has placed.
      */
-    function userVotes(address _user) returns (address[] vault_, uint[] votes_);
+    function userVotes(address _user) external view returns (address[] memory vault_, uint[] memory votes_);
 
     /**
      * The total number of votes that a user has available, calculated by:
@@ -36,7 +36,7 @@ interface IGaugeWeightVote {
      * votesAvailable_ = balanceOf(_user) - SUM(userVotes.votes_)
      * ```
      */
-    function userVotesAvailable(address _user) returns (uint votesAvailable_);
+    function userVotesAvailable(address _user) external view returns (uint votesAvailable_);
 
     /**
      * Allows a user to cast a vote using their veFloor allocation. We don't
@@ -54,13 +54,13 @@ interface IGaugeWeightVote {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(uint vaultId, uint amount) external;
+    function vote(uint _vaultId, uint _amount) external returns (uint totalVotes_);
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
-    function revokeVote(uint[] vaultId) external;
+    function revokeVote(uint[] memory _vaultId, uint[] memory _amount) external returns (uint[] memory remainingVotes_);
 
     /**
      * The snapshot function will need to iterate over all vaults that have
@@ -99,6 +99,6 @@ interface IGaugeWeightVote {
      * percentage in the vault. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot() external returns (address[] vault_, uint[] percentage_);
+    function snapshot() external returns (address[] memory vault_, uint[] memory percentage_);
 
 }
