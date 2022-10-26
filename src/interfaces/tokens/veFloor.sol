@@ -39,6 +39,4 @@ interface IVeFLOOR is IERC20 {
    * token cannot be transferred or manipulated.
    */
 
-   function _afterTokenOperation(address _account, uint256 _newBalance) internal;
-
 }

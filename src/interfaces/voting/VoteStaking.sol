@@ -75,7 +75,7 @@ interface IVoteStaking {
     /**
      * Update global reward variables to calculate the accumulated veFloor per share.
      */
-    function updateRewardVars() public;
+    function updateRewardVars() external;
 
     /* --- */
 
