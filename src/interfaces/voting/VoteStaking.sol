@@ -23,11 +23,11 @@ interface IVoteStaking {
     /**
      * Wraps our users Floor into veFloor.
      */
-    function stake(address _to, uint256 _amount) external returns (uint256);
+    function stake(address _to, uint256 _amount) external returns (uint);
 
     /**
      * Unwraps a users veFloor to Floor.
      */
-    function unstake(address _to, uint256 _amount) external returns (uint256);
+    function unstake(address _to, uint256 _amount) external returns (uint);
 
 }
