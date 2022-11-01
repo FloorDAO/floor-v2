@@ -8,6 +8,9 @@ pragma solidity ^0.8.0;
  * optionally case it to a veFloor, which will use a constant value. As the
  * vaults will be rendered as an address, the veFloor vote will take a NULL
  * address value.
+ *
+ * At point of development this can take influence from:
+ * https://github.com/saddle-finance/saddle-contract/blob/master/contracts/tokenomics/gauges/GaugeController.vy
  */
 interface IGaugeWeightVote {
 

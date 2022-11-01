@@ -54,6 +54,9 @@ interface IRewardsLedger {
      * A user will be able to claim the token as long as the {Treasury} holds
      * the respective token (which it always should) and has sufficient balance
      * in `available`.
+     *
+     * If the user is claiming FLOOR token from the {Treasury}, then it will need
+     * to call the `mint` function as the {Treasury} won't hold it already.
      */
     function claim(address token, uint amount) external returns (uint totalClaimed);
 

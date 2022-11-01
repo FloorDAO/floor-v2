@@ -92,9 +92,10 @@ interface ITreasury {
      * +----------------+--------------------+
      *
      * A user will only be eligible if they have been staked for a complete
-     * rewards epoch
+     * rewards epoch. This needs to be validated to ensure that the epoch timelock
+     * has been surpassed.
      */
-    function distributeRewards() external;
+    function endEpoch() external;
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
@@ -216,5 +217,16 @@ interface ITreasury {
      * Will give the specified contract permissions to run trusted function calls.
      */
     function setTrustedContract(address contractAddr, bool trusted) external;
+
+    /**
+     * Returns the current pricing executor and reverts if none is set.
+     */
+    function getPricingExecutor() external returns (address);
+
+
+    /**
+     * Sets an updated pricing executor (needs to confirm an implementation function).
+     */
+    function setPricingExecutor(address) external;
 
 }

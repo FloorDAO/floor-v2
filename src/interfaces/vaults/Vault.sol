@@ -41,5 +41,4 @@ interface IVault {
      */
     function withdraw(uint256 amount, uint256[] calldata specificIds) external returns (uint256[] calldata);
 
-
 }

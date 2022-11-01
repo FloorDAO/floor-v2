@@ -33,7 +33,7 @@ interface IVeFLOOR is IERC20 {
 
   /**
    * Will need to implement the `_afterTokenOperation` ERC20 function so that whenever
-   * tokens are minted or burned, we
+   * tokens are minted or burned.
    *
    * We will also want to ensure that all other operations are reverted, so that the
    * token cannot be transferred or manipulated.

@@ -49,10 +49,10 @@ interface IBaseStrategy {
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
-     * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
-     * turn be made available in the {RewardsLedger}.
+     * will be handled Treasury and allocated as FLOOR (if not paused), which will in
+     * turn be made available to mint in the {RewardsLedger}.
      */
-    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
+    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_, uint256[] calldata treasuryReturnAmount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
