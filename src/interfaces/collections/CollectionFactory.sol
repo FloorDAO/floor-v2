@@ -11,8 +11,15 @@ pragma solidity ^0.8.0;
 
 interface ICollectionFactory {
 
+    /// Emitted when a collection is successfully approved
+    event CollectionApproved(address contractAddr);
+
+    /// Emitted when a collection has been successfully revoked
+    event CollectionRevoked(address contractAddr);
+
     /**
-     * Provides a collection struct at the stored index.
+     * Returns `true` if the contract address is an approved collection, otherwise
+     * returns `false`.
      */
     function isApproved(address contractAddr) external returns (bool);
 
