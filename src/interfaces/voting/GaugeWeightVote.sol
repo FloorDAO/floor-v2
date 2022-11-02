@@ -14,6 +14,15 @@ pragma solidity ^0.8.0;
  */
 interface IGaugeWeightVote {
 
+    /// Sent when voting is paused or unpaused
+    event VotingPaused(bool paused);
+
+    /// Sent when a user casts or revokes their vote
+    event VoteCast(uint vaultId, uint amount);
+
+    /// Sent when a snapshot is generated
+    event SnapshotCreated(address[] vault, uint[] percentage);
+
     /**
      * Mapping vault address -> voter address -> amount.
      *
@@ -103,5 +112,10 @@ interface IGaugeWeightVote {
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
     function snapshot() external returns (address[] memory vault_, uint[] memory percentage_);
+
+    /**
+     * Allows voting to be paused or unpaused on the contract.
+     */
+    function pauseVoting(bool paused) external;
 
 }
