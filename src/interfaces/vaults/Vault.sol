@@ -34,11 +34,11 @@ interface IVault {
     /**
      * Converts token to xToken.
      */
-    function deposit() external returns (uint256);
+    function deposit(uint amount) external returns (uint256);
 
     /**
      * Converts xToken to token.
      */
-    function withdraw(uint256 amount, uint256[] calldata specificIds) external returns (uint256[] calldata);
+    function withdraw(uint amount, uint[] calldata specificIds) external returns (uint256[] calldata);
 
 }
