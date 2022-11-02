@@ -54,7 +54,7 @@ contract VeFloorTest is Test {
     /**
      * Holders of veFloor should be able to burn their tokens.
      */
-    function testCanBurn() public {}
+    function testCanBurn(uint amount) public {}
 
     /**
      * Holders of veFloor should not be able to transfer the tokens. This should result
