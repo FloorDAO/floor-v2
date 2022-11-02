@@ -39,7 +39,7 @@ interface IUniswapV3PricingExecutor {
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrice(address token[]) external view returns (uint[]);
+    function getETHPrice(address[] memory token) external view returns (uint[] memory);
 
     /**
      * Gets our current mapped price of a token to FLOOR.
@@ -49,7 +49,7 @@ interface IUniswapV3PricingExecutor {
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrice(address token[]) external view returns (uint[]);
+    function getFloorPrice(address[] memory token) external view returns (uint[] memory);
 
     /**
      * Gets the timestamp of when the price was last updated by the executor.
@@ -70,6 +70,6 @@ interface IUniswapV3PricingExecutor {
      * To update the price, we will want to `observe` the `UniswapV3Pool`:
      * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
      */
-    function updatePrice(address token[]) external returns (uint[]);
+    function updatePrice(address[] memory token) external returns (uint[] memory);
 
 }
