@@ -21,7 +21,7 @@ interface IRewardsLedger {
      * Stored as mapping[recipient] = RewardToken[];
      */
     struct RewardToken {
-        address token;
+        address vault;
         uint available;
         uint totalClaimed;
     }
@@ -43,7 +43,7 @@ interface IRewardsLedger {
     /**
      * Allocated a set amount of a specific token to be accessible by the recipient. This
      * information will be stored in a {RewardToken}, either creating or updating the
-     * struct.
+     * struct. This can only be called by an approved caller.
      */
     function allocate(address recipient, address token, uint amount) external returns (uint available);
 
