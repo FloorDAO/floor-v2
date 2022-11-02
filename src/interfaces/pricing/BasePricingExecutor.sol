@@ -19,7 +19,7 @@ interface IBasePricingExecutor {
     /**
      * Name of the pricing executor.
      */
-     function name() external view returns (string memory);
+    function name() external view returns (string memory);
 
     /**
     * Returns `true` if the contract implements the pricing exector `interfaceID`, `false` otherwise.
