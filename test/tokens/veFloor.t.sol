@@ -62,8 +62,10 @@ contract VeFloorTest is Test {
      */
     function testCannotTransfer() public {}
 
-    function testCanSetStakingContract() public {}
-
+    /**
+     * When the token is minting or burnt, we should trigger operations to update our guage
+     * weight voting amounts.
+     */
     function testMintOrBurnTriggersOperation() public {}
 
 }
