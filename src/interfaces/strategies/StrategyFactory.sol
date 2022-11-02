@@ -14,10 +14,22 @@ pragma solidity ^0.8.0;
 
 interface IStrategyFactory {
 
+    /// Emitted when a strategy is successfully approved
+    event StrategyApproved(address contractAddr);
+
+    /// Emitted when a strategy has been successfully revoked
+    event StrategyRevoked(address contractAddr);
+
+    /**
+     * Returns `true` if the contract address is an approved strategy, otherwise
+     * returns `false`.
+     */
+    function isApproved(address contractAddr) external returns (bool);
+
     /**
      * Provides a list of all approved strategy addresses.
      */
-    function getStrategies() external returns (address[] memory);
+    function getApprovedStrategies() external returns (address[] memory);
 
     /**
      * Approves a strategy contract to be used for vaults. The strategy must hold a defined
