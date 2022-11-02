@@ -19,6 +19,9 @@ interface IVaultFactory {
     /// @dev Sent when a vault is created successfully
     event VaultCreated(uint256 indexed vaultId, address vaultAddress, address assetAddress);
 
+    /// @dev Sent when a vault is paused or unpaused
+    event VaultCreationPaused(bool paused);
+
     /**
      * Provides a list of all vaults created.
      */
@@ -35,7 +38,7 @@ interface IVaultFactory {
     function createVault(string memory _name, string memory _symbol, address _strategy, address _collection) external returns (uint vaultId_, address vaultAddr_);
 
     /**
-     * Allows our governance to pause vaults being create. This should be used
+     * Allows our governance to pause vaults being created. This should be used
      * if an issue is found in the code until a fix can be put in place.
      */
     function pause(bool pause) external;
