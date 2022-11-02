@@ -6,6 +6,7 @@ import './ERC20.sol';
 
 
 /**
+ * The veFloor token is heavily influenced by the {VeJoeToken} token:
  * https://snowtrace.io/address/0x3cabf341943Bc8466245e4d6F1ae0f8D071a1456#code
  */
 
