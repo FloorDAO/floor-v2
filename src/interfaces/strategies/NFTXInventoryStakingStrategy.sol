@@ -4,6 +4,13 @@ pragma solidity ^0.8.0;
 
 
 /**
+ * Supports an Inventory Staking position against a single NFTX vault. This strategy
+ * will hold the corresponding xToken against deposits.
+ *
+ * The contract will extend the {BaseStrategy} to ensure it conforms to the required
+ * logic and functionality. Only functions that have varied internal logic have been
+ * included in this interface with function documentation to explain.
+ *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 interface INFTXInventoryStakingStrategy {
@@ -46,7 +53,7 @@ interface INFTXInventoryStakingStrategy {
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
      */
-    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
+    function claimRewards() external returns (address token_, uint256 amount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding

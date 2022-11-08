@@ -97,9 +97,11 @@ interface ITreasury {
      */
     function endEpoch() external;
 
-    // Allows the treasury to extract the generated reward tokens from a number of
-    // strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
-    // to determine which token(s) should be transferred.
+    /**
+     * Allows the treasury to extract the generated reward tokens from a number of
+     * strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
+     * to determine which token(s) should be transferred.
+     */
     function extractFromStrategies(address[] strategies);
 
     /**
@@ -132,22 +134,22 @@ interface ITreasury {
      * Allows an ERC721 token to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
      */
-    function depositERC721(address token, uint amount) external;
+    function depositERC721(address token, uint tokenId) external;
 
     /**
      * Allows an approved user to withdraw native token.
      */
-    function withdraw() external;
+    function withdraw(uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC20 token from the vault.
      */
-    function withdrawERC20(address token) external;
+    function withdrawERC20(address token, uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC721 token from the vault.
      */
-    function withdrawERC721(address token) external;
+    function withdrawERC721(address token, uint tokenId) external;
 
     /**
      * Allows the RewardsLedger contract address to be set.
@@ -216,7 +218,7 @@ interface ITreasury {
      *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
      *   in direct comparison due to hops.
      */
-     function getTokenFloorPrice(address token) external;
+    function getTokenFloorPrice(address token) external;
 
     /**
      * Will give the specified contract permissions to run trusted function calls.
@@ -231,6 +233,19 @@ interface ITreasury {
     /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
-    function setPricingExecutor(address) external;
+    function setPricingExecutor(address contractAddr) external;
+
+    /**
+     * Deploys an instance of an approved strategy, allowing tokens and relative amounts to be
+     * provided that will fund the strategy.
+     *
+     * Treasury strategies are used to act as non-public DeFi pools that will (hopefully) increase
+     * vault value. FLOOR tokens will still be minted based on the retained treasury yield
+     * percentage, etc. just as a normal vault strategy would. The only difference is that only
+     * the {Treasury} will be able to participate.
+     *
+     * The returned address is the instance of the new strategy deployment.
+     */
+    function deployAndFundTreasuryStrategy(address strategyAddr, address[] token, uint[] amount) external returns (address);
 
 }

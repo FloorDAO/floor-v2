@@ -37,10 +37,4 @@ interface IVaultFactory {
      */
     function createVault(string memory _name, string memory _symbol, address _strategy, address _collection) external returns (uint vaultId_, address vaultAddr_);
 
-    /**
-     * Allows our governance to pause vaults being created. This should be used
-     * if an issue is found in the code until a fix can be put in place.
-     */
-    function pause(bool pause) external;
-
 }

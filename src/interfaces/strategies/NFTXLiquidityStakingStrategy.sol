@@ -4,6 +4,13 @@ pragma solidity ^0.8.0;
 
 
 /**
+ * Supports an Liquidity Staking position against a single NFTX vault. This strategy
+ * will hold the corresponding xSLP token against deposits.
+ *
+ * The contract will extend the {BaseStrategy} to ensure it conforms to the required
+ * logic and functionality. Only functions that have varied internal logic have been
+ * included in this interface with function documentation to explain.
+ *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 interface INFTXLiquidityStakingStrategy {
@@ -23,14 +30,16 @@ interface INFTXLiquidityStakingStrategy {
     function underlyingToken() external view returns (address[] calldata);
 
     /**
-     * Deposit underlying token or yield token to corresponding strategy.
+     * Deposit underlying token or yield token to corresponding strategy. This function expects
+     * that the SLP token will be deposited and will not facilitate double sided staking or
+     * handle the native chain token to balance the sides.
      *
      * Requirements:
      *  - Caller should make sure the token is already transfered into the strategy contract.
      *  - Caller should make sure the deposit amount is greater than zero.
      *
      * - Get the vault ID from the underlying address (vault address)
-     * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
+     * - LiquidityStaking.deposit(uint256 vaultId, uint256 _amount)
      *   - This deposit will be timelocked
      *   - If the pool currently has no liquidity, it will additionally
      *     initialise the pool

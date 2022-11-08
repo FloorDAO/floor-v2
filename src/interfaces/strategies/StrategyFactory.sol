@@ -27,11 +27,6 @@ interface IStrategyFactory {
     function isApproved(address contractAddr) external returns (bool);
 
     /**
-     * Provides a list of all approved strategy addresses.
-     */
-    function getApprovedStrategies() external returns (address[] memory);
-
-    /**
      * Approves a strategy contract to be used for vaults. The strategy must hold a defined
      * implementation and conform to the {IStrategy} interface.
      */

@@ -30,25 +30,6 @@ contract StrategyFactoryTest is Test {
     function testIsNotApproved() public {}
 
     /**
-     * When there are no approved strategies we should still be able
-     * to call our `strategies`, but it should just return
-     * an empty array.
-     */
-    function testGetApprovedStrategiesWhenEmpty() public {}
-
-    /**
-     * When there is only one approved strategy, we should just have
-     * a single item in an array returned.
-     */
-    function testGetApprovedStrategiesWithSingleStrategy() public {}
-
-    /**
-     * When we have multiple approved strategies, our response should
-     * be an array of items.
-     */
-    function testGetApprovedStrategiesWithMultipleStrategies() public {}
-
-    /**
      * We need to ensure that we can approve a fresh strategy.
      *
      * This should emit {StrategyApproved}.
