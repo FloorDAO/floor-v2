@@ -102,7 +102,7 @@ interface ITreasury {
      * strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
      * to determine which token(s) should be transferred.
      */
-    function extractFromStrategies(address[] strategies);
+    function extractFromStrategies(address[] calldata strategies) external;
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
@@ -115,9 +115,8 @@ interface ITreasury {
     function mint(uint amount) external;
 
     /**
-     * Allows a trusted contract to mint floor based on the recorded token > Floor
-     * ratio. This will mean that we don't have to transact the token before
-     * running our calculations.
+     * Allows us to mint floor based on the recorded token > Floor ratio. This will
+     * mean that we don't have to transact the token before running our calculations.
      *
      * @dev If the pricing is deemed stale, we will need to ensure that the pricing
      * ratio is updated before minting.
@@ -221,11 +220,6 @@ interface ITreasury {
     function getTokenFloorPrice(address token) external;
 
     /**
-     * Will give the specified contract permissions to run trusted function calls.
-     */
-    function setTrustedContract(address contractAddr, bool trusted) external;
-
-    /**
      * Returns the current pricing executor and reverts if none is set.
      */
     function getPricingExecutor() external returns (address);
@@ -246,6 +240,6 @@ interface ITreasury {
      *
      * The returned address is the instance of the new strategy deployment.
      */
-    function deployAndFundTreasuryStrategy(address strategyAddr, address[] token, uint[] amount) external returns (address);
+    function deployAndFundTreasuryStrategy(address strategyAddr, address[] calldata token, uint[] calldata amount) external returns (address);
 
 }

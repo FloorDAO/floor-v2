@@ -39,201 +39,184 @@ contract TreasuryTest is Test {
     /**
      * We should be able to mint floor against an unbacked token, as the token
      * can be held in an external platform as unclaimed reward yield.
+     *
+     * This should emit {FloorMinted}.
      */
     function canMintUnbackedTokenFloor() public {}
 
     /**
-     * TODO
+     * We want to internally validate to ensure that we don't attempt to mint
+     * the floor equivalent of 0 tokens. This expects a revert.
+     *
+     * This should not emit {FloorMinted}.
      */
     function cannotMintZeroTokenFloor() public {}
 
     /**
-     * TODO
+     * If we don't have an internally stored conversion price for token <=> floor
+     * then we won't be able to mint floor against the token. This expects a
+     * revert.
+     *
+     * This should not emit {FloorMinted}.
      */
     function cannotMintTokenFloorWithoutPrice() public {}
 
     /**
-     * TODO
+     * Our contract should be able to receive the native token of the chain.
+     *
+     * This should emit {Deposit}.
      */
     function canDepositNativeToken() public {}
 
     /**
-     * TODO
+     * We should be able to deposit any ERC20 token with varied amounts into
+     * the {Treasury}.
+     *
+     * This should emit {DepositERC20}.
      */
     function canDepositERC20() public {}
 
     /**
-     * TODO
-     */
-    function cannotDepositInvalidERC20() public {}
-
-    /**
-     * TODO
+     * We should be able to deposit any ERC721 token with varied amounts into
+     * the {Treasury}.
+     *
+     * This should emit {DepositERC721}.
      */
     function canDepositERC721() public {}
 
     /**
-     * TODO
-     */
-    function cannotDepositInvalidERC721() public {}
-
-    /**
-     * TODO
+     * Our contract should be able to withdraw the native token of the chain.
+     *
+     * This should emit {Withdraw}.
      */
     function canWithdrawNativeToken() public {}
 
     /**
-     * TODO
+     * Our withdraw function only wants to be available to a specific user role
+     * to ensure that not anyone can just rob us.
+     *
+     * This should not emit {Withdraw}.
      */
     function cannotWithdrawNativeTokenWithoutPermissions() public {}
 
     /**
-     * TODO
+     * We should be able to withdraw any ERC20 token with varied amounts from
+     * the {Treasury}.
+     *
+     * This should emit {WithdrawERC20}.
      */
     function canWithdrawERC20() public {}
 
     /**
-     * TODO
+     * If we don't have the ERC20 token, or hold insufficient tokens, then we
+     * expect a revert.
+     *
+     * This should not emit {WithdrawERC20}.
      */
     function cannotWithdrawInvalidERC20() public {}
 
     /**
-     * TODO
+     * If we don't have the right user role then we should not be able to transfer
+     * the token and we expect a revert.
+     *
+     * This should not emit {WithdrawERC20}.
      */
     function cannotWithdrawERC20WithoutPermissions() public {}
 
     /**
-     * TODO
+     * We should be able to withdraw any ERC721 token with varied amounts from
+     * the {Treasury}.
+     *
+     * This should emit {WithdrawERC721}.
      */
     function canWithdrawERC721() public {}
 
     /**
-     * TODO
+     * If we don't have the ERC721 token, or hold insufficient tokens, then we
+     * expect a revert.
+     *
+     * This should not emit {WithdrawERC721}.
      */
     function cannotWithdrawInvalidERC721() public {}
 
     /**
-     * TODO
+     * If we don't have the right user role then we should not be able to transfer
+     * the token and we expect a revert.
+     *
+     * This should not emit {WithdrawERC721}.
      */
     function cannotWithdrawERC721WithoutPermissions() public {}
 
     /**
-     * TODO
+     * We want to ensure that we can update the address of the {RewardsLedger}
+     * contract.
      */
     function canSetRewardsLedgerContract() public {}
 
     /**
-     * TODO
+     * We will need to validate the {RewardsLedger} address to ensure that we
+     * don't pass a `NULL` address value. We expect a revert.
      */
     function cannotSetRewardsLedgerContractNullValue() public {}
 
     /**
-     * TODO
+     * Only a `TreasuryManager` should be able to update our {RewardsLedger}
+     * address. If another user role calls this function then we expect it to
+     * be reverted.
      */
     function cannotSetRewardsLedgerContractWithoutPermissions() public {}
 
     /**
-     * TODO
+     * Gauge Weight Vote get/set.
      */
     function canSetGaugeWeightVoteContract() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetGaugeWeightVoteContractNullValue() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetGaugeWeightVoteContractWithoutPermissions() public {}
 
     /**
-     * TODO
+     * Retained Treasury Yield Percentage get/set.
      */
     function canSetRetainedTreasuryYieldPercentage() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetRetainedTreasuryYieldPercentageNullValue() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {}
 
     /**
-     * TODO
+     * Pool Multiplier Percentage get/set.
      */
     function canSetPoolMultiplierPercentage() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetPoolMultiplierPercentageNullValue() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetPoolMultiplierPercentageWithoutPermissions() public {}
 
     /**
-     * TODO
-     */
-    function canPauseFloorMinting() public {}
-
-    /**
-     * TODO
-     */
-    function cannotPauseFloorMintingWithoutPermissions() public {}
-
-    /**
-     * TODO
-     */
-    function canUnpauseFloorMinting() public {}
-
-    /**
-     * TODO
-     */
-    function canUnpauseFloorMintingWithoutPermissions() public {}
-
-    /**
-     * TODO
+     * We need to be able to get the equivalent floor token price of another token
+     * through using a known pricing executor. For the purposes of this test we can
+     * use a Mock.
      */
     function canGetTokenFloorPrice() public {}
 
     /**
-     * TODO
+     * We should not be able to get the token floor price of a token that UV3 does
+     * not recognise. In this case we expect our call to revert.
      */
     function cannotGetUnknownTokenFloorPrice() public {}
 
     /**
-     * TODO
-     */
-    function canSetTrustedContract() public {}
-
-    /**
-     * TODO
-     */
-    function cannotSetTrustedContractWithoutPermissions() public {}
-
-    /**
-     * TODO
+     * Pricing Executor get/set.
      */
     function canGetPricingExecutor() public {}
-
-    /**
-     * TODO
-     */
     function canSetPricingExecutor() public {}
-
-    /**
-     * TODO
-     */
     function cannotSetPricingExecutorWithoutPermissions() public {}
 
     /**
-     * TODO
+     * When the epoch ends, the {TreasuryManager} can call to end the epoch. This
+     * will generate FLOOR against the token rewards, determine the yield of the
+     * {Treasury} to generate additional FLOOR through `RetainedTreasuryYieldPercentage`.
+     *
+     * We will then need to reference this against the {RewardsLedger} and the
+     * {GaugeWeightVote} to confirm that all test users are allocated their correct
+     * share.
+     *
+     * This will be quite a large test. Brace yourselves!
      */
     function canEndEpoch() public {}
 
