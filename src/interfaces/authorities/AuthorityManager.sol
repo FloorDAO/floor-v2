@@ -11,7 +11,7 @@ pragma solidity ^0.8.0;
  *  - TreasuryManager - Access to Treasury asset management
  *  - VaultManager - Can create new vaults against approved strategies and collections
  *  - StrategyManager - Can approve strategy contracts to be used on vaults
- *  - CollectionManager - Can approve token IDs to be allowed to be used in vaults
+ *  - CollectionManager - Can approve token addresses to be allowed to be used in vaults
  *  - Governor - A likely DAO owned vote address to allow for wide scale decisions to be made and implemented
  *  - Guardian - Wallet address that will allow for Governor based actions, except without timeframe restrictions
  *

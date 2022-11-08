@@ -97,6 +97,11 @@ interface ITreasury {
      */
     function endEpoch() external;
 
+    // Allows the treasury to extract the generated reward tokens from a number of
+    // strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
+    // to determine which token(s) should be transferred.
+    function extractFromStrategies(address[] strategies);
+
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this
@@ -222,7 +227,6 @@ interface ITreasury {
      * Returns the current pricing executor and reverts if none is set.
      */
     function getPricingExecutor() external returns (address);
-
 
     /**
      * Sets an updated pricing executor (needs to confirm an implementation function).

@@ -25,9 +25,15 @@ interface IGaugeWeightVote {
 
     /**
      * Mapping vault address -> voter address -> amount.
+     * Mapping vault address -> total amount.
      *
      * We will need to maintain an internal structure to map the voters against
-     * a vault address, so that we can iterate over it to find total vote counts.
+     * a vault address so that we can determine vote growth and reallocation. We
+     * will additionally maintain a mapping of vault address to total amount that
+     * will better allow for snapshots to be taken for less gas.
+     *
+     * This will result in a slightly increased write, to provide a greatly
+     * reduced read.
      */
 
     /**

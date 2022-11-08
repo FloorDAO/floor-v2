@@ -80,14 +80,15 @@ contract VaultTest is Test {
      */
     function testCannotSendETH() public {}
 
-    /*---------- DO WE NEED THE BELOW OR JUST EXIT LOGIC? -----------*/
+    /**
+     * A sender should be able to withdraw fully from their staked position.
+     */
+    function testCanWithdrawPartially(uint amount) public {}
 
     /**
-     * A sender should be able to withdraw from their staked position.
-     *
-     * Q: Should this only allow for exiting a position?
+     * A sender should be able to withdraw partially from their staked position.
      */
-    function testCanWithdraw(uint amount) public {}
+    function testCanWithdrawFully(uint amount) public {}
 
     /**
      * A sender should be able to make multiple withdrawal calls.

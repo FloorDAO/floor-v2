@@ -54,16 +54,4 @@ interface INFTXInventoryStakingStrategy {
      */
     function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
 
-    /**
-     * Emergency function to execute arbitrary call.
-     *
-     * This function should be only used in case of emergency. It should never be called explicitly
-     * in any contract in normal case, and should only be available to guardian or governor.
-     *
-     * @param _to The address of target contract to call.
-     * @param _value The value passed to the target contract.
-     * @param _data The calldata pseed to the target contract.
-     */
-    function execute(address _to, uint256 _value, bytes calldata _data) external payable returns (bool, bytes memory);
-
 }

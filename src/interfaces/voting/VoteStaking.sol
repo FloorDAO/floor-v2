@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 /**
  * veFloorStaking will act as a pool, allowing users to stake their FLOOR to receive
- * veFLOOR. This allocation will allow for increased claimable veFLOOR over a defined
+ * veFLOOR. This allocation will allow for increased veFLOOR voting power over a defined
  * time period, with more available as a longer duration is staked for.
  *
  * veFLOOR cannot be transferred, only minted or burnt. When either of these actions are
@@ -21,11 +21,6 @@ pragma solidity ^0.8.0;
  * https://snowtrace.io/address/0x1bf56b7c132b5cc920236ae629c8a93d9e7831e7#code
  */
 interface IVoteStaking {
-
-    /**
-     * Sent when a user claims veFloor.
-     */
-    event Claim(address indexed user, uint256 amount);
 
     /**
      * Sent when the user stakes Floor for veFloor.
@@ -51,8 +46,7 @@ interface IVoteStaking {
     event UpdateRewardVars(uint256 lastRewardTimestamp, uint256 accVeFloorPerShare);
 
     /**
-     * Deposits Floor to start staking for veFloor. Note that any pending veFloor
-     * should also be claimed in the process.
+     * Deposits Floor to start staking for veFloor.
      */
     function stake(uint _amount) external returns (uint);
 
@@ -63,21 +57,9 @@ interface IVoteStaking {
     function unstake(uint _amount) external returns (uint);
 
     /**
-     * Claim any pending veFloor for the user.
-     */
-    function claim(address _user) external;
-
-    /**
-     * Get the pending amount of veFloor for a given user.
-     */
-    function claimAvailable(address _user) external returns (uint);
-
-    /**
      * Update global reward variables to calculate the accumulated veFloor per share.
      */
     function updateRewardVars() external;
-
-    /* --- */
 
     /**
      * Sets the max cap percentage; used to determine veFloor gain.

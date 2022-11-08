@@ -20,32 +20,32 @@ interface IVeFLOOR is IERC20 {
     event Burn(address indexed account, uint256 value);
     event Mint(address indexed beneficiary, uint256 value);
 
-  /**
-   * Gets the address of the current staking contract attached to the ERC20.
-   */
-  function stakingContract() external view returns (address);
+    /**
+     * Gets the address of the current staking contract attached to the ERC20.
+     */
+    function stakingContract() external view returns (address);
 
-  /**
-   * Creates `_amount` token to `_to`. Must only be called by the owner
-   */
-  function mint(address to_, uint256 amount_) external;
+    /**
+     * Creates `_amount` token to `_to`. Must only be called by the owner
+     */
+    function mint(address to_, uint256 amount_) external;
 
-  /**
-   * Destroys `_amount` tokens from `_from`. Callable only by the owner
-   */
-  function burn(address _from, uint _amount) external;
+    /**
+     * Destroys `_amount` tokens from `_from`. Callable only by the owner
+     */
+    function burn(address _from, uint _amount) external;
 
-  /**
-   * Sets the address of the staking contract that this token updates.
-   */
-  function setStakingContract(address _contractAddr) external;
+    /**
+     * Sets the address of the staking contract that this token updates.
+     */
+    function setStakingContract(address _contractAddr) external;
 
-  /**
-   * Will need to implement the `_afterTokenOperation` ERC20 function so that whenever
-   * tokens are minted or burned.
-   *
-   * We will also want to ensure that all other operations are reverted, so that the
-   * token cannot be transferred or manipulated.
-   */
+    /**
+     * Will need to implement the `_afterTokenOperation` ERC20 function so that whenever
+     * tokens are minted or burned.
+     *
+     * We will also want to ensure that all other operations are reverted, so that the
+     * token cannot be transferred or manipulated.
+     */
 
 }

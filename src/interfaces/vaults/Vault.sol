@@ -6,11 +6,6 @@ pragma solidity ^0.8.0;
 interface IVault {
 
     /**
-     * @dev This vault will additionally implement the interface of the ERC20 standard
-     * as defined in the EIP. This ERC20 token will be used as an xVault token.
-     */
-
-    /**
      * Gets the contract address for the vault collection. Only assets from this contract
      * will be able to be deposited into the contract.
      */
@@ -32,13 +27,14 @@ interface IVault {
     function vaultId() external view returns (uint256);
 
     /**
-     * Converts token to xToken.
+     * Allows the user to deposit an amount of tokens that the approved {Collection} and
+     * passes it to the {Strategy} to be staked.
      */
     function deposit(uint amount) external returns (uint256);
 
     /**
-     * Converts xToken to token.
+     * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint amount, uint[] calldata specificIds) external returns (uint256[] calldata);
+    function withdraw(uint amount) external returns (uint256);
 
 }

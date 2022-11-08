@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
-contract CollectionFactoryTest is Test {
+contract CollectionRegistryTest is Test {
 
     /**
-     * Deploys our CollectionFactory. We don't set up any approved
+     * Deploys our CollectionRegistry. We don't set up any approved
      * collections at this point, as we want to allow tests to have
      * control over the state.
      *
@@ -28,25 +28,6 @@ contract CollectionFactoryTest is Test {
      * return `false`.
      */
     function testIsNotApproved() public {}
-
-    /**
-     * When there are no approved collections we should still be able
-     * to call our `getApprovedCollections`, but it should just return
-     * an empty array.
-     */
-    function testGetApprovedCollectionsWhenEmpty() public {}
-
-    /**
-     * When there is only one approved collection, we should just have
-     * a single item in an array returned.
-     */
-    function testGetApprovedCollectionsWithSingleCollection() public {}
-
-    /**
-     * When we have multiple approved collections, our response should
-     * be an array of items.
-     */
-    function testGetApprovedCollectionsWithMultipleCollections() public {}
 
     /**
      * We need to ensure that we can approve a fresh collection.
