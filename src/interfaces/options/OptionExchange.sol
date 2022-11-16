@@ -91,7 +91,7 @@ interface IOptionExchange {
      * Provides the `OptionPool` struct data. If the index cannot be found, then we
      * will receive an empty response.
      */
-    function getOptionPool(uint poolId) external returns (OptionPool);
+    function getOptionPool(uint poolId) external returns (OptionPool memory);
 
     /**
      * Starts the process of our allocation generation; sending a request to a specified

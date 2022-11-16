@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import '@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol';
-import '@openzeppelin/contracts/token/ERC721/IERC721Enumerable.sol';
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
+import '@openzeppelin/contracts/interfaces/IERC721Metadata.sol';
+import '@openzeppelin/contracts/interfaces/IERC721Enumerable.sol';
 
 
 /**

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import './BaseStrategy.sol';
+
 
 /**
  * Supports an Inventory Staking position against a single NFTX vault. This strategy
