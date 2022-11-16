@@ -13,7 +13,7 @@ pragma solidity ^0.8.0;
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-interface INFTXLiquidityStakingStrategy {
+interface INFTXLiquidityStakingStrategy is IBaseStrategy {
 
     /**
      * Return the the address of the yield token.
