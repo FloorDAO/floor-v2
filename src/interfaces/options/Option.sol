@@ -48,6 +48,9 @@ interface IOptionERC721 is IERC721, IERC721Metadata, IERC721Enumerable {
      * Outputs a dynamically generated SVG image, representative of the Option NFT in it's
      * current state.
      *
+     * When developing this logic, we should look at the libraries that UniSwap have published
+     * from their recent V3 NFT work that simplify onchain SVG generation.
+     *
      * @param tokenId The ID of the token that is being referrenced
      */
     function generateSVG(uint tokenId) external view;

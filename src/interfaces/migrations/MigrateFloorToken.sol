@@ -6,13 +6,18 @@ pragma solidity ^0.8.0;
 interface IMigrateFloorToken {
 
     /**
-     * Burn FLOOR v1 tokens for FLOOR v2 tokens.
+     * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
+     * V1 tokens in our test suites that should be accept. These include a, g and
+     * s floor variants.
+     *
+     * This should provide a 1:1 V1 burn > V2 mint of tokens.
+     *
+     * The balance of all tokens will be attempted to be migrated, so 4 full approvals
+     * should be made prior to calling this contract function.
+     *
+     * @param stake The sender can optionally choose to stake their tokens, automatically
+     * staking their V2 floor token in the same transaction
      */
-    function upgradeFloorToken(uint amount) external;
-
-    /**
-     * Burn FLOOR v1 tokens for Treasury assets.
-     */
-    function redeemTreasuryAssets() external;
+    function upgradeFloorToken(bool stake) external;
 
 }

@@ -3,6 +3,26 @@
 pragma solidity ^0.8.0;
 
 
+/**
+ * The {OptionExchange} will allow FLOOR to be burnt to redeem treasury assets.
+ * This is important to allow us to balance token value against treasury backed
+ * assets that are accumulated.
+ *
+ * Our {OptionExchange} will allow a {TreasuryManager} to transfer an ERC20 from
+ * the {Treasury} and create an `OptionPool` with a defined available amount,
+ * maximum discount and expiry timestamp.
+ *
+ * With a pool, we can then hit an API via ChainLink to generate a range of random
+ * `OptionAllocation`s that will provide the lucky recipient with access to burn
+ * their FLOOR tokens for allocated treasury assets at a discount. This discount
+ * will be randomly assigned and user's will receive a maximum of one option per
+ * pool allocation.
+ *
+ * We hit an external API as Solidity randomness is not random.
+ *
+ * Further information about this generation is outlined in the `generateAllocations`
+ * function documentation.
+ */
 interface IOptionExchange {
 
     /**
@@ -67,11 +87,9 @@ interface IOptionExchange {
     event OptionPoolCreated(uint poolId);
 
     /// @dev Emitted when an `OptionPool` has been depleted through either through all
-    /// options being actioned or after it has expired and it has been withdrawn.
-    ///
-    /// Since the pool is currently planned to be deleted at this point, what variables
-    /// would we want to send back instead? Or would we want to persist the pool?
-    event OptionPoolClosed();
+    /// options being actioned or after it has expired and it has been withdrawn. This
+    /// will not be emitted purely at point of expiry.
+    event OptionPoolClosed(uint poolId);
 
     /// @dev Emitted when our $LINK balance drops below a set threshold
     event LinkBalanceLow(uint remainingBalance);
@@ -205,8 +223,8 @@ interface IOptionExchange {
      * creation this will be sent to a 0x0 NULL address to burn the token, but can be
      * updated via the `setFloorRecipient` function.
      *
-     * If there is no remaining amount in the `OptionPool`, then the `OptionPool` should
-     * be deleted for gas saves. This would emit the {OptionPoolClosed} event.
+     * If there is no remaining amount in the `OptionPool`, then the `OptionPool` will
+     * not be deleted for historical purposes, but would emit the {OptionPoolClosed} event.
      */
     function action(uint tokenId, uint floorIn, uint tokenOut, uint approvedMovement) external;
 
@@ -240,12 +258,11 @@ interface IOptionExchange {
     /**
      * After an `OptionPool` has expired, any remaining token amounts can be transferred
      * back to the {Treasury} using this function. We must first ensure that it has expired
-     * before performing this transaction. The pool structure will be deleted in this call
-     * for gas saves.
+     * before performing this transaction.
      *
-     * This would emit this {OptionPoolClosed} event.
+     * This will emit this {OptionPoolClosed} event.
      *
-     * If there is substantial assets remaining, we can bypass our `withdraw` call and
+     * If there is substantial assets remaining, we could bypass our `withdraw` call and
      * instead just call `createPool` again with the same token referenced.
      */
     function withdraw(uint poolId) external;
