@@ -4,7 +4,26 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 
+import '../../src/contracts/authorities/AuthorityManager.sol';
+import '../../src/contracts/collections/CollectionRegistry.sol';
+import '../utilities/Utilities.sol';
+
+
 contract CollectionRegistryTest is Test {
+
+    // Our authority manager will be global as most tests will use it
+    AuthorityManager authorityManager;
+    CollectionRegistry collectionRegistry;
+    Utilities utilities;
+
+    // Set up a small collection of users to test with
+    address alice;
+
+    // Set up a range of addresses to test with
+    address internal USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal DAI  = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address internal SHIB = 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE;
 
     /**
      * Deploys our CollectionRegistry. We don't set up any approved
@@ -14,27 +33,46 @@ contract CollectionRegistryTest is Test {
      * We can, however, define a number of set valid addresses that
      * we can subsequently reference.
      */
-    function setUp() public {}
+    function setUp() public {
+        authorityManager = new AuthorityManager();
+        collectionRegistry = new CollectionRegistry();
+
+        // Set up our utilities class
+        utilities = new Utilities();
+
+        // Set up a small pool of test users
+        address payable[] memory users = utilities.createUsers(1, 100 ether);
+        alice = users[0];
+    }
 
     /**
      * Confirms that an approved collection can be queried to return
      * a `true` response. This will mean that the test has to first
      * call `approveCollection` before we can check.
      */
-    function testIsApproved() public {}
+    function test_IsApproved() public {
+        collectionRegistry.approveCollection(USDC);
+        assertTrue(collectionRegistry.isApproved(USDC));
+    }
 
     /**
      * When a collection is not approved, we want the response to
      * return `false`.
      */
-    function testIsNotApproved() public {}
+    function test_IsNotApproved() public {
+        assertFalse(collectionRegistry.isApproved(SHIB));
+    }
 
     /**
      * We need to ensure that we can approve a fresh collection.
      *
      * This should emit {CollectionApproved}.
      */
-    function testApproveCollection() public {}
+    function test_ApproveCollection() public {
+        assertFalse(collectionRegistry.isApproved(DAI));
+        collectionRegistry.approveCollection(DAI);
+        assertTrue(collectionRegistry.isApproved(DAI));
+    }
 
     /**
      * We should have validation when approving a collection to ensure
@@ -42,7 +80,10 @@ contract CollectionRegistryTest is Test {
      *
      * This should not emit {CollectionApproved}.
      */
-    function testApproveNullAddressCollection() public {}
+    function test_ApproveNullAddressCollection() public {
+        vm.expectRevert('Cannot approve NULL collection');
+        collectionRegistry.approveCollection(address(0));
+    }
 
     /**
      * If a collection is already approved, if we try and approve it
@@ -50,7 +91,10 @@ contract CollectionRegistryTest is Test {
      *
      * This should not emit {CollectionApproved}.
      */
-    function testApproveAlreadyApprovedCollection() public {}
+    function test_ApproveAlreadyApprovedCollection() public {
+        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.approveCollection(USDC);
+    }
 
     /**
      * There should be no difference between approving a collection
@@ -58,7 +102,11 @@ contract CollectionRegistryTest is Test {
      *
      * This should emit {CollectionApproved}.
      */
-    function testApprovePreviouslyRevokedCollection() public {}
+    function test_ApprovePreviouslyRevokedCollection() public {
+        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.revokeCollection(USDC);
+        collectionRegistry.approveCollection(USDC);
+    }
 
     /**
      * Only addresses that have been granted the `CollectionManager`
@@ -67,7 +115,10 @@ contract CollectionRegistryTest is Test {
      *
      * This should not emit {CollectionApproved}.
      */
-    function testCannotApproveCollectionWithoutPermissions() public {}
+    function testFail_CannotApproveCollectionWithoutPermissions() public {
+        vm.prank(alice);
+        collectionRegistry.approveCollection(USDC);
+    }
 
     /**
      * We should ensure that we can revoke a collection that has
@@ -75,7 +126,10 @@ contract CollectionRegistryTest is Test {
      *
      * This should emit {CollectionRevoked}.
      */
-    function testRevokeCollection() public {}
+    function test_RevokeCollection() public {
+        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.revokeCollection(USDC);
+    }
 
     /**
      * If a collection has not already been approved, then trying
@@ -84,7 +138,9 @@ contract CollectionRegistryTest is Test {
      *
      * This should not emit {CollectionRevoked}.
      */
-    function testRevokeUnapprovedCollection() public {}
+    function test_RevokeUnapprovedCollection() public {
+        collectionRegistry.revokeCollection(USDC);
+    }
 
     /**
      * Only addresses that have been granted the `CollectionManager`
@@ -93,12 +149,17 @@ contract CollectionRegistryTest is Test {
      *
      * This should not emit {CollectionRevoked}.
      */
-    function testCannotRevokeCollectionWithoutPermissions() public {}
+    function testFail_CannotRevokeCollectionWithoutPermissions() public {
+        vm.prank(alice);
+        collectionRegistry.revokeCollection(USDC);
+    }
 
     /**
      * If an approved collection is being used by a vault, then we
      * should be reverted when if try to revoke it.
      */
-    function testRevokeCollectionUsedByVault() public {}
+    function test_RevokeCollectionUsedByVault() public {
+        // Coming soon..
+    }
 
 }

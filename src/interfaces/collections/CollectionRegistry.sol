@@ -22,7 +22,7 @@ interface ICollectionRegistry {
      * Returns `true` if the contract address is an approved collection, otherwise
      * returns `false`.
      */
-    function isApproved(address contractAddr) external returns (bool);
+    function isApproved(address contractAddr) external view returns (bool);
 
     /**
      * Approves a collection contract to be used for vaults.
