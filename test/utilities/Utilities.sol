@@ -16,6 +16,8 @@ contract Utilities is DSTest {
     Vm internal immutable vm = Vm(HEVM_ADDRESS);
     bytes32 internal nextUser = keccak256(abi.encodePacked('user address'));
 
+    address public deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
+
     /**
      * Generates a new user address that we can use.
      */
@@ -39,7 +41,7 @@ contract Utilities is DSTest {
             user = this.getNextUserAddress();
 
             // Provide the user with initial funds
-            if (initialFunds) {
+            if (initialFunds > 0) {
                 vm.deal(user, initialFunds);
             }
 
