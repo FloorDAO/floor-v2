@@ -11,6 +11,12 @@ import '../utilities/Utilities.sol';
 
 contract CollectionRegistryTest is Test {
 
+    /// Emitted when a collection is successfully approved
+    event CollectionApproved(address contractAddr);
+
+    /// Emitted when a collection has been successfully revoked
+    event CollectionRevoked(address contractAddr);
+
     // Our authority manager will be global as most tests will use it
     AuthorityManager authorityManager;
     CollectionRegistry collectionRegistry;
@@ -69,8 +75,18 @@ contract CollectionRegistryTest is Test {
      * This should emit {CollectionApproved}.
      */
     function test_ApproveCollection() public {
+        // Confirm that we start in an unapproved state
         assertFalse(collectionRegistry.isApproved(DAI));
+
+        // Confirm that we are firing our collection event when our
+        // collection is approved.
+        vm.expectEmit(true, true, false, true, address(collectionRegistry));
+        emit CollectionApproved(DAI);
+
+        // Approve the DAI collection
         collectionRegistry.approveCollection(DAI);
+
+        // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
     }
 
@@ -105,6 +121,12 @@ contract CollectionRegistryTest is Test {
     function test_ApprovePreviouslyRevokedCollection() public {
         collectionRegistry.approveCollection(USDC);
         collectionRegistry.revokeCollection(USDC);
+
+        // Confirm that we are firing our collection event when our
+        // collection is re-approved.
+        vm.expectEmit(true, true, false, true, address(collectionRegistry));
+        emit CollectionApproved(USDC);
+
         collectionRegistry.approveCollection(USDC);
     }
 
@@ -128,6 +150,10 @@ contract CollectionRegistryTest is Test {
      */
     function test_RevokeCollection() public {
         collectionRegistry.approveCollection(USDC);
+
+        vm.expectEmit(true, true, false, true, address(collectionRegistry));
+        emit CollectionRevoked(USDC);
+
         collectionRegistry.revokeCollection(USDC);
     }
 
