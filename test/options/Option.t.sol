@@ -10,20 +10,20 @@ contract OptionTest is Test {
      * Our token expands upon the ERC721 standard, so we need to ensure that
      * we can still access the inherited ERC721 attributes as expected.
      */
-    function canAccessStandardERC721Attributes() public {}
+    function testCanAccessStandardERC721Attributes() public {}
 
     /**
      * Our ERC721 has range of functions that provide access to the relevant
      * Option information. These should all return the correct, expected
      * information.
      */
-    function canGetOptionAttributes() public {}
+    function testCanGetOptionAttributes() public {}
 
     /**
      * When our option is updated, our functions should read the updated
      * information and not return anything stale.
      */
-    function canGetOptionAttributesAfterOptionUpdated() public {}
+    function testCanGetOptionAttributesAfterOptionUpdated() public {}
 
     /**
      * When specifying an unknown token ID, we should not be able to access a
@@ -31,7 +31,7 @@ contract OptionTest is Test {
      *
      * We expect in each instance for these calls to be reverted.
      */
-    function cannotGetUnknownOptionAttributes() public {}
+    function testCannotGetUnknownOptionAttributes() public {}
 
     /**
      * Our Option token should be able to generate a dynamic SVG using it's own
@@ -41,19 +41,19 @@ contract OptionTest is Test {
      * string against the output. We should look at potential ways that we can
      * cherry pick some returned data to test against.
      */
-    function canGenerateDynamicSVG() public {}
+    function testCanGenerateDynamicSVG() public {}
 
     /**
      * When our ERC721 has been fully actioned, then we should be able to burn
      * it.
      */
-    function canBurnAFullyActionedOption() public {}
+    function testCanBurnAFullyActionedOption() public {}
 
     /**
      * When our ERC721 has not been fully actioned and still has an amount
      * remaining inside of it, then we should not be able to burn it. We
      * should expect a revert when trying.
      */
-    function cannotBurnAnOptionWithRemainingBalance() public {}
+    function testCannotBurnAnOptionWithRemainingBalance() public {}
 
 }
