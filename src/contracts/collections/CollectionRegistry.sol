@@ -9,7 +9,10 @@ import '../../interfaces/collections/CollectionRegistry.sol';
 
 
 /**
- *
+ * Allows collection contracts to be approved and revoked by addresses holding the
+ * {CollectionManager} role. Only once approved can these collections be applied to
+ * new or existing vaults. They will only need to be stored as a mapping of address
+ * to boolean.
  */
 contract CollectionRegistry is AuthorityManager, ICollectionRegistry {
 
