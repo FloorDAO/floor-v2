@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/utils/Strings.sol';
-
 import 'forge-std/Test.sol';
 
 import '../../src/contracts/authorities/AuthorityManager.sol';
@@ -11,6 +9,7 @@ import '../utilities/Utilities.sol';
 
 
 contract AuthorityManagerTest is Test {
+
     // Set up an unknown role for use in tests
     bytes32 private constant UNKNOWN = keccak256('Unknown');
 
