@@ -19,7 +19,7 @@ contract MigrationFloorTokenTest is Test {
      *
      * The Floor V1 tokens should be burnt.
      */
-    function canMigrateAllAcceptedV1TokensToV2() public {}
+    function testCanMigrateAllAcceptedV1TokensToV2() public {}
 
     /**
      * A user needs to be able to upgrade a partial amount of
@@ -28,7 +28,7 @@ contract MigrationFloorTokenTest is Test {
      *
      * The Floor V1 tokens should be burnt.
      */
-    function canPartiallyUpgradeFloorTokenToV2() public {}
+    function testCanPartiallyUpgradeFloorTokenToV2() public {}
 
     /**
      * A user needs to be able to upgrade their entire V1 balance
@@ -36,19 +36,19 @@ contract MigrationFloorTokenTest is Test {
      *
      * The Floor V1 tokens should be burnt.
      */
-    function canFullyUpgradeFloorTokenToV2(uint amount) public {}
+    function testCanFullyUpgradeFloorTokenToV2(uint amount) public {}
 
     /**
      * If a user does not have a sufficient Floor V1 token balance
      * then the transaction should be reverted.
      */
-    function cannotUpgradeWithInsufficientBalance() public {}
+    function testCannotUpgradeWithInsufficientBalance() public {}
 
     /**
      * If a user has not approved the contract to handle their
      * Floor V1 tokens, then the transaction should be reverted.
      */
-    function cannotUpgradeIfNotApproved() public {}
+    function testCannotUpgradeIfNotApproved() public {}
 
     /**
      * If a user opts to, they can additionally automatically stake
@@ -56,6 +56,6 @@ contract MigrationFloorTokenTest is Test {
      * result in veFloor being transferred for the user in addition
      * to receiving their Floor.
      */
-    function canStakeMigratedFloor() public {}
+    function testCanStakeMigratedFloor() public {}
 
 }
