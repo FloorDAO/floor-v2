@@ -109,4 +109,9 @@ interface IAuthorityManager {
      */
     function renounceRole(bytes32 role) external;
 
+    /**
+     * A helper function to check if a role currently exists in the system.
+     */
+    function roleExists(bytes32 role) external view returns (bool);
+
 }
