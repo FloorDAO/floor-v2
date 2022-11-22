@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.0;
 
+import '../../interfaces/pricing/BasePricingExecutor.sol';
+import '../../interfaces/uniswap/Quoter.v3.sol';
+
 
 /**
  * The Uniswap pricing executor will query either a singular token or multiple
@@ -15,31 +18,46 @@ pragma solidity ^0.8.0;
  * We will also find the spot price of the FLOOR:ETH pool so that we can calculate
  * TOKEN -> FLOOR via ETH as an interim.
  */
-interface IUniswapV3PricingExecutor {
+contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
-    /// @dev When a token price is updated
-    event TokenPriceUpdated(address token, uint amount);
+    Quoter public immutable uniswapV3Quoter;
+    address public immutable floor;
+
+    /// Quoter: 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
+    /// Floor: TBC
+    constructor (address _quoter, address _floor) {
+        uniswapV3Quoter = Quoter(_quoter);
+        floor = _floor;
+    }
 
     /**
      * Name of the pricing executor.
      */
-    function name() external view returns (string memory);
+    function name() external view returns (string memory) {
+        return 'UniswapV3PricingExecutor';
+    }
 
     /**
     * Returns `true` if the contract implements the pricing exector `interfaceID`, `false` otherwise.
     * @param interfaceID The interface identifier
     */
-    function supportsInterface(bytes4 interfaceID) external view returns (bool);
+    function supportsInterface(bytes4 interfaceID) external view returns (bool) {
+        return interfaceId == type(IBasePricingExecutor).interfaceId || super.supportsInterface(interfaceId);
+    }
 
     /**
      * Gets our current mapped price of a token to ETH.
      */
-    function getETHPrice(address token) external view returns (uint);
+    function getETHPrice(address token) external view returns (uint) {
+        uniswapV3Quoter.quoteExactInput(buildETHPath(token), 1 ether);
+    }
 
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrice(address[] memory token) external view returns (uint[] memory);
+    function getETHPrice(address[] memory token) external view returns (uint[] memory) {
+        //
+    }
 
     /**
      * Gets our current mapped price of a token to FLOOR.
@@ -71,5 +89,23 @@ interface IUniswapV3PricingExecutor {
      * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
      */
     function updatePrice(address[] memory token) external returns (uint[] memory);
+
+    function buildETHPath(address token) internal returns (bytes) {
+        return bytes.concat(
+            bytes20(token),  // Token
+            bytes3(uint24(60)), // Tick size
+            bytes20(0x2170ed0880ac9a755fd29b2688956bd959f933f8)  // ETH
+        );
+    }
+
+    function buildFloorPath(address token) internal returns (bytes) {
+        return bytes.concat(
+            bytes20(token),  // Token
+            bytes3(uint24(60)), // Tick size
+            bytes20(0x2170ed0880ac9a755fd29b2688956bd959f933f8),  // ETH
+            bytes3(uint24(60)), // Tick size
+            bytes20(floor)  // Token
+        );
+    }
 
 }
