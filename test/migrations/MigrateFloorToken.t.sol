@@ -137,27 +137,41 @@ contract MigrateFloorTokenTest is FloorTest {
     function assertTokenTransfer(address _token, address _account, uint _output, bool _approved) private returns (uint) {
         IERC20 token = IERC20(_token);
 
+        // We want to capture our user's initial balances
         uint initialBalance = token.balanceOf(_account);
         uint initialNewTokenBalance = newFloor.balanceOf(_account);
 
+        // Set up our requests to be sent from the test user
         vm.startPrank(_account);
 
+        // If our token is asserted to be approved, then approve our initial balance
+        // to be approved for the token.
         if (_approved) {
             token.approve(address(migrateFloorToken), initialBalance);
         }
 
+        // If the token is asserted to be approved, then we want to expect an event
+        // to be emitted from the floor token migration contract.
         if (_approved) {
             vm.expectEmit(true, true, false, true, address(migrateFloorToken));
             emit FloorMigrated(_account, _output);
         }
 
+        // If our token is not asserted to be approved, then we want to expect a
+        // revert to be triggered.
         if (!_approved) {
             vm.expectRevert('ERC20: transfer amount exceeds allowance');
         }
 
+        // Run our floor token migration contract
         migrateFloorToken.upgradeFloorToken();
+
+        // We can now stop pranking as the test user
         vm.stopPrank();
 
+        // If our token was approved, then we need to ensure that the test user's
+        // initial token balance is now wiped, and we have a 1:1 mapping to our new
+        // token's balance.
         if (_approved) {
             // User should now have a 0 balance of old token
             assertEq(token.balanceOf(_account), 0);
@@ -167,6 +181,9 @@ contract MigrateFloorTokenTest is FloorTest {
 
             return initialBalance;
         }
+
+        // If our token was not approved then we don't expect the initial, or new
+        // token, balances to have changed.
 
         // User should not have changed in their token balance
         assertEq(token.balanceOf(_account), initialBalance);
