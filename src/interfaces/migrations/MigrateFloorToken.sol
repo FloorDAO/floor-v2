@@ -14,10 +14,7 @@ interface IMigrateFloorToken {
      *
      * The balance of all tokens will be attempted to be migrated, so 4 full approvals
      * should be made prior to calling this contract function.
-     *
-     * @param stake The sender can optionally choose to stake their tokens, automatically
-     * staking their V2 floor token in the same transaction
      */
-    function upgradeFloorToken(bool stake) external;
+    function upgradeFloorToken() external;
 
 }

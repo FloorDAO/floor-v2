@@ -16,9 +16,8 @@ import '../../interfaces/collections/CollectionRegistry.sol';
  */
 contract CollectionRegistry is AuthorityManager, ICollectionRegistry {
 
+    /// Store a mapping of our approved collections
     mapping(address => bool) collections;
-
-    constructor() {}
 
     /**
      * Returns `true` if the contract address is an approved collection, otherwise
