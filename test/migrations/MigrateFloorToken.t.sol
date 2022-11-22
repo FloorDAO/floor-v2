@@ -4,14 +4,13 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import 'forge-std/Test.sol';
-
 import '../../src/contracts/migrations/MigrateFloorToken.sol';
 import '../../src/contracts/tokens/Floor.sol';
-import '../../src/interfaces/tokens/Floor.sol';
+
+import '../utilities/Environments.sol';
 
 
-contract MigrateFloorTokenTest is Test {
+contract MigrateFloorTokenTest is FloorTest {
 
     FLOOR newFloor;
     MigrateFloorToken migrateFloorToken;
@@ -29,7 +28,11 @@ contract MigrateFloorTokenTest is Test {
 
     event FloorMigrated(address caller, uint amount);
 
-    function setUp() public {
+    /**
+     * We cannot use our setUp function here, as it causes issues with the
+     * {FloorTest} environment when we try and grant a `role`.
+     */
+    constructor () {
         // Generate a mainnet fork
         mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
 
@@ -43,10 +46,17 @@ contract MigrateFloorTokenTest is Test {
         assertEq(block.number, BLOCK_NUMBER);
 
         // Set up our migration contract
-        newFloor = new FLOOR();
+        newFloor = new FLOOR(address(authorityRegistry));
+
+        // Set up a floor migration contract
         migrateFloorToken = new MigrateFloorToken(address(newFloor));
 
-        newFloor.grantRole(keccak256('FloorMinter'), address(migrateFloorToken));
+        // Give our Floor token migration contract the role to mint floor
+        // tokens directly.
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(migrateFloorToken));
+
+        // Mint our tokens into our contract
+        migrateFloorToken.mintTokens(10000 * (10 ** 18));
     }
 
     /**
@@ -87,15 +97,13 @@ contract MigrateFloorTokenTest is Test {
             true
         );
 
-        /*
         // Test sFLOOR
         assertTokenTransfer(
             0x164AFe96912099543BC2c48bb9358a095Db8e784,
             0xc58bDf3d06073987983989eBFA1aC8187161fA71,
-            829614084791,
+            829614084791000000000,
             true
         );
-        */
     }
 
     /**

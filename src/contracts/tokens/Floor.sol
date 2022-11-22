@@ -6,17 +6,15 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
-import '../authorities/AuthorityManager.sol';
+import '../authorities/AuthorityControl.sol';
 import '../../interfaces/tokens/Floor.sol';
 
 
-contract FLOOR is ERC20, ERC20Burnable, ERC20Permit, AuthorityManager, IFLOOR {
+contract FLOOR is AuthorityControl, ERC20, ERC20Burnable, ERC20Permit, IFLOOR {
 
-    bytes32 public constant ROLE = keccak256('FloorMinter');
+    constructor (address _authority) ERC20('Floor', 'FLOOR') ERC20Permit('Floor') AuthorityControl(_authority) {}
 
-    constructor() ERC20('Floor', 'FLOOR') ERC20Permit('Floor') {}
-
-    function mint(address to, uint256 amount) public onlyRole(ROLE) {
+    function mint(address to, uint256 amount) public onlyRole(FLOOR_MANAGER) {
         _mint(to, amount);
     }
 

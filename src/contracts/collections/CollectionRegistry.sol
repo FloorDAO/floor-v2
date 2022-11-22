@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
 
-import '../authorities/AuthorityManager.sol';
+import '../authorities/AuthorityControl.sol';
 import '../../interfaces/collections/CollectionRegistry.sol';
 
 
@@ -14,10 +14,12 @@ import '../../interfaces/collections/CollectionRegistry.sol';
  * new or existing vaults. They will only need to be stored as a mapping of address
  * to boolean.
  */
-contract CollectionRegistry is AuthorityManager, ICollectionRegistry {
+contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
     /// Store a mapping of our approved collections
     mapping(address => bool) collections;
+
+    constructor (address _authority) AuthorityControl(_authority) {}
 
     /**
      * Returns `true` if the contract address is an approved collection, otherwise
@@ -36,19 +38,6 @@ contract CollectionRegistry is AuthorityManager, ICollectionRegistry {
         if (!collections[contractAddr]) {
             collections[contractAddr] = true;
             emit CollectionApproved(contractAddr);
-        }
-    }
-
-    /**
-     * Revokes a collection from being eligible for a vault. This cannot be run if a
-     * vault is already using this collection.
-     *
-     * @dev This will need updating when our VaultFactory is implemented.
-     */
-    function revokeCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
-        if (collections[contractAddr]) {
-            collections[contractAddr] = false;
-            emit CollectionRevoked(contractAddr);
         }
     }
 

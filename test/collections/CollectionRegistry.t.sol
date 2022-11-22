@@ -2,14 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-
-import '../../src/contracts/authorities/AuthorityManager.sol';
 import '../../src/contracts/collections/CollectionRegistry.sol';
-import '../utilities/Utilities.sol';
+
+import '../utilities/Environments.sol';
 
 
-contract CollectionRegistryTest is Test {
+contract CollectionRegistryTest is FloorTest {
 
     /// Emitted when a collection is successfully approved
     event CollectionApproved(address contractAddr);
@@ -18,9 +16,7 @@ contract CollectionRegistryTest is Test {
     event CollectionRevoked(address contractAddr);
 
     // Our authority manager will be global as most tests will use it
-    AuthorityManager authorityManager;
     CollectionRegistry collectionRegistry;
-    Utilities utilities;
 
     // Set up a small collection of users to test with
     address alice;
@@ -40,15 +36,8 @@ contract CollectionRegistryTest is Test {
      * we can subsequently reference.
      */
     function setUp() public {
-        authorityManager = new AuthorityManager();
-        collectionRegistry = new CollectionRegistry();
-
-        // Set up our utilities class
-        utilities = new Utilities();
-
-        // Set up a small pool of test users
-        address payable[] memory users = utilities.createUsers(1, 100 ether);
         alice = users[0];
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
     }
 
     /**
@@ -113,24 +102,6 @@ contract CollectionRegistryTest is Test {
     }
 
     /**
-     * There should be no difference between approving a collection
-     * when it has been revoked, and approving the first time round.
-     *
-     * This should emit {CollectionApproved}.
-     */
-    function test_ApprovePreviouslyRevokedCollection() public {
-        collectionRegistry.approveCollection(USDC);
-        collectionRegistry.revokeCollection(USDC);
-
-        // Confirm that we are firing our collection event when our
-        // collection is re-approved.
-        vm.expectEmit(true, true, false, true, address(collectionRegistry));
-        emit CollectionApproved(USDC);
-
-        collectionRegistry.approveCollection(USDC);
-    }
-
-    /**
      * Only addresses that have been granted the `CollectionManager`
      * role should be able to approve collections. If the user does
      * not have the role, then the call should be reverted.
@@ -140,52 +111,6 @@ contract CollectionRegistryTest is Test {
     function testFail_CannotApproveCollectionWithoutPermissions() public {
         vm.prank(alice);
         collectionRegistry.approveCollection(USDC);
-    }
-
-    /**
-     * We should ensure that we can revoke a collection that has
-     * been approved.
-     *
-     * This should emit {CollectionRevoked}.
-     */
-    function test_RevokeCollection() public {
-        collectionRegistry.approveCollection(USDC);
-
-        vm.expectEmit(true, true, false, true, address(collectionRegistry));
-        emit CollectionRevoked(USDC);
-
-        collectionRegistry.revokeCollection(USDC);
-    }
-
-    /**
-     * If a collection has not already been approved, then trying
-     * to revoke the collection should have no effect. The call
-     * won't revert.
-     *
-     * This should not emit {CollectionRevoked}.
-     */
-    function test_RevokeUnapprovedCollection() public {
-        collectionRegistry.revokeCollection(USDC);
-    }
-
-    /**
-     * Only addresses that have been granted the `CollectionManager`
-     * role should be able to revoke collections. If the user does
-     * not have the role, then the call should be reverted.
-     *
-     * This should not emit {CollectionRevoked}.
-     */
-    function testFail_CannotRevokeCollectionWithoutPermissions() public {
-        vm.prank(alice);
-        collectionRegistry.revokeCollection(USDC);
-    }
-
-    /**
-     * If an approved collection is being used by a vault, then we
-     * should be reverted when if try to revoke it.
-     */
-    function test_RevokeCollectionUsedByVault() public {
-        // Coming soon..
     }
 
 }

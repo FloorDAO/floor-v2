@@ -29,10 +29,4 @@ interface ICollectionRegistry {
      */
     function approveCollection(address contractAddr) external;
 
-    /**
-     * Revokes a collection from being eligible for a vault. This cannot be run if a
-     * vault is already using this collection.
-     */
-    function revokeCollection(address contractAddr) external;
-
 }
