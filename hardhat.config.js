@@ -1,5 +1,7 @@
 /** @type import('hardhat/config').HardhatUserConfig */
 var fs = require('fs');
+require('dotenv').config();
+require('hardhat-gas-reporter');
 require('hardhat-preprocessor');
 
 function getRemappings() {
@@ -11,6 +13,13 @@ function getRemappings() {
 }
 
 module.exports = {
+  networks: {
+    mainnet: {
+      url: process.env.MAINNET_RPC_URL,
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      timeout: 60000
+    },
+  },
   solidity: {
     version: '0.8.17',
     settings: {

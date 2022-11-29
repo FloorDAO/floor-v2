@@ -1,12 +1,12 @@
 const { expect } = require('chai');
 const { ethers, network, upgrades } = require('hardhat');
 
-let zetsu, dao, dev;
-let factory, proxyController;
-let inventoryStaking, lpStaking, stakingZap, feeDistributor;
-let paycVault, paycNft, paycVaultId, paycNftIds;
+// Store our contracts
+let executor, floor;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The contract address for USDC
+const USDC = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+
 
 describe('Mainnet unstaking test ERC721', function () {
 
@@ -19,33 +19,47 @@ describe('Mainnet unstaking test ERC721', function () {
   before('Setup', async () => {
     // Set up our block reset
     await network.provider.request({
-      method: "hardhat_reset",
+      method: 'hardhat_reset',
       params: [
         {
           forking: {
-            jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_MAINNET_API_KEY}`,
+            jsonRpcUrl: process.env.MAINNET_RPC_URL,
             blockNumber: 16_075_930,
           },
         },
       ],
     });
 
-    // We can then set up our account impersonations for any involved addresses
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: ["0xc6c2d5ee69745a1e9f2d1a06e0ef0788bd924302"],
-    });
+    // Deploy our eligibility module
+    const Floor = await ethers.getContractFactory('FLOOR');
+    floor = await Floor.deploy();
+    await floor.deployed();
 
-    // When the address is impersonated we can cast it to a variable
-    zetsu = await ethers.provider.getSigner("0xc6c2d5ee69745a1e9f2d1a06e0ef0788bd924302");
-
-    // Get our relevant contracts
-    factory = await ethers.getContractAt(
-      "NFTXVaultFactoryUpgradeable",
-      "0xBE86f647b167567525cCAAfcd6f881F1Ee558216"
-    );
+    // Set up our pricing executor
+    const UniswapV3PricingExecutor = await ethers.getContractFactory('UniswapV3PricingExecutor');
+    executor = await UniswapV3PricingExecutor.deploy('0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6', floor.address);
+    await executor.deployed();
   });
 
-  it('Should ...', async () => {});
+
+  /**
+   * We need to check that we can get the stored ETH price of a token. This will make
+   * a call to the Uniswap Quoter contract to take a snapshot of the current price, without
+   * executing the call.
+   *
+   * This is done in a strange way, however. It appears that the call will revert whilst
+   * still returning the data value. For this reason it has to be made via a static call.
+   *
+   * https://uniswapv3book.com/docs/milestone_2/quoter-contract/
+   */
+
+  it('Should be able to value a token in ETH', async () => {
+    let eth_price = await executor.getETHPrice(USDC);
+    expect(eth_price).to.equal(123);
+  });
+
+  it('Should be able to value a token in FLOOR', async () => {
+
+  });
 
 });
