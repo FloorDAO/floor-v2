@@ -22,44 +22,28 @@ interface IBasePricingExecutor {
     function name() external view returns (string memory);
 
     /**
-    * Returns `true` if the contract implements the pricing exector `interfaceID`, `false` otherwise.
-    * @param interfaceID The interface identifier
-    */
-    function supportsInterface(bytes4 interfaceID) external view returns (bool);
-
-    /**
      * Gets our current mapped price of a token to ETH.
      */
-    function getETHPrice(address token) external view returns (uint);
+    function getETHPrice(address token) external returns (uint);
 
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrice(address[] memory token) external view returns (uint[] memory);
+    function getETHPrice(address[] memory token) external returns (uint[] memory);
 
     /**
      * Gets our current mapped price of a token to FLOOR.
      */
-    function getFloorPrice(address token) external view returns (uint);
+    function getFloorPrice(address token) external returns (uint);
 
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrice(address[] memory token) external view returns (uint[] memory);
+    function getFloorPrice(address[] memory token) external returns (uint[] memory);
 
     /**
      * Gets the timestamp of when the price was last updated by the executor.
      */
     function getPriceFreshness(address token) external view returns (uint);
-
-    /**
-     * Updates our price of a token in ETH value.
-     */
-    function updatePrice(address token) external returns (uint);
-
-    /**
-     * Updates our price of an array of tokens in ETH value.
-     */
-    function updatePrice(address[] memory token) external returns (uint[] memory);
 
 }
