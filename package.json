@@ -23,6 +23,9 @@
   },
   "homepage": "https://github.com/FloorDAO/floor-v2#readme",
   "devDependencies": {
+    "chai": "^4.3.7",
+    "hardhat": "^2.12.2",
+    "hardhat-preprocessor": "^0.1.5",
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-rc.1",
     "solhint": "^3.3.7",
