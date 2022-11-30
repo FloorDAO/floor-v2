@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
@@ -9,8 +11,6 @@ import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
 import '../../interfaces/pricing/BasePricingExecutor.sol';
-
-import "forge-std/console.sol";
 
 
 /**
@@ -27,29 +27,26 @@ import "forge-std/console.sol";
  */
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
-    /// Maintain an immutable address of the Uniswap V3 Quoter contract
+    /// Maintain an immutable address of the Uniswap V3 Pool Factory contract
     IUniswapV3Factory public immutable uniswapV3PoolFactory;
 
     /// The contract address of the Floor token
     address public immutable floor;
 
-    /// The ETH contract address used for UV3 path generation
+    /// The WETH contract address used for price mappings
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-    /// The UV3 quoted price of the token
-    mapping(address => uint) internal tokenPrices;
 
     /// The timestamp of the last time the token was run
     mapping(address => uint) internal tokenPriceFreshness;
 
-    /// Keep a cache of our pool addresses
+    /// Keep a cache of our pool addresses for gas optimisation
     mapping(address => address) internal poolAddresses;
 
     /**
      * Set our immutable contract addresses.
      *
-     * Quoter : 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6
-     * Floor  : TBC
+     * Factory : 0x1F98431c8aD98523631AE4a59f267346ea31F984
+     * Floor   : TBC
      */
     constructor (address _quoter, address _floor) {
         uniswapV3PoolFactory = IUniswapV3Factory(_quoter);
@@ -64,43 +61,59 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * Gets our current mapped price of a token to ETH.
+     * Gets our live price of a token to ETH.
      */
     function getETHPrice(address token) external returns (uint) {
         return _getPrice(token);
     }
 
     /**
-     * Gets our current mapped price of multiple tokens to ETH.
+     * Gets our live prices of multiple tokens to ETH.
      */
     function getETHPrices(address[] memory tokens) external returns (uint[] memory output) {
         return _getPrices(tokens);
     }
 
     /**
-     * Gets our current mapped price of a token to FLOOR.
+     * Gets a live mapped price of a token to FLOOR, returned in the correct decimal
+     * count for the target token.
      *
-     * X -> ETH = Xe = 10 ETH
-     * Y -> ETH = Ye = 0.5 ETH
-     * X -> Y = Xe / Ye = 20
+     * We get the latest price of not only the requested token, but also for the
+     * FLOOR token. We can then determine the amount of returned token based on
+     * live price values.
      */
     function getFloorPrice(address token) external returns (uint) {
-        (uint Xe, uint Ye) = _getPrices([token, address(floor)]);
-        return Xe / Ye;
+        address[] memory tokens = new address[](2);
+        tokens[0] = token;
+        tokens[1] = address(floor);
+
+        uint[] memory prices = _getPrices(tokens);
+        return _calculateFloorPrice(token, prices[0], prices[1]);
     }
 
     /**
-     * Gets our current mapped price of multiple tokens to FLOOR.
+     * Gets a live mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrices(address[] memory tokens) external returns (uint[] memory output) {
-        // Get floor once
+    function getFloorPrices(address[] memory tokens) external returns (uint[] memory) {
+        // We first need to get our Floor price, as well as our token prices
         uint floorPrice = _getPrice(address(floor));
         uint[] memory prices = _getPrices(tokens);
 
-        for (uint i; i < prices.length;) {
-            output[i] = prices[i] / floorPrice;
+        // Gas saves by storing the array length
+        uint tokensLength = tokens.length;
+
+        // We only need to store the same number of tokens passed in, so we exclude
+        // our additional floor price request from the response.
+        uint[] memory output = new uint[](tokensLength);
+
+        // Each iteration requires us to calculate the floor price based on the token
+        // so that we can return the token amount in the correct decimal accuracy.
+        for (uint i; i < tokensLength;) {
+            output[i] = _calculateFloorPrice(tokens[i], prices[i], floorPrice);
             unchecked { ++i; }
         }
+
+        return output;
     }
 
     /**
@@ -110,88 +123,107 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         return tokenPriceFreshness[token];
     }
 
+    /**
+     * This helper function allows us to return the amount of tokens a user would receive
+     * for 1 FLOOR token, returned in the decimal accuracy of the base token.
+     */
+    function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
+        return (floorPrice * (10 ** ERC20(token).decimals())) / tokenPrice;
+    }
 
     /**
-     * Returns the pool address for a given pair of tokens and a fee, or address 0
-     * if it does not exist.
+     * Returns the pool address for a given pair of tokens and a fee, or address 0 if
+     * it does not exist. The secondary token will always be WETH for our requirements,
+     * so this is just passed in from our contract constant.
      *
-     * tokenA and tokenB may be passed in either token0/token1 or token1/token0 order.
+     * For gas optimisation, we cache the pool address that is calculated, to prevent
+     * subsequent external calls being required.
      */
-    function _poolAddress(address token, uint24 fees) internal view returns (address) {
+    function _poolAddress(address token, uint24 fees) internal returns (address) {
         if (poolAddresses[token] == address(0)) {
             poolAddresses[token] = uniswapV3PoolFactory.getPool(token, WETH, fees);
-            require(poolAddresses[token] != address(0));
+            require(poolAddresses[token] != address(0), 'Unknown pool');
         }
 
         return poolAddresses[token];
     }
 
-
     /**
-     * Quoter is only available for off-chain. The gas cost was insanely high and took
-     * a very long time to process.
-     *
-     * - Do we only want to have a twapInterval of 0 to get the latest price?
-     * - How can we map a pool against a token0 and token1?
-     * - How do we determine the best fees to use?
-     * - Can we implement multicall for multiple observes?
-     * - We will need to remove paths and implement X -> ETH and ETH -> Y
-     *
+     * Retrieves the token price in WETH from a Uniswap pool.
      */
+    function _getPrice(address token) internal returns (uint256) {
+        // We only vary our default 0.3% fees if we are dealing with our FLOOR pool, which
+        // has a fee of 1% instead.
+        uint24 fees = token == floor ? 10000 : 3000;
 
+        // We can get the cached / fresh pool address for our token <-> WETH pool. If the
+        // pool doesn't exist then this function will revert our tx.
+        address poolAddress = _poolAddress(token, fees);
 
+        // We set our TWAP range to 30 minutes
+        uint32[] memory secondsAgos = new uint32[](2);
+        (secondsAgos[0], secondsAgos[1]) = (1800, 0);
 
-    function _getPrice(address token) internal view returns (uint256) {
-        uint32 twapInterval = 0;
-        address poolAddress = _poolAddress(token, 3000);
+        // We can now observe the Uniswap pool to get our tick
+        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(poolAddress).observe(secondsAgos);
 
-        if (twapInterval == 0) {
-            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress).slot0();
-            return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-        } else {
-            uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = twapInterval;
-            secondsAgos[1] = 0;
-            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(poolAddress).observe(secondsAgos);
-            uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
-                int24((tickCumulatives[1] - tickCumulatives[0]) / twapInterval)
-            );
-            return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-        }
+        // We can now use the tick to calculate how much WETH we would receive from swapping
+        // 1 token.
+        return _getQuoteAtTick(
+            int24((tickCumulatives[1] - tickCumulatives[0]) / 1800),
+            uint128(10 ** ERC20(token).decimals()),
+            token,
+            WETH
+        );
     }
 
-
     /**
-     * User multicall to faciltate multiple price TWAP calls.
+     * Unfortunately we aren't able to use Uniswap multicall to group our requests in this
+     * instance as we are actually calling different contracts based on the constructor.
      *
-     * I don't think we can use multicall in this instance as we are calling different
-     * contracts based on the constructor.
+     * This means that this function essentially acts as an intermediary function that just
+     * subsequently calls `_getPrice` for each token passed. Not really gas efficient, but
+     * unfortunately the best we can do with what we have.
      */
-    function _getPrices(address[] memory tokens) internal view returns (uint256[] memory prices) {
+    function _getPrices(address[] memory tokens) internal returns (uint256[] memory) {
+        uint[] memory prices = new uint[](tokens.length);
         for (uint i; i < tokens.length;) {
             prices[i] = _getPrice(tokens[i]);
             unchecked { ++i; }
         }
+        return prices;
     }
-
 
     /**
-     * Updates our price of a token in ETH value.
+     * Given a tick and a token amount, calculates the amount of token received in exchange.
      *
-     * To update the price, we will want to `observe` the `UniswapV3Pool`:
-     * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
+     * @param tick Tick value used to calculate the quote
+     * @param baseAmount Amount of token to be converted
+     * @param baseToken Address of an ERC20 token contract used as the baseAmount denomination
+     * @param quoteToken Address of an ERC20 token contract used as the quoteAmount denomination
+     *
+     * @return quoteAmount Amount of quoteToken received for baseAmount of baseToken
      */
-    /*
-    function _getPriceOld(bytes memory path) internal returns (uint) {
-        try uniswapV3Quoter.quoteExactInput(path, 1 ether) {
-            // ..
-        } catch (bytes memory reason) {
-            (uint a,,) = abi.decode(reason, (uint256, uint160, int24));
-            return a;
-        }
+    function _getQuoteAtTick(
+        int24 tick,
+        uint128 baseAmount,
+        address baseToken,
+        address quoteToken
+    ) internal pure returns (uint256 quoteAmount) {
+        uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
 
-        return 0;
+        // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
+        if (sqrtRatioX96 <= type(uint128).max) {
+            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
+            quoteAmount = baseToken < quoteToken
+                ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
+                : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
+        } else {
+            uint256 ratioX128 = FullMath.mulDiv(sqrtRatioX96, sqrtRatioX96, 1 << 64);
+            quoteAmount = baseToken < quoteToken
+                ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
+                : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
+        }
     }
-    */
 
 }
