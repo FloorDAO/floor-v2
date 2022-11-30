@@ -3,6 +3,8 @@ var fs = require('fs');
 require('dotenv').config();
 require('hardhat-gas-reporter');
 require('hardhat-preprocessor');
+require('@nomiclabs/hardhat-waffle');
+
 
 function getRemappings() {
   return fs

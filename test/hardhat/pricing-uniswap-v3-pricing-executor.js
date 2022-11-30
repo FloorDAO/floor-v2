@@ -30,10 +30,9 @@ describe('Mainnet unstaking test ERC721', function () {
       ],
     });
 
-    // Deploy our eligibility module
-    const Floor = await ethers.getContractFactory('FLOOR');
-    floor = await Floor.deploy();
-    await floor.deployed();
+    // We can reference our existing FLOOR token implementation as there are existing Uniswap
+    // pools for the token.
+    floor = await ethers.getContractAt('FLOOR', '0xf59257e961883636290411c11ec5ae622d19455e');
 
     // Set up our pricing executor
     const UniswapV3PricingExecutor = await ethers.getContractFactory('UniswapV3PricingExecutor');
@@ -54,7 +53,11 @@ describe('Mainnet unstaking test ERC721', function () {
    */
 
   it('Should be able to value a token in ETH', async () => {
-    let eth_price = await executor.getETHPrice(USDC);
+    console.log(executor);
+    console.log(await executor.name());
+    console.log(await executor.getPriceFreshness(USDC));
+
+    let eth_price = executor.callStatic.getETHPrice(USDC);
     expect(eth_price).to.equal(123);
   });
 
