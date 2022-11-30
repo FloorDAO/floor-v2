@@ -5,6 +5,9 @@ pragma solidity ^0.8.0;
 import 'forge-std/Test.sol';
 import 'forge-std/Vm.sol';
 
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
+
 import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
 import '../../src/contracts/tokens/Floor.sol';
 
@@ -28,9 +31,9 @@ contract UniswapV3PricingExecutorTest is FloorTest {
 
     uint internal constant BLOCK_NUMBER = 16_075_930;
 
-    address internal UNISWAP_QUOTER = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
+    address internal UNISWAP_QUOTER = 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6;
 
-    address internal USDC = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal UNKNOWN = 0x0000000000000000000000000000000000000064;
 
     /**

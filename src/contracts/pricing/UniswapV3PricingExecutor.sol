@@ -23,7 +23,7 @@ import "forge-std/console.sol";
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
     /// Maintain an immutable address of the Uniswap V3 Quoter contract
-    IQuoter public immutable uniswapV3Quoter;
+    IQuoterV2 public immutable uniswapV3Quoter;
 
     /// The contract address of the Floor token
     address public immutable floor;
@@ -31,11 +31,14 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// The ETH contract address used for UV3 path generation
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// The UV3 quoted price of the path
-    mapping(bytes => uint) internal prices;
+    /// The UV3 quoted price of the token
+    mapping(address => uint) internal prices;
 
-    /// The timestamp of the last time the path was run
-    mapping(bytes => uint) internal freshness;
+    /// The timestamp of the last time the token was run
+    mapping(address => uint) internal freshness;
+
+    /// Keep a cache of our pool addresses
+    mapping(address => address) internal poolAddresses;
 
     /**
      * Set our immutable contract addresses.
@@ -44,11 +47,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Floor  : TBC
      */
     constructor (address _quoter, address _floor) {
-        uniswapV3Quoter = IQuoter(_quoter);
+        uniswapV3Quoter = IQuoterV2(_quoter);
         floor = _floor;
-
-        console.logBytes(buildETHPath(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
-        console.logBytes(buildFloorPath(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
     }
 
     /**
@@ -62,32 +62,38 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Gets our current mapped price of a token to ETH.
      */
     function getETHPrice(address token) external returns (uint) {
-        return _getPrice(buildETHPath(token));
+        return _getPrice(token);
     }
 
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrices(address[] memory token) external returns (uint[] memory output) {
-        for (uint i; i < token.length;) {
-            output[i] = _getPrice(buildETHPath(token[i]));
-            unchecked { ++i; }
-        }
+    function getETHPrices(address[] memory tokens) external returns (uint[] memory output) {
+        return _getPrices(tokens);
     }
 
     /**
      * Gets our current mapped price of a token to FLOOR.
+     *
+     * X -> ETH = Xe = 10 ETH
+     * Y -> ETH = Ye = 0.5 ETH
+     * X -> Y = Xe / Ye = 20
      */
     function getFloorPrice(address token) external returns (uint) {
-        return _getPrice(buildFloorPath(token));
+        (uint Xe, uint Ye) = _getPrices([token, address(floor)]);
+        return Xe / Ye;
     }
 
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrices(address[] memory token) external returns (uint[] memory output) {
-        for (uint i; i < token.length;) {
-            output[i] = _getPrice(buildFloorPath(token[i]));
+    function getFloorPrices(address[] memory tokens) external returns (uint[] memory output) {
+        // Get floor once
+        uint floorPrice = _getPrice(address(floor));
+        uint[] tokenPrices = _getPrices(tokens);
+
+        for (uint i; i < tokenPrices.length;) {
+            output[i] = tokenPrices[i] / floorPrice;
             unchecked { ++i; }
         }
     }
@@ -96,8 +102,73 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Gets the timestamp of when the price was last updated by the executor.
      */
     function getPriceFreshness(address token) external view returns (uint) {
-        return freshness[buildETHPath(token)];
+        return freshness[token];
     }
+
+
+    /**
+     * Returns the pool address for a given pair of tokens and a fee, or address 0
+     * if it does not exist.
+     *
+     * tokenA and tokenB may be passed in either token0/token1 or token1/token0 order.
+     */
+    function _poolAddress(address token, uint fees) returns (address) {
+        if (poolAddresses[token] == address(0)) {
+            poolAddresses[token] = IUniswapV3Factory().getPool(token, WETH, fees);
+            require(poolAddress != address(0));
+        }
+
+        return poolAddresses[token];
+    }
+
+
+    /**
+     * Quoter is only available for off-chain. The gas cost was insanely high and took
+     * a very long time to process.
+     *
+     * - Do we only want to have a twapInterval of 0 to get the latest price?
+     * - How can we map a pool against a token0 and token1?
+     * - How do we determine the best fees to use?
+     * - Can we implement multicall for multiple observes?
+     * - We will need to remove paths and implement X -> ETH and ETH -> Y
+     *
+     */
+
+
+
+    function _getPrice(address token) public view returns (uint256) {
+        uint32 twapInterval = 0;
+        poolAddress = _poolAddress(token, 3000);
+
+        if (twapInterval == 0) {
+            (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress).slot0();
+            return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
+        } else {
+            uint32[] memory secondsAgos = new uint32[](2);
+            secondsAgos[0] = twapInterval;
+            secondsAgos[1] = 0;
+            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(poolAddress).observe(secondsAgos);
+            uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
+                int24((tickCumulatives[1] - tickCumulatives[0]) / twapInterval)
+            );
+            return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
+        }
+    }
+
+
+    /**
+     * User multicall to faciltate multiple price TWAP calls.
+     *
+     * I don't think we can use multicall in this instance as we are calling different
+     * contracts based on the constructor.
+     */
+    function _getPrices(address[] tokens) public view returns (uint256[] prices) {
+        for (uint i; i < tokens.length;) {
+            prices[i] = _getPrice(tokens[i]);
+            unchecked { ++i; }
+        }
+    }
+
 
     /**
      * Updates our price of a token in ETH value.
@@ -105,48 +176,15 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * To update the price, we will want to `observe` the `UniswapV3Pool`:
      * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
      */
-    function _getPrice(bytes memory path) internal returns (uint) {
-        (bool success, bytes memory result) = address(uniswapV3Quoter).call(abi.encodeWithSignature('quoteExactInput(bytes path,uint256 amountIn)', path, 1 ether));
-        /*
-        (bool success, bytes memory result) = address(uniswapV3Quoter).call(abi.encodeWithSignature('quoteExactInputSingle(address,address,uint24,uint256,uint160)',
-            WETH,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-            3000,
-            10*10**18,
-            0
-        ));
-        */
+    function _getPriceOld(bytes memory path) internal returns (uint) {
+        try uniswapV3Quoter.quoteExactInput(path, 1 ether) {
+            // ..
+        } catch (bytes memory reason) {
+            (uint a,,) = abi.decode(reason, (uint256, uint160, int24));
+            return a;
+        }
 
-        // The call is expected to be reverted, but we still want to check our returned bytes
-        require(!success, 'Uniswap are gas hungry monsters');
-
-        console.log('=======');
-        console.logBool(success);
-        console.logBytes(result);
-        console.log('=======');
-
-        return 1;
-    }
-
-    function buildETHPath(address token) internal pure returns (bytes memory) {
-        return bytes.concat(
-            bytes20(token),
-            bytes3(uint24(3000)),
-            bytes20(WETH)
-        );
-    }
-
-    /**
-     * ETH -> FLOOR (1%):
-     * https://info.uniswap.org/#/pools/0xb386c1d831eed803f5e8f274a59c91c4c22eeac0
-     */
-
-    function buildFloorPath(address token) internal view returns (bytes memory) {
-        return bytes.concat(
-            buildETHPath(token),
-            bytes3(uint24(10000)),
-            bytes20(floor)
-        );
+        return 0;
     }
 
 }
