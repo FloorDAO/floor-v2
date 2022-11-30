@@ -68,7 +68,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrice(address[] memory token) external returns (uint[] memory output) {
+    function getETHPrices(address[] memory token) external returns (uint[] memory output) {
         for (uint i; i < token.length;) {
             output[i] = _getPrice(buildETHPath(token[i]));
             unchecked { ++i; }
@@ -85,7 +85,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrice(address[] memory token) external returns (uint[] memory output) {
+    function getFloorPrices(address[] memory token) external returns (uint[] memory output) {
         for (uint i; i < token.length;) {
             output[i] = _getPrice(buildFloorPath(token[i]));
             unchecked { ++i; }
