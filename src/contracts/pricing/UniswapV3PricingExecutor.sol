@@ -2,8 +2,13 @@
 
 pragma solidity ^0.8.0;
 
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
+import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
+import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
+
 import '../../interfaces/pricing/BasePricingExecutor.sol';
-import '../../interfaces/uniswap/Quoter.v3.sol';
 
 import "forge-std/console.sol";
 
@@ -23,7 +28,7 @@ import "forge-std/console.sol";
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
     /// Maintain an immutable address of the Uniswap V3 Quoter contract
-    IQuoterV2 public immutable uniswapV3Quoter;
+    IUniswapV3Factory public immutable uniswapV3PoolFactory;
 
     /// The contract address of the Floor token
     address public immutable floor;
@@ -32,10 +37,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// The UV3 quoted price of the token
-    mapping(address => uint) internal prices;
+    mapping(address => uint) internal tokenPrices;
 
     /// The timestamp of the last time the token was run
-    mapping(address => uint) internal freshness;
+    mapping(address => uint) internal tokenPriceFreshness;
 
     /// Keep a cache of our pool addresses
     mapping(address => address) internal poolAddresses;
@@ -47,7 +52,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Floor  : TBC
      */
     constructor (address _quoter, address _floor) {
-        uniswapV3Quoter = IQuoterV2(_quoter);
+        uniswapV3PoolFactory = IUniswapV3Factory(_quoter);
         floor = _floor;
     }
 
@@ -90,10 +95,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     function getFloorPrices(address[] memory tokens) external returns (uint[] memory output) {
         // Get floor once
         uint floorPrice = _getPrice(address(floor));
-        uint[] tokenPrices = _getPrices(tokens);
+        uint[] memory prices = _getPrices(tokens);
 
-        for (uint i; i < tokenPrices.length;) {
-            output[i] = tokenPrices[i] / floorPrice;
+        for (uint i; i < prices.length;) {
+            output[i] = prices[i] / floorPrice;
             unchecked { ++i; }
         }
     }
@@ -102,7 +107,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Gets the timestamp of when the price was last updated by the executor.
      */
     function getPriceFreshness(address token) external view returns (uint) {
-        return freshness[token];
+        return tokenPriceFreshness[token];
     }
 
 
@@ -112,10 +117,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      *
      * tokenA and tokenB may be passed in either token0/token1 or token1/token0 order.
      */
-    function _poolAddress(address token, uint fees) returns (address) {
+    function _poolAddress(address token, uint24 fees) internal view returns (address) {
         if (poolAddresses[token] == address(0)) {
-            poolAddresses[token] = IUniswapV3Factory().getPool(token, WETH, fees);
-            require(poolAddress != address(0));
+            poolAddresses[token] = uniswapV3PoolFactory.getPool(token, WETH, fees);
+            require(poolAddresses[token] != address(0));
         }
 
         return poolAddresses[token];
@@ -136,12 +141,12 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
 
 
-    function _getPrice(address token) public view returns (uint256) {
+    function _getPrice(address token) internal view returns (uint256) {
         uint32 twapInterval = 0;
-        poolAddress = _poolAddress(token, 3000);
+        address poolAddress = _poolAddress(token, 3000);
 
         if (twapInterval == 0) {
-            (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress).slot0();
+            (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(poolAddress).slot0();
             return FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
         } else {
             uint32[] memory secondsAgos = new uint32[](2);
@@ -162,7 +167,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * I don't think we can use multicall in this instance as we are calling different
      * contracts based on the constructor.
      */
-    function _getPrices(address[] tokens) public view returns (uint256[] prices) {
+    function _getPrices(address[] memory tokens) internal view returns (uint256[] memory prices) {
         for (uint i; i < tokens.length;) {
             prices[i] = _getPrice(tokens[i]);
             unchecked { ++i; }
@@ -176,6 +181,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * To update the price, we will want to `observe` the `UniswapV3Pool`:
      * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
      */
+    /*
     function _getPriceOld(bytes memory path) internal returns (uint) {
         try uniswapV3Quoter.quoteExactInput(path, 1 ether) {
             // ..
@@ -186,5 +192,6 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         return 0;
     }
+    */
 
 }

@@ -6,7 +6,6 @@ import 'forge-std/Test.sol';
 import 'forge-std/Vm.sol';
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
 import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
 import '../../src/contracts/tokens/Floor.sol';
