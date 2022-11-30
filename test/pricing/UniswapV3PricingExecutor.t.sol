@@ -28,7 +28,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
 
     uint internal constant BLOCK_NUMBER = 16_075_930;
 
-    address internal UNISWAP_QUOTER = 0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6;
+    address internal UNISWAP_QUOTER = 0x61fFE014bA17989E743c5F6cB21bF9697530B21e;
 
     address internal USDC = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal UNKNOWN = 0x0000000000000000000000000000000000000064;

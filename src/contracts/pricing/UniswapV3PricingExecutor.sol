@@ -106,13 +106,24 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * https://docs.uniswap.org/protocol/reference/core/UniswapV3Pool#observe
      */
     function _getPrice(bytes memory path) internal returns (uint) {
-        (bool success, bytes memory result) = address(uniswapV3Quoter).staticcall(abi.encodeWithSignature('quoteExactInput(bytes path,uint256 amountIn)', path, 1 ether));
+        (bool success, bytes memory result) = address(uniswapV3Quoter).call(abi.encodeWithSignature('quoteExactInput(bytes path,uint256 amountIn)', path, 1 ether));
+        /*
+        (bool success, bytes memory result) = address(uniswapV3Quoter).call(abi.encodeWithSignature('quoteExactInputSingle(address,address,uint24,uint256,uint160)',
+            WETH,
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            3000,
+            10*10**18,
+            0
+        ));
+        */
 
         // The call is expected to be reverted, but we still want to check our returned bytes
         require(!success, 'Uniswap are gas hungry monsters');
 
+        console.log('=======');
         console.logBool(success);
         console.logBytes(result);
+        console.log('=======');
 
         return 1;
     }

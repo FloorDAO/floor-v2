@@ -36,7 +36,7 @@ describe('Mainnet unstaking test ERC721', function () {
 
     // Set up our pricing executor
     const UniswapV3PricingExecutor = await ethers.getContractFactory('UniswapV3PricingExecutor');
-    executor = await UniswapV3PricingExecutor.deploy('0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6', floor.address);
+    executor = await UniswapV3PricingExecutor.deploy('0x61fFE014bA17989E743c5F6cB21bF9697530B21e', floor.address);
     await executor.deployed();
   });
 
@@ -57,7 +57,11 @@ describe('Mainnet unstaking test ERC721', function () {
     console.log(await executor.name());
     console.log(await executor.getPriceFreshness(USDC));
 
-    let eth_price = executor.callStatic.getETHPrice(USDC);
+    let eth_price = await executor.callStatic.getETHPrice(USDC);
+    console.log(eth_price);
+
+    eth_price = await executor.getETHPrice(USDC);
+    console.log(eth_price);
     expect(eth_price).to.equal(123);
   });
 
