@@ -208,19 +208,4 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         assertEq(prices[0], X2Y2_FLOOR_PRICE);
     }
 
-    /**
-     * When we update a price, we keep an internal reference for when the token
-     * price was last updated. This test will check the value of the timestamp
-     * both before and after we call `updatePrice`.
-     */
-    function __test_PriceFreshnessAfterPriceUpdate() public {}
-
-    /**
-     * If we try to test the freshness of an unknown token, we will expect a
-     * revert as we will detect a value of `0`.
-     */
-    function test_PriceFreshnessOfUnknownToken() public {
-        assertEq(executor.getPriceFreshness(UNKNOWN), 0);
-    }
-
 }

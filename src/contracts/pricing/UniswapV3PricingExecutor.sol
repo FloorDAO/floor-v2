@@ -36,9 +36,6 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// The WETH contract address used for price mappings
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// The timestamp of the last time the token was run
-    mapping(address => uint) internal tokenPriceFreshness;
-
     /// Keep a cache of our pool addresses for gas optimisation
     mapping(address => address) internal poolAddresses;
 
@@ -114,13 +111,6 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         }
 
         return output;
-    }
-
-    /**
-     * Gets the timestamp of when the price was last updated by the executor.
-     */
-    function getPriceFreshness(address token) external view returns (uint) {
-        return tokenPriceFreshness[token];
     }
 
     /**

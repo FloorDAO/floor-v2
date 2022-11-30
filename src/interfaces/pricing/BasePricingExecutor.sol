@@ -41,9 +41,4 @@ interface IBasePricingExecutor {
      */
     function getFloorPrices(address[] memory token) external returns (uint[] memory);
 
-    /**
-     * Gets the timestamp of when the price was last updated by the executor.
-     */
-    function getPriceFreshness(address token) external view returns (uint);
-
 }
