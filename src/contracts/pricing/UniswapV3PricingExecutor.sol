@@ -4,13 +4,22 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@uniswap/v3-core/contracts/libraries/FixedPoint96.sol";
 import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
 import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
 import '../../interfaces/pricing/BasePricingExecutor.sol';
+
+
+interface IUniswapV3Factory {
+    function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
+}
+
+interface IUniswapV3Pool {
+    function slot0() external view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked);
+    function liquidity() external view returns (uint128);
+    function observe(uint32[] calldata secondsAgos) external view returns (int56[] memory tickCumulatives, uint160[] memory liquidityCumulatives);
+    function observations(uint256 index) external view returns (uint32 blockTimestamp, int56 tickCumulative, uint160 liquidityCumulative, bool initialized);
+}
 
 
 /**
@@ -129,12 +138,50 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * For gas optimisation, we cache the pool address that is calculated, to prevent
      * subsequent external calls being required.
      */
-    function _poolAddress(address token, uint24 fees) internal returns (address) {
-        if (poolAddresses[token] == address(0)) {
-            poolAddresses[token] = uniswapV3PoolFactory.getPool(token, WETH, fees);
-            require(poolAddresses[token] != address(0), 'Unknown pool');
+    function _poolAddress(address token) internal returns (address) {
+        // If we have a cached pool, then reference this
+        if (poolAddresses[token] != address(0)) {
+            return poolAddresses[token];
         }
 
+        // The uniswap pool (fee-level) with the highest in-range liquidity is used by default.
+        // This is a heuristic and can easily be manipulated by the activator, so users should
+        // verify the selection is suitable before using the pool. Otherwise, governance will
+        // need to change the pricing config for the market.
+
+        // Define our fee ladder
+        uint24[4] memory fees = [uint24(3000), 10000, 500, 100];
+
+        // Store variables that will be updated as we browse our liquidity offerings to find
+        // the best pool to attribute.
+        address pool = address(0);
+        uint128 bestLiquidity = 0;
+
+        // We iterate over our fee ladder
+        for (uint i = 0; i < fees.length;) {
+            // Load our candidate pool
+            address candidatePool = uniswapV3PoolFactory.getPool(token, WETH, fees[i]);
+
+            // If we can't find a pool, then we can't compare liquidity so skip over it
+            if (candidatePool != address(0)) {
+                // Reference our pool and get the liquidity offering
+                uint128 liquidity = IUniswapV3Pool(candidatePool).liquidity();
+
+                // If we don't yet have a valid pool, or we offer better liquidity in this
+                // pool that our previously stored pool, then we reference this instead.
+                if (pool == address(0) || liquidity > bestLiquidity) {
+                    pool = candidatePool;
+                    bestLiquidity = liquidity;
+                }
+            }
+
+            unchecked { ++i; }
+        }
+
+        // Ensure we don't have a NULL pool
+        require(pool != address(0), 'Unknown pool');
+
+        poolAddresses[token] = pool;
         return poolAddresses[token];
     }
 
@@ -142,35 +189,67 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Retrieves the token price in WETH from a Uniswap pool.
      */
     function _getPrice(address token) internal returns (uint256) {
-        // We only vary our default 0.3% fees if we are dealing with our FLOOR pool, which
-        // has a fee of 1% instead.
-        uint24 fees = token == floor ? 10000 : 3000;
-
         // We can get the cached / fresh pool address for our token <-> WETH pool. If the
         // pool doesn't exist then this function will revert our tx.
-        address poolAddress = _poolAddress(token, fees);
+        address pool = _poolAddress(token);
+
+        // Set our default TWAP ago time
+        uint ago = 1800;
 
         // We set our TWAP range to 30 minutes
         uint32[] memory secondsAgos = new uint32[](2);
-        (secondsAgos[0], secondsAgos[1]) = (1800, 0);
+        (secondsAgos[0], secondsAgos[1]) = (uint32(ago), 0);
 
-        // We can now observe the Uniswap pool to get our tick
-        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(poolAddress).observe(secondsAgos);
+        // If we cannot find an observation for our desired time, then we attempt to fallback
+        // on the latest observation available to us
+        (bool success, bytes memory data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+        if (!success) {
+            if (keccak256(data) != keccak256(abi.encodeWithSignature("Error(string)", "OLD"))) revertBytes(data);
 
-        // We can now use the tick to calculate how much WETH we would receive from swapping
-        // 1 token.
-        return _getQuoteAtTick(
-            int24((tickCumulatives[1] - tickCumulatives[0]) / 1800),
-            uint128(10 ** ERC20(token).decimals()),
-            token,
-            WETH
-        );
+            // The oldest available observation in the ring buffer is the index following the current (accounting for wrapping),
+            // since this is the one that will be overwritten next.
+            (,, uint16 index, uint16 cardinality,,,) = IUniswapV3Pool(pool).slot0();
+            (uint32 oldestAvailableAge,,,bool initialized) = IUniswapV3Pool(pool).observations((index + 1) % cardinality);
+
+            // If the following observation in a ring buffer of our current cardinality is uninitialized, then all the
+            // observations at higher indices are also uninitialized, so we wrap back to index 0, which we now know
+            // to be the oldest available observation.
+            if (!initialized) (oldestAvailableAge,,,) = IUniswapV3Pool(pool).observations(0);
+
+            // Update our "ago" seconds to the value of the latest observation
+            ago = block.timestamp - oldestAvailableAge;
+            secondsAgos[0] = uint32(ago);
+
+            // Call observe() again to get the oldest available
+            (success, data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+            if (!success) revertBytes(data);
+        }
+
+        // If uniswap pool doesn't exist, then data will be empty and this decode will throw:
+        int56[] memory tickCumulatives = abi.decode(data, (int56[])); // don't bother decoding the liquidityCumulatives array
+
+        // Get our tick value from the cumulatives
+        int24 tick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(int(ago)));
+
+        // Get our token price
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
+        return decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96);
+    }
+
+    function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
+        if (uint160(underlying) < uint160(WETH)) {
+            price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2**(96*2)) / 1e18) / underlyingDecimalsScaler;
+        } else {
+            price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2**(96*2)) / (1e18 * underlyingDecimalsScaler));
+            if (price == 0) return 1e36;
+            price = 1e36 / price;
+        }
+
+        if (price > 1e36) price = 1e36;
+        else if (price == 0) price = 1;
     }
 
     /**
-     * Unfortunately we aren't able to use Uniswap multicall to group our requests in this
-     * instance as we are actually calling different contracts based on the constructor.
-     *
      * This means that this function essentially acts as an intermediary function that just
      * subsequently calls `_getPrice` for each token passed. Not really gas efficient, but
      * unfortunately the best we can do with what we have.
@@ -184,36 +263,14 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         return prices;
     }
 
-    /**
-     * Given a tick and a token amount, calculates the amount of token received in exchange.
-     *
-     * @param tick Tick value used to calculate the quote
-     * @param baseAmount Amount of token to be converted
-     * @param baseToken Address of an ERC20 token contract used as the baseAmount denomination
-     * @param quoteToken Address of an ERC20 token contract used as the quoteAmount denomination
-     *
-     * @return quoteAmount Amount of quoteToken received for baseAmount of baseToken
-     */
-    function _getQuoteAtTick(
-        int24 tick,
-        uint128 baseAmount,
-        address baseToken,
-        address quoteToken
-    ) internal pure returns (uint256 quoteAmount) {
-        uint160 sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
-
-        // Calculate quoteAmount with better precision if it doesn't overflow when multiplied by itself
-        if (sqrtRatioX96 <= type(uint128).max) {
-            uint256 ratioX192 = uint256(sqrtRatioX96) * sqrtRatioX96;
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX192, baseAmount, 1 << 192)
-                : FullMath.mulDiv(1 << 192, baseAmount, ratioX192);
-        } else {
-            uint256 ratioX128 = FullMath.mulDiv(sqrtRatioX96, sqrtRatioX96, 1 << 64);
-            quoteAmount = baseToken < quoteToken
-                ? FullMath.mulDiv(ratioX128, baseAmount, 1 << 128)
-                : FullMath.mulDiv(1 << 128, baseAmount, ratioX128);
+    function revertBytes(bytes memory errMsg) internal pure {
+        if (errMsg.length > 0) {
+            assembly {
+                revert(add(32, errMsg), mload(errMsg))
+            }
         }
+
+        revert("e/empty-error");
     }
 
 }
