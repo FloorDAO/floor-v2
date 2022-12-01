@@ -32,7 +32,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     address internal X2Y2    = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;
 
     uint128 internal FLOORV1_ETH_PRICE = 1566237497230112;
-    uint128 internal USDC_ETH_PRICE    = 822347516730688;
+    uint128 internal USDC_ETH_PRICE    = 823829001123791;
     uint128 internal X2Y2_ETH_PRICE    = 64199358972027;
 
     uint128 internal USDC_FLOOR_PRICE    = 1904593;
@@ -67,7 +67,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * Our name function is just a simple helper to get a name reference for the
      * executor.
      */
-    function _test_Name() public {
+    function test_Name() public {
         assertEq(executor.name(), 'UniswapV3PricingExecutor');
     }
 
@@ -76,7 +76,6 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * the value that is returned from our `updatePrice` call and stored in the contract.
      */
     function test_ETHPriceOfToken() public {
-        // 1 USD => 0.000822347516730688 ETH
         assertEq(executor.getETHPrice(USDC), USDC_ETH_PRICE);
     }
 
@@ -84,7 +83,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * If we attempt to query an unknown token that we don't have an internal mapping
      * for, then we will expect a revert.
      */
-    function _test_ETHPriceOfUnknownToken() public {
+    function test_ETHPriceOfUnknownToken() public {
         vm.expectRevert('Unknown pool');
         executor.getETHPrice(UNKNOWN);
     }
@@ -93,8 +92,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * The output of FLOOR should be the same as checking against any other token, but
      * just for the sake of completionism I've included it as it's own test.
      */
-    function _test_ETHPriceOfFloor() public {
-        // 1 FLOOR = 0.001566237497230112 ETH
+    function test_ETHPriceOfFloor() public {
         assertEq(executor.getETHPrice(FLOORV1), FLOORV1_ETH_PRICE);
     }
 
@@ -104,7 +102,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * a single transaction. The response in this instance will be an array of prices
      * in the same order as the addresses passed in.
      */
-    function _test_ETHPriceOfMultipleTokens() public {
+    function test_ETHPriceOfMultipleTokens() public {
         address[] memory tokens = new address[](3);
         tokens[0] = X2Y2;
         tokens[1] = FLOORV1;
@@ -120,7 +118,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     /**
      * Get a gas estimate of 25 tokens.
      */
-    function _test_ETHPriceOfManyTokens() public {
+    function test_ETHPriceOfManyTokens() public {
         address[] memory tokens = new address[](25);
         for (uint i; i < 25;) {
             tokens[i] = USDC;
@@ -133,7 +131,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     /**
      * If we action a call with no tokens provided, then we expect a revert.
      */
-    function _test_ETHPriceOfMultipleTokensWithNoTokens() public {
+    function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
         uint[] memory prices = executor.getETHPrices(tokens);
         assertEq(prices.length, 0);
@@ -143,7 +141,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * If just a single token is passed in, then this will just return the single
      * price, but in an array.
      */
-    function _test_ETHPriceOfMultipleTokensWithSingleTokens() public {
+    function test_ETHPriceOfMultipleTokensWithSingleTokens() public {
         address[] memory tokens = new address[](1);
         tokens[0] = FLOORV1;
 
@@ -157,7 +155,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * the mix, then we expect it to be reverted as we don't want to return a
      * token = 0 mapping.
      */
-    function _test_ETHPriceOfMultipleTokensWithPartiallyInvalidTokens() public {
+    function test_ETHPriceOfMultipleTokensWithPartiallyInvalidTokens() public {
         address[] memory tokens = new address[](1);
         tokens[0] = UNKNOWN;
 
@@ -169,14 +167,14 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * Once we have an ETH price for both FLOOR and a token, then we can calculate
      * the FLOOR value of a token.
      */
-    function _test_FloorPriceOfToken() public {
+    function test_FloorPriceOfToken() public {
         assertEq(executor.getFloorPrice(USDC), USDC_FLOOR_PRICE);
     }
 
     /**
      * If we don't have a price for a token, then we expect a revert.
      */
-    function _test_FloorPriceOfUnknownToken() public {
+    function test_FloorPriceOfUnknownToken() public {
         vm.expectRevert('Unknown pool');
         executor.getFloorPrice(UNKNOWN);
     }
@@ -185,7 +183,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * We can pass multiple tokens as input in an array and we expect to get an
      * array of FLOOR prices returned, maintaining the same order as the input.
      */
-    function _test_FloorPriceOfMultipleTokens() public {
+    function test_FloorPriceOfMultipleTokens() public {
         address[] memory tokens = new address[](2);
         tokens[0] = X2Y2;
         tokens[1] = USDC;
@@ -199,7 +197,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     /**
      * Get a gas estimate of 25 tokens.
      */
-    function _test_FloorPriceOfManyTokens() public {
+    function test_FloorPriceOfManyTokens() public {
         address[] memory tokens = new address[](25);
         for (uint i; i < 25;) {
             tokens[i] = USDC;
@@ -212,7 +210,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     /**
      * If we are not sent any tokens, then we expect a revert.
      */
-    function _test_FloorPriceOfMultipleTokensWithNoTokens() public {
+    function test_FloorPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
         uint[] memory prices = executor.getFloorPrices(tokens);
         assertEq(prices.length, 0);
@@ -222,7 +220,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * If just a single token is passed in, then this will just return the single
      * price, but in an array.
      */
-    function _test_FloorPriceOfMultipleTokensWithSingleTokens() public {
+    function test_FloorPriceOfMultipleTokensWithSingleTokens() public {
         address[] memory tokens = new address[](1);
         tokens[0] = X2Y2;
 
