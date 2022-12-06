@@ -9,6 +9,8 @@ import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
 import '../../interfaces/pricing/BasePricingExecutor.sol';
 
+import "forge-std/console.sol";
+
 
 interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
@@ -54,8 +56,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Factory : 0x1F98431c8aD98523631AE4a59f267346ea31F984
      * Floor   : TBC
      */
-    constructor (address _quoter, address _floor) {
-        uniswapV3PoolFactory = IUniswapV3Factory(_quoter);
+    constructor (address _poolFactory, address _floor) {
+        uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
         floor = _floor;
     }
 
@@ -127,7 +129,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * for 1 FLOOR token, returned in the decimal accuracy of the base token.
      */
     function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
-        return (floorPrice * (10 ** ERC20(token).decimals())) / tokenPrice;
+        return (floorPrice * 10 ** ERC20(token).decimals()) / tokenPrice;
     }
 
     /**
@@ -150,7 +152,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         // need to change the pricing config for the market.
 
         // Define our fee ladder
-        uint24[4] memory fees = [uint24(3000), 10000, 500, 100];
+        uint24[4] memory fees = [10000, uint24(3000), 500, 100];
 
         // Store variables that will be updated as we browse our liquidity offerings to find
         // the best pool to attribute.

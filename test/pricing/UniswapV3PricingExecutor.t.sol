@@ -26,17 +26,17 @@ contract UniswapV3PricingExecutorTest is FloorTest {
 
     address internal UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
-    address internal FLOORV1 = 0xf59257E961883636290411c11ec5Ae622d19455e;
+    address internal FLOORV1 = 0xf59257E961883636290411c11ec5Ae622d19455e;  // 9 decimals
     address internal UNKNOWN = 0x0000000000000000000000000000000000000064;
-    address internal USDC    = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address internal X2Y2    = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;
+    address internal USDC    = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;  // 6 decimals
+    address internal X2Y2    = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;  // 18 decimals
 
-    uint128 internal FLOORV1_ETH_PRICE = 1566237497230112;
-    uint128 internal USDC_ETH_PRICE    = 823829001123791;
-    uint128 internal X2Y2_ETH_PRICE    = 64199358972027;
+    uint128 internal FLOORV1_ETH_PRICE = 1566237497230112;  // 001566237497230112
+    uint128 internal USDC_ETH_PRICE    = 823829001123791;   // 000823829001123791
+    uint128 internal X2Y2_ETH_PRICE    = 34971155696695;    // 000034971155696695
 
-    uint128 internal USDC_FLOOR_PRICE    = 1904593;
-    uint128 internal X2Y2_FLOOR_PRICE    = 24396466293573964681;
+    uint128 internal USDC_FLOOR_PRICE    = 1901168;               // 1.901168
+    uint128 internal X2Y2_FLOOR_PRICE    = 44786552403760895888;  // 44.786552403760895888
 
     /**
      * Deploy our contract, set up our fork and roll the block to set up our fork.
