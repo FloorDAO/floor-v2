@@ -22,14 +22,14 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *
      * The reward yield will be a vault xToken as defined by the InventoryStaking contract.
      */
-    function yieldToken() external view returns (address[] calldata);
+    function yieldToken() external view returns (address);
 
     /**
      * Return the the address of the underlying token.
      *
      * The underlying token will be the same as the address of the NFTX vault.
      */
-    function underlyingToken() external view returns (address[] calldata);
+    function underlyingToken() external view returns (address);
 
     /**
      * Deposit underlying token or yield token to corresponding strategy.
@@ -43,7 +43,7 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      */
-    function deposit(address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata yieldAmount_);
+    function deposit(uint256 _amount) external returns (uint256 yieldAmount_);
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
@@ -55,12 +55,12 @@ interface INFTXInventoryStakingStrategy is IBaseStrategy {
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
      */
-    function claimRewards() external returns (address token_, uint256 amount_);
+    function claimRewards(uint amount) external returns (uint256 amount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
      * xToken to retrieve all their underlying tokens.
      */
-    function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
+    function exit() external returns (uint256 returnAmount_);
 
 }
