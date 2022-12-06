@@ -2,9 +2,28 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import '../../src/contracts/strategies/StrategyRegistry.sol';
 
-contract StrategyFactoryTest is Test {
+import '../utilities/Environments.sol';
+
+
+contract StrategyRegistryTest is FloorTest {
+
+    /// Emitted when a strategy is successfully approved
+    event StrategyApproved(address contractAddr);
+
+    /// Emitted when a strategy has been successfully revoked
+    event StrategyRevoked(address contractAddr);
+
+    // Our authority manager will be global as most tests will use it
+    StrategyRegistry strategyRegistry;
+
+    // Set up a small strategy of users to test with
+    address alice;
+
+    // Set up a range of addresses to test with
+    address internal USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     /**
      * Deploys our StrategyFactory. We don't set up any approved
@@ -14,27 +33,49 @@ contract StrategyFactoryTest is Test {
      * We can, however, define a number of set valid addresses that
      * we can subsequently reference.
      */
-    function setUp() public {}
+    function setUp() public {
+        alice = users[0];
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+    }
 
     /**
      * Confirms that an approved strategy can be queried to return
      * a `true` response. This will mean that the test has to first
      * call `approveStrategy` before we can check.
      */
-    function testIsApproved() public {}
+    function test_IsApproved() public {
+        strategyRegistry.approveStrategy(USDC);
+        assertTrue(strategyRegistry.isApproved(USDC));
+    }
 
     /**
      * When a strategy is not approved, we want the response to
      * return `false`.
      */
-    function testIsNotApproved() public {}
+    function test_IsNotApproved() public {
+        assertFalse(strategyRegistry.isApproved(USDT));
+    }
 
     /**
      * We need to ensure that we can approve a fresh strategy.
      *
      * This should emit {StrategyApproved}.
      */
-    function testApproveStrategy() public {}
+    function test_ApproveStrategy() public {
+        // Confirm that we start in an unapproved state
+        assertFalse(strategyRegistry.isApproved(USDT));
+
+        // Confirm that we are firing our strategy event when our
+        // strategy is approved.
+        vm.expectEmit(true, true, false, true, address(strategyRegistry));
+        emit StrategyApproved(USDT);
+
+        // Approve the DAI strategy
+        strategyRegistry.approveStrategy(USDT);
+
+        // Now that the strategy is approved
+        assertTrue(strategyRegistry.isApproved(USDT));
+    }
 
     /**
      * We should have validation when approving a strategy to ensure
@@ -42,7 +83,10 @@ contract StrategyFactoryTest is Test {
      *
      * This should not emit {StrategyApproved}.
      */
-    function testApproveNullAddressStrategy() public {}
+    function test_ApproveNullAddressStrategy() public {
+        vm.expectRevert('Cannot approve NULL strategy');
+        strategyRegistry.approveStrategy(address(0));
+    }
 
     /**
      * If a strategy is already approved, if we try and approve it
@@ -50,7 +94,10 @@ contract StrategyFactoryTest is Test {
      *
      * This should not emit {StrategyApproved}.
      */
-    function testApproveAlreadyApprovedStrategy() public {}
+    function test_ApproveAlreadyApprovedStrategy() public {
+        strategyRegistry.approveStrategy(USDC);
+        strategyRegistry.approveStrategy(USDC);
+    }
 
     /**
      * There should be no difference between approving a strategy
@@ -58,7 +105,17 @@ contract StrategyFactoryTest is Test {
      *
      * This should emit {StrategyApproved}.
      */
-    function testApprovePreviouslyRevokedStrategy() public {}
+    function test_ApprovePreviouslyRevokedStrategy() public {
+        strategyRegistry.approveStrategy(USDC);
+        strategyRegistry.revokeStrategy(USDC);
+
+        // Confirm that we are firing our strategy event when our strategy
+        // is approved again.
+        vm.expectEmit(true, true, false, true, address(strategyRegistry));
+        emit StrategyApproved(USDC);
+
+        strategyRegistry.approveStrategy(USDC);
+    }
 
     /**
      * Only addresses that have been granted the `StrategyManager`
@@ -67,7 +124,11 @@ contract StrategyFactoryTest is Test {
      *
      * This should not emit {StrategyApproved}.
      */
-    function testCannotApproveStrategyWithoutPermissions() public {}
+    function test_CannotApproveStrategyWithoutPermissions() public {
+        vm.prank(alice);
+        vm.expectRevert('Account does not have role');
+        strategyRegistry.approveStrategy(USDC);
+    }
 
     /**
      * We should ensure that we can revoke a strategy that has
@@ -75,16 +136,28 @@ contract StrategyFactoryTest is Test {
      *
      * This should emit {StrategyRevoked}.
      */
-    function testRevokeStrategy() public {}
+    function test_RevokeStrategy() public {
+        strategyRegistry.approveStrategy(USDC);
+
+        // Confirm that we are firing our strategy event when our strategy
+        // is revoked.
+        vm.expectEmit(true, true, false, true, address(strategyRegistry));
+        emit StrategyRevoked(USDC);
+
+        strategyRegistry.revokeStrategy(USDC);
+    }
 
     /**
      * If a strategy has not already been approved, then trying
      * to revoke the strategy should have no effect. The call
-     * won't revert.
+     * will revert to be explicit.
      *
      * This should not emit {StrategyRevoked}.
      */
-    function testRevokeUnapprovedStrategy() public {}
+    function test_RevokeUnapprovedStrategy() public {
+        vm.expectRevert('Strategy is not approved');
+        strategyRegistry.revokeStrategy(USDT);
+    }
 
     /**
      * Only addresses that have been granted the `StrategyManager`
@@ -93,12 +166,10 @@ contract StrategyFactoryTest is Test {
      *
      * This should not emit {StrategyRevoked}.
      */
-    function testCannotRevokeStrategyWithoutPermissions() public {}
-
-    /**
-     * If an approved strategy is being used by a vault, then we
-     * should be reverted when if try to revoke it.
-     */
-    function testRevokeStrategyUsedByVault() public {}
+    function test_CannotRevokeStrategyWithoutPermissions() public {
+        vm.prank(alice);
+        vm.expectRevert('Account does not have role');
+        strategyRegistry.revokeStrategy(USDC);
+    }
 
 }

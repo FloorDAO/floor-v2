@@ -12,7 +12,7 @@ pragma solidity ^0.8.0;
  * Factory focusses solely on managing the list of available vault strategies.
  */
 
-interface IStrategyFactory {
+interface IStrategyRegistry {
 
     /// Emitted when a strategy is successfully approved
     event StrategyApproved(address contractAddr);
@@ -24,7 +24,7 @@ interface IStrategyFactory {
      * Returns `true` if the contract address is an approved strategy, otherwise
      * returns `false`.
      */
-    function isApproved(address contractAddr) external returns (bool);
+    function isApproved(address contractAddr) external view returns (bool);
 
     /**
      * Approves a strategy contract to be used for vaults. The strategy must hold a defined
@@ -33,8 +33,8 @@ interface IStrategyFactory {
     function approveStrategy(address contractAddr) external;
 
     /**
-     * Revokes a strategy from being eligible for a vault. This cannot be run if a
-     * vault is already using this strategy.
+     * Revokes a strategy from being eligible for a vault. This will not affect vaults that
+     * are already instantiated with the strategy.
      */
     function revokeStrategy(address contractAddr) external;
 
