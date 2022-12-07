@@ -22,14 +22,14 @@ interface INFTXLiquidityStakingStrategy is IBaseStrategy {
      *
      * The reward yield token will be the token defined in the {LiquidityStaking} contract.
      */
-    function yieldToken() external view returns (address[] calldata);
+    function yieldToken() external view returns (address);
 
     /**
      * Return the the address of the underlying token.
      *
      * The underlying token will be a liquidity SLP as defined by the {LiquidityStaking} contract.
      */
-    function underlyingToken() external view returns (address[] calldata);
+    function underlyingToken() external view returns (address);
 
     /**
      * Deposit underlying token or yield token to corresponding strategy. This function expects
@@ -47,7 +47,7 @@ interface INFTXLiquidityStakingStrategy is IBaseStrategy {
      *     initialise the pool
      * - We receive xSLP back to the strategy
      */
-    function deposit(address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata yieldAmount_);
+    function deposit(uint256 _amount) payable external returns (uint256 yieldAmount_);
 
     /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
@@ -58,12 +58,12 @@ interface INFTXLiquidityStakingStrategy is IBaseStrategy {
      * - LiquidityStaking.receiveRewards
      * - Distribute yield
      */
-    function harvest() external returns (address[] calldata token_, uint256[] calldata returnAmount_);
+    function claimRewards() external returns (uint256 amount_);
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
      * xSLP to retrieve all their underlying tokens.
      */
-    function exit(address _recipient, address[] calldata _token, uint256[] calldata _amount) external returns (address[] calldata token_, uint256[] calldata returnAmount_);
+    function exit() external returns (uint256 returnAmount_);
 
 }

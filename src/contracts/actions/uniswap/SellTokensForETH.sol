@@ -58,7 +58,7 @@ contract UniswapSellTokensForETH {
      * @dev The calling address must approve this contract to spend at least `amountIn` worth of its
      * `token0` for this function to succeed.
      */
-    function execute(ActionRequest calldata request) public returns (ActionResponse memory response) {
+    function execute(ActionRequest calldata request) public returns (ActionResponse memory) {
         // msg.sender must approve this contract
 
         // Transfer the specified amount of token0 to this contract from the {Treasury}

@@ -4,14 +4,15 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '../../interfaces/nftx/NFTXInventoryStaking.sol';
+import '../../interfaces/nftx/NFTXLiquidityStaking.sol';
+import '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
+import '../../interfaces/strategies/NFTXLiquidityStakingStrategy.sol';
 
 
 /**
- * Supports an Inventory Staking position against a single NFTX vault. This strategy
- * will hold the corresponding xToken against deposits.
+ * Supports an Liquidity Staking position against a single NFTX vault. This strategy
+ * will hold the corresponding xSLP token against deposits.
  *
  * The contract will extend the {BaseStrategy} to ensure it conforms to the required
  * logic and functionality. Only functions that have varied internal logic have been
@@ -19,16 +20,16 @@ import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStrategy {
+contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStrategy {
 
     uint public immutable vaultId;
     address public immutable pool;
-    address public immutable underlyingToken;
-    address public immutable yieldToken;
+    address public immutable underlyingToken;  // SLP
+    address public immutable yieldToken;       // xSLP
 
     bytes32 public immutable name;
 
-    address public immutable inventoryStaking;
+    address public immutable liquidityStaking;
     address public immutable treasury;
 
     /**
@@ -63,7 +64,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
         address _underlyingToken,
         address _yieldToken,
         uint _vaultId,
-        address _inventoryStaking,
+        address _liquidityStaking,
         address _treasury
     ) {
         name = _name;
@@ -73,33 +74,43 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
         yieldToken = _yieldToken;
         vaultId = _vaultId;
 
-        inventoryStaking = _inventoryStaking;
+        liquidityStaking = _liquidityStaking;
         treasury = _treasury;
 
-        ERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
+        ERC20(underlyingToken).approve(_liquidityStaking, type(uint).max);
     }
 
     /**
-     * Deposit underlying token or yield token to corresponding strategy.
+     * Deposit underlying token or yield token to corresponding strategy. This function expects
+     * that the SLP token will be deposited and will not facilitate double sided staking or
+     * handle the native chain token to balance the sides.
      *
      * Requirements:
      *  - Caller should make sure the token is already transfered into the strategy contract.
      *  - Caller should make sure the deposit amount is greater than zero.
      *
      * - Get the vault ID from the underlying address (vault address)
-     * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
+     * - LiquidityStaking.deposit(uint256 vaultId, uint256 _amount)
      *   - This deposit will be timelocked
-     * - We receive xToken back to the strategy
+     *   - If the pool currently has no liquidity, it will additionally
+     *     initialise the pool
+     * - We receive xSLP back to the strategy
      */
-    function deposit(uint amount) external returns (uint) {
+    function deposit(uint amount) payable external returns (uint xTokensReceived) {
         require(amount > 0, 'Cannot deposit 0');
 
+        // Get the SLP token from the user
         ERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
 
+        // Get our xSLP starting balance
         uint startXTokenBalance = ERC20(yieldToken).balanceOf(address(this));
-        INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
-        deposits += amount;
-        return ERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+
+        // Stake our SLP to get xSLP back
+        INFTXLiquidityStaking(liquidityStaking).deposit(vaultId, amount);
+
+        // Calculate how much xSLP was returned
+        xTokensReceived = ERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        deposits += xTokensReceived;
     }
 
     /**
@@ -108,26 +119,21 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * turn be made available in the {RewardsLedger}.
      *
      * - Get the vaultID from the underlying address
-     * - Calculate the additional xToken held, above the staking token
-     * - InventoryStaking.withdraw the difference to get the reward
+     * - LiquidityStaking.claimRewards
      * - Distribute yield
      */
-    function claimRewards(uint amount) external returns (uint) {
-        require(amount > 0, 'Cannot claim 0');
-
-        INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
-        lifetimeRewards += amount;
-        return amount;
+    function claimRewards() external returns (uint amount_) {
+        amount_ = ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
+        INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
     }
 
     /**
      * Allows a staked user to exit their strategy position, burning all corresponding
-     * xToken to retrieve all their underlying tokens.
+     * xSLP to retrieve all their underlying tokens.
      */
-    function exit() external returns (uint256 returnAmount_) {
-        returnAmount_ = ERC20(yieldToken).balanceOf(address(this));
-        lifetimeRewards += returnAmount_;
-        INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, returnAmount_);
+    function exit() external returns (uint returnAmount_) {
+        returnAmount_ = ERC20(underlyingToken).balanceOf(address(this));
+        INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, returnAmount_);
     }
 
     /**
@@ -139,7 +145,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function rewardsAvailable() external view returns (uint) {
-        return ERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
     }
 
     /**
@@ -148,7 +154,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return ERC20(yieldToken).balanceOf(address(this)) + mintedRewards - deposits;
+        return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this)) + ERC20(pool).balanceOf(address(this)) + mintedRewards;
     }
 
     /**
@@ -160,7 +166,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function unmintedRewards() external view returns (uint amount_) {
-        return ERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return ERC20(pool).balanceOf(address(this));
     }
 
     /**

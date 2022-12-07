@@ -92,7 +92,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         // Don't approve any tokens
 
         vm.expectRevert();
-        UniswapSellTokensForETH.ActionResponse memory response = action.execute(
+        action.execute(
             UniswapSellTokensForETH.ActionRequest({
                 token0: USDC,
                 fee: USDC_FEE,
@@ -116,7 +116,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         ERC20(USDC).approve(address(action), 10000000000);
 
         vm.expectRevert('Too little received');
-        UniswapSellTokensForETH.ActionResponse memory response = action.execute(
+        action.execute(
             UniswapSellTokensForETH.ActionRequest({
                 token0: USDC,
                 fee: USDC_FEE,

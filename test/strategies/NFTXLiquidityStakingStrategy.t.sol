@@ -2,18 +2,22 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
+import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
+
+import '../../src/interfaces/nftx/NFTXVault.sol';
+import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
 
 import '../utilities/Environments.sol';
 
 
-contract NFTXInventoryStakingStrategyTest is FloorTest {
 
-    NFTXInventoryStakingStrategy strategy;
+contract NFTXLiquidityStakingStrategyTest is FloorTest {
+
+    NFTXLiquidityStakingStrategy strategy;
 
     /// Store our mainnet fork information
     uint256 mainnetFork;
-    uint internal constant BLOCK_NUMBER = 16_126_124;
+    uint internal constant BLOCK_NUMBER = 16_133_601;
 
     address testUser;
 
@@ -31,14 +35,14 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(block.number, BLOCK_NUMBER);
 
         // Set up our pricing executor
-        strategy = new NFTXInventoryStakingStrategy(
-            'PUNK Vault',  // _name
+        strategy = new NFTXLiquidityStakingStrategy(
+            'PUNK Liquidity Vault',  // _name
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-            0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
+            0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken
+            0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f,  // _yieldToken
             0,  // _vaultId
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+            0x688c3E4658B5367da06fd629E41879beaB538E37,  // _liquidityStaking
+            0x688c3E4658B5367da06fd629E41879beaB538E37   // _treasury
         );
     }
 
@@ -46,7 +50,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      *
      */
     function test_CanGetName() public {
-        assertEq(strategy.name(), 'PUNK Vault');
+        assertEq(strategy.name(), 'PUNK Liquidity Vault');
     }
 
     /**
@@ -54,7 +58,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * NFTX InventoryStaking contract.
      */
     function test_CanGetYieldToken() public {
-        assertEq(strategy.yieldToken(), 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
+        assertEq(strategy.yieldToken(), 0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f);
     }
 
     /**
@@ -68,7 +72,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * that NFTX can impose.
      */
     function test_CanGetUnderlyingToken() public {
-        assertEq(strategy.underlyingToken(), 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
+        assertEq(strategy.underlyingToken(), 0x0463a06fBc8bF28b3F120cd1BfC59483F099d332);
     }
 
     /**
@@ -88,9 +92,9 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     /**
      * This should return an xToken that is stored in the strategy.
      */
-    function test_CanDepositToInventoryStaking() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
+    function test_CanDepositToLiquidityStaking() public {
+        // Holds 0.02963115425863499 SLP at block
+        testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 
         vm.startPrank(testUser);
 
@@ -98,26 +102,28 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(strategy.deposits(), 0);
 
         // Confirm our account has a balance of the underlying token
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 50242376308170344638);
+        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 29631154258634990);
         assertEq(ERC20(strategy.yieldToken()).balanceOf(testUser), 0);
 
         assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
         // Deposit using the underlying token to receive xToken into the strategy
-        ERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
+        ERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
+        strategy.deposit(20000000000000000);
 
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 49242376308170344638);
+        // The user should now hold 1e18 less underlying token, whilst still holding no yield
+        // token as this will have been sent to the strategy.
+        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 9631154258634990);
         assertEq(ERC20(strategy.yieldToken()).balanceOf(testUser), 0);
 
         // The amount of xToken returned to the strategy is less than 1, because this uses
         // xToken share value. This is expected to be variable and less that the depositted
         // amount.
         assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 967780757975035829);
+        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
 
-        assertEq(strategy.deposits(), 1000000000000000000);
+        assertEq(strategy.deposits(), 20000000000000000);
 
         vm.stopPrank();
     }
@@ -133,50 +139,49 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
     /**
      * We need to be able to claim all pending rewards from the NFTX
-     * {InventoryStaking} contract. These should be put in the strategy
+     * {LiquidityStaking} contract. These should be put in the strategy
      * contract.
      */
     function test_CanClaimRewards() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
+        // Holds 0.02963115425863499 SLP at block
+        testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 
         vm.startPrank(testUser);
 
-        // We first need to deposit
-        ERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
-
-        // If we try to claim straight away, our user will be locked
-        vm.expectRevert('User locked');
-        strategy.claimRewards(500000000000000000);
-
-        // To pass this lock we need to manipulate the block timestamp to set it
-        // after our lock would have expired.
-        vm.warp(block.timestamp + 10 days);
-
-        // Confirm that we cannot claim more than our token balance
-        vm.expectRevert('ERC20: burn amount exceeds balance');
-        strategy.claimRewards(5000000000000000000);
-
-        // We can now claim rewards via the strategy that will eat away from our
-        // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
-        // back our underlying token.
-        strategy.claimRewards(500000000000000000);
-
-        // The strategy should now hold token and xToken
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 516645940601453492);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 467780757975035829);
+        // Deposit using the underlying token to receive xToken into the strategy
+        ERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
+        strategy.deposit(20000000000000000);
 
         vm.stopPrank();
+
+        // Test user then makes a buy from the vault
+        // Holds 24.323478926295584311 PUNK token at block
+        vm.startPrank(0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
+
+        // ERC20(strategy.pool()).approve(strategy.pool(), type(uint).max);
+        uint256[] memory tokenIds = new uint256[](0);
+        INFTXVault(strategy.pool()).redeem(1, tokenIds);
+
+        vm.stopPrank();
+
+        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
+
+        // This should give pending yield to claim rewards
+        assertEq(strategy.claimRewards(), 1878746779354);
+
+        // Our rewards are paid in vault token
+        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
+        assertEq(ERC20(strategy.pool()).balanceOf(address(strategy)), 1878746779354);
     }
 
     /**
      * Even when we have no rewards to claim, we should still be able
      * to make the request but we just expect a 0 value to be returned.
      */
-    function test_CannotClaimZeroRewards() public {
-        vm.expectRevert('Cannot claim 0');
-        strategy.claimRewards(0);
+    function test_CanClaimZeroRewards() public {
+        assertEq(strategy.claimRewards(), 0);
     }
 
     /**
@@ -184,31 +189,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * our vault ERC20 tokens returned and the xToken burnt from the
      * strategy.
      */
-    function testCanFullyExitPosition() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
-
-        vm.startPrank(testUser);
-
-        // We first need to deposit
-        ERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
-
-        // To pass this lock we need to manipulate the block timestamp to set it
-        // after our lock would have expired.
-        vm.warp(block.timestamp + 10 days);
-
-        // We can now exit via the strategy. This will burn all of our xToken and
-        // we will just have our `underlyingToken` back in the strategy.
-        strategy.exit();
-
-        // The strategy should now hold token and xToken. However, we need to accomodate
-        // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 999999999999999999);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
-
-        vm.stopPrank();
-    }
+    function testCanFullyExitPosition() public {}
 
     /**
      * If we have multiple users with staked positions, a user cannot
