@@ -31,7 +31,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
     address treasury;
 
     /**
-     *
+     * Sets up our mainnet fork and register our action contract.
      */
     function setUp() public {
         // Generate a mainnet fork
@@ -55,6 +55,10 @@ contract UniswapSellTokensForETHTest is FloorTest {
         action = new UniswapSellTokensForETH(UNISWAP_ROUTER, treasury);
     }
 
+    /**
+     * Confirm that we can swap an approved amount of token with sufficient balance
+     * and receive back the expected amount of WETH into the {Treasury}.
+     */
     function test_CanSwapToken() public {
         vm.startPrank(treasury);
 
@@ -78,8 +82,10 @@ contract UniswapSellTokensForETHTest is FloorTest {
         vm.stopPrank();
     }
 
-
-
+    /**
+     * If we don't have sufficient approved balance when we request our swap, then
+     * the transaction should be reverted.
+     */
     function test_CannotSwapTokenWithInsufficientBalance() public {
         vm.startPrank(treasury);
 
@@ -99,6 +105,10 @@ contract UniswapSellTokensForETHTest is FloorTest {
         vm.stopPrank();
     }
 
+    /**
+     * If our swap generates an amount of WETH below the amount we specify, then we
+     * expect the transaction to be reverted.
+     */
     function test_CannotSwapWithInsufficientAmountOutResponse() public {
         vm.startPrank(treasury);
 
