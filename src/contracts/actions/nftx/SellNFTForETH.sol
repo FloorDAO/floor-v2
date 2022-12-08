@@ -9,7 +9,7 @@ import '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
 
 contract NFTXSellNFTForETH {
 
-    /// ..
+    /// The NFTX Marketplace Zap contract
     INFTXMarketplaceZap public immutable marketplaceZap;
 
     /// Our WETH contract

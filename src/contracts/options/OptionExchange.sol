@@ -2,6 +2,13 @@
 
 pragma solidity ^0.8.0;
 
+import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
+import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+
+import '../../interfaces/options/OptionExchange.sol';
+
 
 /**
  * The {OptionExchange} will allow FLOOR to be burnt to redeem treasury assets.
@@ -23,93 +30,76 @@ pragma solidity ^0.8.0;
  * Further information about this generation is outlined in the `generateAllocations`
  * function documentation.
  */
-interface IOptionExchange {
+contract OptionExchange is ChainlinkClient, ConfirmedOwner, IOptionExchange {
 
-    /**
-     * Each active pool will have a corresponding `OptionPool` structure. This
-     * will define the token and amount made available for options, as well as
-     * some configuration variables that will be used in the generation of the
-     * `OptionAllocation`s.
-     *
-     * If we made a subsequent deposit into the exchange with the same token as
-     * an existing pool, then these will be treated as separate pools and not
-     * merged into one.
-     *
-     * @param token The address of the ERC20 token that has been made available
-     * @param amount The 18-decimal representation of the token amount that is
-     * left available in the pool. This should be decremented whenever a withdrawal
-     * is made from the pool
-     * @param initialAmount The 18-decimal amount of the token that was initially
-     * made available to the pool
-     * @param maxDiscount This is the maximum discount that can be applied during
-     * allocation generation
-     * @param expires The unix timestamp at which the option allocations will no
-     * longer be redeemable against the pool
-     */
-    struct OptionPool {
-        uint amount;
-        uint initialAmount;
-        address token;
-        uint16 maxDiscount;
-        uint64 expires;
+    using Chainlink for Chainlink.Request;
+
+    /// Chainlink parameters
+    uint256 public volume;
+    bytes32 private jobId;
+    uint256 private fee;
+
+    /// ..
+    OptionPool[] internal pools;
+
+    /// ..
+    mapping (uint => bytes32) pendingRequestIds;
+
+    /// Maps the poolId to a merkle root
+    mapping (uint => bytes32) public optionPoolMerkleRoots;
+
+    /// We keep a track of the claims mapping the merkle DNA to true/false
+    mapping (bytes32 => bool) public optionPoolMerkleRootClaims;
+
+    constructor () public ConfirmedOwner(msg.sender) {
+        // Set our ChainLink configuration
+        setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
+        setChainlinkOracle(0xCC79157eb46F5624204f47AB42b3906cAA40eaB7);
+        jobId = "ca98366cc7314957b8c012c72f05aeeb";
+        fee = (1 * LINK_DIVISIBILITY) / 10; // 0,1 * 10**18 (Varies by network and job)
     }
-
-    /**
-     * Each `OptionPool` will have a 1:n releationship with `OptionAllocation`s, with
-     * each user that is granted an allocation having an assigned `OptionAllocation`.
-     *
-     * The `OptionAllocation` will be used as a precusor to the ERC721 {Option} token
-     * being minted, essentially providing the relevant information at time of mint. Once
-     * minted, the ERC721 will hold and maintain the data.
-     *
-     * @param recipient The address that has been granted the {Option}
-     * @param pool The numerical index of the `OptionPool`
-     * @param amount The 18-decimal token amount available to the user. Although it will
-     * be calculated as a percentage during generation, this value will be the direct
-     * token amount available to the user
-     * @param discount A percentage value highlighting the FLOOR discount that will be
-     * factored into the claiming calculation
-     */
-    struct OptionAllocation {
-        address recipient;
-        uint poolId;
-        uint amount;
-        uint discount;
-    }
-
-    /// @dev Emitted when an `OptionAllocation` is created
-    event AllocationCreated(address recipient, uint poolId, uint amount, uint discount);
-
-    /// @dev Emitted when a user has minted their allocated {Option}
-    event AllocationMinted(uint tokenId);
-
-    /// @dev Emitted when a new `OptionPool` is created
-    event OptionPoolCreated(uint poolId);
-
-    /// @dev Emitted when an `OptionPool` has been depleted through either through all
-    /// options being actioned or after it has expired and it has been withdrawn. This
-    /// will not be emitted purely at point of expiry.
-    event OptionPoolClosed(uint poolId);
-
-    /// @dev Emitted when our $LINK balance drops below a set threshold
-    event LinkBalanceLow(uint remainingBalance);
-
-    /// @dev Emitted when our $LINK balance has been updated. These senders should be
-    /// praised like the true giga chads that they are.
-    event LinkBalanceIncreased(address sender, uint amount);
-
-    /// @dev Emitted when we have received a response from Chainlink with our generated
-    /// allocations
-    event RequestFulfilled(bytes32 indexed requestId, bytes indexed data);
-
-    /// @dev Emitted when our exchange FLOOR recipient address is updated
-    event UpdatedFloorRecipient(address newRecipient);
 
     /**
      * Provides the `OptionPool` struct data. If the index cannot be found, then we
      * will receive an empty response.
      */
-    function getOptionPool(uint poolId) external returns (OptionPool memory);
+    function getOptionPool(uint poolId) external view returns (OptionPool memory) {
+        return pools[poolId];
+    }
+
+    /**
+     * Allows our {TreasuryManager} to create an `OptionPool` from tokens that have been
+     * passed in from the `deposit` function. We need to ensure that we have
+     * sufficient token amounts in the contract.
+     *
+     * This would mean that user's would not be able to action their {Option}, which is
+     * a bad thing.
+     *
+     * Should emit the {OptionPoolCreated} event.
+     */
+    function createPool(address token, uint amount, uint maxDiscount, uint expires) external returns (uint) {
+        require(expires > block.timestamp, 'Pool already expired');
+        require(amount != 0, 'No amount specified');
+
+        // Create our pool
+        pools.push(
+            OptionPool(
+                amount,          // amount
+                amount,          // initialAmount
+                token,           // token
+                maxDiscount,     // maxDiscount
+                uint64(expires)  // expires
+            )
+        );
+
+        // Transfer tokens from Treasury to the pool
+        require(
+            ERC20(token).transferFrom(treasury, address(this), amount),
+            'Unable to transfer from Treasury'
+        );
+
+        return pools.length - 1;
+    }
 
     /**
      * Starts the process of our allocation generation; sending a request to a specified
@@ -137,7 +127,20 @@ interface IOptionExchange {
      * When this call is made, if we have a low balance of $LINK token in our contract
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
-    function generateAllocations(uint poolId) external returns (bytes32 requestId);
+    function generateAllocations(uint poolId) external returns (bytes32 requestId) {
+        Chainlink.Request memory req = buildChainlinkRequest(
+            jobId,
+            address(this),
+            this.fulfillAllocations.selector
+        );
+
+        // Set the URL to perform the GET request on
+        req.add('get', 'https://oracles.floor.xyz/generateAllocations');
+        req.add('path', 'merkpleProof');
+
+        // Sends the request
+        return sendChainlinkRequest(req, fee);
+    }
 
     /**
      * Our Chainlink response will trigger this function. We will need to validate the
@@ -151,20 +154,35 @@ interface IOptionExchange {
      * We should expect only our defined Oracle to call this method, so validation should
      * be made around this.
      */
-    function fulfillAllocations(bytes32 requestId, bytes memory bytesData) external;
+    function fulfillAllocations(bytes32 requestId, bytes memory bytesData) external {
+        /**
+         * DNA is defined as:
+         *
+         * [allocation][reward amount][rarity][pool id]
+         *      8             8           8       8
+         */
 
-    /**
-     * Allows our {TreasuryManager} to create an `OptionPool` from tokens that have been
-     * passed in from the `deposit` function. Although we need to ensure that we have
-     * sufficient token amounts in the contract, we additionally need to ensure that
-     * they are not currently being used in existing `OptionPool` structures.
-     *
-     * This would mean that user's would not be able to action their {Option}, which is
-     * a bad thing.
-     *
-     * Should emit the {OptionPoolCreated} event.
-     */
-    function createPool(address token, uint amount, uint maxDiscount, uint expires) external;
+        /**
+         * We could store it as:
+         *  keccak256([address][dna][index]) (address, bytes32, uint256) bytes256
+         *
+         * We could create a merkle tree that would allow us to just provide a
+         * merkle proof.
+         *
+         * We would need the frontend call to send up the requested DNA and the index.
+         *
+         * We then validate against:
+         *  keccak256([msg.sender][dna][index])
+         *
+         * We could also just allow the msg.sender to be set as the recipient so that
+         * we can mint on behalf of others.
+         *
+         * https://soliditydeveloper.com/merkle-tree
+         */
+
+        (uint poolId, bytes32 merkleRoot) = abi.decode(bytesData, (uint, bytes32));
+        optionPoolMerkleRoots[poolId] = merkleRoot;
+    }
 
     /**
      * Allows the specified recipient to mint their `OptionAllocation`. This will
@@ -182,7 +200,38 @@ interface IOptionExchange {
      * Once minted, an ERC721 will be transferred to the recipient that will be used
      * to allow the holder to partially or fully action the option.
      */
-    function mintOptionAllocation(uint poolId, bytes32 dna, uint index, bytes32[] calldata merkleProof) external;
+    function mintOptionAllocation(
+        bytes32 dna,
+        uint index,
+        bytes32[] calldata merkleProof
+    ) external {
+        // Extract our pool ID from the DNA
+        uint poolId = dna << 8;
+
+        // Confirm that our pool has not expired
+        require(pools[poolId].expires > block.timestamp);
+
+        // Generate our merkle leaf (creates our wDNA)
+        bytes32 node = keccak256(
+            abi.encodePacked(msg.sender, dna, index)
+        );
+
+        // Confirm that the leaf is on the merkle tree
+        require(
+            MerkleProof.verify(merkleProof, optionPoolMerkleRoots[poolId], node),
+            'Not found in merkle tree'
+        );
+
+        // Confirm that the option has not already been claimed
+        require(!optionPoolMerkleRootClaims[node], 'Already claimed');
+
+        // We can now mint our option allocation
+        // IOption option = new Option(dna);
+        // option.mint();
+
+        // Mark our option as claimed
+        optionPoolMerkleRootClaims[node] = true;
+    }
 
     /**
      * We should be able to action a holders {Option} to allow them to exchange their
@@ -226,34 +275,27 @@ interface IOptionExchange {
      * If there is no remaining amount in the `OptionPool`, then the `OptionPool` will
      * not be deleted for historical purposes, but would emit the {OptionPoolClosed} event.
      */
-    function action(uint tokenId, uint floorIn, uint tokenOut, uint approvedMovement) external;
+    function action(uint tokenId, uint floorIn, uint tokenOut, uint approvedMovement) external {
+        //
+    }
 
     /**
      * The amount of FLOOR required to mint the specified `amount` of the `token`.
      *
      * This will call our {Treasury} to get the required price via the {PriceExecutor}.
      */
-    function getRequiredFloorPrice(address token, uint amount) external returns (uint);
+    function getRequiredFloorPrice(address token, uint amount) external returns (uint) {
+        //
+    }
 
     /**
      * Provides a list of all allocations that the user has available to be minted.
      *
      * @param recipient Address of the claimant
      */
-    function claimableOptionAllocations(address recipient) external view;
-
-    /**
-     * Our deposit function allows us to transfer ERC20 tokens from the {Treasury} into
-     * our {OptionExchange} contract. Once this is done we can then call the `createPool`
-     * function with the asset information to create an `OptionPool` and allocations.
-     *
-     * This contract will be approved to manage assets on the {Treasury}, so when we
-     * call our deposit function we can make the assumption that we have approval for
-     * transfer.
-     *
-     * This should only allow assets to be sent from the {Treasury}.
-     */
-    function deposit(address token, uint amount) external;
+    function claimableOptionAllocations(address recipient) external view {
+        // This is run via SubGraph so no data can be returned here
+    }
 
     /**
      * After an `OptionPool` has expired, any remaining token amounts can be transferred
@@ -265,7 +307,12 @@ interface IOptionExchange {
      * If there is substantial assets remaining, we could bypass our `withdraw` call and
      * instead just call `createPool` again with the same token referenced.
      */
-    function withdraw(uint poolId) external;
+    function withdraw(uint poolId) external {
+        require(pools[poolId].expires < block.timestamp, 'Not expired');
+        require(pools[poolId].amount != 0, 'Empty');
+
+        ERC20(pools[poolId].token).transfer(treasury, pools[poolId].amount);
+    }
 
     /**
      * Allows any sender to provide ChainLink token balance to the contract. This is
@@ -273,7 +320,13 @@ interface IOptionExchange {
      *
      * This should emit the {LinkBalanceIncreased} event.
      */
-    function depositLink(uint amount) external;
+    function depositLink(uint amount) external {
+        LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
+        require(
+            link.transferFrom(msg.sender, link.balanceOf(address(this))),
+            "Unable to transfer"
+        );
+    }
 
     /**
      * By default, FLOOR received from an {Option} being actioned will be burnt by
@@ -284,6 +337,8 @@ interface IOptionExchange {
      *
      * @param newRecipient The new address that will receive exchanged FLOOR tokens
      */
-    function setFloorRecipient(address newRecipient) external;
+    function setFloorRecipient(address newRecipient) external {
+        //
+    }
 
 }

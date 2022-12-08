@@ -14,7 +14,7 @@ import '@openzeppelin/contracts/interfaces/IERC721Enumerable.sol';
  * of a dynamic SVG representation of the option position. This will factor in the various
  * metadata attributes of the ERC721 to render a dynamic image.
  */
-interface IOptionERC721 is IERC721, IERC721Metadata, IERC721Enumerable {
+interface IOption is IERC721, IERC721Metadata, IERC721Enumerable {
 
     /**
      * The amount of the asset token allocated to the user's option.

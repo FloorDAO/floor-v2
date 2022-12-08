@@ -2,25 +2,20 @@
 
 pragma solidity ^0.8.0;
 
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol';
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
+import '@openzeppelin/contracts/utils/Counters.sol';
+
 import '../../interfaces/options/Option.sol';
 
 
-contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burnable {
+contract Option is ERC721, ERC721Enumerable, ERC721Burnable, IOption {
     using Counters for Counters.Counter;
 
     // We cannot just use balanceOf to create the new tokenId because tokens
     // can be burned (destroyed), so we need a separate counter.
     Counters.Counter private _tokenIdTracker;
-
-
-   struct ConstructTokenURIParams {
-        uint256 tokenId;
-        uint8 allocation;
-        uint8 rewardAmount;
-        uint4 rarity;
-        uint8 poolId;
-        uint64 expiresAt;
-    }
 
     /**
      * The DNA of our Option defines the struct of our Option, but without the
@@ -28,8 +23,8 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
      *
      * In this we reference the following:
      *
-     * [allocation][reward amount][rarity][pool id][expires]
-     *      8             8          4        8       64
+     * [allocation][reward amount][rarity][pool id]
+     *      8             8           4       8
      *
      * This DNA will not be unique as the ID value of this DNA will not be unique
      * as we don't factor in the ID of the token. This ID will be a uint256 and the
@@ -43,7 +38,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
      *  return (_c << 4) | _d;
      * }
      */
-    mapping (uint => bytes128) private dna;
+    mapping (uint => bytes32) private dna;
 
     /**
      * ERC721Permit is used to allow for gasless interaction.
@@ -74,7 +69,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
     /**
      * Gets the pool ID that the Option is attributed to.
      */
-    function poolId(uint256 tokenId) public function returns (uint) {
+    function poolId(uint256 tokenId) public view returns (uint) {
         return sliceUint(bytes8(dna[tokenId]) >> 20);
     }
 
@@ -82,7 +77,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
      * Gets the expiry unix timestamp of the Option. This should not be
      * able to be actioned after the timestamp has passed.
      */
-    function expiresAt() public function returns (uint) {
+    function expiresAt() public view returns (uint) {
         return sliceUint(bytes64(dna[tokenId]) >> 28);
     }
 
@@ -98,7 +93,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
     /**
      * Mints our token with a set DNA.
      */
-    function mint(address _to, bytes128 _dna) public virtual {
+    function mint(address _to, bytes32 _dna) public virtual {
         // require(hasRole(MINTER_ROLE, _msgSender()), "ERC721PresetMinterPauserAutoId: must have minter role to mint");
         _mint(_to, _tokenIdTracker.current());
         dna[_tokenIdTracker.current()] = _dna;
@@ -172,7 +167,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
                 abi.encodePacked(
                     'This NFT represents a reward option in a Floor.xyz for the ',
                     params.token,
-                    ' pool. The owner of this NFT can redeem against the reward.',
+                    ' pool. The owner of this NFT can redeem against the reward.'
                 )
             );
     }
@@ -183,13 +178,13 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
                 abi.encodePacked(
                     'Floor Option',
                     ' - ',
-                    params.token
+                    params.token,
                     ' - ',
                     params.allocation.toString(),
                     '% Allocation',
                     ' - ',
                     params.rewardAmount.toString(),
-                    '% Discount',
+                    '% Discount'
                 )
             );
     }
@@ -221,7 +216,7 @@ contract Option is ERC721Permit, IOption, Context, ERC721Enumerable, ERC721Burna
                     '<rect width="56" height="56" rx="10.5" fill="#0A0A0A"/>',
                     '<rect width="56" height="56" rx="10.5" fill="url(#paint0_linear_845_901)" fill-opacity="0.2"/>',
                     '<path d="M13.125 31.875C12.6418 31.875 12.25 31.4832 12.25 31V24.875C12.25 24.3918 12.6418 24 13.125 24H42.875C43.3582 24 43.75 24.3918 43.75 24.875V31C43.75 31.4832 43.3582 31.875 42.875 31.875H13.125Z" fill="#',
-                    tokenRarityToColourHex(rarity(tokenId))
+                    tokenRarityToColourHex(rarity(tokenId)),
                     '"/>',
 
                     // Token

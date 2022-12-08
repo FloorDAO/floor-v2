@@ -2,9 +2,45 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import '../../src/contracts/options/OptionExchange.sol';
 
-contract OptionExchangeTest is Test {
+import '../utilities/Environments.sol';
+
+
+contract OptionExchangeTest is FloorTest {
+
+    OptionExchange exchange;
+
+    function setUp() public {
+        exchange = new OptionExchange();
+    }
+
+    function test_AllocationMethods() public {
+        bytes memory bytesData = abi.encodePacked(
+            // Pool ID
+            uint(0),
+
+            // Encoded DNA (wDNA)
+            keccak256(
+                abi.encodePacked(
+                    // Recipient
+                    address(this),
+                    // DNA
+                    abi.encodePacked(
+                        uint8(10),
+                        uint8(5),
+                        uint8(1),
+                        uint8(0)
+                    ),
+                    // Index, incremented if multiple of same DNA is
+                    // allocated to the user.
+                    uint256(0)
+                )
+            )
+        );
+
+        exchange.fulfillAllocations(bytes32('123'), bytesData);
+    }
 
     /**
      * Our {TreasuryManager} should be able to call our `deposit` function to transfer
