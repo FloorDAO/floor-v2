@@ -259,7 +259,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
             ///        1
             ///    ) - MAX_SHARE
 
-            uint share = pools[poolId].amount / 5;
+            uint share = pools[poolId].amount;
             // uint discount = pools[poolId].maxDiscount;
 
             /*
@@ -268,6 +268,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
                 share = 1;
             }
             */
+
+            console.log('DISCOUNT:');
 
             uint discount = 2 * (getBellValue(_randomWords[0], _randomWords[2] + i, pools[poolId].maxDiscount / 2, pools[poolId].maxDiscount, 3, 1) - pools[poolId].maxDiscount);
 
@@ -356,15 +358,45 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
 
     function getBellValue(uint seed, uint seed2, uint16 min, uint16 max, uint16 std_deviation, uint16 step) public returns (uint16) {
-        uint rand1 = seed << seed2 / type(uint).max;
-        uint rand2 = seed >> seed2 / type(uint).max;
+        uint rand1 = type(uint).max / (seed % seed2);
+        uint rand2 = type(uint).max / (seed2 % seed);
 
-        uint gaussian_number = sqrt(2 * log(rand1)) * cos(2 * 31415 * rand2);
+        console.log(seed);
+        console.log(seed2);
+
+        console.log('========');
+
+        console.log(rand1);
+        console.log(rand2);
+
+        console.log('========');
+
+        uint logValue = log(rand1);
+        console.log(logValue);
+        uint sqrtValue = sqrt(2 * logValue);
+        console.log(sqrtValue);
+        uint cosValue = cos(2 * 31415 * rand2);
+        console.log(cosValue);
+
+        console.log('========');
+
+        uint gaussian_number = sqrtValue * cosValue;
+
+        console.log(gaussian_number);
 
         uint mean = (max + min) / 2;
 
+        console.log(mean);
+
         uint random_number = (gaussian_number * std_deviation) + mean;
         random_number = (random_number / step) * step;
+
+        console.log('========');
+
+        console.log('RANDOM NUMBER:');
+        console.log(random_number);
+
+        console.log('========');
 
         if (random_number < min) {
             return min;

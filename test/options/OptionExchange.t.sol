@@ -86,10 +86,12 @@ contract OptionExchangeTest is FloorTest {
         // doesn't matter, but the random seeds returned will change the output of the
         // allocations being generated.
 
+        // Example of random number size taken from:
+        // https://coincodecap.com/how-to-generate-random-numbers-on-ethereum-using-vrf
         uint[] memory randomWords = new uint[](3);
-        randomWords[0] = 100;
-        randomWords[1] = 200;
-        randomWords[2] = 300;
+        randomWords[0] = 30207470459964961279215818016791723193587102244018403859363363849439350753829;
+        randomWords[1] = 24207470459964961279215818016791723193587102244018403859363363849439350753821;
+        randomWords[2] = 29207470459964961279215818016791723193587102244018403859363363849439350753842;
 
         vm.prank(VRF_V2_WRAPPER);
         exchange.rawFulfillRandomWords(0, randomWords);
@@ -102,7 +104,7 @@ contract OptionExchangeTest is FloorTest {
      * the provided function. This will likely be members of the internal team, but
      * will be open to any samaritan that may be kind enough to fund the contract.
      */
-    function test_CanDepositLinkToken() public {
+    function _test_CanDepositLinkToken() public {
         // Confirm that our contract starts with 0 LINK
         assertEq(IERC20(LINK).balanceOf(address(exchange)), 0);
 
@@ -125,7 +127,7 @@ contract OptionExchangeTest is FloorTest {
      * When we have a sufficient ERC20 token balance, then our {TreasuryManager}
      * will be able to create a corresponding `OptionPool`.
      */
-    function test_CanCreatePool() public {
+    function _test_CanCreatePool() public {
         uint poolId = exchange.createPool(
             DAI,
             10000 ether,
@@ -142,7 +144,7 @@ contract OptionExchangeTest is FloorTest {
      * If we specify an unknown token address when creating our `OptionPool` then
      * we should expect the call to be reverted as we cannot find balance of it.
      */
-    function test_CannotCreatePoolWithUnknownToken() public {
+    function _test_CannotCreatePoolWithUnknownToken() public {
         vm.expectRevert();
         exchange.createPool(address(0), 10000 ether, uint16(10), uint64(block.timestamp + 60));
     }
@@ -150,7 +152,7 @@ contract OptionExchangeTest is FloorTest {
     /**
      *
      */
-    function test_CannotCreatePoolWithZeroAmount() public {
+    function _test_CannotCreatePoolWithZeroAmount() public {
         vm.expectRevert('No amount specified');
         exchange.createPool(DAI, 0, uint16(10), uint64(block.timestamp + 60));
     }
@@ -160,7 +162,7 @@ contract OptionExchangeTest is FloorTest {
      * held within the {OptionExchange}, then we expect it to be reverted as we
      * can only allocate that which is readily available.
      */
-    function test_CannotCreatePoolWithInsufficientBalance() public {
+    function _test_CannotCreatePoolWithInsufficientBalance() public {
         vm.expectRevert('Dai/insufficient-balance');
         exchange.createPool(DAI, 1_000_000_000 ether, uint16(10), uint64(block.timestamp + 60));
     }
@@ -170,7 +172,7 @@ contract OptionExchangeTest is FloorTest {
      * amount is not set above 100% as we won't have logic in place to send the
      * recipient FLOOR back. Plus, this is just stupid.
      */
-    function test_CannotCreatePoolWithDiscountOverOneHundredPercent() public {
+    function _test_CannotCreatePoolWithDiscountOverOneHundredPercent() public {
         vm.expectRevert('Max discount over 100%');
         exchange.createPool(DAI, 10000 ether, uint16(101), uint64(block.timestamp + 60));
     }
@@ -179,7 +181,7 @@ contract OptionExchangeTest is FloorTest {
      * We should not be able to create an `OptionPool` that has already expired
      * as this would prevent any users from being able to action their {Option}.
      */
-    function test_CannotCreatePoolWithPastExpiryTimestamp() public {
+    function _test_CannotCreatePoolWithPastExpiryTimestamp() public {
         vm.expectRevert('Pool already expired');
         exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp));
     }
@@ -434,7 +436,7 @@ contract OptionExchangeTest is FloorTest {
      */
     function _testCannotSendETHToContract() public {}
 
-    function test_CanCalculateRarity() public {
+    function _test_CanCalculateRarity() public {
         assertEq(exchange.rarity_score(0, 0, 20), 0);
         assertEq(exchange.rarity_score(20, 20, 20), 100);
         assertEq(exchange.rarity_score(10, 10, 20), 50);
