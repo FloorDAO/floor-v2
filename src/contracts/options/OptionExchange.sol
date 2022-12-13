@@ -12,6 +12,8 @@ import '@murky/Merkle.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
+import '@solidity-math-utils/IntegralMath.sol';
+
 import './Option.sol';
 import '../../interfaces/options/OptionExchange.sol';
 
@@ -349,7 +351,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     }
 
     function log(uint _in) public view returns (uint) {
-        return 1;
+        return IntegralMath.floorLog2(_in);
     }
 
     function cos(uint _in) public view returns (uint) {
@@ -371,9 +373,9 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
         console.log('========');
 
-        uint logValue = log(rand1);
+        uint logValue = IntegralMath.floorLog2(rand1);
         console.log(logValue);
-        uint sqrtValue = sqrt(2 * logValue);
+        uint sqrtValue = IntegralMath.floorSqrt(2 * logValue);
         console.log(sqrtValue);
         uint cosValue = cos(2 * 31415 * rand2);
         console.log(cosValue);
