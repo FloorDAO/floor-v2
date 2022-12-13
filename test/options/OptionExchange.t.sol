@@ -11,8 +11,12 @@ contract OptionExchangeTest is FloorTest {
 
     OptionExchange exchange;
 
+    address private constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
     function setUp() public {
-        exchange = new OptionExchange();
+        // Whilst the {Treasury} contract is being developed we can use the following
+        // test address
+        exchange = new OptionExchange(address(0));
     }
 
     function test_AllocationMethods() public {
@@ -43,25 +47,6 @@ contract OptionExchangeTest is FloorTest {
     }
 
     /**
-     * Our {TreasuryManager} should be able to call our `deposit` function to transfer
-     * assets from the {Treasury} into the {OptionsExchange}. No pools should be set up
-     * at this point, only the transfer of ERC20 tokens.
-     */
-    function testCanDeposit() public {}
-
-    /**
-     * If a non-{TreasuryManager} attempts to call our deposit function we should
-     * expect it to be reverted.
-     */
-    function testCannotDepositWithoutPermissions() public {}
-
-    /**
-     * If we have insufficient balance of the specified token in the {Treasury} then
-     * we should expect the call to be reverted.
-     */
-    function testCannotDepositTokenWithoutSufficientTreasuryBacking() public {}
-
-    /**
      * Any user should be able to send then $LINK token to our {OptionExchange} via
      * the provided function. This will likely be members of the internal team, but
      * will be open to any samaritan that may be kind enough to fund the contract.
@@ -72,7 +57,16 @@ contract OptionExchangeTest is FloorTest {
      * When we have a sufficient ERC20 token balance, then our {TreasuryManager}
      * will be able to create a corresponding `OptionPool`.
      */
-    function testCanCreatePool() public {}
+    function test_CanCreatePool() public {
+        uint poolId = exchange.createPool(
+            DAI,
+            10000 ether,
+            uint16(10),
+            uint64(block.timestamp + 60)
+        );
+
+        assertEq(poolId, 0);
+    }
 
     /**
      * If we specify an unknown token address when creating our `OptionPool` then

@@ -14,35 +14,35 @@ import '@openzeppelin/contracts/interfaces/IERC721Enumerable.sol';
  * of a dynamic SVG representation of the option position. This will factor in the various
  * metadata attributes of the ERC721 to render a dynamic image.
  */
-interface IOption is IERC721, IERC721Metadata, IERC721Enumerable {
+interface IOption is IERC721, IERC721Enumerable {
 
     /**
      * The amount of the asset token allocated to the user's option.
      *
      * @param tokenId The ID of the token that is being referrenced
      */
-    function allocation(uint tokenId) external view;
+    function allocation(uint tokenId) external view returns (uint);
 
     /**
      * The contract address of the token allocated in the option.
      *
      * @param tokenId The ID of the token that is being referrenced
      */
-    function asset(uint tokenId) external view;
+    function asset(uint tokenId) external view returns (uint);
 
     /**
      * The amount of discount awarded to the user on the asset transaction.
      *
      * @param tokenId The ID of the token that is being referrenced
      */
-    function discount(uint tokenId) external view;
+    function discount(uint tokenId) external view returns (uint);
 
     /**
      * The timestamp of which the option will expire.
      *
      * @param tokenId The ID of the token that is being referrenced
      */
-    function expires(uint tokenId) external view;
+    function expires(uint tokenId) external view returns (uint);
 
     /**
      * Outputs a dynamically generated SVG image, representative of the Option NFT in it's
@@ -53,7 +53,7 @@ interface IOption is IERC721, IERC721Metadata, IERC721Enumerable {
      *
      * @param tokenId The ID of the token that is being referrenced
      */
-    function generateSVG(uint tokenId) external view;
+    function generateSVG(uint tokenId) external view returns (string memory);
 
     /**
      * Allows our {OptionExchange} to mint a token when the user claims it. This will write our

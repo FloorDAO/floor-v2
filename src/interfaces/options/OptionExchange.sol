@@ -52,6 +52,7 @@ interface IOptionExchange {
         address token;
         uint16 maxDiscount;
         uint64 expires;
+        bytes32 requestId;
     }
 
     /**
@@ -164,7 +165,7 @@ interface IOptionExchange {
      *
      * Should emit the {OptionPoolCreated} event.
      */
-    function createPool(address token, uint amount, uint maxDiscount, uint expires) external;
+    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint);
 
     /**
      * Allows the specified recipient to mint their `OptionAllocation`. This will
@@ -182,7 +183,7 @@ interface IOptionExchange {
      * Once minted, an ERC721 will be transferred to the recipient that will be used
      * to allow the holder to partially or fully action the option.
      */
-    function mintOptionAllocation(uint poolId, bytes32 dna, uint index, bytes32[] calldata merkleProof) external;
+    function mintOptionAllocation(bytes32 dna, uint index, bytes32[] calldata merkleProof) external;
 
     /**
      * We should be able to action a holders {Option} to allow them to exchange their
@@ -241,19 +242,6 @@ interface IOptionExchange {
      * @param recipient Address of the claimant
      */
     function claimableOptionAllocations(address recipient) external view;
-
-    /**
-     * Our deposit function allows us to transfer ERC20 tokens from the {Treasury} into
-     * our {OptionExchange} contract. Once this is done we can then call the `createPool`
-     * function with the asset information to create an `OptionPool` and allocations.
-     *
-     * This contract will be approved to manage assets on the {Treasury}, so when we
-     * call our deposit function we can make the assumption that we have approval for
-     * transfer.
-     *
-     * This should only allow assets to be sent from the {Treasury}.
-     */
-    function deposit(address token, uint amount) external;
 
     /**
      * After an `OptionPool` has expired, any remaining token amounts can be transferred
