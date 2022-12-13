@@ -4,3 +4,4 @@ forge-std/=lib/forge-std/src/
 @openzeppelin/=lib/openzeppelin-contracts/
 @uniswap/=lib/
 @chainlink/=lib/chainlink/
+@murky/=lib/murky/src/

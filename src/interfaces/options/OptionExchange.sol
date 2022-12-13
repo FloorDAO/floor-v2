@@ -52,7 +52,8 @@ interface IOptionExchange {
         address token;
         uint16 maxDiscount;
         uint64 expires;
-        bytes32 requestId;
+        bool initialised;
+        uint requestId;
     }
 
     /**
@@ -138,21 +139,7 @@ interface IOptionExchange {
      * When this call is made, if we have a low balance of $LINK token in our contract
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
-    function generateAllocations(uint poolId) external returns (bytes32 requestId);
-
-    /**
-     * Our Chainlink response will trigger this function. We will need to validate the
-     * `requestId` is currently pending for the contract and then parse the `bytesData`
-     * into a format through which we can create a range of `OptionAllocation`.
-     *
-     * We will need to return packed bytes that we can iterate through, allowing for a
-     * variable length of results to be sent. With bit manipulation we can aim to keep
-     * the required amount of data passed to a minimum.
-     *
-     * We should expect only our defined Oracle to call this method, so validation should
-     * be made around this.
-     */
-    function fulfillAllocations(bytes32 requestId, bytes memory bytesData) external;
+    function generateAllocations(uint poolId) external returns (uint requestId);
 
     /**
      * Allows our {TreasuryManager} to create an `OptionPool` from tokens that have been

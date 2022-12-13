@@ -2,8 +2,12 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
+
+import '@murky/Merkle.sol';
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
@@ -44,7 +48,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     OptionPool[] internal pools;
 
     /// ..
-    mapping (uint => RequestStatus) s_requests;
+    mapping (uint => RequestStatus) public s_requests;
 
     /// Maps the poolId to a merkle root
     mapping (uint => bytes32) public optionPoolMerkleRoots;
@@ -54,6 +58,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
     /// ..
     address public immutable treasury;
+    address public immutable linkAddress;
 
     // Depends on the number of requested values that you want sent to the
     // fulfillRandomWords() function. Test and adjust
@@ -80,6 +85,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      */
     constructor (address _treasury, address _linkAddress, address _wrapperAddress) ConfirmedOwner(msg.sender) VRFV2WrapperConsumerBase(_linkAddress, _wrapperAddress) {
+        linkAddress = _linkAddress;
         treasury = _treasury;
     }
 
@@ -106,6 +112,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint) {
         require(expires > block.timestamp, 'Pool already expired');
         require(amount != 0, 'No amount specified');
+        require(maxDiscount <= 100, 'Max discount over 100%');
 
         // Create our pool
         pools.push(
@@ -115,7 +122,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
                 token,        // token
                 maxDiscount,  // maxDiscount
                 expires,      // expires
-                false         // initialised
+                false,        // initialised
+                0             // requestId
             )
         );
 
@@ -155,7 +163,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * When this call is made, if we have a low balance of $LINK token in our contract
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
-    function generateAllocations(uint poolId) external returns (bytes32 requestId) {
+    function generateAllocations(uint poolId) external returns (uint requestId) {
         // Validate our pool
         require(pools[poolId].amount != 0, 'Pool has no amount');
         require(pools[poolId].expires > block.timestamp, 'Pool already expired');
@@ -169,7 +177,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         // Store our request so that we can continue to monitor progress
         s_requests[requestId] = RequestStatus({
             paid: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
-            randomWord: 0,
+            randomWords: new uint256[](0),
             fulfilled: false
         });
 
@@ -190,7 +198,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * We should expect only our defined Oracle to call this method, so validation should
      * be made around this.
      */
-    function fulfillRandomWords(uint _requestId, uint[] memory _randomWords) internal {
+    function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal virtual override {
         /**
          * DNA is defined as:
          *
@@ -217,86 +225,89 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
          */
 
         // Confirm that our request is valid
-        require(s_requests[_requestId].paid > 0, 'Request not found');
+        // require(s_requests[_requestId].paid > 0, 'Request not found');
 
         // Update our request to apply the returned random values
-        s_requests[_requestId].fulfilled = true;
-        s_requests[_requestId].randomWords = _randomWords;
+        // s_requests[_requestId].fulfilled = true;
+        // s_requests[_requestId].randomWords = _randomWords;
+
+        require(_randomWords.length >= 3);
 
         uint poolId = 0;
-
-        uint MIN_SHARE = 1;
-        uint MAX_SHARE = 20;
-        uint MIN_DISCOUNT = 0;
-        uint MAX_DISCOUNT = pools[poolId].maxDiscount;
-        uint SHARE_DEVIATION = 3;
-        uint DISCOUNT_DEVIATION = 3;
 
         // Generate an array of options
         uint i;
         uint allocatedAmount;
-        bytes32[] memory options = new bytes32[];
+        bytes32[] storage _options;
 
         while (allocatedAmount < pools[poolId].amount) {
             i += 1;
 
-            uint share = 2 * (
-                getBellValue(
-                    _randomWords[0],
-                    _randomWords[1] + i,
-                    MIN_SHARE + (MAX_SHARE / 2),
-                    MAX_SHARE * 1.5,
-                    SHARE_DEVIATION,
-                    0.5
-                ) - MAX_SHARE
-            );
+            ///    uint16 MIN_SHARE = 1;
+            ///    uint16 MAX_SHARE = 20;
+            ///    uint16 MIN_DISCOUNT = 0;
+            ///    uint16 MAX_DISCOUNT = pools[poolId].maxDiscount;
+            ///    uint16 SHARE_DEVIATION = 3;
+            ///    uint16 DISCOUNT_DEVIATION = 3;
+            ///
+            ///    getBellValue(
+            ///        _randomWords[0],
+            ///        _randomWords[1] + i,
+            ///        MIN_SHARE + (MAX_SHARE / 2),
+            ///        MAX_SHARE,
+            ///        SHARE_DEVIATION,
+            ///        1
+            ///    ) - MAX_SHARE
 
-            uint discount = 2 * (
-                getBellValue(
-                    _randomWords[0],
-                    _randomWords[2] + i,
-                    MIN_DISCOUNT + (MAX_DISCOUNT / 2),
-                    MAX_DISCOUNT * 1.5,
-                    SHARE_DEVIATION,
-                    0.5
-                ) - MAX_DISCOUNT
-            );
+            uint share = pools[poolId].amount / 5;
+            // uint discount = pools[poolId].maxDiscount;
 
+            /*
+            uint share = 2 * (getBellValue(_randomWords[0], _randomWords[1] + i, 11, 20, 3, 1) - 20);
             if (share == 0) {
                 share = 1;
             }
+            */
+
+            uint discount = 2 * (getBellValue(_randomWords[0], _randomWords[2] + i, pools[poolId].maxDiscount / 2, pools[poolId].maxDiscount, 3, 1) - pools[poolId].maxDiscount);
+
+            console.log(discount);
 
             if ((allocatedAmount + share) > pools[poolId].amount) {
                 share = pools[poolId].amount - allocatedAmount;
             }
 
             // Create our DNA
-            options.push(
-                abi.encodePacked(
-                    bytes8(share),
-                    bytes8(discount),
-                    bytes8(rarity_score(share, discount)),
-                    bytes8(poolId)
-                )
-            );
+            bytes32 dna = bytes32(abi.encodePacked(
+                uint8(share),
+                uint8(discount),
+                rarity_score(share, discount, pools[poolId].maxDiscount),
+                uint8(poolId)
+            ));
+
+            console.logBytes32(dna);
+            // _options.push(dna);
 
             allocatedAmount += share;
         }
 
+        /*
         // Generate our merkle tree against allocations
         // https://github.com/dmfxyz/murky
         Merkle merkle = new Merkle();
 
         // Create our merkle data to be the length of our options
-        bytes32[] memory data = new bytes32[](options.length);
+        bytes32[] memory data = new bytes32[](_options.length);
 
         // Get members of the vault and assign them a start and end position based
         // on percentage ownership.
-        for (i = 0; i < options.length; ++i) {
-            bytes32 wDNA = abi.encodePacked(
-                0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96,
-                options[i],
-                poolId
+        for (i = 0; i < _options.length; ++i) {
+            bytes32 wDNA = bytes32(
+                abi.encodePacked(
+                    0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96,
+                    _options[i],
+                    poolId
+                )
             );
 
             // Emit stuff
@@ -310,33 +321,50 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
         // Set our pool to initialised
         pools[poolId].initialised = true;
+        */
     }
 
 
 
 
-    function rarity_score(uint share, uint discount) internal returns (uint) {
-        uint share_rarity = 100 - (((share - 1) / (20 - 1)) * 100) * 1.25; // We want more rating weight towards discount
-        uint discount_rarity = 100 - (((discount - 0) / (10 - 0)) * 100);
-
-        return (share_rarity + discount_rarity) / 200;
+    /**
+     * This wants to return a range from 0 - 100 to define rarity. A lower rarity
+     * value will be rarer, whilst a higher value will be more common.
+     */
+    function rarity_score(uint share, uint discount, uint maxDiscount) public view returns (uint8) {
+        uint x = ((share + discount) * 10000) / (20 + maxDiscount);
+        return uint8(x / 100);
     }
 
 
+    function sqrt(uint x) public view returns (uint y) {
+        uint z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+    }
 
-    function getBellValue(uint seed, uint seed2, uint min, uint max, uint std_deviation, uint step) public returns (uint) {
+    function log(uint _in) public view returns (uint) {
+        return 1;
+    }
+
+    function cos(uint _in) public view returns (uint) {
+        return 1;
+    }
+
+
+    function getBellValue(uint seed, uint seed2, uint16 min, uint16 max, uint16 std_deviation, uint16 step) public returns (uint16) {
         uint rand1 = seed << seed2 / type(uint).max;
         uint rand2 = seed >> seed2 / type(uint).max;
-        uint gaussian_number = sqrt(-2 * log(rand1)) * cos(2 * M_PI * rand2);
+
+        uint gaussian_number = sqrt(2 * log(rand1)) * cos(2 * 31415 * rand2);
 
         uint mean = (max + min) / 2;
 
-        int random_number = (gaussian_number * std_deviation) + mean;
-        random_number = round(random_number / step) * step;
-
-        if (random_number < 0) {
-            random_number *= -1;
-        }
+        uint random_number = (gaussian_number * std_deviation) + mean;
+        random_number = (random_number / step) * step;
 
         if (random_number < min) {
             return min;
@@ -346,7 +374,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
             return max;
         }
 
-        return random_number;
+        return uint16(random_number);
     }
 
 
@@ -491,21 +519,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * This should emit the {LinkBalanceIncreased} event.
      */
     function depositLink(uint amount) external {
-        LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
         require(
-            link.transferFrom(msg.sender, address(this), amount),
-            "Unable to transfer"
-        );
-    }
-
-
-    /**
-     * Allow withdraw of Link tokens from the contract
-     */
-    function withdrawLink() public onlyOwner {
-        LinkTokenInterface link = LinkTokenInterface(linkAddress);
-        require(
-            link.transfer(msg.sender, link.balanceOf(address(this))),
+            IERC20(linkAddress).transferFrom(msg.sender, address(this), amount),
             "Unable to transfer"
         );
     }
@@ -528,10 +543,10 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     /**
      *
      */
-    function getRequestStatus(uint _requestId) external view returns (uint256 paid, bool fulfilled, uint randomWord) {
+    function getRequestStatus(uint _requestId) external view returns (uint256 paid, bool fulfilled, uint[] memory randomWord) {
         require(s_requests[_requestId].paid > 0, 'Request not found');
         RequestStatus memory request = s_requests[_requestId];
-        return (request.paid, request.fulfilled, request.randomWord);
+        return (request.paid, request.fulfilled, request.randomWords);
     }
 
 
