@@ -21,3 +21,6 @@
 [submodule "lib/solidity-math-utils"]
 	path = lib/solidity-math-utils
 	url = https://github.com/barakman/solidity-math-utils
+[submodule "lib/solidity-trigonometry"]
+	path = lib/solidity-trigonometry
+	url = https://github.com/mds1/solidity-trigonometry
