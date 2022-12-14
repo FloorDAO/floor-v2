@@ -90,6 +90,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         uint vaultId_,
         address vaultAddr_
     ) {
+        // No empty names, that's just silly
+        require(bytes(_name).length != 0, 'Name cannot be empty');
+
         // Make sure strategy is approved
         require(strategyRegistry.isApproved(_strategy), 'Strategy not approved');
 

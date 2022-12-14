@@ -98,20 +98,35 @@ contract VaultFactoryTest is FloorTest {
      * We should be able to query for our vault based on it's uint index. This
      * will return the address of the created vault.
      */
-    function _testCanGetVault() public {}
+    function test_CanGetVault() public {
+        // Create a vault and store the address of the new clone
+        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+
+        // Confirm that the vault address stored in our vault factory matches the
+        // one that was just cloned.
+        assertEq(vaultFactory.vault(vaultId), vault);
+    }
 
     /**
      * If we try and get a vault with an unknown index, we expect a NULL address
      * to be returned.
      */
-    function _testCannotGetUnknownVault() public {}
+    function test_CannotGetUnknownVault() public {
+        assertEq(vaultFactory.vault(420), address(0));
+    }
 
     /**
      * We should be able to create a vault with valid function parameters.
      *
      * This should emit {VaultCreated}.
      */
-    function _testCanCreateVault() public {}
+    function test_CanCreateVault() public {
+        // Create a vault and store the address of the new clone
+        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+
+        assertEq(vaultId, 0);
+        require(vault != address(0), 'Invalid vault address');
+    }
 
     /**
      * We should not be able to create a vault with an empty name. This should
@@ -119,15 +134,10 @@ contract VaultFactoryTest is FloorTest {
      *
      * This should not emit {VaultCreated}.
      */
-    function _testCannotCreateVaultWithEmptyName() public {}
-
-    /**
-     * We should not be able to create a vault with an empty symbol. This should
-     * cause a revert.
-     *
-     * This should not emit {VaultCreated}.
-     */
-    function _testCannotCreateVaultWithEmptySymbol() public {}
+    function test_CannotCreateVaultWithEmptyName() public {
+        vm.expectRevert('Name cannot be empty');
+        vaultFactory.createVault('', approvedStrategy, _strategyInitBytes(), approvedCollection);
+    }
 
     /**
      * We should not be able to create a vault if we have referenced a strategy
@@ -135,7 +145,10 @@ contract VaultFactoryTest is FloorTest {
      *
      * This should not emit {VaultCreated}.
      */
-    function _testCannotCreateVaultWithUnapprovedStrategy() public {}
+    function test_CannotCreateVaultWithUnapprovedStrategy() public {
+        vm.expectRevert('Strategy not approved');
+        vaultFactory.createVault('Test Vault', strategy, _strategyInitBytes(), approvedCollection);
+    }
 
     /**
      * We should not be able to create a vault if we have referenced a collection
@@ -143,7 +156,10 @@ contract VaultFactoryTest is FloorTest {
      *
      * This should not emit {VaultCreated}.
      */
-    function _testCannotCreateVaultWithUnapprovedCollection() public {}
+    function test_CannotCreateVaultWithUnapprovedCollection() public {
+        vm.expectRevert('Collection not approved');
+        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
+    }
 
     /**
      * If the contract is paused when we try and create a vault with valid information,
