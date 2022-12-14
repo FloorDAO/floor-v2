@@ -4,12 +4,10 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
-import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
+import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
+import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import '../../interfaces/pricing/BasePricingExecutor.sol';
-
-import "forge-std/console.sol";
 
 
 interface IUniswapV3Factory {

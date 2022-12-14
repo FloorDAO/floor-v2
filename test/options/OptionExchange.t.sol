@@ -4,7 +4,10 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+import '../../src/contracts/options/OptionDistributionWeightingCalculator.sol';
 import '../../src/contracts/options/OptionExchange.sol';
+
+import '../mocks/VRFCoordinatorV2Mock.sol';
 
 import '../utilities/Environments.sol';
 
@@ -23,7 +26,7 @@ contract OptionExchangeTest is FloorTest {
     address private constant LINK = 0x514910771AF9Ca656af840dff83E8264EcF986CA;
 
     // Chainlink wrapper used for mocking responses
-    address private constant VRF_V2_WRAPPER = 0x5A861794B927983406fCE1D062e00b9368d97Df6;
+    address private VRF_V2_WRAPPER;  // Mainnet: 0x5A861794B927983406fCE1D062e00b9368d97Df6
 
     function setUp() public {
         // Generate a mainnet fork
@@ -38,6 +41,11 @@ contract OptionExchangeTest is FloorTest {
         // Confirm that our block number has set successfully
         assertEq(block.number, BLOCK_NUMBER);
 
+        // Set up our Mock {VRFCoordinatorV2Mock} with a calculated LINK fee of 0.1. We
+        // also reference the correct LINK token so that payment can be made from our base
+        // script.
+        VRF_V2_WRAPPER = address(new VRFCoordinatorV2Mock(10e17, 1, LINK));
+
         // Whilst the {Treasury} contract is being developed we can use the Binance8 wallet
         // address as this holds 100,000,000 DAI when the block snapshot was taken. This will
         // mean that we can create a sufficient number of pools with these test funds.
@@ -51,36 +59,20 @@ contract OptionExchangeTest is FloorTest {
         // it's funds.
         vm.prank(0x6B175474E89094C44Da98b954EedeAC495271d0F);
         IERC20(DAI).approve(address(exchange), type(uint).max);
+
+        address weightingCalculator = deployDistributionCalculator();
+        exchange.setOptionDistributionWeightingCalculator(weightingCalculator);
     }
 
     function test_AllocationMethods() public {
-        /*
-        bytes memory bytesData = abi.encodePacked(
-            // Pool ID
-            uint(0),
-
-            // Encoded DNA (wDNA)
-            keccak256(
-                abi.encodePacked(
-                    // Recipient
-                    address(this),
-                    // DNA
-                    abi.encodePacked(
-                        uint8(10),
-                        uint8(5),
-                        uint8(1),
-                        uint8(0)
-                    ),
-                    // Index, incremented if multiple of same DNA is
-                    // allocated to the user.
-                    uint256(0)
-                )
-            )
-        );
-        */
+        // Fund our {OptionExchange} contract with 10 LINK
+        fundContractWithLink(10 ether);
 
         // Create a pool with 10000 DAI
         uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Create our request against the pool
+        uint requestId = exchange.generateAllocations(poolId);
 
         // We must mock the VRF wrapper to return a raw response. The requestId (param 1)
         // doesn't matter, but the random seeds returned will change the output of the
@@ -88,16 +80,39 @@ contract OptionExchangeTest is FloorTest {
 
         // Example of random number size taken from:
         // https://coincodecap.com/how-to-generate-random-numbers-on-ethereum-using-vrf
-        uint[] memory randomWords = new uint[](3);
+        uint[] memory randomWords = new uint[](2);
         randomWords[0] = 30207470459964961279215818016791723193587102244018403859363363849439350753829;
-        randomWords[1] = 24207470459964961279215818016791723193587102244018403859363363849439350753821;
-        randomWords[2] = 29207470459964961279215818016791723193587102244018403859363363849439350753842;
+        randomWords[1] = 24207470441664961279215859205791723193587102244060926159316336384943935075382;
 
+        // Only the VRF_V2_WRAPPER will have write permissions, so we need to mock the
+        // request to be from this account.
         vm.prank(VRF_V2_WRAPPER);
-        exchange.rawFulfillRandomWords(0, randomWords);
+        exchange.rawFulfillRandomWords(requestId, randomWords);
     }
 
-    function _test_ExpectThreeRandomWords() public {}
+    function test_ExpectMinimumOfTwoRandomWords() public {
+        // Fund our {OptionExchange} contract with 10 LINK
+        fundContractWithLink(10 ether);
+
+        // Create a pool with 10000 DAI
+        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Create our request against the pool
+        uint requestId = exchange.generateAllocations(poolId);
+
+        vm.startPrank(VRF_V2_WRAPPER);
+
+        uint[] memory randomWords1 = new uint[](0);
+        vm.expectRevert(bytes('Insufficient words returned'));
+        exchange.rawFulfillRandomWords(requestId, randomWords1);
+
+        uint[] memory randomWords2 = new uint[](1);
+        randomWords2[0] = 1;
+        vm.expectRevert(bytes('Insufficient words returned'));
+        exchange.rawFulfillRandomWords(requestId, randomWords2);
+
+        vm.stopPrank();
+    }
 
     /**
      * Any user should be able to send then $LINK token to our {OptionExchange} via
@@ -436,14 +451,55 @@ contract OptionExchangeTest is FloorTest {
      */
     function _testCannotSendETHToContract() public {}
 
+    /**
+     *
+     */
     function _test_CanCalculateRarity() public {
-        assertEq(exchange.rarity_score(0, 0, 20), 0);
-        assertEq(exchange.rarity_score(20, 20, 20), 100);
-        assertEq(exchange.rarity_score(10, 10, 20), 50);
-        assertEq(exchange.rarity_score(20, 10, 20), 75);
-        assertEq(exchange.rarity_score(10, 20, 20), 75);
-        assertEq(exchange.rarity_score(5, 5, 20), 25);
-        assertEq(exchange.rarity_score(15, 15, 20), 75);
+        assertEq(exchange.rarityScore(0, 0, 20), 0);
+        assertEq(exchange.rarityScore(20, 20, 20), 100);
+        assertEq(exchange.rarityScore(10, 10, 20), 50);
+        assertEq(exchange.rarityScore(20, 10, 20), 75);
+        assertEq(exchange.rarityScore(10, 20, 20), 75);
+        assertEq(exchange.rarityScore(5, 5, 20), 25);
+        assertEq(exchange.rarityScore(15, 15, 20), 75);
+    }
+
+    function deployDistributionCalculator() internal returns (address) {
+        // Set our weighting ladder
+        uint[] memory _weights = new uint[](21);
+        _weights[0] = 1453;
+        _weights[1] = 2758;
+        _weights[2] = 2653;
+        _weights[3] = 2424;
+        _weights[4] = 2293;
+        _weights[5] = 1919;
+        _weights[6] = 1725;
+        _weights[7] = 1394;
+        _weights[8] = 1179;
+        _weights[9] = 887;
+        _weights[10] = 700;
+        _weights[11] = 524;
+        _weights[12] = 370;
+        _weights[13] = 270;
+        _weights[14] = 191;
+        _weights[15] = 122;
+        _weights[16] = 100;
+        _weights[17] = 51;
+        _weights[18] = 29;
+        _weights[19] = 18;
+        _weights[20] = 12;
+
+        return address(new OptionDistributionWeightingCalculator(abi.encode(_weights)));
+    }
+
+    function fundContractWithLink(uint amount) internal returns (uint) {
+        // Fund our contract with sufficient LINK tokens to make requests when needed
+        vm.startPrank(0x8d4169cCf3aD88EaFBB09580e7441D3eD2b4B922);
+        IERC20(LINK).approve(address(exchange), type(uint).max);
+        exchange.depositLink(amount);
+        vm.stopPrank();
+
+        return IERC20(LINK).balanceOf(address(exchange));
     }
 
 }

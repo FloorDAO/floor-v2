@@ -6,3 +6,4 @@ forge-std/=lib/forge-std/src/
 @chainlink/=lib/chainlink/
 @murky/=lib/murky/src/
 @solidity-math-utils/=lib/solidity-math-utils/project/contracts/
+@solidity-trigonometry/=lib/solidity-trigonometry/src/

@@ -2,19 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
-import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
-import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
+import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
+import '@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol';
 
 import '@murky/Merkle.sol';
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import '@solidity-math-utils/IntegralMath.sol';
-
 import './Option.sol';
+import './OptionDistributionWeightingCalculator.sol';
 import '../../interfaces/options/OptionExchange.sol';
 
 
@@ -40,11 +37,23 @@ import '../../interfaces/options/OptionExchange.sol';
  */
 contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumerBase {
 
+    /// ..
     struct RequestStatus {
-        uint256 paid; // amount paid in link
-        bool fulfilled; // whether the request has been successfully fulfilled
+        uint paid; // amount paid in link
+        bool fulfilled;
         uint[] randomWords;
+        uint poolId;
     }
+
+    /// Maintain a list of options that we will append and delete
+    /// from during the generation process.
+    bytes32[] _options;
+
+    /// Our Option Distribution Weighting ladder is stored as an external
+    /// contract to allow ongoing optimisation and manipulation of the
+    /// desired algorithm. All it requires is for us to be able to send
+    /// a seeded `get` call to return a value.
+    OptionDistributionWeightingCalculator public weighting;
 
     /// ..
     OptionPool[] internal pools;
@@ -74,21 +83,23 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
     // For this example, retrieve 2 random values in one request.
     // Cannot exceed VRFV2Wrapper.getConfig().maxNumWords.
-    uint32 numWords = 3;
-
-    // Address LINK - hardcoded for Goerli
-    // address linkAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
-
-    // address WRAPPER - hardcoded for Goerli
-    // address wrapperAddress = 0x708701a1DfF4f478de54383E49a627eD4852C816;
+    uint32 numWords = 2;
 
 
     /**
-     *
+     * ...
      */
     constructor (address _treasury, address _linkAddress, address _wrapperAddress) ConfirmedOwner(msg.sender) VRFV2WrapperConsumerBase(_linkAddress, _wrapperAddress) {
         linkAddress = _linkAddress;
         treasury = _treasury;
+    }
+
+
+    /**
+     * ...
+     */
+    function setOptionDistributionWeightingCalculator(address _weighting) external {
+        weighting = OptionDistributionWeightingCalculator(_weighting);
     }
 
 
@@ -180,7 +191,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         s_requests[requestId] = RequestStatus({
             paid: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
             randomWords: new uint256[](0),
-            fulfilled: false
+            fulfilled: false,
+            poolId: poolId
         });
 
         // Set the request ID against our pool
@@ -201,218 +213,100 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * be made around this.
      */
     function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal virtual override {
-        /**
-         * DNA is defined as:
-         *
-         * [allocation][reward amount][rarity][pool id]
-         *      8             8           8       8
-         */
-
-        /**
-         * We could store it as:
-         *  keccak256([address][dna][index]) (address, bytes32, uint256) bytes256
-         *
-         * We could create a merkle tree that would allow us to just provide a
-         * merkle proof.
-         *
-         * We would need the frontend call to send up the requested DNA and the index.
-         *
-         * We then validate against:
-         *  keccak256([msg.sender][dna][index])
-         *
-         * We could also just allow the msg.sender to be set as the recipient so that
-         * we can mint on behalf of others.
-         *
-         * https://soliditydeveloper.com/merkle-tree
-         */
-
         // Confirm that our request is valid
-        // require(s_requests[_requestId].paid > 0, 'Request not found');
+        require(s_requests[_requestId].paid > 0, 'Request not found');
 
         // Update our request to apply the returned random values
-        // s_requests[_requestId].fulfilled = true;
-        // s_requests[_requestId].randomWords = _randomWords;
+        s_requests[_requestId].fulfilled = true;
+        s_requests[_requestId].randomWords = _randomWords;
 
-        require(_randomWords.length >= 3);
+        // Confirm that we have enough words returned
+        require(_randomWords.length >= numWords, 'Insufficient words returned');
 
-        uint poolId = 0;
+        // Get our pool information
+        OptionPool memory pool = pools[s_requests[_requestId].poolId];
 
-        // Generate an array of options
-        uint i;
+        // Map our share allocation, which will always be < 100
         uint allocatedAmount;
-        bytes32[] storage _options;
 
-        while (allocatedAmount < pools[poolId].amount) {
-            i += 1;
+        // Whilst we have remaining allocation of the pool amount assigned, create options
+        uint i;
+        while (allocatedAmount < 100) {
+            unchecked { ++i; }
 
-            ///    uint16 MIN_SHARE = 1;
-            ///    uint16 MAX_SHARE = 20;
-            ///    uint16 MIN_DISCOUNT = 0;
-            ///    uint16 MAX_DISCOUNT = pools[poolId].maxDiscount;
-            ///    uint16 SHARE_DEVIATION = 3;
-            ///    uint16 DISCOUNT_DEVIATION = 3;
-            ///
-            ///    getBellValue(
-            ///        _randomWords[0],
-            ///        _randomWords[1] + i,
-            ///        MIN_SHARE + (MAX_SHARE / 2),
-            ///        MAX_SHARE,
-            ///        SHARE_DEVIATION,
-            ///        1
-            ///    ) - MAX_SHARE
+            // Get our weighted share allocation. If it is equal to 0, then
+            // we set it to 1 as the minimum value.
+            uint share = weighting.getShare(_randomWords[0] / 10000 * i);
 
-            uint share = pools[poolId].amount;
-            // uint discount = pools[poolId].maxDiscount;
+            // Get our discount allocation
+            uint discount = weighting.getDiscount(_randomWords[1] / 10000 * i);
 
-            /*
-            uint share = 2 * (getBellValue(_randomWords[0], _randomWords[1] + i, 11, 20, 3, 1) - 20);
-            if (share == 0) {
-                share = 1;
-            }
-            */
-
-            console.log('DISCOUNT:');
-
-            uint discount = 2 * (getBellValue(_randomWords[0], _randomWords[2] + i, pools[poolId].maxDiscount / 2, pools[poolId].maxDiscount, 3, 1) - pools[poolId].maxDiscount);
-
-            console.log(discount);
-
-            if ((allocatedAmount + share) > pools[poolId].amount) {
-                share = pools[poolId].amount - allocatedAmount;
+            // If our share allocation puts us over the total pool amount then
+            // we just need provide the user the maximum remaining.
+            if (allocatedAmount + share > 100) {
+                share = 100 - allocatedAmount;
             }
 
-            // Create our DNA
-            bytes32 dna = bytes32(abi.encodePacked(
-                uint8(share),
-                uint8(discount),
-                rarity_score(share, discount, pools[poolId].maxDiscount),
-                uint8(poolId)
-            ));
+            // Create our DNA; it is defined as:
+            // [allocation][reward amount][rarity][pool id]
+            _options.push(
+                bytes32(abi.encodePacked(
+                    uint8(share),
+                    uint8(discount),
+                    rarityScore(share, discount, pool.maxDiscount),
+                    uint8(s_requests[_requestId].poolId)
+                ))
+            );
 
-            console.logBytes32(dna);
-            // _options.push(dna);
-
+            // Add our share to the allocated amount
             allocatedAmount += share;
         }
 
-        /*
         // Generate our merkle tree against allocations
         // https://github.com/dmfxyz/murky
         Merkle merkle = new Merkle();
 
         // Create our merkle data to be the length of our options
-        bytes32[] memory data = new bytes32[](_options.length);
+        bytes32[] memory data = new bytes32[](i);
 
         // Get members of the vault and assign them a start and end position based
         // on percentage ownership.
-        for (i = 0; i < _options.length; ++i) {
-            bytes32 wDNA = bytes32(
+        for (uint k; k < i;) {
+            // Wrap our DNA and add to our merkle tree data leaves
+            data[k] = bytes32(
                 abi.encodePacked(
+                    // TODO: Dynamically select user
                     0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96,
-                    _options[i],
-                    poolId
+                    _options[k],
+                    s_requests[_requestId].poolId
                 )
             );
 
-            // Emit stuff
+            // Delete our _options value for gas saves
+            delete _options[k];
 
-            // Add to our merkle tree
-            data[i] = wDNA;
+            unchecked { ++k; }
         }
 
         // Set our merkle root against the pool
-        optionPoolMerkleRoots[poolId] = merkle.getRoot(data);
+        optionPoolMerkleRoots[s_requests[_requestId].poolId] = merkle.getRoot(data);
 
         // Set our pool to initialised
-        pools[poolId].initialised = true;
-        */
+        pools[s_requests[_requestId].poolId].initialised = true;
+
+        // Detect if our LINK balance is low and emit appropriate events
+        _detectLowLinkBalance();
     }
-
-
 
 
     /**
      * This wants to return a range from 0 - 100 to define rarity. A lower rarity
      * value will be rarer, whilst a higher value will be more common.
      */
-    function rarity_score(uint share, uint discount, uint maxDiscount) public view returns (uint8) {
+    function rarityScore(uint share, uint discount, uint maxDiscount) public pure returns (uint8) {
         uint x = ((share + discount) * 10000) / (20 + maxDiscount);
         return uint8(x / 100);
     }
-
-
-    function sqrt(uint x) public view returns (uint y) {
-        uint z = (x + 1) / 2;
-        y = x;
-        while (z < y) {
-            y = z;
-            z = (x / z + z) / 2;
-        }
-    }
-
-    function log(uint _in) public view returns (uint) {
-        return IntegralMath.floorLog2(_in);
-    }
-
-    function cos(uint _in) public view returns (uint) {
-        return 1;
-    }
-
-
-    function getBellValue(uint seed, uint seed2, uint16 min, uint16 max, uint16 std_deviation, uint16 step) public returns (uint16) {
-        uint rand1 = type(uint).max / (seed % seed2);
-        uint rand2 = type(uint).max / (seed2 % seed);
-
-        console.log(seed);
-        console.log(seed2);
-
-        console.log('========');
-
-        console.log(rand1);
-        console.log(rand2);
-
-        console.log('========');
-
-        uint logValue = IntegralMath.floorLog2(rand1);
-        console.log(logValue);
-        uint sqrtValue = IntegralMath.floorSqrt(2 * logValue);
-        console.log(sqrtValue);
-        uint cosValue = cos(2 * 31415 * rand2);
-        console.log(cosValue);
-
-        console.log('========');
-
-        uint gaussian_number = sqrtValue * cosValue;
-
-        console.log(gaussian_number);
-
-        uint mean = (max + min) / 2;
-
-        console.log(mean);
-
-        uint random_number = (gaussian_number * std_deviation) + mean;
-        random_number = (random_number / step) * step;
-
-        console.log('========');
-
-        console.log('RANDOM NUMBER:');
-        console.log(random_number);
-
-        console.log('========');
-
-        if (random_number < min) {
-            return min;
-        }
-
-        if (random_number > max) {
-            return max;
-        }
-
-        return uint16(random_number);
-    }
-
-
-
 
 
     /**
@@ -574,6 +468,13 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     }
 
 
+    function _detectLowLinkBalance() internal view {
+        if (IERC20(linkAddress).balanceOf(address(this)) < 5 ether) {
+            // emit ;
+        }
+    }
+
+
     /**
      *
      */
@@ -582,7 +483,5 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         RequestStatus memory request = s_requests[_requestId];
         return (request.paid, request.fulfilled, request.randomWords);
     }
-
-
 
 }
