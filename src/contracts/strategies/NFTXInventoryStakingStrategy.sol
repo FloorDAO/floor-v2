@@ -22,12 +22,12 @@ import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
  */
 contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStrategy, Initializable {
 
+    bytes32 public name;
     uint public vaultId;
+
     address public pool;
     address public underlyingToken;
     address public yieldToken;
-
-    bytes32 public name;
 
     address public inventoryStaking;
     address public treasury;
@@ -58,23 +58,21 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
     /**
      * ...
      */
-    constructor () {}
+    constructor (bytes32 _name) {
+        name = _name;
+    }
 
     /**
      * ...
      */
-    function initialize(bytes memory initData) public initializer {
+    function initialize(uint _vaultId, bytes memory initData) public initializer {
         (
-            bytes32 _name,
             address _pool,
             address _underlyingToken,
             address _yieldToken,
-            uint _vaultId,
             address _inventoryStaking,
             address _treasury
-        ) = abi.decode(initData, (bytes32, address, address, address, uint, address, address));
-
-        name = _name;
+        ) = abi.decode(initData, (address, address, address, address, address));
 
         pool = _pool;
         underlyingToken = _underlyingToken;
@@ -84,7 +82,8 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
 
-        IERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
+        // TODO: This was breaking??
+        // IERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
     }
 
     /**

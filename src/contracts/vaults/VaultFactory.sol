@@ -102,7 +102,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Deploy a new {Strategy} instance using the clone mechanic. We then need to
         // instantiate the strategy using our supplied `strategyInitData`.
         address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
-        IBaseStrategy(strategy).initialize(_strategyInitData);
+        IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
 
         // Create our {Vault} with provided information
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));

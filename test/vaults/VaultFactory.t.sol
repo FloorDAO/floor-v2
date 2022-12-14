@@ -2,9 +2,27 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import '../../src/contracts/collections/CollectionRegistry.sol';
+import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
+import '../../src/contracts/strategies/StrategyRegistry.sol';
+import '../../src/contracts/vaults/Vault.sol';
+import '../../src/contracts/vaults/VaultFactory.sol';
 
-contract VaultFactoryTest is Test {
+import '../utilities/Environments.sol';
+
+
+contract VaultFactoryTest is FloorTest {
+
+    CollectionRegistry collectionRegistry;
+    StrategyRegistry strategyRegistry;
+    VaultFactory vaultFactory;
+    Vault vaultImplementation;
+
+    address approvedCollection;
+    address approvedStrategy;
+
+    address collection;
+    address strategy;
 
     /**
      * Deploy the {VaultFactory} contract but don't create any vaults, as we want to
@@ -13,44 +31,87 @@ contract VaultFactoryTest is Test {
      * We do, however, want to create an approved strategy and collection that we
      * can reference in numerous tests.
      */
-    function setUp() public {}
+    function setUp() public {
+        // Create our {StrategyRegistry}
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+
+        // Define our strategy implementations
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy')));
+
+        // Approve our test strategy implementation
+        strategyRegistry.approveStrategy(approvedStrategy);
+
+        // Create our {CollectionRegistry}
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+
+        // Define our collections (DAI and USDC)
+        approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        collection = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+
+        // Approve our test collection
+        collectionRegistry.approveCollection(approvedCollection);
+
+        // Deploy our vault implementation
+        vaultImplementation = new Vault(address(authorityRegistry));
+
+        // Create our {VaultFactory}
+        vaultFactory = new VaultFactory(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry),
+            address(vaultImplementation)
+        );
+    }
 
     /**
      * We should be able to query for all vaults, even when there are none actually
      * created. This won't revert but will just return an empty array.
      */
-    function testVaultsWithNoneCreated() public {}
+    function test_VaultsWithNoneCreated() public {
+        assertEq(vaultFactory.vaults().length, 0);
+    }
 
     /**
      * When there is only a single vault created, we should still receive an array
      * response but with just a single item inside it.
      */
-    function testVaultsWithSingleVault() public {}
+    function test_VaultsWithSingleVault() public {
+        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), approvedCollection);
+
+        assertEq(vaultFactory.vaults().length, 1);
+    }
 
     /**
      * When we have multiple vaults created we should be able to query them and
      * receive all in an array.
      */
-    function testVaultsWithMultipleVaults() public {}
+    function test_VaultsWithMultipleVaults() public {
+        vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), approvedCollection);
+
+        assertEq(vaultFactory.vaults().length, 3);
+    }
 
     /**
      * We should be able to query for our vault based on it's uint index. This
      * will return the address of the created vault.
      */
-    function testCanGetVault() public {}
+    function _testCanGetVault() public {}
 
     /**
      * If we try and get a vault with an unknown index, we expect a NULL address
      * to be returned.
      */
-    function testCannotGetUnknownVault() public {}
+    function _testCannotGetUnknownVault() public {}
 
     /**
      * We should be able to create a vault with valid function parameters.
      *
      * This should emit {VaultCreated}.
      */
-    function testCanCreateVault() public {}
+    function _testCanCreateVault() public {}
 
     /**
      * We should not be able to create a vault with an empty name. This should
@@ -58,7 +119,7 @@ contract VaultFactoryTest is Test {
      *
      * This should not emit {VaultCreated}.
      */
-    function testCannotCreateVaultWithEmptyName() public {}
+    function _testCannotCreateVaultWithEmptyName() public {}
 
     /**
      * We should not be able to create a vault with an empty symbol. This should
@@ -66,7 +127,7 @@ contract VaultFactoryTest is Test {
      *
      * This should not emit {VaultCreated}.
      */
-    function testCannotCreateVaultWithEmptySymbol() public {}
+    function _testCannotCreateVaultWithEmptySymbol() public {}
 
     /**
      * We should not be able to create a vault if we have referenced a strategy
@@ -74,7 +135,7 @@ contract VaultFactoryTest is Test {
      *
      * This should not emit {VaultCreated}.
      */
-    function testCannotCreateVaultWithUnapprovedStrategy() public {}
+    function _testCannotCreateVaultWithUnapprovedStrategy() public {}
 
     /**
      * We should not be able to create a vault if we have referenced a collection
@@ -82,7 +143,7 @@ contract VaultFactoryTest is Test {
      *
      * This should not emit {VaultCreated}.
      */
-    function testCannotCreateVaultWithUnapprovedCollection() public {}
+    function _testCannotCreateVaultWithUnapprovedCollection() public {}
 
     /**
      * If the contract is paused when we try and create a vault with valid information,
@@ -90,7 +151,7 @@ contract VaultFactoryTest is Test {
      *
      * This should not emit {VaultCreated}.
      */
-    function testCannotCreateVaultWhenPaused() public {}
+    function _testCannotCreateVaultWhenPaused() public {}
 
     /**
      * Governors and Guardians should be able to pause the contract which will prevent
@@ -99,7 +160,7 @@ contract VaultFactoryTest is Test {
      *
      * This should emit {VaultCreationPaused}.
      */
-    function testCanPause() public {}
+    function _testCanPause() public {}
 
     /**
      * Governors and Guardians should be able to unpause the contract which will again
@@ -108,6 +169,19 @@ contract VaultFactoryTest is Test {
      *
      * This should emit {VaultCreationPaused}.
      */
-    function testCanUnpause() public {}
+    function _testCanUnpause() public {}
+
+    /**
+     * ...
+     */
+    function _strategyInitBytes() internal pure returns (bytes memory) {
+        return abi.encode(
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
+            0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+        );
+    }
 
 }

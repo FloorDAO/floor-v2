@@ -59,23 +59,21 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
     /**
      * ...
      */
-    constructor () {}
+    constructor (bytes32 _name) {
+        name = _name;
+    }
 
     /**
      * ...
      */
-    function initialize(bytes memory initData) public initializer {
+    function initialize(uint _vaultId, bytes memory initData) public initializer {
         (
-            bytes32 _name,
             address _pool,
             address _underlyingToken,
             address _yieldToken,
-            uint _vaultId,
             address _liquidityStaking,
             address _treasury
-        ) = abi.decode(initData, (bytes32, address, address, address, uint, address, address));
-
-        name = _name;
+        ) = abi.decode(initData, (address, address, address, address, address));
 
         pool = _pool;
         underlyingToken = _underlyingToken;

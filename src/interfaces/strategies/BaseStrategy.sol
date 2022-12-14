@@ -28,7 +28,7 @@ interface IBaseStrategy {
     /**
      * Allows the vault to be initialised.
      */
-    function initialize(bytes memory initData) external;
+    function initialize(uint _vaultId, bytes memory initData) external;
 
     /**
      * Name of the strategy.
