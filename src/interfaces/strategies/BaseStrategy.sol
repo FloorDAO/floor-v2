@@ -26,6 +26,11 @@ interface IBaseStrategy {
     event Exit(address token, uint amount);
 
     /**
+     * Allows the vault to be initialised.
+     */
+    function initialize(bytes memory initData) external;
+
+    /**
      * Name of the strategy.
      */
     function name() external view returns (bytes32);

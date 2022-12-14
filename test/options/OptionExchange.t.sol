@@ -196,7 +196,7 @@ contract OptionExchangeTest is FloorTest {
     function test_CannotGetUnknownOptionPool() public {
         // Get pool information against a poolId that does not exist
         vm.expectRevert('Pool does not exist');
-        OptionExchange.OptionPool memory pool = exchange.getOptionPool(420);
+        exchange.getOptionPool(420);
     }
 
     /**

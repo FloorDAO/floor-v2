@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 import '../../interfaces/nftx/NFTXLiquidityStaking.sol';
 import '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
@@ -20,17 +21,17 @@ import '../../interfaces/strategies/NFTXLiquidityStakingStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStrategy {
+contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStrategy, Initializable {
 
-    uint public immutable vaultId;
-    address public immutable pool;
-    address public immutable underlyingToken;  // SLP
-    address public immutable yieldToken;       // xSLP
+    uint public vaultId;
+    address public pool;
+    address public underlyingToken;  // SLP
+    address public yieldToken;       // xSLP
 
-    bytes32 public immutable name;
+    bytes32 public name;
 
-    address public immutable liquidityStaking;
-    address public immutable treasury;
+    address public liquidityStaking;
+    address public treasury;
 
     /**
      * This will return the internally tracked value of tokens that have been minted into
@@ -56,17 +57,24 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
     uint public deposits;
 
     /**
-     *
+     * ...
      */
-    constructor (
-        bytes32 _name,
-        address _pool,
-        address _underlyingToken,
-        address _yieldToken,
-        uint _vaultId,
-        address _liquidityStaking,
-        address _treasury
-    ) {
+    constructor () {}
+
+    /**
+     * ...
+     */
+    function initialize(bytes memory initData) public initializer {
+        (
+            bytes32 _name,
+            address _pool,
+            address _underlyingToken,
+            address _yieldToken,
+            uint _vaultId,
+            address _liquidityStaking,
+            address _treasury
+        ) = abi.decode(initData, (bytes32, address, address, address, uint, address, address));
+
         name = _name;
 
         pool = _pool;
@@ -77,7 +85,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
         liquidityStaking = _liquidityStaking;
         treasury = _treasury;
 
-        ERC20(underlyingToken).approve(_liquidityStaking, type(uint).max);
+        IERC20(underlyingToken).approve(_liquidityStaking, type(uint).max);
     }
 
     /**
@@ -100,16 +108,16 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
         require(amount > 0, 'Cannot deposit 0');
 
         // Get the SLP token from the user
-        ERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
 
         // Get our xSLP starting balance
-        uint startXTokenBalance = ERC20(yieldToken).balanceOf(address(this));
+        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
 
         // Stake our SLP to get xSLP back
         INFTXLiquidityStaking(liquidityStaking).deposit(vaultId, amount);
 
         // Calculate how much xSLP was returned
-        xTokensReceived = ERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        xTokensReceived = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
         deposits += xTokensReceived;
     }
 
@@ -132,7 +140,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
      * xSLP to retrieve all their underlying tokens.
      */
     function exit() external returns (uint returnAmount_) {
-        returnAmount_ = ERC20(underlyingToken).balanceOf(address(this));
+        returnAmount_ = IERC20(underlyingToken).balanceOf(address(this));
         INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, returnAmount_);
     }
 
@@ -154,7 +162,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this)) + ERC20(pool).balanceOf(address(this)) + mintedRewards;
+        return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this)) + IERC20(pool).balanceOf(address(this)) + mintedRewards;
     }
 
     /**
@@ -166,7 +174,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function unmintedRewards() external view returns (uint amount_) {
-        return ERC20(pool).balanceOf(address(this));
+        return IERC20(pool).balanceOf(address(this));
     }
 
     /**

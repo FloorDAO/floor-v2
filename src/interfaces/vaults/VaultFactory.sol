@@ -35,6 +35,6 @@ interface IVaultFactory {
     /**
      * Creates a vault with an approved strategy and collection.
      */
-    function createVault(string memory _name, string memory _symbol, address _strategy, address _collection) external returns (uint vaultId_, address vaultAddr_);
+    function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection) external returns (uint vaultId_, address vaultAddr_);
 
 }

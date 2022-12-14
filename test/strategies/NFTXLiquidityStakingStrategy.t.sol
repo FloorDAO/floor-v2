@@ -2,8 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
 import '../../src/interfaces/nftx/NFTXVault.sol';
 import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
 
@@ -35,14 +36,17 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         assertEq(block.number, BLOCK_NUMBER);
 
         // Set up our pricing executor
-        strategy = new NFTXLiquidityStakingStrategy(
-            'PUNK Liquidity Vault',  // _name
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-            0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken
-            0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f,  // _yieldToken
-            0,  // _vaultId
-            0x688c3E4658B5367da06fd629E41879beaB538E37,  // _liquidityStaking
-            0x688c3E4658B5367da06fd629E41879beaB538E37   // _treasury
+        strategy = new NFTXLiquidityStakingStrategy();
+        strategy.initialize(
+            abi.encode(
+                bytes32('PUNK Liquidity Vault'),             // _name
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
+                0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken
+                0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f,  // _yieldToken
+                0,  // _vaultId
+                0x688c3E4658B5367da06fd629E41879beaB538E37,  // _liquidityStaking
+                0x688c3E4658B5367da06fd629E41879beaB538E37   // _treasury
+            )
         );
     }
 
@@ -102,26 +106,26 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         assertEq(strategy.deposits(), 0);
 
         // Confirm our account has a balance of the underlying token
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 29631154258634990);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(testUser), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(testUser), 29631154258634990);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(testUser), 0);
 
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
         // Deposit using the underlying token to receive xToken into the strategy
-        ERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
         strategy.deposit(20000000000000000);
 
         // The user should now hold 1e18 less underlying token, whilst still holding no yield
         // token as this will have been sent to the strategy.
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(testUser), 9631154258634990);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(testUser), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(testUser), 9631154258634990);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(testUser), 0);
 
         // The amount of xToken returned to the strategy is less than 1, because this uses
         // xToken share value. This is expected to be variable and less that the depositted
         // amount.
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
 
         assertEq(strategy.deposits(), 20000000000000000);
 
@@ -149,7 +153,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         vm.startPrank(testUser);
 
         // Deposit using the underlying token to receive xToken into the strategy
-        ERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 20000000000000000);
         strategy.deposit(20000000000000000);
 
         vm.stopPrank();
@@ -158,22 +162,22 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         // Holds 24.323478926295584311 PUNK token at block
         vm.startPrank(0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
 
-        // ERC20(strategy.pool()).approve(strategy.pool(), type(uint).max);
+        // IERC20(strategy.pool()).approve(strategy.pool(), type(uint).max);
         uint256[] memory tokenIds = new uint256[](0);
         INFTXVault(strategy.pool()).redeem(1, tokenIds);
 
         vm.stopPrank();
 
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
 
         // This should give pending yield to claim rewards
         assertEq(strategy.claimRewards(), 1878746779354);
 
         // Our rewards are paid in vault token
-        assertEq(ERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(ERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
-        assertEq(ERC20(strategy.pool()).balanceOf(address(strategy)), 1878746779354);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
+        assertEq(IERC20(strategy.pool()).balanceOf(address(strategy)), 1878746779354);
     }
 
     /**

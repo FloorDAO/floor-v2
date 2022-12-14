@@ -12,6 +12,11 @@ interface IVault {
     event VaultWithdrawal(address withdrawer, address token, uint amount);
 
     /**
+     * ...
+     */
+    function initialize(string memory _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory) external;
+
+    /**
      * Gets the contract address for the vault collection. Only assets from this contract
      * will be able to be deposited into the contract.
      */

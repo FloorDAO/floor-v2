@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 import '../../interfaces/nftx/NFTXInventoryStaking.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
@@ -19,17 +20,17 @@ import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStrategy {
+contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStrategy, Initializable {
 
-    uint public immutable vaultId;
-    address public immutable pool;
-    address public immutable underlyingToken;
-    address public immutable yieldToken;
+    uint public vaultId;
+    address public pool;
+    address public underlyingToken;
+    address public yieldToken;
 
-    bytes32 public immutable name;
+    bytes32 public name;
 
-    address public immutable inventoryStaking;
-    address public immutable treasury;
+    address public inventoryStaking;
+    address public treasury;
 
     /**
      * This will return the internally tracked value of tokens that have been minted into
@@ -55,17 +56,24 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
     uint public deposits;
 
     /**
-     *
+     * ...
      */
-    constructor (
-        bytes32 _name,
-        address _pool,
-        address _underlyingToken,
-        address _yieldToken,
-        uint _vaultId,
-        address _inventoryStaking,
-        address _treasury
-    ) {
+    constructor () {}
+
+    /**
+     * ...
+     */
+    function initialize(bytes memory initData) public initializer {
+        (
+            bytes32 _name,
+            address _pool,
+            address _underlyingToken,
+            address _yieldToken,
+            uint _vaultId,
+            address _inventoryStaking,
+            address _treasury
+        ) = abi.decode(initData, (bytes32, address, address, address, uint, address, address));
+
         name = _name;
 
         pool = _pool;
@@ -76,7 +84,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
 
-        ERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
+        IERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
     }
 
     /**
@@ -94,12 +102,12 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
     function deposit(uint amount) external returns (uint) {
         require(amount > 0, 'Cannot deposit 0');
 
-        ERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
 
-        uint startXTokenBalance = ERC20(yieldToken).balanceOf(address(this));
+        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
         INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
         deposits += amount;
-        return ERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        return IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
     }
 
     /**
@@ -125,7 +133,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * xToken to retrieve all their underlying tokens.
      */
     function exit() external returns (uint256 returnAmount_) {
-        returnAmount_ = ERC20(yieldToken).balanceOf(address(this));
+        returnAmount_ = IERC20(yieldToken).balanceOf(address(this));
         lifetimeRewards += returnAmount_;
         INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, returnAmount_);
     }
@@ -139,7 +147,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function rewardsAvailable() external view returns (uint) {
-        return ERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return IERC20(yieldToken).balanceOf(address(this)) - deposits;
     }
 
     /**
@@ -148,7 +156,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return ERC20(yieldToken).balanceOf(address(this)) + mintedRewards - deposits;
+        return IERC20(yieldToken).balanceOf(address(this)) + mintedRewards - deposits;
     }
 
     /**
@@ -160,7 +168,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * This value is stored in terms of the `yieldToken`.
      */
     function unmintedRewards() external view returns (uint amount_) {
-        return ERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return IERC20(yieldToken).balanceOf(address(this)) - deposits;
     }
 
     /**
