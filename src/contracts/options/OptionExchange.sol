@@ -37,14 +37,6 @@ import '../../interfaces/options/OptionExchange.sol';
  */
 contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumerBase {
 
-    /// ..
-    struct RequestStatus {
-        uint paid; // amount paid in link
-        bool fulfilled;
-        uint[] randomWords;
-        uint poolId;
-    }
-
     /// Maintain a list of options that we will append and delete
     /// from during the generation process.
     bytes32[] _options;
@@ -96,18 +88,20 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
 
     /**
-     * ...
+     * Allows an approved caller to update the weighting calculator contract.
      */
     function setOptionDistributionWeightingCalculator(address _weighting) external {
         weighting = OptionDistributionWeightingCalculator(_weighting);
+        emit DistributionCalculatorUpdated(_weighting);
     }
 
 
     /**
-     * Provides the `OptionPool` struct data. If the index cannot be found, then we
-     * will receive an empty response.
+     * Provides the `OptionPool` struct data. We sense check that the pool exists
+     * and revert if it does not.
      */
     function getOptionPool(uint poolId) external view returns (OptionPool memory) {
+        require(poolId < pools.length, 'Pool does not exist');
         return pools[poolId];
     }
 
@@ -122,7 +116,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * Should emit the {OptionPoolCreated} event.
      */
-    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint) {
+    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint poolId) {
+        // Sense check our provided data
         require(expires > block.timestamp, 'Pool already expired');
         require(amount != 0, 'No amount specified');
         require(maxDiscount <= 100, 'Max discount over 100%');
@@ -146,7 +141,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
             'Unable to transfer from Treasury'
         );
 
-        return pools.length - 1;
+        poolId = pools.length - 1;
+        emit OptionPoolCreated(poolId);
     }
 
 
@@ -177,6 +173,9 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
     function generateAllocations(uint poolId) external returns (uint requestId) {
+        // Confirm that our pool exists
+        require(poolId < pools.length, 'Pool does not exist');
+
         // Validate our pool
         require(pools[poolId].amount != 0, 'Pool has no amount');
         require(pools[poolId].expires > block.timestamp, 'Pool already expired');
@@ -197,6 +196,9 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
         // Set the request ID against our pool
         pools[poolId].requestId = requestId;
+
+        // Detect if our LINK balance is low and emit appropriate events
+        _detectLowLinkBalance();
     }
 
 
@@ -294,8 +296,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         // Set our pool to initialised
         pools[s_requests[_requestId].poolId].initialised = true;
 
-        // Detect if our LINK balance is low and emit appropriate events
-        _detectLowLinkBalance();
+        emit RequestFulfilled(_requestId, merkle.getRoot(data));
     }
 
 
@@ -428,15 +429,14 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * before performing this transaction.
      *
      * This will emit this {OptionPoolClosed} event.
-     *
-     * If there is substantial assets remaining, we could bypass our `withdraw` call and
-     * instead just call `createPool` again with the same token referenced.
      */
     function withdraw(uint poolId) external {
         require(pools[poolId].expires < block.timestamp, 'Not expired');
         require(pools[poolId].amount != 0, 'Empty');
 
         IERC20(pools[poolId].token).transfer(treasury, pools[poolId].amount);
+
+        emit OptionPoolClosed(poolId);
     }
 
 
@@ -451,6 +451,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
             IERC20(linkAddress).transferFrom(msg.sender, address(this), amount),
             "Unable to transfer"
         );
+
+        emit LinkBalanceIncreased(msg.sender, amount);
     }
 
 
@@ -464,13 +466,17 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * @param newRecipient The new address that will receive exchanged FLOOR tokens
      */
     function setFloorRecipient(address newRecipient) external {
-        //
+        emit UpdatedFloorRecipient(newRecipient);
     }
 
 
-    function _detectLowLinkBalance() internal view {
-        if (IERC20(linkAddress).balanceOf(address(this)) < 5 ether) {
-            // emit ;
+    /**
+     *
+     */
+    function _detectLowLinkBalance() internal {
+        uint linkBalance = IERC20(linkAddress).balanceOf(address(this));
+        if (linkBalance < 10 ether) {
+            emit LinkBalanceLow(linkBalance);
         }
     }
 

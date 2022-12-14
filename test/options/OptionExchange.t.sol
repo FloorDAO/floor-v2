@@ -28,6 +28,9 @@ contract OptionExchangeTest is FloorTest {
     // Chainlink wrapper used for mocking responses
     address private VRF_V2_WRAPPER;  // Mainnet: 0x5A861794B927983406fCE1D062e00b9368d97Df6
 
+    /// @dev Emitted when our $LINK balance drops below a set threshold
+    event LinkBalanceLow(uint remainingBalance);
+
     function setUp() public {
         // Generate a mainnet fork
         mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
@@ -64,62 +67,12 @@ contract OptionExchangeTest is FloorTest {
         exchange.setOptionDistributionWeightingCalculator(weightingCalculator);
     }
 
-    function test_AllocationMethods() public {
-        // Fund our {OptionExchange} contract with 10 LINK
-        fundContractWithLink(10 ether);
-
-        // Create a pool with 10000 DAI
-        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
-
-        // Create our request against the pool
-        uint requestId = exchange.generateAllocations(poolId);
-
-        // We must mock the VRF wrapper to return a raw response. The requestId (param 1)
-        // doesn't matter, but the random seeds returned will change the output of the
-        // allocations being generated.
-
-        // Example of random number size taken from:
-        // https://coincodecap.com/how-to-generate-random-numbers-on-ethereum-using-vrf
-        uint[] memory randomWords = new uint[](2);
-        randomWords[0] = 30207470459964961279215818016791723193587102244018403859363363849439350753829;
-        randomWords[1] = 24207470441664961279215859205791723193587102244060926159316336384943935075382;
-
-        // Only the VRF_V2_WRAPPER will have write permissions, so we need to mock the
-        // request to be from this account.
-        vm.prank(VRF_V2_WRAPPER);
-        exchange.rawFulfillRandomWords(requestId, randomWords);
-    }
-
-    function test_ExpectMinimumOfTwoRandomWords() public {
-        // Fund our {OptionExchange} contract with 10 LINK
-        fundContractWithLink(10 ether);
-
-        // Create a pool with 10000 DAI
-        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
-
-        // Create our request against the pool
-        uint requestId = exchange.generateAllocations(poolId);
-
-        vm.startPrank(VRF_V2_WRAPPER);
-
-        uint[] memory randomWords1 = new uint[](0);
-        vm.expectRevert(bytes('Insufficient words returned'));
-        exchange.rawFulfillRandomWords(requestId, randomWords1);
-
-        uint[] memory randomWords2 = new uint[](1);
-        randomWords2[0] = 1;
-        vm.expectRevert(bytes('Insufficient words returned'));
-        exchange.rawFulfillRandomWords(requestId, randomWords2);
-
-        vm.stopPrank();
-    }
-
     /**
      * Any user should be able to send then $LINK token to our {OptionExchange} via
      * the provided function. This will likely be members of the internal team, but
      * will be open to any samaritan that may be kind enough to fund the contract.
      */
-    function _test_CanDepositLinkToken() public {
+    function test_CanDepositLinkToken() public {
         // Confirm that our contract starts with 0 LINK
         assertEq(IERC20(LINK).balanceOf(address(exchange)), 0);
 
@@ -142,7 +95,7 @@ contract OptionExchangeTest is FloorTest {
      * When we have a sufficient ERC20 token balance, then our {TreasuryManager}
      * will be able to create a corresponding `OptionPool`.
      */
-    function _test_CanCreatePool() public {
+    function test_CanCreatePool() public {
         uint poolId = exchange.createPool(
             DAI,
             10000 ether,
@@ -159,7 +112,7 @@ contract OptionExchangeTest is FloorTest {
      * If we specify an unknown token address when creating our `OptionPool` then
      * we should expect the call to be reverted as we cannot find balance of it.
      */
-    function _test_CannotCreatePoolWithUnknownToken() public {
+    function test_CannotCreatePoolWithUnknownToken() public {
         vm.expectRevert();
         exchange.createPool(address(0), 10000 ether, uint16(10), uint64(block.timestamp + 60));
     }
@@ -167,7 +120,7 @@ contract OptionExchangeTest is FloorTest {
     /**
      *
      */
-    function _test_CannotCreatePoolWithZeroAmount() public {
+    function test_CannotCreatePoolWithZeroAmount() public {
         vm.expectRevert('No amount specified');
         exchange.createPool(DAI, 0, uint16(10), uint64(block.timestamp + 60));
     }
@@ -177,7 +130,7 @@ contract OptionExchangeTest is FloorTest {
      * held within the {OptionExchange}, then we expect it to be reverted as we
      * can only allocate that which is readily available.
      */
-    function _test_CannotCreatePoolWithInsufficientBalance() public {
+    function test_CannotCreatePoolWithInsufficientBalance() public {
         vm.expectRevert('Dai/insufficient-balance');
         exchange.createPool(DAI, 1_000_000_000 ether, uint16(10), uint64(block.timestamp + 60));
     }
@@ -187,7 +140,7 @@ contract OptionExchangeTest is FloorTest {
      * amount is not set above 100% as we won't have logic in place to send the
      * recipient FLOOR back. Plus, this is just stupid.
      */
-    function _test_CannotCreatePoolWithDiscountOverOneHundredPercent() public {
+    function test_CannotCreatePoolWithDiscountOverOneHundredPercent() public {
         vm.expectRevert('Max discount over 100%');
         exchange.createPool(DAI, 10000 ether, uint16(101), uint64(block.timestamp + 60));
     }
@@ -196,7 +149,7 @@ contract OptionExchangeTest is FloorTest {
      * We should not be able to create an `OptionPool` that has already expired
      * as this would prevent any users from being able to action their {Option}.
      */
-    function _test_CannotCreatePoolWithPastExpiryTimestamp() public {
+    function test_CannotCreatePoolWithPastExpiryTimestamp() public {
         vm.expectRevert('Pool already expired');
         exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp));
     }
@@ -211,7 +164,7 @@ contract OptionExchangeTest is FloorTest {
      * Once an `OptionPool` is created, we should be able to query the index
      * to get back our `OptionPool` struct and access the correct information.
      */
-    function _testCanGetOptionPool() public {
+    function test_CanGetOptionPool() public {
         // Create our pool and get our poolId back
         uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
         assertEq(poolId, 0);
@@ -240,7 +193,11 @@ contract OptionExchangeTest is FloorTest {
      * If we request an `OptionPool` index that doesn't exist, then we should
      * expect our transaction to be reverted.
      */
-    function _testCannotGetUnknownOptionPool() public {}
+    function test_CannotGetUnknownOptionPool() public {
+        // Get pool information against a poolId that does not exist
+        vm.expectRevert('Pool does not exist');
+        OptionExchange.OptionPool memory pool = exchange.getOptionPool(420);
+    }
 
     /**
      * Our {TreasuryManager} should be able to generate allocations against an
@@ -253,13 +210,40 @@ contract OptionExchangeTest is FloorTest {
      * the `fulfillAllocations` function, as well as the
      * `claimableOptionAllocations` function.
      */
-    function _testCanGenerateAllocations() public {}
+    function test_CanGenerateAllocations() public {
+        // Fund our {OptionExchange} contract with 10 LINK
+        fundContractWithLink(10 ether);
+
+        // Create a pool with 10000 DAI
+        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Create our request against the pool
+        uint requestId = exchange.generateAllocations(poolId);
+
+        // We must mock the VRF wrapper to return a raw response. The requestId (param 1)
+        // doesn't matter, but the random seeds returned will change the output of the
+        // allocations being generated.
+
+        // Example of random number size taken from:
+        // https://coincodecap.com/how-to-generate-random-numbers-on-ethereum-using-vrf
+        uint[] memory randomWords = new uint[](2);
+        randomWords[0] = 30207470459964961279215818016791723193587102244018403859363363849439350753829;
+        randomWords[1] = 24207470441664961279215859205791723193587102244060926159316336384943935075382;
+
+        // Only the VRF_V2_WRAPPER will have write permissions, so we need to mock the
+        // request to be from this account.
+        vm.prank(VRF_V2_WRAPPER);
+        exchange.rawFulfillRandomWords(requestId, randomWords);
+    }
 
     /**
      * If we try and generate allocations against an unknown pool index, then
      * we expect our transaction to revert.
      */
-    function _testCannotGenerateAllocationsForUnknownPool() public {}
+    function test_CannotGenerateAllocationsForUnknownPool() public {
+        vm.expectRevert('Pool does not exist');
+        exchange.generateAllocations(420);
+    }
 
     /**
      * It a sender without {TreasuryManager} permissions attempts to generate
@@ -272,7 +256,14 @@ contract OptionExchangeTest is FloorTest {
      * external request, then we want to ensure that our transaction is
      * reverted ahead of our call to prevent further gas loss.
      */
-    function _testCanGenerateAllocationsWithoutSufficientLinkToken() public {}
+    function test_CanGenerateAllocationsWithoutSufficientLinkToken() public {
+        // Create a pool with 10000 DAI
+        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Generate our allocations to confirm that our event is fired
+        vm.expectRevert();
+        exchange.generateAllocations(poolId);
+    }
 
     /**
      * We only want our `fulfillAllocations` call to be callable by the
@@ -283,12 +274,54 @@ contract OptionExchangeTest is FloorTest {
     function _testCannotFulfillAllocationsWithoutPermissions() public {}
 
     /**
+     * ...
+     */
+    function test_ExpectMinimumOfTwoRandomWords() public {
+        // Fund our {OptionExchange} contract with 10 LINK
+        fundContractWithLink(10 ether);
+
+        // Create a pool with 10000 DAI
+        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Create our request against the pool
+        uint requestId = exchange.generateAllocations(poolId);
+
+        vm.startPrank(VRF_V2_WRAPPER);
+
+        uint[] memory randomWords1 = new uint[](0);
+        vm.expectRevert(bytes('Insufficient words returned'));
+        exchange.rawFulfillRandomWords(requestId, randomWords1);
+
+        uint[] memory randomWords2 = new uint[](1);
+        randomWords2[0] = 1;
+        vm.expectRevert(bytes('Insufficient words returned'));
+        exchange.rawFulfillRandomWords(requestId, randomWords2);
+
+        vm.stopPrank();
+    }
+
+    /**
      * We need to test that when we generate allocations, we will emit the
      * {LinkBalanceLow} event when the $LINK balance held in our contract
      * falls below a set threshold. This test also needs to confirm that we
      * don't sent it when we are above this same threshold.
      */
-    function _testCanReceiveLowLinkTokenWarnings() public {}
+    function test_CanReceiveLowLinkTokenWarnings() public {
+        // Fund our {OptionExchange} contract with 10 LINK
+        fundContractWithLink(10e17);
+
+        // Create a pool with 10000 DAI
+        uint poolId = exchange.createPool(DAI, 10000 ether, uint16(10), uint64(block.timestamp + 60));
+
+        // Confirm that we are firing our strategy event when our strategy is
+        // revoked. The amount emitted is the remaining balance, which will be
+        // the original value, minus 10e16 which is the flat cost in the mock.
+        vm.expectEmit(true, true, false, true, address(exchange));
+        emit LinkBalanceLow(10e17 - 10e16);
+
+        // Create our request against the pool
+        exchange.generateAllocations(poolId);
+    }
 
     /**
      * When a user has an `OptionAllocation` then can mint it. We need to

@@ -56,6 +56,18 @@ interface IOptionExchange {
         uint requestId;
     }
 
+
+    /**
+     * ...
+     */
+    struct RequestStatus {
+        uint paid; // amount paid in link
+        bool fulfilled;
+        uint[] randomWords;
+        uint poolId;
+    }
+
+
     /**
      * Each `OptionPool` will have a 1:n releationship with `OptionAllocation`s, with
      * each user that is granted an allocation having an assigned `OptionAllocation`.
@@ -102,10 +114,13 @@ interface IOptionExchange {
 
     /// @dev Emitted when we have received a response from Chainlink with our generated
     /// allocations
-    event RequestFulfilled(bytes32 indexed requestId, bytes indexed data);
+    event RequestFulfilled(uint requestId, bytes32 merkleRoot);
 
     /// @dev Emitted when our exchange FLOOR recipient address is updated
     event UpdatedFloorRecipient(address newRecipient);
+
+    /// @dev Emitted when our distribution calculator is updated
+    event DistributionCalculatorUpdated(address newCalculator);
 
     /**
      * Provides the `OptionPool` struct data. If the index cannot be found, then we

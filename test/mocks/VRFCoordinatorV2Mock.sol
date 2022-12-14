@@ -17,11 +17,16 @@ contract VRFCoordinatorV2Mock {
 
     uint s_nextRequestId;
 
+
+    /**
+     * Set up our contract parameters.
+     */
     constructor(uint96 _baseFee, uint96 _gasPriceLink, address _linkToken) {
         BASE_FEE = _baseFee;
         GAS_PRICE_LINK = _gasPriceLink;
         LINK_TOKEN = _linkToken;
     }
+
 
     /**
      * @notice fulfillRandomWordsWithOverride allows the user to pass in their own random words.
@@ -58,16 +63,17 @@ contract VRFCoordinatorV2Mock {
         );
     }
 
+
     /**
-     * ...
+     * As this is a mock, we immediately send our completed transaction. Normally
+     * this would wait for a number of confirmations and it would be sent back
+     * asynchronously.
      */
     function requestRandomWords(uint32 _callbackGasLimit, uint16 _requestConfirmations, uint32 _numWords) external returns (uint requestId) {
         // Bump up our seeding variable
         requestId = s_nextRequestId++;
 
-        // As this is a mock, we immediately send our completed transaction. Normally
-        // this would wait for a number of confirmations and it would be sent back
-        // asynchronously.
+        // We can immediately call our random words to be fulfilled to the caller
         fulfillRandomWords(requestId, msg.sender, _numWords);
 
         // Return our requestId, as the true contract would
@@ -91,6 +97,9 @@ contract VRFCoordinatorV2Mock {
         //
     }
 
+    /**
+     * Helper function to return the last request ID sent.
+     */
     function lastRequestId() external view returns (uint) {
         return s_nextRequestId;
     }
