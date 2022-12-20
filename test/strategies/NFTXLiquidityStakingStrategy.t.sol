@@ -145,7 +145,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * {LiquidityStaking} contract. These should be put in the strategy
      * contract.
      */
-    function test_CanClaimRewards() public {
+    function test_CanWithdraw() public {
         // Holds 0.02963115425863499 SLP at block
         testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 
@@ -171,7 +171,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 20000000000000000);
 
         // This should give pending yield to claim rewards
-        assertEq(strategy.claimRewards(), 1878746779354);
+        assertEq(strategy.rewardsAvailable(), 1878746779354);
 
         // Our rewards are paid in vault token
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
@@ -184,7 +184,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * to make the request but we just expect a 0 value to be returned.
      */
     function test_CanClaimZeroRewards() public {
-        assertEq(strategy.claimRewards(), 0);
+        assertEq(strategy.withdraw(0), 0);
     }
 
     /**

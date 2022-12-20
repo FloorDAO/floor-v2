@@ -77,4 +77,24 @@ interface IBaseStrategy {
      */
     function registerMint(uint amount) external;
 
+    /**
+     * Return the the address of the yield token.
+     */
+    function yieldToken() external view returns (address);
+
+    /**
+     * Return the the address of the underlying token.
+     */
+    function underlyingToken() external view returns (address);
+
+    /**
+     * Deposit underlying token or yield token to the strategy.
+     */
+    function deposit(uint amount) external returns (uint256 yieldAmount_);
+
+    /**
+     * Withdraw underlying token from the strategy.
+     */
+    function withdraw(uint amount) external returns (uint256 amount_);
+
 }

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import '../strategies/BaseStrategy.sol';
+
 
 interface IVault {
 
@@ -25,7 +27,7 @@ interface IVault {
     /**
      * Gets the contract address for the strategy implemented by the vault.
      */
-    function strategy() external view returns (address);
+    function strategy() external view returns (IBaseStrategy);
 
     /**
      * Gets the contract address for the vault factory that created it

@@ -8,7 +8,6 @@ import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '../../interfaces/nftx/NFTXLiquidityStaking.sol';
 import '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/strategies/NFTXLiquidityStakingStrategy.sol';
 
 
 /**
@@ -21,12 +20,20 @@ import '../../interfaces/strategies/NFTXLiquidityStakingStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStrategy, Initializable {
+contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
 
     uint public vaultId;
     address public pool;
+
+    /**
+     * The underlying token will be a liquidity SLP as defined by the {LiquidityStaking} contract.
+     */
     address public underlyingToken;  // SLP
-    address public yieldToken;       // xSLP
+
+    /**
+     * The reward yield token will be the token defined in the {LiquidityStaking} contract.
+     */
+    address public yieldToken;  // xSLP
 
     bytes32 public name;
 
@@ -102,7 +109,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
      *     initialise the pool
      * - We receive xSLP back to the strategy
      */
-    function deposit(uint amount) payable external returns (uint xTokensReceived) {
+    function deposit(uint amount) external returns (uint xTokensReceived) {
         require(amount > 0, 'Cannot deposit 0');
 
         // Get the SLP token from the user
@@ -120,6 +127,13 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
     }
 
     /**
+     * Allows the user to burn xToken to receive base their original token.
+     */
+    function withdraw(uint amount) external returns (uint amount_) {
+        // TODO
+    }
+
+    /**
      * Harvest possible rewards from strategy. The rewards generated from the strategy
      * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
      * turn be made available in the {RewardsLedger}.
@@ -128,19 +142,10 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, INFTXLiquidityStakingStr
      * - LiquidityStaking.claimRewards
      * - Distribute yield
      */
-    function claimRewards() external returns (uint amount_) {
+     function claimRewards() public returns (uint amount_) {
         amount_ = ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
         INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
-    }
-
-    /**
-     * Allows a staked user to exit their strategy position, burning all corresponding
-     * xSLP to retrieve all their underlying tokens.
-     */
-    function exit() external returns (uint returnAmount_) {
-        returnAmount_ = IERC20(underlyingToken).balanceOf(address(this));
-        INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, returnAmount_);
-    }
+     }
 
     /**
      * The token amount of reward yield available to be claimed on the connected external

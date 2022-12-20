@@ -162,32 +162,6 @@ contract VaultFactoryTest is FloorTest {
     }
 
     /**
-     * If the contract is paused when we try and create a vault with valid information,
-     * the process to be reverted.
-     *
-     * This should not emit {VaultCreated}.
-     */
-    function _testCannotCreateVaultWhenPaused() public {}
-
-    /**
-     * Governors and Guardians should be able to pause the contract which will prevent
-     * vaults from being created. We only need to confirm that the contract can be
-     * paused in this test, as other tests confirm that creation is prevented.
-     *
-     * This should emit {VaultCreationPaused}.
-     */
-    function _testCanPause() public {}
-
-    /**
-     * Governors and Guardians should be able to unpause the contract which will again
-     * allow vaults to be created. We only need to confirm that the contract can be
-     * unpaused in this test, as other tests confirm that creation is working.
-     *
-     * This should emit {VaultCreationPaused}.
-     */
-    function _testCanUnpause() public {}
-
-    /**
      * ...
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {

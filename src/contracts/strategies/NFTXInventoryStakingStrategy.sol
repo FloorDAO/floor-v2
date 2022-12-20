@@ -7,7 +7,6 @@ import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 import '../../interfaces/nftx/NFTXInventoryStaking.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
 
 
 /**
@@ -20,13 +19,21 @@ import '../../interfaces/strategies/NFTXInventoryStakingStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStrategy, Initializable {
+contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
 
     bytes32 public name;
     uint public vaultId;
 
     address public pool;
+
+    /**
+     * The underlying token will be the same as the address of the NFTX vault.
+     */
     address public underlyingToken;
+
+    /**
+     * The reward yield will be a vault xToken as defined by the InventoryStaking contract.
+     */
     address public yieldToken;
 
     address public inventoryStaking;
@@ -82,8 +89,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
 
-        // TODO: This was breaking??
-        // IERC20(underlyingToken).approve(_inventoryStaking, type(uint).max);
+        IERC20(underlyingToken).approve(inventoryStaking, type(uint).max);
     }
 
     /**
@@ -98,15 +104,15 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      */
-    function deposit(uint amount) external returns (uint) {
+    function deposit(uint amount) external returns (uint amount_) {
         require(amount > 0, 'Cannot deposit 0');
 
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
-
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
+        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
         INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
-        deposits += amount;
-        return IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+
+        amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        deposits += amount_;
     }
 
     /**
@@ -119,22 +125,14 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, INFTXInventoryStakingStr
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
      */
-    function claimRewards(uint amount) external returns (uint) {
+    function withdraw(uint amount) external returns (uint amount_) {
         require(amount > 0, 'Cannot claim 0');
 
+        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
         INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
-        lifetimeRewards += amount;
-        return amount;
-    }
 
-    /**
-     * Allows a staked user to exit their strategy position, burning all corresponding
-     * xToken to retrieve all their underlying tokens.
-     */
-    function exit() external returns (uint256 returnAmount_) {
-        returnAmount_ = IERC20(yieldToken).balanceOf(address(this));
-        lifetimeRewards += returnAmount_;
-        INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, returnAmount_);
+        amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+        IERC20(underlyingToken).transfer(msg.sender, amount_);
     }
 
     /**

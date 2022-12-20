@@ -140,7 +140,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * {InventoryStaking} contract. These should be put in the strategy
      * contract.
      */
-    function test_CanClaimRewards() public {
+    function test_CanWithdraw() public {
         // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
         testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
 
@@ -152,7 +152,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // If we try to claim straight away, our user will be locked
         vm.expectRevert('User locked');
-        strategy.claimRewards(500000000000000000);
+        strategy.withdraw(500000000000000000);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -160,12 +160,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Confirm that we cannot claim more than our token balance
         vm.expectRevert('ERC20: burn amount exceeds balance');
-        strategy.claimRewards(5000000000000000000);
+        strategy.withdraw(5000000000000000000);
 
         // We can now claim rewards via the strategy that will eat away from our
         // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
         // back our underlying token.
-        strategy.claimRewards(500000000000000000);
+        strategy.withdraw(500000000000000000);
 
         // The strategy should now hold token and xToken
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 516645940601453492);
@@ -180,7 +180,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      */
     function test_CannotClaimZeroRewards() public {
         vm.expectRevert('Cannot claim 0');
-        strategy.claimRewards(0);
+        strategy.withdraw(0);
     }
 
     /**
@@ -204,7 +204,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We can now exit via the strategy. This will burn all of our xToken and
         // we will just have our `underlyingToken` back in the strategy.
-        strategy.exit();
+        strategy.withdraw(1000000000000000000);
 
         // The strategy should now hold token and xToken. However, we need to accomodate
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
