@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/utils/Context.sol';
 import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 
-import './AuthorityRegistry.sol';
 import '../../interfaces/authorities/AuthorityControl.sol';
+import '../../interfaces/authorities/AuthorityRegistry.sol';
 
 
 /**
@@ -42,7 +42,7 @@ contract AuthorityControl is Context, IAuthorityControl, ERC165 {
     bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
     bytes32 public constant VAULT_MANAGER = keccak256('VaultManager');
 
-    AuthorityRegistry public immutable registry;
+    IAuthorityRegistry public immutable registry;
 
     /**
      * @dev Modifier that checks that an account has a specific role. Reverts
@@ -67,7 +67,7 @@ contract AuthorityControl is Context, IAuthorityControl, ERC165 {
      * controller. This can only be overwritten by the existing.
      */
     constructor (address _registry) {
-        registry = AuthorityRegistry(_registry);
+        registry = IAuthorityRegistry(_registry);
     }
 
     /**

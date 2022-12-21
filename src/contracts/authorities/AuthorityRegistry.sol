@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
-
 import '@openzeppelin/contracts/utils/Context.sol';
 
 import '../../interfaces/authorities/AuthorityRegistry.sol';
@@ -18,7 +16,7 @@ import '../../interfaces/authorities/AuthorityRegistry.sol';
  * this role will be able to grant or revoke other roles. More complex role relationships can be created
  * by using {_setRoleAdmin}.
  */
-contract AuthorityRegistry is Context, IAuthorityRegistry, Test {
+contract AuthorityRegistry is Context, IAuthorityRegistry {
 
     /// Explicit checks for admin roles required
     bytes32 public constant GOVERNOR = keccak256('Governor');
@@ -43,7 +41,6 @@ contract AuthorityRegistry is Context, IAuthorityRegistry, Test {
         if (role == GOVERNOR) {
             return _roles[role][account];
         }
-
         return (_roles[role][account] || hasAdminRole(account));
     }
 
