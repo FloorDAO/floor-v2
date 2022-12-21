@@ -25,7 +25,25 @@ contract DeployCoreContracts is Script {
         // depth only) create transactions that can later be signed and sent onchain.
         vm.startBroadcast();
 
-        // Enter contracts here.
+        /**
+         * 1:
+         * AuthorityRegistry
+         *
+         * 2:
+         * CollectionRegistry
+         * StrategyRegistry
+         * Vault
+         * FloorToken
+         *
+         * 3:
+         * Treasury
+         * VaultFactory
+         * UniswapV3PricingExecutor
+         * OptionExchange
+         * Option
+         * OptionDistributionWeightingCalculator
+         * veFloor Token
+         */
 
         // Stop collecting onchain transactions
         vm.stopBroadcast();
