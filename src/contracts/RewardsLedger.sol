@@ -27,7 +27,7 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     address public immutable treasury;
 
     // Maintains a mapping of available token amounts by recipient
-    mapping (address => mapping (address => uint)) public allocations;
+    mapping (address => mapping (address => uint)) internal allocations;
 
     // Maintains a mapping of claimed token amounts by recipient
     mapping (address => mapping (address => uint)) public claimed;
@@ -58,10 +58,19 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * This can only be called by an approved caller.
      */
     function allocate(address recipient, address token, uint amount) external returns (uint) {
+        // We don't want to allow NULL address allocation
+        require(token != address(0), 'Invalid token');
+
+        // Prevent zero values being allocated and wasting gas
+        require(amount != 0, 'Invalid amount');
+
+        // Ensure our token conforms to ERC20 standards
+        // require(IERC20(token));
+
         // Ensure that it is our treasury sending the request
         require(msg.sender == treasury, 'Only treasury can allocate');
 
-        // Allocate the token amount to
+        // Allocate the token amount to recipient token
         allocations[recipient][token] += amount;
 
         // If this is a token that the user has not previously been allocated, then
@@ -96,6 +105,8 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         for (uint i; i < tokens[recipient].length;) {
             tokens_[i] = tokens[recipient][i];
             amounts_[i] = allocations[recipient][tokens[recipient][i]];
+
+            unchecked { ++i; }
         }
 
         return (tokens_, amounts_);
@@ -116,6 +127,9 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // Ensure that we haven't paused claims
         require(!paused, 'Claiming currently paused');
 
+        // Ensure that we aren't sending up a zero value for claim
+        require(amount != 0, 'Invalid amount');
+
         // Ensure that the recipient has sufficient allocation of the requested token
         require(allocations[msg.sender][token] >= amount, 'Insufficient allocation');
 
@@ -123,11 +137,11 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // the {Treasury}, as opposed to just being transferred.
         if (token == floor) {
             // Mint the floor token allocation to the recipient
-            ITreasury(treasury).mint(msg.sender, amount);
+            // ITreasury(treasury).mint(msg.sender, amount);
         }
         else {
             // Transfer the tokens from the {Treasury} to the recipient
-            IERC20(token).transferFrom(treasury, msg.sender, amount);
+            // IERC20(token).transferFrom(treasury, msg.sender, amount);
         }
 
         // Decrement our recipients allocation
