@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import '../authorities/AuthorityControl.sol';
+
 import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/vaults/Vault.sol';
 

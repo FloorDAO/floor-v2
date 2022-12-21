@@ -2,15 +2,57 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import '../src/contracts/RewardsLedger.sol';
+import '../src/contracts/tokens/Floor.sol';
+// import '../src/contracts/Treasury.sol';
 
-contract RewardsLedgerTest is Test {
+import './utilities/Environments.sol';
+
+
+contract RewardsLedgerTest is FloorTest {
+
+    FLOOR floor;
+    RewardsLedger rewards;
+    // Treasury treasury;
+
+    /**
+     * ..
+     */
+    constructor () {}
+
+    /**
+     * Set up our {RewardsLedger} and the other contracts required to instantiate it.
+     */
+    function setUp() public {
+        // Set up our {Treasury}
+        // treasury = new Treasury();
+
+        // Set up our {Floor} token
+        floor = new FLOOR(address(authorityRegistry));
+
+        // Set up our {RewardsLedger}
+        rewards = new RewardsLedger(
+            address(authorityRegistry),
+            address(floor),
+            address(0)  // Treasury
+        );
+    }
+
+    /**
+     * Checks our helper function that gets our {Floor} contract address. This address
+     * will be sent during the construct and will be immutable.
+     */
+    function test_CanGetFloorAddress() public {
+        assertEq(rewards.floor(), address(floor));
+    }
 
     /**
      * Checks our helper function that gets our {Treasury} contract address. This address
      * will be sent during the construct and will be immutable.
      */
-    function testCanGetTreasuryAddress() public {}
+    function test_CanGetTreasuryAddress() public {
+        assertEq(rewards.treasury(), address(0));
+    }
 
     /**
      * We need to make sure that we can allocate tokens to a user. This will be able to
@@ -44,6 +86,7 @@ contract RewardsLedgerTest is Test {
      * total of each token, as well as any pending allocation.
      *
      * For setting up this test we should have tokens in three states:
+     *  - Unallocated token
      *  - Allocation with nothing claimed
      *  - Allocation partially claimed
      *  - Allocation fully claimed

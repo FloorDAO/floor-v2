@@ -17,15 +17,6 @@ pragma solidity ^0.8.0;
 
 interface IRewardsLedger {
 
-    /**
-     * Stored as mapping[recipient] = RewardToken[];
-     */
-    struct RewardToken {
-        address vault;
-        uint available;
-        uint totalClaimed;
-    }
-
     /// @dev Emitted when rewards are allocated to a user
     event RewardsAllocated(address recipient, address token, uint amount);
 
@@ -36,9 +27,14 @@ interface IRewardsLedger {
     event RewardsPaused(bool paused);
 
     /**
+     * Returns the address of the {Floor} token contract.
+     */
+    function floor() external view returns (address);
+
+    /**
      * Returns the address of the {Treasury} contract.
      */
-    function treasury() external pure returns (address);
+    function treasury() external view returns (address);
 
     /**
      * Allocated a set amount of a specific token to be accessible by the recipient. This
@@ -46,6 +42,16 @@ interface IRewardsLedger {
      * struct. This can only be called by an approved caller.
      */
     function allocate(address recipient, address token, uint amount) external returns (uint available);
+
+    /**
+     * Get the amount of available token for the recipient.
+     */
+    function available(address recipient, address token) external view returns (uint);
+
+    /**
+     * Get all tokens available to the recipient, as well as the amounts of each token.
+     */
+    function availableTokens(address recipient) external view returns (address[] memory tokens_, uint[] memory amounts_);
 
     /**
      * These tokens are stored in the {Treasury}, but will be allowed access from

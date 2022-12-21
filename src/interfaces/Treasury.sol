@@ -112,7 +112,7 @@ interface ITreasury {
      * @dev We only want to do this on creation and for inflation. Have a think on how
      * we can implement this!
      */
-    function mint(uint amount) external;
+    function mint(address recipient, uint amount) external;
 
     /**
      * Allows us to mint floor based on the recorded token > Floor ratio. This will
