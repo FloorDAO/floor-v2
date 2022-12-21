@@ -20,8 +20,6 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     UniswapV3PricingExecutor executor;
 
     /// Store our mainnet fork information
-    uint256 mainnetFork;
-
     uint internal constant BLOCK_NUMBER = 16_075_930;
 
     address internal UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
@@ -38,6 +36,8 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     uint128 internal USDC_FLOOR_PRICE    = 1901168;               // 1.901168
     uint128 internal X2Y2_FLOOR_PRICE    = 44786552403760895888;  // 44.786552403760895888
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     /**
      * Deploy our contract, set up our fork and roll the block to set up our fork.
      *
@@ -47,18 +47,6 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * The `updatePrice` logic will be tested in proper scrutiny in separate tests.
      */
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up our pricing executor
         executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY, FLOORV1);
     }

@@ -11,30 +11,18 @@ import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
 import '../utilities/Environments.sol';
 
 
-
 contract NFTXLiquidityStakingStrategyTest is FloorTest {
 
     NFTXLiquidityStakingStrategy strategy;
 
     /// Store our mainnet fork information
-    uint256 mainnetFork;
     uint internal constant BLOCK_NUMBER = 16_133_601;
 
     address testUser;
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up our pricing executor
         strategy = new NFTXLiquidityStakingStrategy(bytes32('PUNK Liquidity Vault'));
         strategy.initialize(
@@ -144,8 +132,10 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * We need to be able to claim all pending rewards from the NFTX
      * {LiquidityStaking} contract. These should be put in the strategy
      * contract.
+     *
+     * TODO: New Flow
      */
-    function test_CanWithdraw() public {
+    function _test_CanWithdraw() public {
         // Holds 0.02963115425863499 SLP at block
         testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 

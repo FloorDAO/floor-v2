@@ -69,7 +69,7 @@ contract VRFCoordinatorV2Mock {
      * this would wait for a number of confirmations and it would be sent back
      * asynchronously.
      */
-    function requestRandomWords(uint32 _callbackGasLimit, uint16 _requestConfirmations, uint32 _numWords) external returns (uint requestId) {
+    function requestRandomWords(uint32, uint16, uint32 _numWords) external returns (uint requestId) {
         // Bump up our seeding variable
         requestId = s_nextRequestId++;
 
@@ -84,7 +84,7 @@ contract VRFCoordinatorV2Mock {
     /**
      * We set a static request price of 0.01.
      */
-    function calculateRequestPrice(uint32 _callbackGasLimit) external pure returns (uint) {
+    function calculateRequestPrice(uint32) external pure returns (uint) {
         return 10e16;
     }
 

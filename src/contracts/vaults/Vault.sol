@@ -42,7 +42,7 @@ contract Vault is AuthorityControl, Initializable, IVault {
     /**
      * Store if our Vault is paused, restricting access.
      */
-    bool paused;
+    bool public paused;
 
     /**
      * Maintain a mapped list of user positions based on withdrawal and
@@ -105,7 +105,8 @@ contract Vault is AuthorityControl, Initializable, IVault {
         // Transfer tokens from our user to the vault
         IERC20(collection).transferFrom(msg.sender, address(this), amount);
 
-        // Deposit the tokens into the strategy
+        // Deposit the tokens into the strategy. This returns the amount of xToken
+        // moved into the position for the address.
         uint receivedAmount = strategy.deposit(amount);
         require(receivedAmount != 0, 'Zero amount received');
 
@@ -125,14 +126,14 @@ contract Vault is AuthorityControl, Initializable, IVault {
         // Update our vault share calculation
         _recalculateVaultShare();
 
-        // Return the user's current position
-        return positions[msg.sender];
+        // Return the amount of yield token returned from staking
+        return receivedAmount;
     }
 
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint amount) external returns (uint256) {
+    function withdraw(uint amount) external returns (uint) {
         // Ensure we are withdrawing something
         require(amount > 0, 'Insufficient amount requested');
 
@@ -140,13 +141,14 @@ contract Vault is AuthorityControl, Initializable, IVault {
         require(amount <= positions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
-        strategy.withdraw(amount);
+        uint receivedAmount = strategy.withdraw(amount);
+        require(receivedAmount != 0, 'Zero amount received');
 
         // Transfer the tokens to the user
-        IERC20(collection).transfer(msg.sender, amount);
+        IERC20(collection).transfer(msg.sender, receivedAmount);
 
         // Fire events to stalkers
-        emit VaultWithdrawal(msg.sender, collection, amount);
+        emit VaultWithdrawal(msg.sender, collection, receivedAmount);
 
         // Update our user's position
         positions[msg.sender] -= amount;
@@ -158,15 +160,15 @@ contract Vault is AuthorityControl, Initializable, IVault {
         share[msg.sender] = 0;
         _recalculateVaultShare();
 
-        // Return the user's current position
-        return positions[msg.sender];
+        // Return the amount of underlying token returned from staking withdrawal
+        return receivedAmount;
     }
 
     /**
      * Pauses deposits from being made into the vault. This should only be called by
      * a guardian or governor.
      */
-    function pause(bool _pause) external {
+    function pause(bool _pause) external onlyRole(VAULT_MANAGER) {
         paused = _pause;
     }
 
@@ -180,7 +182,6 @@ contract Vault is AuthorityControl, Initializable, IVault {
     function _recalculateVaultShare() internal {
         for (uint i; i < _awesomePeople.length;) {
             if (positions[_awesomePeople[i]] != 0) {
-                // 10000 / 290334 / 193556
                 // Determine the share to 2 decimal accuracy
                 // e.g. 100% = 10000
                 share[_awesomePeople[i]] = 100000000 / ((totalPosition * 10000) / (positions[_awesomePeople[i]]));

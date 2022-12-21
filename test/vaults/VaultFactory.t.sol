@@ -24,6 +24,11 @@ contract VaultFactoryTest is FloorTest {
     address collection;
     address strategy;
 
+    /// Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 16_075_930;
+
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     /**
      * Deploy the {VaultFactory} contract but don't create any vaults, as we want to
      * allow our tests to have control.

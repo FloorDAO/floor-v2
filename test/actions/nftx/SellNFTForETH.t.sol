@@ -18,7 +18,6 @@ contract NFTXSellNFTForETHTest is FloorTest {
     address internal constant MARKETPLACE_ZAP = 0x0fc584529a2AEfA997697FAfAcbA5831faC0c22d;
 
     // Store our mainnet fork information
-    uint internal mainnetFork;
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     // Store our action contract
@@ -27,22 +26,12 @@ contract NFTXSellNFTForETHTest is FloorTest {
     // Store the treasury address
     address treasury;
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     /**
      * Sets up our mainnet fork and register our action contract.
      */
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up our Treasury. In this test we will just use an account that
         // we know has the tokens that we need. This test will need to be updated
         // when our {Treasury} contract is completed.

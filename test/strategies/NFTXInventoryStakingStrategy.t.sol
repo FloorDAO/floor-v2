@@ -14,24 +14,13 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     NFTXInventoryStakingStrategy strategy;
 
     /// Store our mainnet fork information
-    uint256 mainnetFork;
     uint internal constant BLOCK_NUMBER = 16_126_124;
 
     address testUser;
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up our pricing executor
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
         strategy.initialize(

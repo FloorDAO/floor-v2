@@ -16,9 +16,6 @@ contract OptionExchangeTest is FloorTest {
 
     OptionExchange exchange;
 
-    /// Store our mainnet fork information
-    uint256 mainnetFork;
-
     /// Capture a block to allow LINK testing
     uint internal constant BLOCK_NUMBER = 16_176_141;
 
@@ -31,19 +28,9 @@ contract OptionExchangeTest is FloorTest {
     /// @dev Emitted when our $LINK balance drops below a set threshold
     event LinkBalanceLow(uint remainingBalance);
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up our Mock {VRFCoordinatorV2Mock} with a calculated LINK fee of 0.1. We
         // also reference the correct LINK token so that payment can be made from our base
         // script.

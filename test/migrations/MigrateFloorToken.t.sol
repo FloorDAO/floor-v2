@@ -15,9 +15,6 @@ contract MigrateFloorTokenTest is FloorTest {
     FLOOR newFloor;
     MigrateFloorToken migrateFloorToken;
 
-    /// Store our mainnet fork information
-    uint256 mainnetFork;
-
     /// At block 16016064 we have the following holders good for testing:
     /// ---
     /// FLOOR (1000) : 0xC401d60e25490c14A614c89166b0742e5C677a2d
@@ -32,19 +29,7 @@ contract MigrateFloorTokenTest is FloorTest {
      * We cannot use our setUp function here, as it causes issues with the
      * {FloorTest} environment when we try and grant a `role`.
      */
-    constructor () {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
+    constructor () forkBlock(BLOCK_NUMBER) {
         // Set up our migration contract
         newFloor = new FLOOR(address(authorityRegistry));
 

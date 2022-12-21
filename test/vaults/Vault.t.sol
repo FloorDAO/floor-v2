@@ -2,8 +2,10 @@
 
 pragma solidity ^0.8.0;
 
+import '../../src/contracts/authorities/AuthorityRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/vaults/Vault.sol';
+
 import '../../src/interfaces/strategies/BaseStrategy.sol';
 
 import '../utilities/Environments.sol';
@@ -12,7 +14,6 @@ import '../utilities/Environments.sol';
 contract VaultTest is FloorTest {
 
     /// Store our mainnet fork information
-    uint256 mainnetFork;
     uint internal constant BLOCK_NUMBER = 16_075_930;
 
     /// Reference our vault through our tests
@@ -23,23 +24,13 @@ contract VaultTest is FloorTest {
     address private constant PUNK_HOLDER = 0x0E239772E3BbfD125E7a9558ccb93D34946caD18;
     uint private constant PUNK_BALANCE = 676000177241559782;
 
+    constructor () forkBlock(BLOCK_NUMBER) {}
+
     /**
      * Our set up logic creates a valid {Vault} instance that we will
      * subsequently test against.
      */
     function setUp() public {
-        // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.envString('MAINNET_RPC_URL'));
-
-        // Select our fork for the VM
-        vm.selectFork(mainnetFork);
-
-        // Set our block ID to a specific, test-suitable number
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Confirm that our block number has set successfully
-        assertEq(block.number, BLOCK_NUMBER);
-
         // Set up an inventory staking strategy
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
         strategy.initialize(
@@ -107,8 +98,7 @@ contract VaultTest is FloorTest {
      */
     function test_CanDeposit(uint amount) public {
         // Avoid dust being returned and getting reverted
-        vm.assume(amount > 1000);
-        vm.assume(amount <= PUNK_BALANCE);
+        vm.assume(amount > 1000 && amount <= PUNK_BALANCE);
 
         // Connect to an account that has PUNK tokens
         vm.startPrank(PUNK_HOLDER);
@@ -144,10 +134,8 @@ contract VaultTest is FloorTest {
      * deposits made in the test.
      */
     function test_CanDepositMultipleTimes(uint amount1, uint amount2) public {
-        vm.assume(amount1 > 10000);
-        vm.assume(amount2 > 10000);
-        vm.assume(amount1 < PUNK_BALANCE / 2);
-        vm.assume(amount2 < PUNK_BALANCE / 2);
+        vm.assume(amount1 > 10000 && amount1 < PUNK_BALANCE / 2);
+        vm.assume(amount2 > 10000 && amount2 < PUNK_BALANCE / 2);
 
         // Connect to an account that has PUNK tokens
         vm.startPrank(PUNK_HOLDER);
@@ -164,14 +152,14 @@ contract VaultTest is FloorTest {
 
         // Make 2 varied size deposits into our user's position. The second deposit will
         // return the cumulative user's position that includes both deposit returns.
-        vault.deposit(amount1);
-        uint receivedAmount = vault.deposit(amount2);
+        uint receivedAmount1 = vault.deposit(amount1);
+        uint receivedAmount2 = vault.deposit(amount2);
 
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount1 - amount2);
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
-        assertEq(vault.positions(PUNK_HOLDER), receivedAmount);
+        assertEq(vault.positions(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
         assertEq(vault.share(PUNK_HOLDER), 10000);
 
         vm.stopPrank();
@@ -246,18 +234,17 @@ contract VaultTest is FloorTest {
         vm.warp(block.timestamp + 10 days);
 
         // Process a withdrawal of a partial amount against our position
-        uint remainingPosition = vault.withdraw(amount);
+        uint withdrawalAmount = vault.withdraw(amount);
 
         // Our holder should now have just the withdrawn amount back in their wallet
-        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), amount);
+        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), withdrawalAmount);
 
         // There will be dust left in the strategy and vault
-        assertGe(IERC20(vault.collection()).balanceOf(address(vault)), 0);
-        assertGe(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
 
         // The holders position should be their entire balance, minus the amount that
         // was withdrawn. This will still leave our holder with a 100% vault share.
-        assertEq(vault.positions(PUNK_HOLDER), remainingPosition);
         assertEq(vault.positions(PUNK_HOLDER), depositAmount - amount);
         assertEq(vault.share(PUNK_HOLDER), 10000);
 
@@ -269,8 +256,7 @@ contract VaultTest is FloorTest {
      */
     function test_CanWithdrawFully(uint amount) public {
         // Prevent our deposit from returning a 0 amount from staking
-        vm.assume(amount > 10000);
-        vm.assume(amount <= PUNK_BALANCE);
+        vm.assume(amount > 10000 && amount <= PUNK_BALANCE);
 
         // Connect to an account that has PUNK tokens
         vm.startPrank(PUNK_HOLDER);
@@ -286,16 +272,20 @@ contract VaultTest is FloorTest {
         vm.warp(block.timestamp + 10 days);
 
         // Withdraw the same amount that we depositted
-        uint remainingPosition = vault.withdraw(depositAmount);
-        assertEq(remainingPosition, 0);
+        uint withdrawalAmount = vault.withdraw(depositAmount);
 
-        // User loses dust to NFTX, so we need to take our base balance, minus the dust lost
-        // during the deposit.
-        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount + depositAmount);
+        console.log(PUNK_BALANCE);
+        console.log(amount);
+        console.log(depositAmount);
+        console.log(withdrawalAmount);
+        console.log(vault.positions(PUNK_HOLDER));
+
+        // We need to take our base balance, minus the dust lost during the deposit
+        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount + withdrawalAmount);
 
         // There will be dust left in the strategy and vault
-        assertGe(IERC20(vault.collection()).balanceOf(address(vault)), 0);
-        assertGe(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
 
         // Our user should hold no position or share
         assertEq(vault.positions(PUNK_HOLDER), 0);
@@ -326,20 +316,19 @@ contract VaultTest is FloorTest {
         vm.warp(block.timestamp + 10 days);
 
         // Process 2 vault withdrawals
-        vault.withdraw(amount);
-        uint remainingPosition = vault.withdraw(amount);
+        uint withdrawalAmount1 = vault.withdraw(amount);
+        uint withdrawalAmount2 = vault.withdraw(amount);
 
         // Our user should now have the twice withdrawn amount in their balance
-        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), amount + amount);
+        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), withdrawalAmount1 + withdrawalAmount2);
 
         // Vault and Strategy dust
-        assertGe(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
-        assertGe(IERC20(vault.collection()).balanceOf(address(vault)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
 
         // Our user's remaining position should be calculated by the amount deposited,
         // minus the amount withdrawn (done twice).
         assertEq(vault.positions(PUNK_HOLDER), depositAmount - amount - amount);
-        assertEq(vault.positions(PUNK_HOLDER), remainingPosition);
 
         // Since we left at least some dust in the position, we can assert that the
         // holder as 100% of the share.
@@ -430,6 +419,38 @@ contract VaultTest is FloorTest {
         assertEq(vault.positions(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 96778);
         assertEq(vault.positions(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 0);
         assertEq(vault.positions(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 290334);
+    }
+
+    function test_CanPause() public {
+        // Give our test contract the role to manage vaults
+        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), utilities.deployer());
+
+        assertEq(vault.paused(), false);
+
+        vault.pause(true);
+        assertEq(vault.paused(), true);
+
+        vault.pause(false);
+        assertEq(vault.paused(), false);
+    }
+
+    function test_CannotDepositWhenPaused() public {
+        vault.pause(true);
+        assertEq(vault.paused(), true);
+
+        vm.startPrank(PUNK_HOLDER);
+        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+
+        vm.expectRevert('Vault is currently paused');
+        vault.deposit(100000);
+
+        vm.stopPrank();
+    }
+
+    function test_CannotPauseWithoutPermissions() public {
+        vm.prank(PUNK_HOLDER);
+        vm.expectRevert('Account does not have role');
+        vault.pause(true);
     }
 
 }
