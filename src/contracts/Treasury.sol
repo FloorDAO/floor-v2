@@ -21,7 +21,7 @@ contract Treasury is AuthorityControl, ITreasury {
     /**
      * The current pricing executor contract.
      */
-    address public pricingExecutor;
+    IBasePricingExecutor public pricingExecutor;
 
     bool public floorMintingPaused;
     uint poolMultiplierPercentage;
@@ -99,7 +99,6 @@ contract Treasury is AuthorityControl, ITreasury {
     function endEpoch() external {
         // Ensure our required contracts are set
 
-
         // Get our GWV multipliers
 
         // Iterate over vaults
@@ -151,7 +150,7 @@ contract Treasury is AuthorityControl, ITreasury {
      *
      */
     function _mint(address recipient, uint amount) internal {
-
+        floor.mint(recipient, amount);
     }
 
     /**
@@ -162,7 +161,8 @@ contract Treasury is AuthorityControl, ITreasury {
      * ratio is updated before minting.
      */
     function mintTokenFloor(address token, uint amount) external {
-        // _mint(address(this), amount);
+        uint price = pricingExecutor.getFloorPrice(token);
+        _mint(address(this), price * amount);
     }
 
     /**
@@ -180,6 +180,14 @@ contract Treasury is AuthorityControl, ITreasury {
      */
     function depositERC721(address token, uint tokenId) external {
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
+    }
+
+    /**
+     * Allows an ERC1155 token(s) to be deposited and generates FLOOR tokens based on
+     * the current determined value of FLOOR and the token.
+     */
+    function depositERC1155(address token, uint tokenId, uint amount) external {
+        IERC1155(token).transferFrom(msg.sender, address(this), tokenId, amount);
     }
 
     /**
@@ -203,6 +211,13 @@ contract Treasury is AuthorityControl, ITreasury {
      */
     function withdrawERC721(address token, uint tokenId) external onlyRole(TREASURY_MANAGER) {
         IERC721(token).transferFrom(address(this), recipient, tokenId);
+    }
+
+    /**
+     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     */
+    function withdrawERC1155(address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
+        IERC1155(token).transferFrom(address(this), recipient, tokenId, amount);
     }
 
     /**
@@ -284,14 +299,14 @@ contract Treasury is AuthorityControl, ITreasury {
      *   in direct comparison due to hops.
      */
     function getTokenFloorPrice(address token) external {
-
+        // Do we still need this?
     }
 
     /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
     function setPricingExecutor(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        pricingExecutor = contractAddr;
+        pricingExecutor = IBasePricingExecutor(contractAddr);
     }
 
     /**
@@ -305,12 +320,29 @@ contract Treasury is AuthorityControl, ITreasury {
      *
      * The returned address is the instance of the new strategy deployment.
      */
-    function deployAndFundTreasuryStrategy(address strategyAddr, address[] calldata token, uint[] calldata amount) external returns (address) {
+    function deployAndFundTreasuryStrategy(address strategy, address token, uint amount) external returns (address) {
+        // TODO
 
+        // Make sure strategy is approved
+        require(strategyRegistry.isApproved(strategy), 'Strategy not approved');
+
+        // Make sure the collection is approved
+        require(collectionRegistry.isApproved(collection), 'Collection not approved');
+
+        // Deploy a new {Strategy} instance using the clone mechanic. We then need to
+        // instantiate the strategy using our supplied `strategyInitData`.
+        address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
+        IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
     }
 
-    function processAction(address action, bytes data) onlyRole(TREASURY_MANAGER) {
-        IAction(action).execute(data);
+    /**
+     * Apply a number of actions against the vault. These will run in chronological order
+     * so that the output of one action must complete before the next is executed.
+     */
+    function processAction(address[] actions, bytes[] data) onlyRole(TREASURY_MANAGER) {
+        for (uint i; i < actions.length;) {
+            IAction(actions[i]).execute(data[i]);
+        }
     }
 
 }
