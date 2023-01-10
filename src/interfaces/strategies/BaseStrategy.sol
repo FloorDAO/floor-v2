@@ -17,13 +17,13 @@ pragma solidity ^0.8.0;
 interface IBaseStrategy {
 
     /// @dev When strategy receives a deposit
-    event Deposit(address token, uint amount);
+    event Deposit(address token, uint amount, address caller);
 
     /// @dev When strategy is harvested
     event Harvest(address token, uint amount);
 
     /// @dev When a staked user exits their position
-    event Exit(address token, uint amount);
+    event Withdraw(address token, uint amount, address caller);
 
     /**
      * Allows the vault to be initialised.

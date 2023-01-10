@@ -263,6 +263,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         return prices;
     }
 
+    /**
+     * Gas efficient revert.
+     */
     function revertBytes(bytes memory errMsg) internal pure {
         if (errMsg.length > 0) {
             assembly {

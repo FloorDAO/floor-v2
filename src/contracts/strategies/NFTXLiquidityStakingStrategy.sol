@@ -54,7 +54,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint public lifetimeRewards;
+    uint private lifetimeRewards;
 
     /**
      * This will return the internally tracked value of all deposits made into the strategy.
@@ -110,7 +110,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * - We receive xSLP back to the strategy
      */
     function deposit(uint amount) external returns (uint xTokensReceived) {
-        require(amount > 0, 'Cannot deposit 0');
+        require(amount != 0, 'Cannot deposit 0');
 
         // Get the SLP token from the user
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
@@ -124,13 +124,23 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
         // Calculate how much xSLP was returned
         xTokensReceived = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
         deposits += xTokensReceived;
+
+        emit Deposit(underlyingToken, amount, msg.sender);
     }
 
     /**
      * Allows the user to burn xToken to receive base their original token.
      */
     function withdraw(uint amount) external returns (uint amount_) {
-        // TODO
+        require(amount != 0, 'Cannot claim 0');
+
+        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        INFTXLiquidityStaking(inventoryStaking).withdraw(vaultId, amount);
+
+        amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+        IERC20(underlyingToken).transfer(msg.sender, amount_);
+
+        emit Withdraw(underlyingToken, amount_, msg.sender);
     }
 
     /**
@@ -143,8 +153,14 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * - Distribute yield
      */
      function claimRewards() public returns (uint amount_) {
-        amount_ = ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
-        INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
+        amount_ = rewardsAvailable();
+        bool success = INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
+        require(success, 'Unable to claim rewards');
+
+        unmintedRewards += amount_;
+        lifetimeRewards += amount_;
+
+        emit Harvest(yieldToken, amount_);
      }
 
     /**
@@ -165,7 +181,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this)) + IERC20(pool).balanceOf(address(this)) + mintedRewards;
+        return rewardsAvailable() + lifetimeRewards;
     }
 
     /**

@@ -53,7 +53,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint public lifetimeRewards;
+    uint private lifetimeRewards;
 
     /**
      * This will return the internally tracked value of all deposits made into the strategy.
@@ -105,7 +105,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * - We receive xToken back to the strategy
      */
     function deposit(uint amount) external returns (uint amount_) {
-        require(amount > 0, 'Cannot deposit 0');
+        require(amount != 0, 'Cannot deposit 0');
 
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
@@ -113,6 +113,8 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
 
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
         deposits += amount_;
+
+        emit Deposit(underlyingToken, amount, msg.sender);
     }
 
     /**
@@ -126,14 +128,36 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * - Distribute yield
      */
     function withdraw(uint amount) external returns (uint amount_) {
-        require(amount > 0, 'Cannot claim 0');
+        require(amount != 0, 'Cannot claim 0');
 
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
         INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
 
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
         IERC20(underlyingToken).transfer(msg.sender, amount_);
+
+        emit Withdraw(underlyingToken, amount_, msg.sender);
     }
+
+    /**
+     * Harvest possible rewards from strategy. The rewards generated from the strategy
+     * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
+     * turn be made available in the {RewardsLedger}.
+     *
+     * - Get the vaultID from the underlying address
+     * - LiquidityStaking.claimRewards
+     * - Distribute yield
+     */
+     function claimRewards() public returns (uint amount_) {
+        amount_ = rewardsAvailable();
+        bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
+        require(success, 'Unable to claim rewards');
+
+        unmintedRewards += amount_;
+        lifetimeRewards += amount_;
+
+        emit Harvest(yieldToken, amount_);
+     }
 
     /**
      * The token amount of reward yield available to be claimed on the connected external
@@ -144,7 +168,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function rewardsAvailable() external view returns (uint) {
-        return IERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
     }
 
     /**
@@ -153,7 +177,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return IERC20(yieldToken).balanceOf(address(this)) + mintedRewards - deposits;
+        return rewardsAvailable() + lifetimeRewards;
     }
 
     /**
@@ -165,7 +189,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function unmintedRewards() external view returns (uint amount_) {
-        return IERC20(yieldToken).balanceOf(address(this)) - deposits;
+        return IERC20(yieldToken).balanceOf(address(this));
     }
 
     /**
