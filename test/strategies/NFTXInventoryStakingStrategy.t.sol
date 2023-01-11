@@ -16,7 +16,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_126_124;
 
-    address testUser;
+    // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
+    address testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
 
     constructor () forkBlock(BLOCK_NUMBER) {}
 
@@ -24,8 +25,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // Set up our pricing executor
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,           // Vault ID
-            address(0),  // Vault Address
+            0,         // Vault ID
+            testUser,  // Vault Address (set to our testUser so that it can call strategy methods direct)
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
@@ -37,7 +38,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Checks that we can get the strategy name set in the constructor.
      */
     function test_CanGetName() public {
         assertEq(strategy.name(), 'PUNK Vault');
@@ -83,9 +84,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * This should return an xToken that is stored in the strategy.
      */
     function test_CanDepositToInventoryStaking() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
-
         vm.startPrank(testUser);
 
         // Start with no deposits
@@ -111,7 +109,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 967780757975035829);
 
-        assertEq(strategy.deposits(), 1000000000000000000);
+        assertEq(strategy.deposits(), 967780757975035829);
 
         vm.stopPrank();
     }
@@ -122,6 +120,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      */
     function test_CannotDepositZeroValue() public {
         vm.expectRevert('Cannot deposit 0');
+        vm.prank(testUser);
         strategy.deposit(0);
     }
 
@@ -131,9 +130,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * contract.
      */
     function test_CanWithdraw() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
-
         vm.startPrank(testUser);
 
         // We first need to deposit
@@ -170,6 +166,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      */
     function test_CannotClaimZeroRewards() public {
         vm.expectRevert('Cannot claim 0');
+        vm.prank(testUser);
         strategy.withdraw(0);
     }
 
@@ -179,9 +176,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * strategy.
      */
     function testCanFullyExitPosition() public {
-        // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
-        testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
-
         vm.startPrank(testUser);
 
         // We first need to deposit

@@ -18,7 +18,8 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_133_601;
 
-    address testUser;
+    // Holds 0.02963115425863499 SLP at block
+    address testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 
     constructor () forkBlock(BLOCK_NUMBER) {}
 
@@ -26,8 +27,8 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         // Set up our pricing executor
         strategy = new NFTXLiquidityStakingStrategy(bytes32('PUNK Liquidity Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,           // Vault ID
-            address(0),  // Vault Address
+            0,         // Vault ID
+            testUser,  // Vault Address (set to our testUser so that it can call strategy methods direct)
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
                 0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken
@@ -85,9 +86,6 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * This should return an xToken that is stored in the strategy.
      */
     function test_CanDepositToLiquidityStaking() public {
-        // Holds 0.02963115425863499 SLP at block
-        testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
-
         vm.startPrank(testUser);
 
         // Start with no deposits
@@ -126,6 +124,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      */
     function test_CannotDepositZeroValue() public {
         vm.expectRevert('Cannot deposit 0');
+        vm.prank(testUser);
         strategy.deposit(0);
     }
 
@@ -137,9 +136,6 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * TODO: New Flow
      */
     function _test_CanWithdraw() public {
-        // Holds 0.02963115425863499 SLP at block
-        testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
-
         vm.startPrank(testUser);
 
         // Deposit using the underlying token to receive xToken into the strategy
@@ -174,8 +170,10 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * Even when we have no rewards to claim, we should still be able
      * to make the request but we just expect a 0 value to be returned.
      */
-    function test_CanClaimZeroRewards() public {
-        assertEq(strategy.withdraw(0), 0);
+    function test_CannotClaimZeroRewards() public {
+        vm.expectRevert('Cannot claim 0');
+        vm.prank(testUser);
+        strategy.withdraw(0);
     }
 
     /**
