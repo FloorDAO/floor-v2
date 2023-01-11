@@ -17,8 +17,15 @@ import '../../interfaces/collections/CollectionRegistry.sol';
 contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
     /// Store a mapping of our approved collections
-    mapping(address => bool) collections;
+    mapping(address => bool) internal collections;
 
+    /// ..
+    address[] internal _approvedCollections;
+
+    /**
+     * Sets up our contract with our authority control to restrict access to
+     * protected functions.
+     */
     constructor (address _authority) AuthorityControl(_authority) {}
 
     /**
@@ -29,6 +36,10 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         return collections[contractAddr];
     }
 
+    function approvedCollections() external view returns (address[] memory) {
+        return _approvedCollections;
+    }
+
     /**
      * Approves a collection contract to be used for vaults.
      */
@@ -37,6 +48,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
         if (!collections[contractAddr]) {
             collections[contractAddr] = true;
+            _approvedCollections.push(contractAddr);
             emit CollectionApproved(contractAddr);
         }
     }

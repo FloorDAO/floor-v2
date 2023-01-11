@@ -28,6 +28,11 @@ interface IVaultFactory {
     function vaults() external view returns (address[] memory);
 
     /**
+     * Provides a list of all vaults that reference the approved collection.
+     */
+    function vaultsForCollection(address _collection) external view returns (address[] memory);
+
+    /**
      * Provides a vault against the provided `vaultId` (index).
      */
     function vault(uint _vaultId) external view returns (address);

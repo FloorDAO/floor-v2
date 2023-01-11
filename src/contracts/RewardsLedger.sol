@@ -64,9 +64,6 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // Prevent zero values being allocated and wasting gas
         require(amount != 0, 'Invalid amount');
 
-        // Ensure our token conforms to ERC20 standards
-        // require(IERC20(token));
-
         // Ensure that it is our treasury sending the request
         require(msg.sender == treasury, 'Only treasury can allocate');
 
@@ -133,6 +130,13 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // Ensure that the recipient has sufficient allocation of the requested token
         require(allocations[msg.sender][token] >= amount, 'Insufficient allocation');
 
+        // Decrement our recipients allocation before actioning the transfer to avoid
+        // reentrancy issues.
+        allocations[msg.sender][token] -= amount;
+
+        // We can increment the amount of claimed token
+        claimed[msg.sender][token] += amount;
+
         // If the user is claiming floor token it will need to be minted from
         // the {Treasury}, as opposed to just being transferred.
         if (token == floor) {
@@ -143,12 +147,6 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
             // Transfer the tokens from the {Treasury} to the recipient
             // IERC20(token).transferFrom(treasury, msg.sender, amount);
         }
-
-        // Decrement our recipients allocation
-        allocations[msg.sender][token] -= amount;
-
-        // We can increment the amount of claimed token
-        claimed[msg.sender][token] += amount;
 
         // Fire a message for our stalkers
         emit RewardsClaimed(msg.sender, token, amount);

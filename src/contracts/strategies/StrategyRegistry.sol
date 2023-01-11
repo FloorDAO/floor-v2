@@ -20,7 +20,7 @@ import '../../interfaces/strategies/StrategyRegistry.sol';
 contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
 
     /// Store a mapping of our approved strategies
-    mapping(address => bool) strategies;
+    mapping(address => bool) internal strategies;
 
     constructor (address _authority) AuthorityControl(_authority) {}
 

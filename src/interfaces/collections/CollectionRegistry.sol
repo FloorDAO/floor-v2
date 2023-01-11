@@ -25,6 +25,11 @@ interface ICollectionRegistry {
     function isApproved(address contractAddr) external view returns (bool);
 
     /**
+     * Returns an array of all approved collections.
+     */
+    function approvedCollections() external view returns (address[] memory);
+
+    /**
      * Approves a collection contract to be used for vaults.
      */
     function approveCollection(address contractAddr) external;
