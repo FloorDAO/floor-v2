@@ -29,6 +29,13 @@ contract FloorTest is Test {
         // Set up a small pool of test users
         users = utilities.createUsers(5, 100 ether);
 
+        // Label our users
+        vm.label(users[0], 'Alice');
+        vm.label(users[1], 'Bob');
+        vm.label(users[2], 'Carol');
+        vm.label(users[3], 'David');
+        vm.label(users[4], 'Earl');
+
         // Set up our authority registry
         authorityRegistry = new AuthorityRegistry();
 
