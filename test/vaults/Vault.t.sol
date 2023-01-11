@@ -32,9 +32,10 @@ contract VaultTest is FloorTest {
      */
     function setUp() public {
         // Set up an inventory staking strategy
-        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
+        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK'), address(authorityRegistry));
         strategy.initialize(
-            0,  // Vault ID
+            0,           // Vault ID
+            address(0),  // Vault Address
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
@@ -50,7 +51,7 @@ contract VaultTest is FloorTest {
             'Test Vault',                                // Vault Name
             2,                                           // Vault ID
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // Collection: PUNK token
-            address(strategy),                           // Strategy: NULL
+            address(strategy),                           // Strategy: PUNK
             address(0)                                   // VaultFactory: NULL
         );
     }

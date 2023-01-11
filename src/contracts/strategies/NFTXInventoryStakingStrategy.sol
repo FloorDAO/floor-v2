@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
+import '../authorities/AuthorityControl.sol';
+
 import '../../interfaces/nftx/NFTXInventoryStaking.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
 
@@ -19,10 +21,11 @@ import '../../interfaces/strategies/BaseStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
+contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
 
     bytes32 public name;
     uint public vaultId;
+    address public vaultAddr;
 
     address public pool;
 
@@ -65,14 +68,14 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
     /**
      * ...
      */
-    constructor (bytes32 _name) {
+    constructor (bytes32 _name, address _authority) AuthorityControl(_authority) {
         name = _name;
     }
 
     /**
      * ...
      */
-    function initialize(uint _vaultId, bytes memory initData) public initializer {
+    function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
         (
             address _pool,
             address _underlyingToken,
@@ -85,6 +88,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;
         vaultId = _vaultId;
+        vaultAddr = _vaultAddr;
 
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
@@ -104,7 +108,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      */
-    function deposit(uint amount) external returns (uint amount_) {
+    function deposit(uint amount) external onlyVault returns (uint amount_) {
         require(amount != 0, 'Cannot deposit 0');
 
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
@@ -127,7 +131,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
      */
-    function withdraw(uint amount) external returns (uint amount_) {
+    function withdraw(uint amount) external onlyVault returns (uint amount_) {
         require(amount != 0, 'Cannot claim 0');
 
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
@@ -149,11 +153,10 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * - Distribute yield
      */
      function claimRewards() public returns (uint amount_) {
-        amount_ = rewardsAvailable();
+        amount_ = this.rewardsAvailable();
         bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
         require(success, 'Unable to claim rewards');
 
-        unmintedRewards += amount_;
         lifetimeRewards += amount_;
 
         emit Harvest(yieldToken, amount_);
@@ -177,7 +180,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return rewardsAvailable() + lifetimeRewards;
+        return this.rewardsAvailable() + lifetimeRewards;
     }
 
     /**
@@ -197,6 +200,14 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      */
-    function registerMint(uint amount) external {}
+    function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
+
+    /**
+     * Allows us to restrict calls to only be made by the connected vaultId.
+     */
+    modifier onlyVault() {
+        require(msg.sender == vaultAddr);
+        _;
+    }
 
 }

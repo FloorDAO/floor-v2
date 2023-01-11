@@ -24,9 +24,10 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
 
     function setUp() public {
         // Set up our pricing executor
-        strategy = new NFTXLiquidityStakingStrategy(bytes32('PUNK Liquidity Vault'));
+        strategy = new NFTXLiquidityStakingStrategy(bytes32('PUNK Liquidity Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,  // Vault ID
+            0,           // Vault ID
+            address(0),  // Vault Address
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
                 0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken

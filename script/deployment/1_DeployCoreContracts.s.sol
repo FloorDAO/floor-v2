@@ -50,7 +50,7 @@ contract DeployCoreContracts is Script {
         FLOOR floor = new FLOOR(address(authorityRegistry));
         // veFLOOR veFloor = new VeFLOOR(address(authorityRegistry));
 
-        NFTXInventoryStakingStrategy inventoryStakingStrategy = new NFTXInventoryStakingStrategy('NFTX Inventory Staking');
+        NFTXInventoryStakingStrategy inventoryStakingStrategy = new NFTXInventoryStakingStrategy('NFTX Inventory Staking', address(authorityRegistry));
 
         // Treasury treasury = new Treasury();
         VaultFactory vaultFactory = new VaultFactory(

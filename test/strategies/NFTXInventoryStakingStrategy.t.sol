@@ -22,9 +22,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
     function setUp() public {
         // Set up our pricing executor
-        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
+        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,  // Vault ID
+            0,           // Vault ID
+            address(0),  // Vault Address
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken

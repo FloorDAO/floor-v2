@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
+import '../authorities/AuthorityControl.sol';
+
 import '../../interfaces/nftx/NFTXLiquidityStaking.sol';
 import '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
@@ -20,9 +22,10 @@ import '../../interfaces/strategies/BaseStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
+contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
 
     uint public vaultId;
+    address public vaultAddr;
     address public pool;
 
     /**
@@ -66,14 +69,14 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
     /**
      * ...
      */
-    constructor (bytes32 _name) {
+    constructor (bytes32 _name, address _authority) AuthorityControl(_authority) {
         name = _name;
     }
 
     /**
      * ...
      */
-    function initialize(uint _vaultId, bytes memory initData) public initializer {
+    function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
         (
             address _pool,
             address _underlyingToken,
@@ -86,6 +89,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;
         vaultId = _vaultId;
+        vaultAddr = _vaultAddr;
 
         liquidityStaking = _liquidityStaking;
         treasury = _treasury;
@@ -109,7 +113,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      *     initialise the pool
      * - We receive xSLP back to the strategy
      */
-    function deposit(uint amount) external returns (uint xTokensReceived) {
+    function deposit(uint amount) external onlyVault returns (uint xTokensReceived) {
         require(amount != 0, 'Cannot deposit 0');
 
         // Get the SLP token from the user
@@ -131,11 +135,11 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
     /**
      * Allows the user to burn xToken to receive base their original token.
      */
-    function withdraw(uint amount) external returns (uint amount_) {
+    function withdraw(uint amount) external onlyVault returns (uint amount_) {
         require(amount != 0, 'Cannot claim 0');
 
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
-        INFTXLiquidityStaking(inventoryStaking).withdraw(vaultId, amount);
+        INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, amount);
 
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
         IERC20(underlyingToken).transfer(msg.sender, amount_);
@@ -153,11 +157,9 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * - Distribute yield
      */
      function claimRewards() public returns (uint amount_) {
-        amount_ = rewardsAvailable();
-        bool success = INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
-        require(success, 'Unable to claim rewards');
+        amount_ = this.rewardsAvailable();
+        INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
 
-        unmintedRewards += amount_;
         lifetimeRewards += amount_;
 
         emit Harvest(yieldToken, amount_);
@@ -181,7 +183,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * This value is stored in terms of the `yieldToken`.
      */
     function totalRewardsGenerated() external view returns (uint) {
-        return rewardsAvailable() + lifetimeRewards;
+        return this.rewardsAvailable() + lifetimeRewards;
     }
 
     /**
@@ -201,6 +203,14 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      */
-    function registerMint(uint amount) external {}
+    function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
+
+    /**
+     * Allows us to restrict calls to only be made by the connected vaultId.
+     */
+    modifier onlyVault() {
+        require(msg.sender == vaultAddr);
+        _;
+    }
 
 }

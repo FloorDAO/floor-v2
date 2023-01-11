@@ -41,8 +41,8 @@ contract VaultFactoryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy')));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy'), address(authorityRegistry)));
 
         // Approve our test strategy implementation
         strategyRegistry.approveStrategy(approvedStrategy);

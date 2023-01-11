@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import '../authorities/AuthorityControl.sol';
@@ -12,7 +13,7 @@ import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/vaults/Vault.sol';
 
 
-contract Vault is AuthorityControl, Initializable, IVault {
+contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
     /**
      * The human-readable name of the vault.
@@ -99,7 +100,7 @@ contract Vault is AuthorityControl, Initializable, IVault {
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
-    function deposit(uint amount) external returns (uint) {
+    function deposit(uint amount) external nonReentrant returns (uint) {
         // Ensure that our vault is not paused
         require(!paused, 'Vault is currently paused');
 
@@ -134,7 +135,7 @@ contract Vault is AuthorityControl, Initializable, IVault {
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint amount) external returns (uint) {
+    function withdraw(uint amount) external nonReentrant returns (uint) {
         // Ensure we are withdrawing something
         require(amount > 0, 'Insufficient amount requested');
 
