@@ -33,17 +33,6 @@ contract VaultTest is FloorTest {
     function setUp() public {
         // Set up an inventory staking strategy
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK'), address(authorityRegistry));
-        strategy.initialize(
-            0,           // Vault ID
-            address(0),  // Vault Address
-            abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-                0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
-            )
-        );
 
         // Set up our Vault with authority
         vault = new Vault(address(authorityRegistry));
@@ -53,6 +42,18 @@ contract VaultTest is FloorTest {
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // Collection: PUNK token
             address(strategy),                           // Strategy: PUNK
             address(0)                                   // VaultFactory: NULL
+        );
+
+        strategy.initialize(
+            0,               // Vault ID
+            address(vault),  // Vault Address
+            abi.encode(
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
+                0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+            )
         );
     }
 
