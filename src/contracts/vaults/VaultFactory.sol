@@ -86,7 +86,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _strategy,
         bytes memory _strategyInitData,
         address _collection
-    ) external returns (
+    ) external onlyRole(VAULT_MANAGER) returns (
         uint vaultId_,
         address vaultAddr_
     ) {
@@ -102,14 +102,15 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Capture our vaultId, before we increment the array length
         vaultId_ = _vaults.length;
 
-        // Deploy a new {Strategy} instance using the clone mechanic. We then need to
-        // instantiate the strategy using our supplied `strategyInitData`.
+        // Deploy a new {Strategy} instance using the clone mechanic
         address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
-        IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
 
         // Create our {Vault} with provided information
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
         IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
+
+        // We then need to instantiate the strategy using our supplied `strategyInitData`
+        IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
 
         // Add our vaults to our internal tracking
         _vaults.push(vaultAddr_);
