@@ -14,38 +14,22 @@ pragma solidity ^0.8.0;
  */
 interface IGaugeWeightVote {
 
-    /// Sent when voting is paused or unpaused
-    event VotingPaused(bool paused);
-
     /// Sent when a user casts or revokes their vote
-    event VoteCast(uint vaultId, uint amount);
+    event VoteCast(address collection, uint amount);
 
     /// Sent when a snapshot is generated
-    event SnapshotCreated(address[] vault, uint[] percentage);
+    event SnapshotCreated(address[] vault, uint[] tokens);
 
     /**
-     * Mapping vault address -> voter address -> amount.
-     * Mapping vault address -> total amount.
-     *
-     * We will need to maintain an internal structure to map the voters against
-     * a vault address so that we can determine vote growth and reallocation. We
-     * will additionally maintain a mapping of vault address to total amount that
-     * will better allow for snapshots to be taken for less gas.
-     *
-     * This will result in a slightly increased write, to provide a greatly
-     * reduced read.
+     * Mapping collection address -> total amount.
      */
+    function votes(address) external view returns (uint);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
      */
     function userVotingPower(address _user) external view returns (uint);
-
-    /**
-     * A collection of votes that the user currently has placed.
-     */
-    function userVotes(address _user) external view returns (address[] memory vault_, uint[] memory votes_);
 
     /**
      * The total number of votes that a user has available, calculated by:
@@ -55,6 +39,11 @@ interface IGaugeWeightVote {
      * ```
      */
     function userVotesAvailable(address _user) external view returns (uint votesAvailable_);
+
+    /**
+     * Provides a list of collection addresses that can be voted on.
+     */
+    function voteOptions() external view returns (address[] memory collections_);
 
     /**
      * Allows a user to cast a vote using their veFloor allocation. We don't
@@ -72,13 +61,13 @@ interface IGaugeWeightVote {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(uint _vaultId, uint _amount) external returns (uint totalVotes_);
+    function vote(address _collection, uint _amount) external returns (uint totalVotes_);
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
-    function revokeVote(uint[] memory _vaultId, uint[] memory _amount) external returns (uint[] memory remainingVotes_);
+    function revokeVotes(address[] memory _collection, uint[] memory _amount) external;
 
     /**
      * The snapshot function will need to iterate over all vaults that have
@@ -117,11 +106,6 @@ interface IGaugeWeightVote {
      * percentage in the vault. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot() external returns (address[] memory vault_, uint[] memory percentage_);
-
-    /**
-     * Allows voting to be paused or unpaused on the contract.
-     */
-    function pauseVoting(bool paused) external;
+    function snapshot(uint tokens) external returns (address[] memory collections_, address[] memory vault_, uint[] memory tokens_);
 
 }

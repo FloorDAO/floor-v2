@@ -16,6 +16,7 @@ import '../../interfaces/authorities/AuthorityRegistry.sol';
  *
  *  - TreasuryManager - Access to Treasury asset management
  *  - VaultManager - Can create new vaults against approved strategies and collections
+ *  - VoteManager - Can manage account votes
  *  - StrategyManager - Can approve strategy contracts to be used on vaults
  *  - CollectionManager - Can approve token addresses to be allowed to be used in vaults
  *  - Governor - A likely DAO owned vote address to allow for wide scale decisions to be made and implemented
@@ -41,6 +42,7 @@ contract AuthorityControl is Context, IAuthorityControl, ERC165 {
     bytes32 public constant STRATEGY_MANAGER = keccak256('StrategyManager');
     bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
     bytes32 public constant VAULT_MANAGER = keccak256('VaultManager');
+    bytes32 public constant VOTE_MANAGER = keccak256('VoteManager');
 
     IAuthorityRegistry public immutable registry;
 

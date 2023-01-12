@@ -8,14 +8,6 @@ import '../../interfaces/tokens/VeFloor.sol';
 
 
 /**
- * A partial interface for our boosting calculator.
- */
-interface IBoostedFloor {
-    function updateFactor(address, uint256) external;
-}
-
-
-/**
  * The veFloor token is heavily influenced by the {VeJoeToken} token:
  * https://snowtrace.io/address/0x3cabf341943Bc8466245e4d6F1ae0f8D071a1456#code
  */
@@ -33,15 +25,9 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     /// Metadata: Symbol
     string private _symbol;
 
-    /// The BoostedFloor contract
-    IBoostedFloor public boostedFloor;
-
     /// Emitted when `value` tokens are burned and minted
     event Burn(address indexed account, uint256 value);
     event Mint(address indexed beneficiary, uint256 value);
-
-    /// ..
-    event UpdateBoostedFloor(address indexed user, address boostedFloor);
 
     /**
      * Sets the values for {name} and {symbol}.
@@ -176,17 +162,6 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     }
 
     /**
-     * Sets the address of the master chef contract this updates.
-     *
-     * @param _boostedFloor the address of {BoostedFloor}
-     */
-    function setBoostedFloor(address _boostedFloor) external onlyRole(FLOOR_MANAGER) {
-        // We allow 0 address here if we want to disable the callback operations
-        boostedFloor = IBoostedFloor(_boostedFloor);
-        emit UpdateBoostedFloor(msg.sender, _boostedFloor);
-    }
-
-    /**
      * Hook that is called before any minting and burning.
      *
      * @param from the account transferring tokens
@@ -204,9 +179,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * @param _newBalance the new balance of `account` after minting/burning
      */
     function _afterTokenOperation(address _account, uint256 _newBalance) internal {
-        if (address(boostedFloor) != address(0)) {
-            boostedFloor.updateFactor(_account, _newBalance);
-        }
+        // Silence is golden.
     }
 
 }
