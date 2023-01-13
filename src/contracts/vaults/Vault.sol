@@ -13,6 +13,9 @@ import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/vaults/Vault.sol';
 
 
+/**
+ * TODO: We only want to return shares of users that have been staked for a minimum time.
+ */
 contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
     /**
@@ -63,7 +66,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * Maintain a list of addresses with positions. This allows us to iterate
      * our mappings to determine share ownership.
      */
-    address[] private _awesomePeople;
+    address[] public stakers;
 
     /**
      * Maintains a list of our total position to save gas when calculating
@@ -118,7 +121,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // If our user has just entered a position then we add them to
         // our list of addresses.
         if (positions[msg.sender] == 0) {
-            _awesomePeople.push(msg.sender);
+            stakers.push(msg.sender);
         }
 
         // Update our user's position
@@ -175,18 +178,36 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     }
 
     /**
+     *
+     */
+    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory) {
+        address[] memory users = new address[](stakers.length);
+        uint[] memory percentages = new uint[](stakers.length);
+
+        for (uint i; i < stakers.length;) {
+            // TODO: Allow treasury to be excluded
+            users[i] = stakers[i];
+            percentages[i] = share[stakers[i]];
+
+            unchecked { ++i; }
+        }
+
+        return (users, percentages);
+    }
+
+    /**
      * Recalculates the share ownership of each address with a position. This precursory
      * calculation allows us to save gas during epoch calculation.
      *
      * This assumes that when a user enters or exits a position, that their address is
-     * maintained correctly in the `_awesomePeople` array.
+     * maintained correctly in the `stakers` array.
      */
     function _recalculateVaultShare() internal {
-        for (uint i; i < _awesomePeople.length;) {
-            if (positions[_awesomePeople[i]] != 0) {
+        for (uint i; i < stakers.length;) {
+            if (positions[stakers[i]] != 0) {
                 // Determine the share to 2 decimal accuracy
                 // e.g. 100% = 10000
-                share[_awesomePeople[i]] = 100000000 / ((totalPosition * 10000) / (positions[_awesomePeople[i]]));
+                share[stakers[i]] = 100000000 / ((totalPosition * 10000) / (positions[stakers[i]]));
             }
 
             unchecked { ++i; }

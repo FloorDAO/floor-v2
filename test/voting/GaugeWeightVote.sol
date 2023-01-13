@@ -417,39 +417,56 @@ contract GaugeWeightVoteTest is FloorTest {
         _mockVaultStrategyRewardsGenerated(vault3, 2 ether);
         _mockVaultStrategyRewardsGenerated(vault4, 6 ether);
 
-        (address[] memory collections, address[] memory vaults, uint[] memory tokens) = gaugeWeightVote.snapshot(10000 ether);
+        address[] memory _users = new address[](1);
+        uint[] memory _tokens = new uint[](1);
+
+        _users[0] = alice;
+        _tokens[0] = 10000;
+        _mockUserVaultShares(vault1, _users, _tokens);
+
+        _users[0] = bob;
+        _mockUserVaultShares(vault4, _users, _tokens);
+
+        _users = new address[](2);
+        _tokens = new uint[](2);
+
+        _users[0] = alice;
+        _users[1] = bob;
+
+        _tokens[0] = 2500;
+        _tokens[1] = 7500;
+        _mockUserVaultShares(vault2, _users, _tokens);
+
+        _tokens[0] = 4000;
+        _tokens[1] = 6000;
+        _mockUserVaultShares(vault3, _users, _tokens);
+
+        (address[] memory rewardUsers, uint[] memory userTokens) = gaugeWeightVote.snapshot(10000 ether);
 
         vm.clearMockedCalls();
 
-        assertEq(collections.length, gaugeWeightVote.sampleSize());
-        assertEq(collections[0], floorTokenCollection);
-        assertEq(collections[1], approvedCollection2);
-        assertEq(collections[2], approvedCollection3);
+        assertEq(rewardUsers.length, 6);
+        assertEq(userTokens.length, 6);
 
-        assertEq(vaults.length, 4);
-        assertEq(vaults[0], floorTokenCollection);
-        assertEq(vaults[1], vault2);
-        assertEq(vaults[2], vault3);
-        assertEq(vaults[3], vault4);
+        assertTrue(rewardUsers[0] == floorTokenCollection);
+        assertTrue(rewardUsers[1] == alice);
+        assertTrue(rewardUsers[2] == bob);
+        assertTrue(rewardUsers[3] == alice);
+        assertTrue(rewardUsers[4] == bob);
+        assertTrue(rewardUsers[5] == bob);
 
-        assertEq(tokens.length, 4);
-        assertEq(tokens[0], 4950 ether);    // 5050 remaining
-        assertEq(tokens[1], 3300 ether);    // 1750 remaining
-        assertEq(tokens[2], 437.5 ether);   // 1312.5 remaining
-        assertEq(tokens[3], 1312.5 ether);  // 0 remaining
+        assertEq(userTokens[0], 4950000000000000000000);
+        assertEq(userTokens[1], 825000000000000000000);
+        assertEq(userTokens[2], 2475000000000000000000);
+        assertEq(userTokens[3], 175000000000000000000);
+        assertEq(userTokens[4], 262500000000000000000);
+        assertEq(userTokens[5], 1312500000000000000000);
 
-        /******
-
-        ~~~ CALCULATION OF TOKENS IN ~~~
-
-        [TOKENS IN -> VAULT ALLOCATION OUT]
-
-        ~~~ INDIVIDUAL STAKER ALLOCATION INTO LEDGER ~~~
-
-         ******/
-
-
-
+        uint allocationTotal = 0;
+        for (uint i; i < userTokens.length; ++i) {
+            allocationTotal += userTokens[i];
+        }
+        assertEq(allocationTotal, 10000 ether);
     }
 
     /**
@@ -485,6 +502,14 @@ contract GaugeWeightVoteTest is FloorTest {
             address(Vault(vault).strategy()),
             abi.encodeWithSelector(NFTXInventoryStakingStrategy.totalRewardsGenerated.selector),
             abi.encode(amount)
+        );
+    }
+
+    function _mockUserVaultShares(address vault, address[] memory users, uint[] memory shares) internal {
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(Vault.shares.selector),
+            abi.encode(users, shares)
         );
     }
 

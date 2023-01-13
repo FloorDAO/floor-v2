@@ -11,8 +11,6 @@ import '../../interfaces/vaults/Vault.sol';
 import '../../interfaces/vaults/VaultFactory.sol';
 import '../../interfaces/voting/GaugeWeightVote.sol';
 
-import "forge-std/console.sol";
-
 
 /**
  * The GWV will allow users to assign their veFloor position to a vault, or
@@ -30,6 +28,11 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
     address[] _vaults;
     uint[] _tokens;
+
+    address[] _users;
+    uint[] _userTokens;
+
+    mapping (address => uint) internal lastUserBlock;
 
     address public FLOOR_TOKEN_VOTE = address(1);
 
@@ -277,14 +280,92 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *      A - 42 FLOOR
      *      B - 58 FLOOR
      */
-    function snapshot(uint tokens) external returns (
-        address[] memory collections_,
-        address[] memory /* vaults_ */,
-        uint[] memory /* tokens_ */
-    ) {
+    function snapshot(uint tokens) external returns (address[] memory, uint[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
+        // Set up our temporary collections array that will maintain our top voted collections
+        address[] memory collections = _topCollections();
+
+        // Iterate through our sample size of collections to get the total number of
+        // votes placed that need to be used in distribution calculations to find
+        // collection share.
+        uint totalRelevantVotes = 0;
+        for (uint i; i < collections.length;) {
+            totalRelevantVotes += votes[collections[i]];
+            unchecked { ++i; }
+        }
+
+        // Set up our storage so we can push
+        address[] storage users_ = _users;
+        uint[] storage userTokens_ = _userTokens;
+
+        for (uint i; i < collections.length;) {
+            // Reset the yield storage for the collection
+            yieldStorage[collections[i]] = 0;
+
+            // Calculate the reward allocation to be given to the collection based on
+            // the number of votes from the total votes.
+            uint collectionRewards = remainingTokens;
+            if (i < collections.length - 1) {
+                collectionRewards = (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
+            }
+
+            unchecked {
+                remainingTokens -= collectionRewards;
+            }
+
+            // If we have the FLOOR token vote, then we just set a null vault
+            if (collections[i] == FLOOR_TOKEN_VOTE) {
+                users_.push(FLOOR_TOKEN_VOTE);
+                userTokens_.push(collectionRewards);
+
+                unchecked { ++i; }
+                continue;
+            }
+
+            // Find the sub-percentage allocation given to each collection vault based on yield
+            address[] memory collectionVaults = vaultFactory.vaultsForCollection(collections[i]);
+
+            for (uint j; j < collectionVaults.length;) {
+                // TODO: This needs to get total rewards and rewards since last snapshot
+                uint rewards = IBaseStrategy(IVault(collectionVaults[j]).strategy()).totalRewardsGenerated();
+
+                yieldStorage[collectionVaults[j]] = rewards;
+                yieldStorage[collections[i]] += rewards;
+
+                unchecked { ++j; }
+            }
+
+            for (uint j; j < collectionVaults.length;) {
+                // Get the rewards owed to the vault based on the yield share of the collection
+                uint vaultRewards = (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
+
+                // Get list of all staked users in the vault without taking the treasury
+                // position into account.
+                (address[] memory stakers, uint[] memory percentages) = IVault(collectionVaults[j]).shares(true);
+
+                // Allocate the vault share to each user
+                for (uint k; k < stakers.length;) {
+                    // Calculate the number of reward tokens
+                    uint userRewards = (vaultRewards * percentages[k]) / 10000;
+
+                    users_.push(stakers[k]);
+                    userTokens_.push(userRewards);
+
+                    unchecked { ++k; }
+                }
+
+                unchecked { ++j; }
+            }
+
+            unchecked { ++i; }
+        }
+
+        return (users_, userTokens_);
+    }
+
+    function _topCollections() internal returns (address[] memory collections_) {
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections_ = new address[](sampleSize);
 
@@ -294,16 +375,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
         for (uint i; i < options.length;) {
-            // Store the number of votes that our approved collection has
-            uint collectionVotes = votes[options[i]];
-
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
             uint j;
             for (j; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (collectionVotes > votes[collections_[j]]) {
+                if (votes[options[i]] > votes[collections_[j]]) {
                     break;
                 }
 
@@ -325,72 +403,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             unchecked { ++i; }
         }
 
-        // Iterate through our sample size of collections to get the total number of
-        // votes placed that need to be used in distribution calculations to find
-        // collection share.
-        uint totalRelevantVotes = 0;
-        for (uint i; i < collections_.length;) {
-            totalRelevantVotes += votes[collections_[i]];
-            unchecked { ++i; }
-        }
-
-        address[] storage vaults_ = _vaults;
-        uint[] storage tokens_ = _tokens;
-
-        for (uint i; i < collections_.length;) {
-            // Reset the yield storage for the collection
-            yieldStorage[collections_[i]] = 0;
-
-            // Calculate the reward allocation to be given to the collection based on
-            // the number of votes from the total votes.
-            uint collectionRewards = remainingTokens;
-            if (i < collections_.length - 1) {
-                collectionRewards = (tokens * ((totalRelevantVotes * votes[collections_[i]]) / (100 * 1e18))) / (10 * 1e18);
-            }
-
-            unchecked {
-                remainingTokens -= collectionRewards;
-            }
-
-            // If we have the FLOOR token vote, then we just set a null vault
-            if (collections_[i] == FLOOR_TOKEN_VOTE) {
-                vaults_.push(FLOOR_TOKEN_VOTE);
-                tokens_.push(collectionRewards);
-            }
-            else {
-                // Find the sub-percentage allocation given to each collection vault based on yield
-                address[] memory collectionVaults = vaultFactory.vaultsForCollection(collections_[i]);
-
-                if (collectionVaults.length == 1) {
-                    vaults_.push(collectionVaults[0]);
-                    tokens_.push(collectionRewards);
-                }
-                else if (collectionVaults.length > 1) {
-                    for (uint j; j < collectionVaults.length;) {
-                        IVault vault = IVault(collectionVaults[j]);
-                        IBaseStrategy strategy = IBaseStrategy(vault.strategy());
-
-                        uint rewards = strategy.totalRewardsGenerated();
-
-                        yieldStorage[collectionVaults[j]] = rewards;
-                        yieldStorage[collections_[i]] += rewards;
-
-                        unchecked { ++j; }
-                    }
-
-                    for (uint j; j < collectionVaults.length;) {
-                        vaults_.push(collectionVaults[j]);
-                        tokens_.push((collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections_[i]]);
-
-                        unchecked { ++j; }
-                    }
-                }
-            }
-
-            unchecked { ++i; }
-        }
-
-        return (collections_, vaults_, tokens_);
+        return collections_;
     }
 
     /**

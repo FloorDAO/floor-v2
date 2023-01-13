@@ -40,6 +40,11 @@ interface IVault {
     function vaultId() external view returns (uint256);
 
     /**
+     * TODO: ..
+     */
+    function shares(bool) external view returns (address[] memory, uint[] memory);
+
+    /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
