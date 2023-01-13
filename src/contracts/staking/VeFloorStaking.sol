@@ -249,6 +249,9 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         // Send user their requested amount of staked FLOOR
         floor.safeTransfer(_msgSender(), _amount);
 
+        // Remove a user's votes from the Gauge Weight Vote
+        gaugeWeightVote.revokeUserVotes(_msgSender());
+
         emit Withdraw(_msgSender(), _amount, userVeFloorBalance);
     }
 
