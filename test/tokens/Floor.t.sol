@@ -2,66 +2,60 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/Test.sol";
+import '../../src/contracts/tokens/Floor.sol';
 
-contract FloorTest is Test {
+import '../utilities/Environments.sol';
 
-    /**
-     * Deploy our Floor token contract.
-     */
-    function setUp() public {
-        /*
-        [deployer, vault, bob, alice] = await ethers.getSigners();
 
-        const authority = await (new FloorAuthority__factory(deployer)).deploy(deployer.address, deployer.address, deployer.address, vault.address);
-        await authority.deployed();
+contract FloorTokenTest is FloorTest {
 
-        floor = await (new FloorERC20Token__factory(deployer)).deploy(authority.address);
-        */
+    // Store some test users
+    address alice;
+    address bob;
+
+    // Reference our Floor token contract
+    FLOOR floor;
+
+    constructor () {
+        // Deploy our FLOOR token contract
+        floor = new FLOOR(address(authorityRegistry));
+
+        // Set up our user references
+        (alice, bob) = (users[0], users[1]);
     }
 
-    function testTokenIsValidERC20() public {
-        /*
-        expect(await floor.name()).to.equal("Floor");
-        expect(await floor.symbol()).to.equal("FLOOR");
-        expect(await floor.decimals()).to.equal(9);
-        */
+    function test_TokenIsValidERC20() public {
+        assertEq(floor.name(), 'Floor');
+        assertEq(floor.symbol(), 'FLOOR');
+        assertEq(floor.decimals(), 18);
     }
 
-    function testCannotMintWithoutPermissions() public {
-        /*
-        await expect(floor.connect(deployer).mint(bob.address, 100)).to.be.revertedWith("UNAUTHORIZED");
-        */
+    function test_CannotMintWithoutPermissions() public {
+        vm.expectRevert('Account does not have role');
+        vm.prank(alice);
+        floor.mint(alice, 100 ether);
     }
 
-    function testMintingIncreasesTotalSupply() public {
-        /*
-        let supplyBefore = await floor.totalSupply();
-        await floor.connect(vault).mint(bob.address, 100);
-        expect(supplyBefore.add(100)).to.equal(await floor.totalSupply());
-        */
+    function test_MintingIncreasesTotalSupply() public {
+        uint supplyBefore = floor.totalSupply();
+
+        floor.mint(alice, 100 ether);
+
+        assertEq(floor.totalSupply(), supplyBefore + 100 ether);
     }
 
-    function testBurningReducedTotalSupply() public {
-        /*
-        let supplyBefore = await floor.totalSupply();
-        await floor.connect(bob).burn(10);
-        expect(supplyBefore.sub(10)).to.equal(await floor.totalSupply());
-        */
-    }
+    function test_BurningReducedTotalSupply() public {
+        uint supplyBefore = floor.totalSupply();
 
-    function testCannotBurnMoreThanTotalSupply() public {
-        /*
-        let supply = await floor.totalSupply();
-        await expect(floor.connect(bob).burn(supply.add(1))).to.be.revertedWith("ERC20: burn amount exceeds balance");
-        */
-    }
+        // Mint 100 tokens to Alice
+        floor.mint(alice, 100 ether);
 
-    function testCannotBurnMoreThanBalance() public {
-        /*
-        await floor.connect(vault).mint(alice.address, 15);
-        await expect(floor.connect(alice).burn(16)).to.be.revertedWith("ERC20: burn amount exceeds balance");
-        */
+        // Alice can now burn 10 tokens
+        vm.prank(alice);
+        floor.burn(10 ether);
+
+        // The remaining supply should calculate based off the burn
+        assertEq(floor.totalSupply(), supplyBefore + 90 ether);
     }
 
 }
