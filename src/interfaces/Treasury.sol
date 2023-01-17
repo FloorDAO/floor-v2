@@ -12,25 +12,34 @@ interface ITreasury {
     event Deposit(uint amount);
 
     /// @dev When an ERC20 is depositted into the vault
-    event DepositERC20(uint amount, address token);
+    event DepositERC20(address token, uint amount);
 
     /// @dev When an ERC721 is depositted into the vault
     event DepositERC721(address token, uint tokenId);
 
+    /// @dev When an ERC1155 is depositted into the vault
+    event DepositERC1155(address token, uint tokenId, uint amount);
+
     /// @dev When native network token is withdrawn from the Treasury
-    event Withdraw(uint amount);
+    event Withdraw(uint amount, address recipient);
 
     /// @dev When an ERC20 token is withdrawn from the Treasury
-    event WithdrawERC20(address token, uint amount);
+    event WithdrawERC20(address token, uint amount, address recipient);
 
     /// @dev When an ERC721 token is withdrawn from the Treasury
-    event WithdrawERC721(address token, uint tokenId);
+    event WithdrawERC721(address token, uint tokenId, address recipient);
+
+    /// @dev When an ERC1155 is withdrawn from the vault
+    event WithdrawERC1155(address token, uint tokenId, uint amount, address recipient);
 
     /// @dev When multiplier pool has been updated
     event MultiplierPoolUpdated(uint percent);
 
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
+
+    /// @dev When an epoch has ended
+    event EpochEnded(uint timestamp, uint totalRewards);
 
 
     /**
@@ -112,16 +121,7 @@ interface ITreasury {
      * @dev We only want to do this on creation and for inflation. Have a think on how
      * we can implement this!
      */
-    function mint(address recipient, uint amount) external;
-
-    /**
-     * Allows us to mint floor based on the recorded token > Floor ratio. This will
-     * mean that we don't have to transact the token before running our calculations.
-     *
-     * @dev If the pricing is deemed stale, we will need to ensure that the pricing
-     * ratio is updated before minting.
-     */
-    function mintTokenFloor(address token, uint amount) external;
+    function mint(uint amount) external;
 
     /**
      * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
@@ -136,19 +136,30 @@ interface ITreasury {
     function depositERC721(address token, uint tokenId) external;
 
     /**
+     * Allows an ERC1155 token(s) to be deposited and generates FLOOR tokens based on
+     * the current determined value of FLOOR and the token.
+     */
+    function depositERC1155(address token, uint tokenId, uint amount) external;
+
+    /**
      * Allows an approved user to withdraw native token.
      */
-    function withdraw(uint amount) external;
+    function withdraw(address payable recipient, uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC20 token from the vault.
      */
-    function withdrawERC20(address token, uint amount) external;
+    function withdrawERC20(address recipient, address token, uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC721 token from the vault.
      */
-    function withdrawERC721(address token, uint tokenId) external;
+    function withdrawERC721(address recipient, address token, uint tokenId) external;
+
+    /**
+     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     */
+    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
      * Allows the RewardsLedger contract address to be set.
@@ -217,12 +228,7 @@ interface ITreasury {
      *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
      *   in direct comparison due to hops.
      */
-    function getTokenFloorPrice(address token) external;
-
-    /**
-     * Returns the current pricing executor and reverts if none is set.
-     */
-    function getPricingExecutor() external returns (address);
+    function getCollectionFloorPrices() external;
 
     /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
@@ -240,6 +246,6 @@ interface ITreasury {
      *
      * The returned address is the instance of the new strategy deployment.
      */
-    function deployAndFundTreasuryStrategy(address strategyAddr, address[] calldata token, uint[] calldata amount) external returns (address);
+    function deployAndFundTreasuryStrategy(address strategy, address collection, address token, uint amount) external returns (address);
 
 }

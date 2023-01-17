@@ -32,8 +32,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     address[] _users;
     uint[] _userTokens;
 
-    mapping (address => uint) internal lastUserBlock;
-
     address public FLOOR_TOKEN_VOTE = address(1);
 
     /// ..
@@ -67,6 +65,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
     // Storage for yield calculations
     mapping (address => uint) internal yieldStorage;
+
+    // Track the previous snapshot that was made
+    uint public lastSnapshot;
 
     /**
      *
@@ -281,6 +282,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *      B - 58 FLOOR
      */
     function snapshot(uint tokens) external returns (address[] memory, uint[] memory) {
+        // Don't allow a second snapshot within 24 hours
+        require(block.timestamp >= lastSnapshot + 1 days);
+
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
@@ -329,7 +333,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             for (uint j; j < collectionVaults.length;) {
                 // TODO: This needs to get total rewards and rewards since last snapshot
-                uint rewards = IBaseStrategy(IVault(collectionVaults[j]).strategy()).totalRewardsGenerated();
+                uint rewards = _getCollectionVaultRewardsIndicator(collectionVaults[j]);
 
                 yieldStorage[collectionVaults[j]] = rewards;
                 yieldStorage[collections[i]] += rewards;
@@ -362,12 +366,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             unchecked { ++i; }
         }
 
+        // Update the snapshot time made
+        lastSnapshot = block.timestamp;
+
         return (users_, userTokens_);
     }
 
-    function _topCollections() internal returns (address[] memory collections_) {
+    function _topCollections() internal view returns (address[] memory) {
         // Set up our temporary collections array that will maintain our top voted collections
-        address[] memory collections_ = new address[](sampleSize);
+        address[] memory collections = new address[](sampleSize);
 
         // Get all of our collections
         address[] memory options = this.voteOptions();
@@ -381,7 +388,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             for (j; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (votes[options[i]] > votes[collections_[j]]) {
+                if (votes[options[i]] > votes[collections[j]]) {
                     break;
                 }
 
@@ -393,17 +400,17 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             // shift down by 1, and any keys above the `sampleSize` will be deleted.
             uint k;
             for (k = sampleSize - 1; k > j;) {
-                collections_[k] = collections_[k - 1];
+                collections[k] = collections[k - 1];
                 unchecked { --k; }
             }
 
             // Update the new max element
-            collections_[k] = options[i];
+            collections[k] = options[i];
 
             unchecked { ++i; }
         }
 
-        return collections_;
+        return collections;
     }
 
     /**
@@ -433,6 +440,10 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Finally, add our FLOOR vote address
         collections_[i] = FLOOR_TOKEN_VOTE;
+    }
+
+    function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint) {
+        return IBaseStrategy(IVault(vault).strategy()).totalRewardsGenerated();
     }
 
     /**

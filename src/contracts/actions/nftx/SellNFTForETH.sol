@@ -4,10 +4,11 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
+import '../../../interfaces/actions/Action.sol';
 import '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
 
 
-contract NFTXSellNFTForETH {
+contract NFTXSellNFTForETH is IAction {
 
     /// The NFTX Marketplace Zap contract
     INFTXMarketplaceZap public immutable marketplaceZap;

@@ -2,9 +2,11 @@
 
 pragma solidity ^0.8.0;
 
+import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/staking/VeFloorStaking.sol';
 import '../../src/contracts/tokens/Floor.sol';
 import '../../src/contracts/tokens/VeFloor.sol';
+import {GaugeWeightVote} from '../../src/contracts/voting/GaugeWeightVote.sol';
 
 import '../utilities/Environments.sol';
 
@@ -14,6 +16,7 @@ contract VeFloorStakingTest is FloorTest {
     // Contract mappings
     FLOOR floor;
     veFLOOR veFloor;
+    GaugeWeightVote gaugeWeightVote;
     VeFloorStaking veFloorStaking;
 
     // Set our default values
@@ -34,10 +37,22 @@ contract VeFloorStakingTest is FloorTest {
         floor = new FLOOR(address(authorityRegistry));
         veFloor = new veFLOOR('veFloor', 'veFLOOR', address(authorityRegistry));
 
+        // ..
+        CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+
+        // Create our Gauge Weight Vote contract
+        gaugeWeightVote = new GaugeWeightVote(
+            address(collectionRegistry),
+            address(this),  // Vault factory but not needed
+            address(veFloor),
+            address(authorityRegistry)
+        );
+
         // Create our veFloor Staking contract
         veFloorStaking = new VeFloorStaking(
             floor,
             veFloor,
+            gaugeWeightVote,
             veFloorPerSharePerSec,
             speedUpVeFloorPerSharePerSec,
             speedUpThreshold,
@@ -47,6 +62,10 @@ contract VeFloorStakingTest is FloorTest {
 
         // Grant our {veFloorStaking} contract the authority to manage veFloor
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(veFloorStaking));
+
+        // We need to allow our {VeFloorStaking} contract to have {VOTE_MANAGER} permissions
+        // so that we can trigger vote revoke calls.
+        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloorStaking));
 
         // Map some test users
         alice = users[0];

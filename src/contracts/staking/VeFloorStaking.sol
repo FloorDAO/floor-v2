@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../tokens/VeFloor.sol";
 
 import "../../interfaces/staking/VeFloorStaking.sol";
+import "../../interfaces/voting/GaugeWeightVote.sol";
 
 
 /// @title Vote Escrow Floor Staking
@@ -51,6 +52,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
 
     IERC20 public floor;
     veFLOOR public veFloor;
+    IGaugeWeightVote public gaugeWeightVote;
 
     /// @notice The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
     /// For example, if user has `n` FLOOR staked, they can own a maximum of `n * maxCapPct / 100` veFLOOR.
@@ -103,6 +105,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
     constructor (
         IERC20 _floor,
         veFLOOR _veFloor,
+        IGaugeWeightVote _gaugeWeightVote,
         uint256 _veFloorPerSharePerSec,
         uint256 _speedUpVeFloorPerSharePerSec,
         uint256 _speedUpThreshold,
@@ -111,6 +114,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
     ) {
         require(address(_floor) != address(0), "VeFloorStaking: unexpected zero address for _floor");
         require(address(_veFloor) != address(0), "VeFloorStaking: unexpected zero address for _veFloor");
+        require(address(_gaugeWeightVote) != address(0), "VeFloorStaking: unexpected zero address for _gaugeWeightVote");
 
         upperLimitVeFloorPerSharePerSec = 1e36;
         require(
@@ -139,6 +143,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         speedUpThreshold = _speedUpThreshold;
         speedUpDuration = _speedUpDuration;
         floor = _floor;
+        gaugeWeightVote = _gaugeWeightVote;
         veFloor = _veFloor;
         veFloorPerSharePerSec = _veFloorPerSharePerSec;
         speedUpVeFloorPerSharePerSec = _speedUpVeFloorPerSharePerSec;
@@ -250,7 +255,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         floor.safeTransfer(_msgSender(), _amount);
 
         // Remove a user's votes from the Gauge Weight Vote
-        gaugeWeightVote.revokeUserVotes(_msgSender());
+        gaugeWeightVote.revokeAllUserVotes(_msgSender());
 
         emit Withdraw(_msgSender(), _amount, userVeFloorBalance);
     }

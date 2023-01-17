@@ -93,7 +93,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
 
-        IERC20(underlyingToken).approve(inventoryStaking, type(uint).max);
+        // IERC20(underlyingToken).approve(inventoryStaking, type(uint).max);
     }
 
     /**
@@ -154,8 +154,10 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      */
      function claimRewards() public returns (uint amount_) {
         amount_ = this.rewardsAvailable();
-        bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
-        require(success, 'Unable to claim rewards');
+        if (amount_ != 0) {
+            bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
+            require(success, 'Unable to claim rewards');
+        }
 
         lifetimeRewards += amount_;
 

@@ -27,11 +27,6 @@ interface IRewardsLedger {
     event RewardsPaused(bool paused);
 
     /**
-     * Returns the address of the {Floor} token contract.
-     */
-    function floor() external view returns (address);
-
-    /**
      * Returns the address of the {Treasury} contract.
      */
     function treasury() external view returns (address);

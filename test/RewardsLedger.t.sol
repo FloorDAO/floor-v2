@@ -2,9 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import '../src/contracts/RewardsLedger.sol';
+import '@openzeppelin/contracts/mocks/ERC20Mock.sol';
+
+import '../src/contracts/collections/CollectionRegistry.sol';
+import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
 import '../src/contracts/tokens/Floor.sol';
-// import '../src/contracts/Treasury.sol';
+import '../src/contracts/strategies/StrategyRegistry.sol';
+import '../src/contracts/RewardsLedger.sol';
+import '../src/contracts/Treasury.sol';
 
 import './utilities/Environments.sol';
 
@@ -12,30 +17,59 @@ import './utilities/Environments.sol';
 contract RewardsLedgerTest is FloorTest {
 
     FLOOR floor;
+    veFLOOR veFloor;
+    ERC20Mock erc20;
+    CollectionRegistry collectionRegistry;
     RewardsLedger rewards;
-    // Treasury treasury;
+    StrategyRegistry strategyRegistry;
+    Treasury treasury;
 
     /**
      * ..
      */
-    constructor () {}
-
-    /**
-     * Set up our {RewardsLedger} and the other contracts required to instantiate it.
-     */
-    function setUp() public {
-        // Set up our {Treasury}
-        // treasury = new Treasury()
-
+    constructor () {
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
+        veFloor = new veFLOOR('veFloor', 'veFLOOR', address(authorityRegistry));
+
+        // Set up a fake ERC20 token that we can test with. We use the {Floor} token
+        // contract as a base as this already implements IERC20. We have no initial
+        // balance.
+        erc20 = new ERC20Mock('Mock', 'MOCK', address(this), 0);
+
+        // Set up our registries
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+
+        // Set up our {Treasury}
+        treasury = new Treasury(
+            address(authorityRegistry),
+            address(collectionRegistry), // address _collectionRegistry,
+            address(strategyRegistry), // address _strategyRegistry,
+            address(this),
+            address(floor),
+            address(veFloor)
+        );
 
         // Set up our {RewardsLedger}
         rewards = new RewardsLedger(
             address(authorityRegistry),
             address(floor),
-            address(this)  // Treasury
+            address(veFloor),
+            address(treasury)
         );
+
+        // Set up our {RewardsLedger} to be a {FLOOR_MANAGER} so that it can correctly
+        // mint Floor and veFloor on claims.
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(rewards));
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(rewards));
+    }
+
+    /**
+     * Set up our {RewardsLedger} and the other contracts required to instantiate it.
+     */
+    function setUp() public {
+        // ..
     }
 
     /**
@@ -43,7 +77,7 @@ contract RewardsLedgerTest is FloorTest {
      * will be sent during the construct and will be immutable.
      */
     function test_CanGetFloorAddress() public {
-        assertEq(rewards.floor(), address(floor));
+        assertEq(address(rewards.floor()), address(floor));
     }
 
     /**
@@ -51,7 +85,7 @@ contract RewardsLedgerTest is FloorTest {
      * will be sent during the construct and will be immutable.
      */
     function test_CanGetTreasuryAddress() public {
-        assertEq(rewards.treasury(), address(this));
+        assertEq(address(rewards.treasury()), address(treasury));
     }
 
     /**
@@ -65,6 +99,7 @@ contract RewardsLedgerTest is FloorTest {
      * This should emit {RewardsAllocated}.
      */
     function test_CanAllocate(address token, uint amount) public assumeTokenAndAmount(token, amount) {
+        vm.prank(address(treasury));
         uint allocatedAmount = rewards.allocate(address(this), token, amount);
 
         assertEq(allocatedAmount, amount);
@@ -82,8 +117,10 @@ contract RewardsLedgerTest is FloorTest {
         vm.assume(amount1 > 0 && amount1 < type(uint).max / 2);
         vm.assume(amount2 > 0 && amount2 < type(uint).max / 2);
 
+        vm.startPrank(address(treasury));
         uint allocatedAmount1 = rewards.allocate(address(this), token, amount1);
         uint allocatedAmount2 = rewards.allocate(address(this), token, amount2);
+        vm.stopPrank();
 
         assertEq(allocatedAmount1, amount1);
         assertEq(allocatedAmount2, amount1 + amount2);
@@ -135,10 +172,12 @@ contract RewardsLedgerTest is FloorTest {
      *  - Allocation fully claimed
      */
     function test_CanGetRewardTokensForUser() public {
+        vm.startPrank(address(treasury));
         rewards.allocate(address(100), address(200), 1 ether);
         rewards.allocate(address(100), address(300), 2 ether);
         rewards.allocate(address(100), address(400), 3 ether);
         rewards.allocate(address(100), address(500), 4 ether);
+        vm.stopPrank();
 
         assertEq(rewards.available(address(100), address(200)), 1 ether);
         assertEq(rewards.available(address(100), address(300)), 2 ether);
@@ -158,10 +197,12 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(amounts[3], 4 ether);
     }
 
-    function test_AvailableAndClaimed(address token, uint amount1, uint amount2) public assumeTokenAndAmount(token, amount2) {
+    function test_AvailableAndClaimed(uint amount1, uint amount2) public {
+        vm.assume(amount2 > 0);
         vm.assume(amount1 > amount2);
 
         address recipient = address(this);
+        address token = address(erc20);
 
         // Without any previous allocation we should still get our available
         // and claimed values.
@@ -169,7 +210,11 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(rewards.claimed(recipient, token), 0);
 
         // Make our allocation into the recipient {RewardsLedger}
+        vm.prank(address(treasury));
         rewards.allocate(recipient, token, amount1);
+
+        // Mint our token amounts to the {Treasury}
+        erc20.mint(address(treasury), amount1);
 
         // Once we have made an allocation we should get the full amount available
         // and see no claimed value.
@@ -201,9 +246,29 @@ contract RewardsLedgerTest is FloorTest {
      *
      * This should emit {RewardsClaimed}.
      */
-    function test_CanClaimTokens(address token, uint amount) public assumeTokenAndAmount(token, amount) {
-        rewards.allocate(address(this), token, amount);
-        rewards.claim(token, amount);
+    function test_CanClaimTokens(uint amount) public {
+        vm.assume(amount > 0);
+
+        vm.prank(address(treasury));
+        rewards.allocate(address(this), address(erc20), amount);
+
+        // Transfer our allocation to the {Treasury}
+        erc20.mint(address(treasury), amount);
+
+        rewards.claim(address(erc20), amount);
+    }
+
+    /**
+     *
+     */
+    function test_CannotClaimTokensWithoutTreasuryBalance(uint amount) public {
+        vm.assume(amount > 0);
+
+        vm.prank(address(treasury));
+        rewards.allocate(address(this), address(erc20), amount);
+
+        vm.expectRevert('ERC20: transfer amount exceeds balance');
+        rewards.claim(address(erc20), amount);
     }
 
     /**
@@ -215,8 +280,25 @@ contract RewardsLedgerTest is FloorTest {
      * This should emit {RewardsClaimed}.
      */
     function test_CanClaimFloorTokens() public {
+        vm.prank(address(treasury));
         rewards.allocate(address(this), address(floor), 1 ether);
+
         rewards.claim(address(floor), 1 ether);
+    }
+
+    /**
+     * When a user has a sufficient allocation of veFloor then they should be able to
+     * claim it.
+     *
+     * This will mint from the Treasury and be sent to the sender as the recipient.
+     *
+     * This should emit {RewardsClaimed}.
+     */
+    function test_CanClaimVeFloorTokens() public {
+        vm.prank(address(treasury));
+        rewards.allocate(address(this), address(veFloor), 1 ether);
+
+        rewards.claim(address(veFloor), 1 ether);
     }
 
     /**
@@ -235,6 +317,7 @@ contract RewardsLedgerTest is FloorTest {
     function test_CannotClaimTokensWithoutSufficientAllocation(address token, uint amount1, uint amount2) public assumeTokenAndAmount(token, amount1) {
         vm.assume(amount2 > amount1);
 
+        vm.prank(address(treasury));
         rewards.allocate(address(this), token, amount1);
 
         vm.expectRevert('Insufficient allocation');
@@ -262,6 +345,8 @@ contract RewardsLedgerTest is FloorTest {
      */
     function test_CannotClaimTokensWhenPaused(address token, uint amount) public assumeTokenAndAmount(token, amount) {
         rewards.pause(true);
+
+        vm.prank(address(treasury));
         rewards.allocate(address(this), token, amount);
 
         vm.expectRevert('Claiming currently paused');
@@ -283,8 +368,8 @@ contract RewardsLedgerTest is FloorTest {
      * Helper modifier to make validation assumptions around the token and amount.
      */
     modifier assumeTokenAndAmount(address token, uint amount) {
-        vm.assume(token != address(0) && token != address(floor));
-        vm.assume(token != address(floor));
+        vm.assume(token != address(0));
+        vm.assume(token != address(floor) && token != address(veFloor));
         vm.assume(amount > 0);
         _;
     }

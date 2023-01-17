@@ -18,6 +18,8 @@ import '../../interfaces/vaults/Vault.sol';
  */
 contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
+    address TREASURY;
+
     /**
      * The human-readable name of the vault.
      */
@@ -56,6 +58,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * request amounts.
      */
     mapping (address => uint) public positions;
+    mapping (address => uint) public pendingPositions;
 
     /**
      * Stores the vault share of users based on their owned position.
@@ -72,7 +75,8 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * Maintains a list of our total position to save gas when calculating
      * our address ownership shares.
      */
-    uint totalPosition;
+    uint public totalPosition;
+    uint public totalPendingPosition;
 
     /**
      * ...
@@ -96,7 +100,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         vaultId = _vaultId;
 
         // Give our collection max approval
-        IERC20(collection).approve(_strategy, type(uint).max);
+        // IERC20(collection).approve(_strategy, type(uint).max);
     }
 
     /**
@@ -125,11 +129,8 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         }
 
         // Update our user's position
-        positions[msg.sender] += receivedAmount;
-        totalPosition += receivedAmount;
-
-        // Update our vault share calculation
-        _recalculateVaultShare();
+        pendingPositions[msg.sender] += receivedAmount;
+        totalPendingPosition += receivedAmount;
 
         // Return the amount of yield token returned from staking
         return receivedAmount;
@@ -143,7 +144,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         require(amount > 0, 'Insufficient amount requested');
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= positions[msg.sender], 'Insufficient position');
+        require(amount <= positions[msg.sender] + pendingPositions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);
@@ -156,14 +157,28 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         emit VaultWithdrawal(msg.sender, collection, receivedAmount);
 
         // Update our user's position
-        positions[msg.sender] -= amount;
-        totalPosition -= amount;
 
-        // Update our vault share calculation. We update our user's share to 0 as it
-        // will be recalculated in the next step and this allows us to handle them fully
-        // withdrawing without needing a second iterator in our share recalculation.
-        share[msg.sender] = 0;
-        _recalculateVaultShare();
+        // Reduce the user's pending position to 0 before looking at the total
+        // position. This will ensure that the user exits a pending position and can
+        // still receive rewards. We are nice like that.
+        if (pendingPositions[msg.sender] != 0) {
+            totalPendingPosition -= pendingPositions[msg.sender];
+            amount -= pendingPositions[msg.sender];
+            pendingPositions[msg.sender] = 0;
+        }
+
+        // If we still have a remaining withdrawal amount then we need to remove it
+        // from their active position, which will also affect their vault share.
+        if (amount != 0) {
+            totalPosition -= amount;
+            positions[msg.sender] -= amount;
+
+            // Update our vault share calculation. We update our user's share to 0 as it
+            // will be recalculated in the next step and this allows us to handle them fully
+            // withdrawing without needing a second iterator in our share recalculation.
+            share[msg.sender] = 0;
+            this.recalculateVaultShare(false);
+        }
 
         // Return the amount of underlying token returned from staking withdrawal
         return receivedAmount;
@@ -185,14 +200,25 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         uint[] memory percentages = new uint[](stakers.length);
 
         for (uint i; i < stakers.length;) {
-            // TODO: Allow treasury to be excluded
-            users[i] = stakers[i];
-            percentages[i] = share[stakers[i]];
+            if (!excludeTreasury || stakers[i] == TREASURY) {
+                // TODO: Allow treasury to be excluded
+                users[i] = stakers[i];
+                percentages[i] = share[stakers[i]];
+            }
 
             unchecked { ++i; }
         }
 
         return (users, percentages);
+    }
+
+    function claimRewards() external returns (uint) {
+        // Claim any unharvested rewards from the strategy
+        strategy.claimRewards();
+        uint amount = strategy.unmintedRewards();
+        // TODO: Transfer to treasury?
+        strategy.registerMint(amount);
+        return amount;
     }
 
     /**
@@ -202,8 +228,22 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * This assumes that when a user enters or exits a position, that their address is
      * maintained correctly in the `stakers` array.
      */
-    function _recalculateVaultShare() internal {
+    function recalculateVaultShare(bool updatePending) external {
+        if (updatePending) {
+            // Update our total positions, moving the pending position into the total and
+            // then resetting the pending value to 0.
+            totalPosition += totalPendingPosition;
+            totalPendingPosition = 0;
+        }
+
+        // Calculate our new shares based on new position values
         for (uint i; i < stakers.length;) {
+            // Move our stakers pending position to be an actual position
+            if (updatePending && pendingPositions[stakers[i]] != 0) {
+                positions[stakers[i]] += pendingPositions[stakers[i]];
+                pendingPositions[stakers[i]] = 0;
+            }
+
             if (positions[stakers[i]] != 0) {
                 // Determine the share to 2 decimal accuracy
                 // e.g. 100% = 10000

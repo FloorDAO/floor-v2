@@ -70,6 +70,12 @@ interface IGaugeWeightVote {
     function revokeVotes(address[] memory _collection, uint[] memory _amount) external;
 
     /**
+     * Allows an authorised contract or wallet to revoke all user votes. This
+     * can be called when the veFLOOR balance is reduced.
+     */
+    function revokeAllUserVotes(address _account) external;
+
+    /**
      * The snapshot function will need to iterate over all vaults that have
      * more than 0 votes against them. With that we will need to find each
      * vault's percentage share in relation to other vaults.

@@ -78,6 +78,11 @@ interface IBaseStrategy {
     function registerMint(uint amount) external;
 
     /**
+     * TODO: ..
+     */
+    function claimRewards() external returns (uint amount_);
+
+    /**
      * Return the the address of the yield token.
      */
     function yieldToken() external view returns (address);

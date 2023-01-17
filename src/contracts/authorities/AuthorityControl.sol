@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/utils/Context.sol';
-import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 
 import '../../interfaces/authorities/AuthorityControl.sol';
 import '../../interfaces/authorities/AuthorityRegistry.sol';
@@ -32,7 +31,7 @@ import '../../interfaces/authorities/AuthorityRegistry.sol';
  * bytes32 public constant MY_ROLE = keccak256("TreasuryManager");
  * ```
  */
-contract AuthorityControl is Context, IAuthorityControl, ERC165 {
+contract AuthorityControl is Context, IAuthorityControl {
 
     /// Roles are defined for simple and consistent reference.
     bytes32 public constant COLLECTION_MANAGER = keccak256('CollectionManager');
@@ -70,13 +69,6 @@ contract AuthorityControl is Context, IAuthorityControl, ERC165 {
      */
     constructor (address _registry) {
         registry = IAuthorityRegistry(_registry);
-    }
-
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IAuthorityControl).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /**

@@ -3,40 +3,85 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
+import '@openzeppelin/contracts/interfaces/IERC1155.sol';
+
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import './authorities/AuthorityControl.sol';
 
+import '../interfaces/actions/Action.sol';
+import '../interfaces/collections/CollectionRegistry.sol';
+import '../interfaces/pricing/BasePricingExecutor.sol';
+import '../interfaces/strategies/StrategyRegistry.sol';
+import '../interfaces/tokens/Floor.sol';
+import '../interfaces/tokens/VeFloor.sol';
 import '../interfaces/vaults/Vault.sol';
+import '../interfaces/vaults/VaultFactory.sol';
+import '../interfaces/voting/GaugeWeightVote.sol';
+import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
 
 
 /**
  * @dev The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, ITreasury {
+contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
-    IERC20 floor;
+    // Store when last epoch was run
+    uint lastEpoch;
+    uint EPOCH_LENGTH = 7 days;
+
+    // ..
+    IStrategyRegistry strategyRegistry;
+
+    // ..
+    ICollectionRegistry collectionRegistry;
+
+    // ..
+    IVaultFactory vaultFactory;
+
+    // Track our internal tokens
+    IFLOOR floor;
+    IVeFLOOR veFloor;
+
+    // Track our rewards ledger
     IRewardsLedger rewardsLedger;
 
-    /**
-     * The current pricing executor contract.
-     */
+    // The current pricing executor contract.
     IBasePricingExecutor public pricingExecutor;
 
+    // Track if floor minting is paused
     bool public floorMintingPaused;
+
+    // ..
     uint poolMultiplierPercentage;
+
+    // ..
     uint retainedTreasuryYieldPercentage;
 
-    address voteContract;
+    // Our Gauge Weight Voting contract
+    IGaugeWeightVote voteContract;
 
-    mapping (address => uint) public tokenEthPrice;
+    // Store our token floor price
+    mapping (address => uint) internal tokenFloorPrice;
 
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      */
-    constructor (address _authority, address _floor) AuthorityControl(_authority) {
-        floor = IERC20(_floor);
+    constructor (
+        address _authority,
+        address _collectionRegistry,
+        address _strategyRegistry,
+        address _vaultFactory,
+        address _floor,
+        address _veFloor
+    ) AuthorityControl(_authority) {
+        collectionRegistry = ICollectionRegistry(_collectionRegistry);
+        strategyRegistry = IStrategyRegistry(_strategyRegistry);
+        vaultFactory = IVaultFactory(_vaultFactory);
+        floor = IFLOOR(_floor);
+        veFloor = IVeFLOOR(_veFloor);
     }
 
     /**
@@ -66,7 +111,7 @@ contract Treasury is AuthorityControl, ITreasury {
      * but instead just holds it inside of the Treasury.
      *
      * The GWV in this example is attributing 40% to the example vault and we assume a FLOOR to token
-     * ratio of 5:1 (5 FLOOR is minted for each reward token in treasury). We are also assumging that
+     * ratio of 5:1 (5 FLOOR is minted for each reward token in treasury). We are also assuming that
      * we are retaining 50% of treasury rewards, that floor minting is enabled and that we don't have
      * a premium FLOOR mint amount being applied.
      *
@@ -97,41 +142,68 @@ contract Treasury is AuthorityControl, ITreasury {
      * has been surpassed.
      */
     function endEpoch() external {
-        // Ensure our required contracts are set
+        require(block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
 
-        // Get our GWV multipliers
+        // Get our vaults
+        address[] memory vaults = vaultFactory.vaults();
+
+        // Get the prices of our approved collections
+        this.getCollectionFloorPrices();
+
+        // Store the public and treasury yield generated, converted into veFLOOR
+        // token equivalent value.
+        uint treasuryFloorYield;
+        uint publicFloorYield;
 
         // Iterate over vaults
-        vaults = VaultFactory.vaults()
         for (uint i; i < vaults.length;) {
-            vault = IVault(vaults[i]);
+            // Parse our vault address into the Vault interface
+            IVault vault = IVault(vaults[i]);
 
             // Pull out rewards and transfer into the {Treasury}
-            // vault.claimRewards(address(this));
+            uint vaultYield = vault.claimRewards();
 
-            // Capture the token if not already in our mapping
-            tokens.push(vault.collection());
+            // Get the share inclusive of the treasury position
+            (address[] memory users, uint[] memory percents) = vault.shares(false);
+            for (uint j; j < users.length;) {
+                // If our user share address is matched as the {Treasury} address, then
+                // we need to attribute it to a separate increment.
+                if (users[j] == address(this)) {
+                    treasuryFloorYield += (vaultYield * percents[j]) / 100;
+                }
+                else {
+                    publicFloorYield += (vaultYield * percents[j]) / 100;
+                }
 
-            // Get the share for the vault
+                unchecked { ++j; }
+            }
 
-            // Increase the user's share by the GWV
+            // Multiply our token yield to find the floor token equivalent value
+            address vaultCollection = vault.collection();
+            treasuryFloorYield *= tokenFloorPrice[vaultCollection];
+            publicFloorYield *= tokenFloorPrice[vaultCollection];
+
+            // Update our vault share an apply pending positions
+            vault.recalculateVaultShare(true);
 
             unchecked { ++i; }
         }
 
-        // (if floor minting is on)
-            // Get the latest prices for all tokens supported by our vaults
+        // Determine the total amount of snapshot tokens. This should be calculated as all
+        // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+        // of the treasuryFloorYield.
+        uint yieldRewards = publicFloorYield + ((treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000);
+        (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
 
-            // Convert all of our tokens to floor
+        // We can now register the user and veFloor token allocations from the snapshot into the
+        // {RewardsLedger} for the users to redeem when ready.
+        for (uint i; i < tokenUsers.length;) {
+            rewardsLedger.allocate(tokenUsers[i], address(veFloor), tokens[i]);
+            unchecked { ++i; }
+        }
 
-            // (if treasury)
-                // Distribute share in token
-
-            // (if not treasury)
-                // Distribute share in floor
-
-        // (if )
-            // Distribute share in token
+        lastEpoch = block.timestamp + EPOCH_LENGTH;
+        emit EpochEnded(block.timestamp, yieldRewards);
     }
 
     /**
@@ -151,18 +223,7 @@ contract Treasury is AuthorityControl, ITreasury {
      */
     function _mint(address recipient, uint amount) internal {
         floor.mint(recipient, amount);
-    }
-
-    /**
-     * Allows us to mint floor based on the recorded token > Floor ratio. This will
-     * mean that we don't have to transact the token before running our calculations.
-     *
-     * @dev If the pricing is deemed stale, we will need to ensure that the pricing
-     * ratio is updated before minting.
-     */
-    function mintTokenFloor(address token, uint amount) external {
-        uint price = pricingExecutor.getFloorPrice(token);
-        _mint(address(this), price * amount);
+        emit FloorMinted(amount);
     }
 
     /**
@@ -172,6 +233,7 @@ contract Treasury is AuthorityControl, ITreasury {
     function depositERC20(address token, uint amount) external {
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
         require(success, 'Unable to deposit');
+        emit DepositERC20(token, amount);
     }
 
     /**
@@ -180,6 +242,7 @@ contract Treasury is AuthorityControl, ITreasury {
      */
     function depositERC721(address token, uint tokenId) external {
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
+        emit DepositERC721(token, tokenId);
     }
 
     /**
@@ -187,7 +250,8 @@ contract Treasury is AuthorityControl, ITreasury {
      * the current determined value of FLOOR and the token.
      */
     function depositERC1155(address token, uint tokenId, uint amount) external {
-        IERC1155(token).transferFrom(msg.sender, address(this), tokenId, amount);
+        IERC1155(token).safeTransferFrom(msg.sender, address(this), tokenId, amount, '');
+        emit DepositERC1155(token, tokenId, amount);
     }
 
     /**
@@ -196,6 +260,7 @@ contract Treasury is AuthorityControl, ITreasury {
     function withdraw(address payable recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
          (bool success, ) = recipient.call{value: amount}('');
          require(success, 'Unable to withdraw');
+         emit Withdraw(amount, recipient);
     }
 
     /**
@@ -204,20 +269,23 @@ contract Treasury is AuthorityControl, ITreasury {
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
         bool success = IERC20(token).transfer(recipient, amount);
         require(success, 'Unable to withdraw');
+        emit WithdrawERC20(token, amount, recipient);
     }
 
     /**
      * Allows an approved user to withdraw an ERC721 token from the vault.
      */
-    function withdrawERC721(address token, uint tokenId) external onlyRole(TREASURY_MANAGER) {
+    function withdrawERC721(address recipient, address token, uint tokenId) external onlyRole(TREASURY_MANAGER) {
         IERC721(token).transferFrom(address(this), recipient, tokenId);
+        emit WithdrawERC721(token, tokenId, recipient);
     }
 
     /**
      * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
      */
-    function withdrawERC1155(address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
-        IERC1155(token).transferFrom(address(this), recipient, tokenId, amount);
+    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
+        IERC1155(token).safeTransferFrom(address(this), recipient, tokenId, amount, '');
+        emit WithdrawERC1155(token, tokenId, amount, recipient);
     }
 
     /**
@@ -235,7 +303,7 @@ contract Treasury is AuthorityControl, ITreasury {
      * @dev Should we allow this to be updated or should be immutable?
      */
     function setGaugeWeightVoteContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        voteContract = contractAddr;
+        voteContract = IGaugeWeightVote(contractAddr);
     }
 
     /**
@@ -265,6 +333,7 @@ contract Treasury is AuthorityControl, ITreasury {
      */
     function setPoolMultiplierPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
         poolMultiplierPercentage = percent;
+        emit MultiplierPoolUpdated(percent);
     }
 
     /**
@@ -298,8 +367,20 @@ contract Treasury is AuthorityControl, ITreasury {
      *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
      *   in direct comparison due to hops.
      */
-    function getTokenFloorPrice(address token) external {
-        // Do we still need this?
+    function getCollectionFloorPrices() external {
+        require(address(pricingExecutor) != address(0), 'No pricingExecutor set');
+
+        // Get our approved collections
+        address[] memory collections = collectionRegistry.approvedCollections();
+
+        // Query our pricing executor to get our floor price equivalent
+        uint[] memory tokenFloorPrices = pricingExecutor.getFloorPrices(collections);
+
+        // Iterate through our list and store it to our internal mapping
+        for (uint i; i < tokenFloorPrices.length;) {
+            tokenFloorPrice[collections[i]] = tokenFloorPrices[i];
+            unchecked { ++i; }
+        }
     }
 
     /**
@@ -320,8 +401,8 @@ contract Treasury is AuthorityControl, ITreasury {
      *
      * The returned address is the instance of the new strategy deployment.
      */
-    function deployAndFundTreasuryStrategy(address strategy, address token, uint amount) external returns (address) {
-        // TODO
+    function deployAndFundTreasuryStrategy(address strategy, address collection, address token, uint amount) external returns (address) {
+        // TODO: ..
 
         // Make sure strategy is approved
         require(strategyRegistry.isApproved(strategy), 'Strategy not approved');
@@ -331,18 +412,36 @@ contract Treasury is AuthorityControl, ITreasury {
 
         // Deploy a new {Strategy} instance using the clone mechanic. We then need to
         // instantiate the strategy using our supplied `strategyInitData`.
-        address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
-        IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
+        // address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
+        // IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
     }
 
     /**
      * Apply a number of actions against the vault. These will run in chronological order
      * so that the output of one action must complete before the next is executed.
      */
-    function processAction(address[] actions, bytes[] data) onlyRole(TREASURY_MANAGER) {
+    /*
+    function processAction(address[] memory actions, bytes[] memory data) external onlyRole(TREASURY_MANAGER) {
         for (uint i; i < actions.length;) {
-            IAction(actions[i]).execute(data[i]);
+            IAction(actions[i]).execute(actions[i].ActionRequest(data[i]));
         }
+    }
+    */
+
+    /**
+     * Allows the treasury to extract the generated reward tokens from a number of
+     * strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
+     * to determine which token(s) should be transferred.
+     */
+    function extractFromStrategies(address[] calldata strategies) external {
+        // TODO: ..
+    }
+
+    /**
+     * ..
+     */
+    receive() external payable {
+        emit Deposit(msg.value);
     }
 
 }

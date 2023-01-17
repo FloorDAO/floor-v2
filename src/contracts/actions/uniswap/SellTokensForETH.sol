@@ -7,11 +7,13 @@ import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
+import '../../../interfaces/actions/Action.sol';
+
 
 /**
  * https://docs.uniswap.org/contracts/v3/guides/swaps/single-swaps
  */
-contract UniswapSellTokensForETH {
+contract UniswapSellTokensForETH is IAction {
 
     /// The interface of the Uniswap router
     ISwapRouter public immutable swapRouter;

@@ -42,7 +42,12 @@ interface IVault {
     /**
      * TODO: ..
      */
-    function shares(bool) external view returns (address[] memory, uint[] memory);
+    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory);
+
+    /**
+     * TODO: ..
+     */
+    function claimRewards() external returns (uint);
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
@@ -60,5 +65,14 @@ interface IVault {
      * a guardian or governor.
      */
     function pause(bool pause) external;
+
+    /**
+     * Recalculates the share ownership of each address with a position. This precursory
+     * calculation allows us to save gas during epoch calculation.
+     *
+     * This assumes that when a user enters or exits a position, that their address is
+     * maintained correctly in the `stakers` array.
+     */
+    function recalculateVaultShare(bool updatePending) external;
 
 }

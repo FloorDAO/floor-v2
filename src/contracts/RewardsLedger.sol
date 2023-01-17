@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
 import './authorities/AuthorityControl.sol';
 
+import '../interfaces/tokens/Floor.sol';
+import '../interfaces/tokens/VeFloor.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
 
@@ -23,7 +23,8 @@ import '../interfaces/Treasury.sol';
 contract RewardsLedger is AuthorityControl, IRewardsLedger {
 
     // Addresses of our internal contracts, assigned in the constructor
-    address public immutable floor;
+    IFLOOR public immutable floor;
+    IVeFLOOR public immutable veFloor;
     address public immutable treasury;
 
     // Maintains a mapping of available token amounts by recipient
@@ -44,8 +45,9 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      */
-    constructor (address _authority, address _floor, address _treasury) AuthorityControl(_authority) {
-        floor = _floor;
+    constructor (address _authority, address _floor, address _veFloor, address _treasury) AuthorityControl(_authority) {
+        floor = IFLOOR(_floor);
+        veFloor = IVeFLOOR(_veFloor);
         treasury = _treasury;
     }
 
@@ -139,13 +141,17 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
 
         // If the user is claiming floor token it will need to be minted from
         // the {Treasury}, as opposed to just being transferred.
-        if (token == floor) {
+        if (token == address(floor)) {
             // Mint the floor token allocation to the recipient
-            // ITreasury(treasury).mint(msg.sender, amount);
+            floor.mint(msg.sender, amount);
+        }
+        else if (token == address(veFloor)) {
+            // Mint the floor token allocation to the recipient
+            veFloor.mint(msg.sender, amount);
         }
         else {
             // Transfer the tokens from the {Treasury} to the recipient
-            // IERC20(token).transferFrom(treasury, msg.sender, amount);
+            ITreasury(treasury).withdrawERC20(msg.sender, token, amount);
         }
 
         // Fire a message for our stalkers
