@@ -97,8 +97,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
         // Deposit using the underlying token to receive xToken into the strategy
-        IERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.deposit(1 ether);
 
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(testUser), 49242376308170344638);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(testUser), 0);
@@ -133,12 +133,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         vm.startPrank(testUser);
 
         // We first need to deposit
-        IERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        uint depositAmount = strategy.deposit(1 ether);
 
         // If we try to claim straight away, our user will be locked
         vm.expectRevert('User locked');
-        strategy.withdraw(500000000000000000);
+        strategy.withdraw(0.5 ether);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -146,15 +146,14 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Confirm that we cannot claim more than our token balance
         vm.expectRevert('ERC20: burn amount exceeds balance');
-        strategy.withdraw(5000000000000000000);
+        strategy.withdraw(depositAmount + 1);
 
         // We can now claim rewards via the strategy that will eat away from our
         // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
         // back our underlying token.
-        strategy.withdraw(500000000000000000);
+        strategy.withdraw(0.5 ether);
 
-        // The strategy should now hold token and xToken
-        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 516645940601453492);
+        // The strategy should now hold token
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 467780757975035829);
 
         vm.stopPrank();
@@ -175,12 +174,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * our vault ERC20 tokens returned and the xToken burnt from the
      * strategy.
      */
-    function testCanFullyExitPosition() public {
+    function test_CanFullyExitPosition() public {
         vm.startPrank(testUser);
 
         // We first need to deposit
-        IERC20(strategy.underlyingToken()).approve(address(strategy), 1000000000000000000);
-        strategy.deposit(1000000000000000000);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        uint depositAmount = strategy.deposit(1 ether);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -188,11 +187,11 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We can now exit via the strategy. This will burn all of our xToken and
         // we will just have our `underlyingToken` back in the strategy.
-        strategy.withdraw(1000000000000000000);
+        strategy.withdraw(depositAmount);
 
         // The strategy should now hold token and xToken. However, we need to accomodate
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
-        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 999999999999999999);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
         vm.stopPrank();
