@@ -35,7 +35,7 @@ contract RewardsLedgerTest is FloorTest {
         // Set up a fake ERC20 token that we can test with. We use the {Floor} token
         // contract as a base as this already implements IERC20. We have no initial
         // balance.
-        erc20 = new ERC20Mock('Mock', 'MOCK', address(this), 0);
+        erc20 = new ERC20Mock();
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));

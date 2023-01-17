@@ -100,7 +100,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         vaultId = _vaultId;
 
         // Give our collection max approval
-        // IERC20(collection).approve(_strategy, type(uint).max);
+        IERC20(collection).approve(_strategy, type(uint).max);
     }
 
     /**
@@ -156,15 +156,20 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // Fire events to stalkers
         emit VaultWithdrawal(msg.sender, collection, receivedAmount);
 
-        // Update our user's position
-
         // Reduce the user's pending position to 0 before looking at the total
         // position. This will ensure that the user exits a pending position and can
         // still receive rewards. We are nice like that.
         if (pendingPositions[msg.sender] != 0) {
-            totalPendingPosition -= pendingPositions[msg.sender];
-            amount -= pendingPositions[msg.sender];
-            pendingPositions[msg.sender] = 0;
+            if (pendingPositions[msg.sender] > amount) {
+                pendingPositions[msg.sender] -= amount;
+                totalPendingPosition -= amount;
+                amount = 0;
+            }
+            else {
+                amount -= pendingPositions[msg.sender];
+                totalPendingPosition -= pendingPositions[msg.sender];
+                pendingPositions[msg.sender] = 0;
+            }
         }
 
         // If we still have a remaining withdrawal amount then we need to remove it

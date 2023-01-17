@@ -102,8 +102,7 @@ contract VaultTest is FloorTest {
         // Avoid dust being returned and getting reverted
         vm.assume(amount > 1000 && amount <= PUNK_BALANCE);
 
-        // Connect to an account that has PUNK tokens
-        vm.startPrank(PUNK_HOLDER);
+        amount = 1000;
 
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE);
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
@@ -111,6 +110,8 @@ contract VaultTest is FloorTest {
 
         assertEq(vault.positions(PUNK_HOLDER), 0);
         assertEq(vault.share(PUNK_HOLDER), 0);
+
+        vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
         IERC20(vault.collection()).approve(address(vault), type(uint).max);
@@ -120,14 +121,34 @@ contract VaultTest is FloorTest {
         // amount itself.
         uint receivedAmount = vault.deposit(amount);
 
+        vm.stopPrank();
+
+        // The holder will now have a reduced balance
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount);
+
+        // Our strategy and vault won't hold the token, as the NFTX vault will hold it
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
-        assertEq(vault.positions(PUNK_HOLDER), receivedAmount);
-        assertEq(vault.share(PUNK_HOLDER), 10000);
+        // Our position and share will still be zero, as it will be stored as pending
+        assertEq(vault.positions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount);
+        assertEq(vault.share(PUNK_HOLDER), 0);
 
-        vm.stopPrank();
+        // If we update our vault share with a `false` boolean flag, then the holder will
+        // still have a zero balance. However, the pending position will hold the received
+        // amount.
+        vault.recalculateVaultShare(false);
+        assertEq(vault.positions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount);
+        assertEq(vault.share(PUNK_HOLDER), 0);
+
+        // After recalculating the vault share with a `true` boolean flag, we will migrate
+        // the pending positions to actual positions and the share will be recalculated.
+        vault.recalculateVaultShare(true);
+        assertEq(vault.positions(PUNK_HOLDER), receivedAmount);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
+        assertEq(vault.share(PUNK_HOLDER), 10000);
     }
 
     /**
@@ -135,7 +156,7 @@ contract VaultTest is FloorTest {
      * contract. The return value should be the cumulative value of all
      * deposits made in the test.
      */
-    function test_CanDepositMultipleTimes(uint amount1, uint amount2) public {
+    function test_CanREMOVEDepositMultipleTimes(uint amount1, uint amount2) public {
         vm.assume(amount1 > 10000 && amount1 < PUNK_BALANCE / 2);
         vm.assume(amount2 > 10000 && amount2 < PUNK_BALANCE / 2);
 
@@ -155,13 +176,23 @@ contract VaultTest is FloorTest {
         // Make 2 varied size deposits into our user's position. The second deposit will
         // return the cumulative user's position that includes both deposit returns.
         uint receivedAmount1 = vault.deposit(amount1);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount1);
+
         uint receivedAmount2 = vault.deposit(amount2);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
 
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount1 - amount2);
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
+        assertEq(vault.positions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
+        assertEq(vault.share(PUNK_HOLDER), 0);
+
+        vault.recalculateVaultShare(true);
+
         assertEq(vault.positions(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
         assertEq(vault.share(PUNK_HOLDER), 10000);
 
         vm.stopPrank();
@@ -235,6 +266,10 @@ contract VaultTest is FloorTest {
         // after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
+        // We will process our vault shares to commit our pending position to an
+        // actual position.
+        vault.recalculateVaultShare(true);
+
         // Process a withdrawal of a partial amount against our position
         uint withdrawalAmount = vault.withdraw(amount);
 
@@ -276,12 +311,6 @@ contract VaultTest is FloorTest {
         // Withdraw the same amount that we depositted
         uint withdrawalAmount = vault.withdraw(depositAmount);
 
-        console.log(PUNK_BALANCE);
-        console.log(amount);
-        console.log(depositAmount);
-        console.log(withdrawalAmount);
-        console.log(vault.positions(PUNK_HOLDER));
-
         // We need to take our base balance, minus the dust lost during the deposit
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount + withdrawalAmount);
 
@@ -297,10 +326,71 @@ contract VaultTest is FloorTest {
     }
 
     /**
+     * ..
+     */
+    function test_CanWithdrawFromPendingPosition(uint amount1, uint amount2) public {
+        // Ensure that the combined amounts don't go above our available balance
+        vm.assume(amount1 > 1000 && amount2 > 1000);
+        vm.assume(amount1 <= PUNK_BALANCE / 2 && amount2 <= PUNK_BALANCE / 2);
+        vm.assume(amount1 < amount2);
+
+        // Connect to an account that has PUNK tokens
+        vm.startPrank(PUNK_HOLDER);
+
+        // Approve use of PUNK token
+        IERC20(vault.collection()).approve(address(vault), PUNK_BALANCE);
+
+        // We can deposit our first value and calculate our shares to move this deposit
+        // position from pending to active
+        uint depositAmount1 = vault.deposit(amount1);
+        vault.recalculateVaultShare(true);
+
+        // Make our second deposit that will remain in pending
+        uint depositAmount2 = vault.deposit(amount2);
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Confirm our expected position and pending position
+        assertEq(vault.positions(PUNK_HOLDER), depositAmount1);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), depositAmount2);
+        assertEq(vault.share(PUNK_HOLDER), 10000);
+
+        // We can process our first withdrawal, and because `amount1` is less that
+        // `amount2`, we know that there will still be a partial `pendingPosition` left
+        // for the user, and their full actual position.
+        uint withdrawalAmount1 = vault.withdraw(depositAmount1);
+
+        // This will leave the user with 100% share still, as well as their full
+        // position, but their pending position will have been reduced.
+        assertEq(vault.positions(PUNK_HOLDER), depositAmount1);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), depositAmount2 - depositAmount1);
+        assertEq(vault.share(PUNK_HOLDER), 10000);
+
+        // Now we want to remove the remaining position, which will be reduced from
+        // both the pending and actual position.
+        uint withdrawalAmount2 = vault.withdraw(depositAmount2);
+
+        // Our user should now have the complete withdrawn amount in their balance
+        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount1 - amount2 + withdrawalAmount1 + withdrawalAmount2);
+
+        // Vault and Strategy should have no holdings
+        assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
+        assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
+
+        // Our user's remaining position should now be empty
+        assertEq(vault.positions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
+        assertEq(vault.share(PUNK_HOLDER), 0);
+
+        vm.stopPrank();
+    }
+
+    /**
      * A sender should be able to make multiple withdrawal calls.
      */
     function test_CanWithdrawMultipleTimes(uint amount) public {
-        // Prevent our deposit from returning a 0 amount from staking
         vm.assume(amount > 10000);
 
         // Connect to an account that has PUNK tokens
@@ -317,6 +407,10 @@ contract VaultTest is FloorTest {
         // after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
+        // We will process our vault shares to commit our pending position to an
+        // actual position.
+        vault.recalculateVaultShare(true);
+
         // Process 2 vault withdrawals
         uint withdrawalAmount1 = vault.withdraw(amount);
         uint withdrawalAmount2 = vault.withdraw(amount);
@@ -324,13 +418,14 @@ contract VaultTest is FloorTest {
         // Our user should now have the twice withdrawn amount in their balance
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), withdrawalAmount1 + withdrawalAmount2);
 
-        // Vault and Strategy dust
+        // Vault and Strategy should have no holdings
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
 
         // Our user's remaining position should be calculated by the amount deposited,
         // minus the amount withdrawn (done twice).
         assertEq(vault.positions(PUNK_HOLDER), depositAmount - amount - amount);
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
 
         // Since we left at least some dust in the position, we can assert that the
         // holder as 100% of the share.
@@ -370,57 +465,87 @@ contract VaultTest is FloorTest {
      * continue to calculate the position and share values correctly.
      */
     function test_ShareCalculation() public {
-        // Make a deposit across three different holders
-        vm.startPrank(0x0E239772E3BbfD125E7a9558ccb93D34946caD18);
+        address ALT_USER = 0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD;
+        address LATE_USER = 0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB;
+
+        // Make a deposit across different holders
+        vm.startPrank(PUNK_HOLDER);
         IERC20(vault.collection()).approve(address(vault), type(uint).max);
         vault.deposit(100000);
         vm.stopPrank();
 
-        vm.startPrank(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD);
+        vm.startPrank(ALT_USER);
         IERC20(vault.collection()).approve(address(vault), type(uint).max);
         vault.deposit(200000);
         vm.stopPrank();
 
-        // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 3333);
-        assertEq(vault.share(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 6666);
-        assertEq(vault.share(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 0);
+        // Before recalculation, our depositting users should only hold pending positions
+        assertEq(vault.share(PUNK_HOLDER), 0);
+        assertEq(vault.share(ALT_USER), 0);
+        assertEq(vault.share(LATE_USER), 0);
 
-        assertEq(vault.positions(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 96778);
-        assertEq(vault.positions(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 193556);
-        assertEq(vault.positions(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 0);
+        assertEq(vault.positions(PUNK_HOLDER), 0);
+        assertEq(vault.positions(ALT_USER), 0);
+        assertEq(vault.positions(LATE_USER), 0);
+
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 96778);
+        assertEq(vault.pendingPositions(ALT_USER), 193556);
+        assertEq(vault.pendingPositions(LATE_USER), 0);
+
+        // Recalculate our pending positions into actual positions
+        vault.recalculateVaultShare(true);
+
+        // Confirm our shares and positions are returned as expected
+        assertEq(vault.share(PUNK_HOLDER), 3333);
+        assertEq(vault.share(ALT_USER), 6666);
+        assertEq(vault.share(LATE_USER), 0);
+
+        assertEq(vault.positions(PUNK_HOLDER), 96778);
+        assertEq(vault.positions(ALT_USER), 193556);
+        assertEq(vault.positions(LATE_USER), 0);
+
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(ALT_USER), 0);
+        assertEq(vault.pendingPositions(LATE_USER), 0);
 
         // Make another deposit from a new user to confirm it is recalculated
-        vm.startPrank(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB);
+        vm.startPrank(LATE_USER);
         IERC20(vault.collection()).approve(address(vault), type(uint).max);
         vault.deposit(300000);
         vm.stopPrank();
 
-        // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 1666);
-        assertEq(vault.share(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 3333);
-        assertEq(vault.share(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 5000);
+        // Recalculate our pending positions into actual positions
+        vault.recalculateVaultShare(true);
 
-        assertEq(vault.positions(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 96778);
-        assertEq(vault.positions(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 193556);
-        assertEq(vault.positions(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 290334);
+        // Confirm our shares and positions are returned as expected
+        assertEq(vault.share(PUNK_HOLDER), 1666);
+        assertEq(vault.share(ALT_USER), 3333);
+        assertEq(vault.share(LATE_USER), 5000);
+
+        assertEq(vault.positions(PUNK_HOLDER), 96778);
+        assertEq(vault.positions(ALT_USER), 193556);
+        assertEq(vault.positions(LATE_USER), 290334);
 
         // To pass the deposit lock we need to manipulate the block timestamp to set
         // it after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
         // Withdraw fullyfrom one of the user positions
-        vm.prank(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD);
+        vm.prank(ALT_USER);
         vault.withdraw(193556);
 
         // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 2500);
-        assertEq(vault.share(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 0);
-        assertEq(vault.share(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 7500);
+        assertEq(vault.share(PUNK_HOLDER), 2500);
+        assertEq(vault.share(ALT_USER), 0);
+        assertEq(vault.share(LATE_USER), 7500);
 
-        assertEq(vault.positions(0x0E239772E3BbfD125E7a9558ccb93D34946caD18), 96778);
-        assertEq(vault.positions(0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD), 0);
-        assertEq(vault.positions(0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB), 290334);
+        assertEq(vault.positions(PUNK_HOLDER), 96778);
+        assertEq(vault.positions(ALT_USER), 0);
+        assertEq(vault.positions(LATE_USER), 290334);
+
+        assertEq(vault.pendingPositions(PUNK_HOLDER), 0);
+        assertEq(vault.pendingPositions(ALT_USER), 0);
+        assertEq(vault.pendingPositions(LATE_USER), 0);
     }
 
     function test_CanPause() public {
