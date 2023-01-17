@@ -16,6 +16,7 @@ import './utilities/Environments.sol';
 
 contract RewardsLedgerTest is FloorTest {
 
+    // Contract references
     FLOOR floor;
     veFLOOR veFloor;
     ERC20Mock erc20;

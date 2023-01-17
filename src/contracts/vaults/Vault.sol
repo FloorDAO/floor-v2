@@ -13,9 +13,6 @@ import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/vaults/Vault.sol';
 
 
-/**
- * TODO: We only want to return shares of users that have been staked for a minimum time.
- */
 contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
     address TREASURY;
@@ -100,7 +97,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         vaultId = _vaultId;
 
         // Give our collection max approval
-        IERC20(collection).approve(_strategy, type(uint).max);
+        IERC20(_collection).approve(_strategy, type(uint).max);
     }
 
     /**

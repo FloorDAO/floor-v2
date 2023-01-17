@@ -29,6 +29,28 @@ contract TreasuryTest is Test {
     function testCannotMintZeroFloor() public {}
 
     /**
+     * Checks that an authorised user can an arbritrary amount of floor.
+     *
+     * This should emit {FloorMinted}.
+     */
+    function testCanMintVeFloor(uint amount) public {}
+
+    /**
+     * Ensure that only the {TreasuryManager} can action the minting of floor.
+     *
+     * This should not emit {FloorMinted}.
+     */
+    function testCannotVeMintFloorWithoutPermissions() public {}
+
+    /**
+     * We should validate the amount passed into the floor minting to ensure that
+     * a zero value cannot be requested.
+     *
+     * This should not emit {FloorMinted}.
+     */
+    function testCannotMintZeroVeFloor() public {}
+
+    /**
      * We should be able to mint the floor token equivalent of a token, based on
      * the internally stored conversion value.
      *
@@ -83,6 +105,14 @@ contract TreasuryTest is Test {
      * This should emit {DepositERC721}.
      */
     function testCanDepositERC721() public {}
+
+    /**
+     * We should be able to deposit any ERC1155 token with varied amounts into
+     * the {Treasury}.
+     *
+     * This should emit {DepositERC1155}.
+     */
+    function testCanDepositERC1155() public {}
 
     /**
      * Our contract should be able to withdraw the native token of the chain.
@@ -146,6 +176,30 @@ contract TreasuryTest is Test {
      * This should not emit {WithdrawERC721}.
      */
     function testCannotWithdrawERC721WithoutPermissions() public {}
+
+    /**
+     * We should be able to withdraw any ERC721 token with varied amounts from
+     * the {Treasury}.
+     *
+     * This should emit {WithdrawERC721}.
+     */
+    function testCanWithdrawERC1155() public {}
+
+    /**
+     * If we don't have the ERC721 token, or hold insufficient tokens, then we
+     * expect a revert.
+     *
+     * This should not emit {WithdrawERC721}.
+     */
+    function testCannotWithdrawInvalidERC1155() public {}
+
+    /**
+     * If we don't have the right user role then we should not be able to transfer
+     * the token and we expect a revert.
+     *
+     * This should not emit {WithdrawERC721}.
+     */
+    function testCannotWithdrawERC1155WithoutPermissions() public {}
 
     /**
      * We want to ensure that we can update the address of the {RewardsLedger}

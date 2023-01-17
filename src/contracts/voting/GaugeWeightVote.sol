@@ -282,9 +282,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *      B - 58 FLOOR
      */
     function snapshot(uint tokens) external returns (address[] memory, uint[] memory) {
-        // Don't allow a second snapshot within 24 hours
-        require(block.timestamp >= lastSnapshot + 1 days);
-
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 

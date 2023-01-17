@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
 import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
@@ -91,6 +93,7 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.label(approvedCollection3, 'approvedCollection3');
         vm.label(unapprovedCollection1, 'unapprovedCollection1');
         vm.label(unapprovedCollection2, 'unapprovedCollection2');
+        vm.label(approvedStrategy, 'approvedStrategy');
     }
 
     function setUp() public {
@@ -406,6 +409,9 @@ contract GaugeWeightVoteTest is FloorTest {
 
         gaugeWeightVote.setSampleSize(3);
 
+        // Approvals aren't needed and may throw issues with our mocked setups
+        vm.mockCall(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
+
         // Create a vault for our collections
         address vault1 = _createCollectionVault(approvedCollection1, 'Vault 1');
         address vault2 = _createCollectionVault(approvedCollection2, 'Vault 2');
@@ -472,8 +478,11 @@ contract GaugeWeightVoteTest is FloorTest {
     /**
      * ...
      */
-
     function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
+        // Approvals aren't needed and may throw issues with our mocked setups
+        vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
+
+        // Create the vault via the factory
         (, vaultAddr_) = vaultFactory.createVault(
             vaultName,
             approvedStrategy,
@@ -481,6 +490,7 @@ contract GaugeWeightVoteTest is FloorTest {
             collection
         );
 
+        // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
     }
 
