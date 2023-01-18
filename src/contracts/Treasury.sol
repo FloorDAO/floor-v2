@@ -28,24 +28,24 @@ import '../interfaces/Treasury.sol';
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     // Store when last epoch was run
-    uint lastEpoch;
-    uint EPOCH_LENGTH = 7 days;
+    uint public lastEpoch;
+    uint public EPOCH_LENGTH = 7 days;
 
     // ..
-    IStrategyRegistry strategyRegistry;
+    IStrategyRegistry public strategyRegistry;
 
     // ..
-    ICollectionRegistry collectionRegistry;
+    ICollectionRegistry public collectionRegistry;
 
     // ..
-    IVaultFactory vaultFactory;
+    IVaultFactory public vaultFactory;
 
     // Track our internal tokens
-    IFLOOR floor;
-    IVeFLOOR veFloor;
+    IFLOOR public floor;
+    IVeFLOOR public veFloor;
 
     // Track our rewards ledger
-    IRewardsLedger rewardsLedger;
+    IRewardsLedger public rewardsLedger;
 
     // The current pricing executor contract.
     IBasePricingExecutor public pricingExecutor;
@@ -54,16 +54,16 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     bool public floorMintingPaused;
 
     // ..
-    uint poolMultiplierPercentage;
+    uint public poolMultiplierPercentage;
 
     // ..
-    uint retainedTreasuryYieldPercentage;
+    uint public retainedTreasuryYieldPercentage;
 
     // Our Gauge Weight Voting contract
-    IGaugeWeightVote voteContract;
+    IGaugeWeightVote public voteContract;
 
     // Store our token floor price
-    mapping (address => uint) internal tokenFloorPrice;
+    mapping (address => uint) public tokenFloorPrice;
 
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
@@ -142,7 +142,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * has been surpassed.
      */
     function endEpoch() external {
-        require(block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
+        // Ensure enough time has past since the last epoch ended
+        require(lastEpoch == 0 || block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
 
         // Get our vaults
         address[] memory vaults = vaultFactory.vaults();
@@ -151,7 +152,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         this.getCollectionFloorPrices();
 
         // Store the public and treasury yield generated, converted into veFLOOR
-        // token equivalent value.
+        // token equivalent value. This will only be allocated is `floorMintingPaused`
+        // is False.
         uint treasuryFloorYield;
         uint publicFloorYield;
 
@@ -163,25 +165,37 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             // Pull out rewards and transfer into the {Treasury}
             uint vaultYield = vault.claimRewards();
 
+            // Get our vault collection address
+            address vaultCollection = vault.collection();
+
             // Get the share inclusive of the treasury position
             (address[] memory users, uint[] memory percents) = vault.shares(false);
             for (uint j; j < users.length;) {
-                // If our user share address is matched as the {Treasury} address, then
-                // we need to attribute it to a separate increment.
-                if (users[j] == address(this)) {
-                    treasuryFloorYield += (vaultYield * percents[j]) / 100;
+                // If our floor minting is paused, then we just want to directly allocate
+                // the generated token to the user, rather than converting it to FLOOR.
+                if (floorMintingPaused && users[j] != address(this)) {
+                    rewardsLedger.allocate(users[j], vaultCollection, (vaultYield * percents[j]) / 100);
                 }
                 else {
-                    publicFloorYield += (vaultYield * percents[j]) / 100;
+                    // If our user share address is matched as the {Treasury} address, then
+                    // we need to attribute it to a separate increment.
+                    if (users[j] == address(this)) {
+                        treasuryFloorYield += (vaultYield * percents[j]) / 100;
+                    }
+                    else {
+                        publicFloorYield += (vaultYield * percents[j]) / 100;
+                        rewardsLedger.allocate(users[j], address(veFloor), (vaultYield * percents[j]) / 100);
+                    }
                 }
 
                 unchecked { ++j; }
             }
 
             // Multiply our token yield to find the floor token equivalent value
-            address vaultCollection = vault.collection();
-            treasuryFloorYield *= tokenFloorPrice[vaultCollection];
-            publicFloorYield *= tokenFloorPrice[vaultCollection];
+            if (!floorMintingPaused) {
+                treasuryFloorYield *= tokenFloorPrice[vaultCollection];
+                publicFloorYield *= tokenFloorPrice[vaultCollection];
+            }
 
             // Update our vault share an apply pending positions
             vault.recalculateVaultShare(true);
@@ -189,21 +203,24 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             unchecked { ++i; }
         }
 
-        // Determine the total amount of snapshot tokens. This should be calculated as all
-        // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-        // of the treasuryFloorYield.
-        uint yieldRewards = publicFloorYield + ((treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000);
-        (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
+        uint yieldRewards;
+        if (!floorMintingPaused && treasuryFloorYield != 0) {
+            // Determine the total amount of snapshot tokens. This should be calculated as all
+            // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+            // of the treasuryFloorYield.
+            yieldRewards = (treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000;
+            (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
 
-        // We can now register the user and veFloor token allocations from the snapshot into the
-        // {RewardsLedger} for the users to redeem when ready.
-        for (uint i; i < tokenUsers.length;) {
-            rewardsLedger.allocate(tokenUsers[i], address(veFloor), tokens[i]);
-            unchecked { ++i; }
+            // We can now register the user and veFloor token allocations from the snapshot into the
+            // {RewardsLedger} for the users to redeem when ready.
+            for (uint i; i < tokenUsers.length;) {
+                rewardsLedger.allocate(tokenUsers[i], address(veFloor), tokens[i]);
+                unchecked { ++i; }
+            }
         }
 
-        lastEpoch = block.timestamp + EPOCH_LENGTH;
-        emit EpochEnded(block.timestamp, yieldRewards);
+        lastEpoch = block.timestamp;
+        emit EpochEnded(block.timestamp, publicFloorYield + yieldRewards);
     }
 
     /**
@@ -215,6 +232,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * we can implement this!
      */
     function mint(uint amount) external onlyRole(TREASURY_MANAGER) {
+        require(amount != 0, 'Cannot mint zero Floor');
         _mint(address(this), amount);
     }
 
@@ -257,7 +275,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows an approved user to withdraw native token.
      */
-    function withdraw(address payable recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
+    function withdraw(address recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
          (bool success, ) = recipient.call{value: amount}('');
          require(success, 'Unable to withdraw');
          emit Withdraw(amount, recipient);
@@ -294,6 +312,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @dev Should we allow this to be updated or should be immutable?
      */
     function setRewardsLedgerContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
+        require(contractAddr != address(0), 'Cannot set to null address');
         rewardsLedger = IRewardsLedger(contractAddr);
     }
 
@@ -303,6 +322,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @dev Should we allow this to be updated or should be immutable?
      */
     function setGaugeWeightVoteContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
+        require(contractAddr != address(0), 'Cannot set to null address');
         voteContract = IGaugeWeightVote(contractAddr);
     }
 
@@ -349,9 +369,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
-     * as user rewards. Updated prices will be stored against a rudimentary caching system that
-     * will only source a new token price mapping against FLOOR if it has surpassed a set time
-     * window (e.g. 30 minutes).
+     * as user rewards.
      *
      * The vault will handle its own internal price calculation and stale caching logic based
      * on a {VaultPricingStrategy} tied to the vault.
@@ -361,14 +379,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      *
      * Our token ETH price is determined by (e.g. PUNK):
      * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-     *
-     * Questions:
-     * - Can we just compare FLOOR <-> TOKEN on Uniswap? Rather than each to ETH? It wouldn't need
-     *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
-     *   in direct comparison due to hops.
      */
     function getCollectionFloorPrices() external {
-        require(address(pricingExecutor) != address(0), 'No pricingExecutor set');
+        require(address(pricingExecutor) != address(0), 'No pricing executor set');
 
         // Get our approved collections
         address[] memory collections = collectionRegistry.approvedCollections();
@@ -387,54 +400,20 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
     function setPricingExecutor(address contractAddr) external onlyRole(TREASURY_MANAGER) {
+        require(contractAddr != address(0), 'Cannot set to null address');
         pricingExecutor = IBasePricingExecutor(contractAddr);
     }
 
     /**
-     * Deploys an instance of an approved strategy, allowing tokens and relative amounts to be
-     * provided that will fund the strategy.
-     *
-     * Treasury strategies are used to act as non-public DeFi pools that will (hopefully) increase
-     * vault value. FLOOR tokens will still be minted based on the retained treasury yield
-     * percentage, etc. just as a normal vault strategy would. The only difference is that only
-     * the {Treasury} will be able to participate.
-     *
-     * The returned address is the instance of the new strategy deployment.
+     * Apply an action against the vault.
      */
-    function deployAndFundTreasuryStrategy(address strategy, address collection, address token, uint amount) external returns (address) {
-        // TODO: ..
-
-        // Make sure strategy is approved
-        require(strategyRegistry.isApproved(strategy), 'Strategy not approved');
-
-        // Make sure the collection is approved
-        require(collectionRegistry.isApproved(collection), 'Collection not approved');
-
-        // Deploy a new {Strategy} instance using the clone mechanic. We then need to
-        // instantiate the strategy using our supplied `strategyInitData`.
-        // address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
-        // IBaseStrategy(strategy).initialize(vaultId_, _strategyInitData);
-    }
-
-    /**
-     * Apply a number of actions against the vault. These will run in chronological order
-     * so that the output of one action must complete before the next is executed.
-     */
-    /*
-    function processAction(address[] memory actions, bytes[] memory data) external onlyRole(TREASURY_MANAGER) {
-        for (uint i; i < actions.length;) {
-            IAction(actions[i]).execute(actions[i].ActionRequest(data[i]));
+    function processAction(address action, address[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
+        for (uint i; i < approvals.length;) {
+            IERC20(approvals[i]).approve(action, type(uint).max);
+            unchecked { ++i; }
         }
-    }
-    */
 
-    /**
-     * Allows the treasury to extract the generated reward tokens from a number of
-     * strategies and move them to the {Treasury}. This uses the {Strategy} `rewardToken`
-     * to determine which token(s) should be transferred.
-     */
-    function extractFromStrategies(address[] calldata strategies) external {
-        // TODO: ..
+        IAction(action).execute(data);
     }
 
     /**

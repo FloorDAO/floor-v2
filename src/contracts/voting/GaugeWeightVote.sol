@@ -329,7 +329,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             address[] memory collectionVaults = vaultFactory.vaultsForCollection(collections[i]);
 
             for (uint j; j < collectionVaults.length;) {
-                // TODO: This needs to get total rewards and rewards since last snapshot
                 uint rewards = _getCollectionVaultRewardsIndicator(collectionVaults[j]);
 
                 yieldStorage[collectionVaults[j]] = rewards;
