@@ -55,18 +55,18 @@ contract UniswapSellTokensForETHTest is FloorTest {
         ERC20(USDC).approve(address(action), 10000000000);
 
         // Action our trade
-        UniswapSellTokensForETH.ActionResponse memory response = action.execute(
-            UniswapSellTokensForETH.ActionRequest({
-                token0: USDC,
-                fee: USDC_FEE,
-                amountIn: 10000000000,
-                amountOutMinimum: 1,
-                deadline: block.timestamp
-            })
+        uint amountOut = action.execute(
+            abi.encodePacked(
+                USDC,               // token0
+                USDC_FEE,           // fee
+                uint(10000000000),  // amountIn
+                uint(1),            // amountOutMinimum
+                block.timestamp     // deadline
+            )
         );
 
         // Confirm that we received 8.8~ ETH
-        assertEq(response.amountOut, 8_862042781469125242);
+        assertEq(amountOut, 8_862042781469125242);
 
         vm.stopPrank();
     }
@@ -82,13 +82,13 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
         vm.expectRevert();
         action.execute(
-            UniswapSellTokensForETH.ActionRequest({
-                token0: USDC,
-                fee: USDC_FEE,
-                amountIn: 10000000000,
-                amountOutMinimum: 0,
-                deadline: block.timestamp
-            })
+            abi.encodePacked(
+                USDC,               // token0
+                USDC_FEE,           // fee
+                uint(10000000000),  // amountIn
+                uint(0),            // amountOutMinimum
+                block.timestamp     // deadline
+            )
         );
 
         vm.stopPrank();
@@ -106,13 +106,13 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
         vm.expectRevert('Too little received');
         action.execute(
-            UniswapSellTokensForETH.ActionRequest({
-                token0: USDC,
-                fee: USDC_FEE,
-                amountIn: 10000000000,
-                amountOutMinimum: 100 ether,
-                deadline: block.timestamp
-            })
+            abi.encodePacked(
+                USDC,               // token0
+                USDC_FEE,           // fee
+                uint(10000000000),  // amountIn
+                uint(100 ether),    // amountOutMinimum
+                block.timestamp     // deadline
+            )
         );
 
         vm.stopPrank();

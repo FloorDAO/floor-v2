@@ -61,18 +61,18 @@ contract NFTXSellNFTForETHTest is FloorTest {
         ERC721(RBC_CONTRACT).setApprovalForAll(address(action), true);
 
         // Action our trade
-        NFTXSellNFTForETH.ActionResponse memory response = action.execute(
-            NFTXSellNFTForETH.ActionRequest({
-                asset: RBC_CONTRACT,
-                vaultId: 269,
-                tokenIds: tokens,
-                minEthOut: 13044045363965763,
-                path: path
-            })
+        uint amountOut = action.execute(
+            abi.encodePacked(
+                RBC_CONTRACT,            // asset
+                uint(269),               // vaultId
+                tokens,                  // tokenIds
+                uint(13044045363965763), // minEthOut
+                path                     // path
+            )
         );
 
         // Confirm that we received the expected amount of ETH
-        assertEq(response.amountOut, 13175803397945216);
+        assertEq(amountOut, 13175803397945216);
 
         vm.stopPrank();
     }
@@ -99,13 +99,13 @@ contract NFTXSellNFTForETHTest is FloorTest {
         // Action our trade
         vm.expectRevert('UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
         action.execute(
-            NFTXSellNFTForETH.ActionRequest({
-                asset: RBC_CONTRACT,
-                vaultId: 269,
-                tokenIds: tokens,
-                minEthOut: 23044045363965763,
-                path: path
-            })
+            abi.encodePacked(
+                RBC_CONTRACT,             // asset
+                uint(269),                // vaultId
+                tokens,                   // tokenIds
+                uint(23044045363965763),  // minEthOut
+                path                      // path
+            )
         );
 
         vm.stopPrank();

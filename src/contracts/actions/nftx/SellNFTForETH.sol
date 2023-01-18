@@ -32,13 +32,6 @@ contract NFTXSellNFTForETH is IAction {
     }
 
     /**
-     * Stores the amount of WETH generated from the swap.
-     */
-    struct ActionResponse {
-        uint256 amountOut;
-    }
-
-    /**
      * We assign any variable contract addresses in our constructor, allowing us
      * to have multiple deployed actions if any parameters change.
      */
@@ -50,7 +43,10 @@ contract NFTXSellNFTForETH is IAction {
     /**
      *
      */
-    function execute(ActionRequest calldata request) public returns (ActionResponse memory) {
+    function execute(bytes calldata _request) public returns (uint) {
+        // Unpack the request bytes data into our struct
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
         // Ensure that we have tokenIds sent
         uint256 length = request.tokenIds.length;
         require(length != 0);
@@ -79,9 +75,7 @@ contract NFTXSellNFTForETH is IAction {
 
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury} during the swap itself.
-        return ActionResponse({
-            amountOut: address(treasury).balance - startBalance
-        });
+        return startBalance - address(treasury).balance;
     }
 
     /**

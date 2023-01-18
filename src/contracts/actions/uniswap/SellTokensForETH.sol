@@ -37,13 +37,6 @@ contract UniswapSellTokensForETH is IAction {
     }
 
     /**
-     * Stores the amount of WETH generated from the swap.
-     */
-    struct ActionResponse {
-        uint256 amountOut;
-    }
-
-    /**
      * We assign any variable contract addresses in our constructor, allowing us
      * to have multiple deployed actions if any parameters change.
      */
@@ -60,8 +53,9 @@ contract UniswapSellTokensForETH is IAction {
      * @dev The calling address must approve this contract to spend at least `amountIn` worth of its
      * `token0` for this function to succeed.
      */
-    function execute(ActionRequest calldata request) public returns (ActionResponse memory) {
-        // msg.sender must approve this contract
+    function execute(bytes calldata _request) public returns (uint) {
+        // Unpack the request bytes data into our struct
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
         // Transfer the specified amount of token0 to this contract from the {Treasury}
         TransferHelper.safeTransferFrom(request.token0, treasury, address(this), request.amountIn);
@@ -86,9 +80,7 @@ contract UniswapSellTokensForETH is IAction {
 
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury} during the swap itself.
-        return ActionResponse({
-            amountOut: amountOut
-        });
+        return amountOut;
     }
 
 }
