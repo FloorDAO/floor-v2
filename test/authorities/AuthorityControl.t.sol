@@ -20,7 +20,7 @@ contract AuthorityControlTest is FloorTest {
      * Deploys our AuthorityControl which will in turn create our
      * expected roles and permissions in the constructor.
      */
-    function setUp() public {
+    constructor () {
         // Set up a small pool of test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
     }
