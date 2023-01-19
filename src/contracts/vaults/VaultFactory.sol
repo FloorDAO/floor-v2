@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
+import '@openzeppelin/contracts/access/AccessControl.sol';
+import '@openzeppelin/contracts/proxy/Clones.sol';
 
-import "./Vault.sol";
-import "../authorities/AuthorityControl.sol";
-import "../../interfaces/collections/CollectionRegistry.sol";
-import "../../interfaces/strategies/BaseStrategy.sol";
-import "../../interfaces/strategies/StrategyRegistry.sol";
-import "../../interfaces/vaults/VaultFactory.sol";
+import './Vault.sol';
+import '../authorities/AuthorityControl.sol';
+import '../../interfaces/collections/CollectionRegistry.sol';
+import '../../interfaces/strategies/BaseStrategy.sol';
+import '../../interfaces/strategies/StrategyRegistry.sol';
+import '../../interfaces/vaults/VaultFactory.sol';
 
 /**
  * Allows for vaults to be created, pairing them with a {Strategy} and an approved
@@ -36,7 +36,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     address public immutable vaultImplementation;
 
     /// Mappings to aide is discoverability
-    mapping(uint256 => address) private vaultIds;
+    mapping(uint => address) private vaultIds;
     mapping(address => address[]) private collectionVaults;
 
     /**
@@ -64,7 +64,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * Provides a vault against the provided `vaultId` (index).
      */
-    function vault(uint256 _vaultId) external view returns (address) {
+    function vault(uint _vaultId) external view returns (address) {
         return vaultIds[_vaultId];
     }
 
@@ -82,16 +82,16 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
         onlyRole(VAULT_MANAGER)
-        returns (uint256 vaultId_, address vaultAddr_)
+        returns (uint vaultId_, address vaultAddr_)
     {
         // No empty names, that's just silly
-        require(bytes(_name).length != 0, "Name cannot be empty");
+        require(bytes(_name).length != 0, 'Name cannot be empty');
 
         // Make sure strategy is approved
-        require(strategyRegistry.isApproved(_strategy), "Strategy not approved");
+        require(strategyRegistry.isApproved(_strategy), 'Strategy not approved');
 
         // Make sure the collection is approved
-        require(collectionRegistry.isApproved(_collection), "Collection not approved");
+        require(collectionRegistry.isApproved(_collection), 'Collection not approved');
 
         // Capture our vaultId, before we increment the array length
         vaultId_ = _vaults.length;

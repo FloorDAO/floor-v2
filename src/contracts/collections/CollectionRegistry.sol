@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import '@openzeppelin/contracts/access/AccessControl.sol';
 
-import "../authorities/AuthorityControl.sol";
-import "../../interfaces/collections/CollectionRegistry.sol";
+import '../authorities/AuthorityControl.sol';
+import '../../interfaces/collections/CollectionRegistry.sol';
 
 /**
  * Allows collection contracts to be approved and revoked by addresses holding the
@@ -60,7 +60,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      * @param contractAddr Address of unapproved collection
      */
     function approveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
-        require(contractAddr != address(0), "Cannot approve NULL collection");
+        require(contractAddr != address(0), 'Cannot approve NULL collection');
 
         if (!collections[contractAddr]) {
             collections[contractAddr] = true;

@@ -2,21 +2,21 @@
 
 pragma solidity ^0.8.0;
 
-import "../strategies/BaseStrategy.sol";
+import '../strategies/BaseStrategy.sol';
 
 interface IVault {
     /// @dev Emitted when a user deposits
-    event VaultDeposit(address depositor, address token, uint256 amount);
+    event VaultDeposit(address depositor, address token, uint amount);
 
     /// @dev Emitted when a user withdraws
-    event VaultWithdrawal(address withdrawer, address token, uint256 amount);
+    event VaultWithdrawal(address withdrawer, address token, uint amount);
 
     /**
      * ...
      */
     function initialize(
         string memory _name,
-        uint256 _vaultId,
+        uint _vaultId,
         address _collection,
         address _strategy,
         address _vaultFactory
@@ -41,28 +41,28 @@ interface IVault {
     /**
      * The numerical ID of the vault that acts as an index for the {VaultFactory}
      */
-    function vaultId() external view returns (uint256);
+    function vaultId() external view returns (uint);
 
     /**
      * TODO: ..
      */
-    function shares(bool excludeTreasury) external view returns (address[] memory, uint256[] memory);
+    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory);
 
     /**
      * TODO: ..
      */
-    function claimRewards() external returns (uint256);
+    function claimRewards() external returns (uint);
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
-    function deposit(uint256 amount) external returns (uint256);
+    function deposit(uint amount) external returns (uint);
 
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint256 amount) external returns (uint256);
+    function withdraw(uint amount) external returns (uint);
 
     /**
      * Pauses deposits from being made into the vault. This should only be called by

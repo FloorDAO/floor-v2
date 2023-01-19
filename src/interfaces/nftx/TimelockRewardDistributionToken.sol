@@ -3,13 +3,13 @@
 pragma solidity ^0.8.0;
 
 interface ITimelockRewardDistributionToken {
-    function distributeRewards(uint256 amount) external;
-    function mint(address account, address to, uint256 amount) external;
-    function timelockMint(address account, uint256 amount, uint256 timelockLength) external;
-    function burnFrom(address account, uint256 amount) external;
+    function distributeRewards(uint amount) external;
+    function mint(address account, address to, uint amount) external;
+    function timelockMint(address account, uint amount, uint timelockLength) external;
+    function burnFrom(address account, uint amount) external;
     function withdrawReward(address user) external;
-    function dividendOf(address _owner) external view returns (uint256);
-    function withdrawnRewardOf(address _owner) external view returns (uint256);
-    function accumulativeRewardOf(address _owner) external view returns (uint256);
-    function timelockUntil(address account) external view returns (uint256);
+    function dividendOf(address _owner) external view returns (uint);
+    function withdrawnRewardOf(address _owner) external view returns (uint);
+    function accumulativeRewardOf(address _owner) external view returns (uint);
+    function timelockUntil(address account) external view returns (uint);
 }

@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../authorities/AuthorityControl.sol";
+import '../authorities/AuthorityControl.sol';
 
-import "../../interfaces/tokens/VeFloor.sol";
+import '../../interfaces/tokens/VeFloor.sol';
 
 /**
  * The veFloor token is heavily influenced by the {VeJoeToken} token:
@@ -12,10 +12,10 @@ import "../../interfaces/tokens/VeFloor.sol";
  */
 contract veFLOOR is AuthorityControl, IVeFLOOR {
     /// Monitor balances held by users
-    mapping(address => uint256) private _balances;
+    mapping(address => uint) private _balances;
 
     /// Hold the total token supply
-    uint256 private _totalSupply;
+    uint private _totalSupply;
 
     /// Metadata: Name
     string private _name;
@@ -24,8 +24,8 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     string private _symbol;
 
     /// Emitted when `value` tokens are burned and minted
-    event Burn(address indexed account, uint256 value);
-    event Mint(address indexed beneficiary, uint256 value);
+    event Burn(address indexed account, uint value);
+    event Mint(address indexed beneficiary, uint value);
 
     /**
      * Sets the values for {name} and {symbol}.
@@ -76,14 +76,14 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     /**
      * @dev Returns the amount of tokens in existence.
      */
-    function totalSupply() public view virtual override returns (uint256) {
+    function totalSupply() public view virtual override returns (uint) {
         return _totalSupply;
     }
 
     /**
      * @dev Returns the amount of tokens owned by `account`.
      */
-    function balanceOf(address account) public view virtual override returns (uint256) {
+    function balanceOf(address account) public view virtual override returns (uint) {
         return _balances[account];
     }
 
@@ -93,7 +93,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * @param _to The address that will receive the mint
      * @param _amount The amount to be minted
      */
-    function mint(address _to, uint256 _amount) external onlyRole(FLOOR_MANAGER) {
+    function mint(address _to, uint _amount) external onlyRole(FLOOR_MANAGER) {
         _mint(_to, _amount);
     }
 
@@ -105,8 +105,8 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * Requirements:
      * - `account` cannot be the zero address.
      */
-    function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
+    function _mint(address account, uint amount) internal virtual {
+        require(account != address(0), 'ERC20: mint to the zero address');
 
         _beforeTokenOperation(address(0), account, amount);
 
@@ -126,7 +126,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * @param _from The address that will burn tokens
      * @param _amount The amount to be burned
      */
-    function burnFrom(address _from, uint256 _amount) external onlyRole(FLOOR_MANAGER) {
+    function burnFrom(address _from, uint _amount) external onlyRole(FLOOR_MANAGER) {
         _burn(_from, _amount);
     }
 
@@ -141,13 +141,13 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
+    function _burn(address account, uint amount) internal virtual {
+        require(account != address(0), 'ERC20: burn from the zero address');
 
         _beforeTokenOperation(account, address(0), amount);
 
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
+        uint accountBalance = _balances[account];
+        require(accountBalance >= amount, 'ERC20: burn amount exceeds balance');
         unchecked {
             _balances[account] = accountBalance - amount;
             // Overflow not possible: amount <= accountBalance <= totalSupply.
@@ -166,7 +166,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * @param to the account receiving tokens
      * @param amount the amount being minted or burned
      */
-    function _beforeTokenOperation(address from, address to, uint256 amount) internal virtual {
+    function _beforeTokenOperation(address from, address to, uint amount) internal virtual {
         // Silence is golden.
     }
 
@@ -176,7 +176,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * @param _account the account being affected
      * @param _newBalance the new balance of `account` after minting/burning
      */
-    function _afterTokenOperation(address _account, uint256 _newBalance) internal {
+    function _afterTokenOperation(address _account, uint _newBalance) internal {
         // Silence is golden.
     }
 }

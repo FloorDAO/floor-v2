@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Context.sol";
+import '@openzeppelin/contracts/utils/Context.sol';
 
-import "../../interfaces/authorities/AuthorityRegistry.sol";
+import '../../interfaces/authorities/AuthorityRegistry.sol';
 
 /**
  * The {AuthorityRegistry} allows us to assign roles to wallet addresses that we can persist across
@@ -16,8 +16,8 @@ import "../../interfaces/authorities/AuthorityRegistry.sol";
  */
 contract AuthorityRegistry is Context, IAuthorityRegistry {
     /// Explicit checks for admin roles required
-    bytes32 public constant GOVERNOR = keccak256("Governor");
-    bytes32 public constant GUARDIAN = keccak256("Guardian");
+    bytes32 public constant GOVERNOR = keccak256('Governor');
+    bytes32 public constant GUARDIAN = keccak256('Guardian');
 
     /// Role => Member => Access
     mapping(bytes32 => mapping(address => bool)) private _roles;
@@ -68,7 +68,7 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param account Address to grant the role to
      */
     function grantRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), "Only admin roles can grant roles");
+        require(hasAdminRole(_msgSender()), 'Only admin roles can grant roles');
 
         if (role == GOVERNOR) {
             require(_roles[GOVERNOR][_msgSender()]);
@@ -106,8 +106,8 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param account Address to revoke role from
      */
     function revokeRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), "Only admin roles can revoke roles");
-        require(role != GOVERNOR, "Governor role cannot be revoked");
+        require(hasAdminRole(_msgSender()), 'Only admin roles can revoke roles');
+        require(role != GOVERNOR, 'Governor role cannot be revoked');
 
         if (hasRole(role, account)) {
             _roles[role][account] = false;
@@ -132,7 +132,7 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param role The keccak256 encoded role string being revoked
      */
     function renounceRole(bytes32 role) public virtual override {
-        require(role != GOVERNOR, "Governor role cannot be renounced");
+        require(role != GOVERNOR, 'Governor role cannot be renounced');
 
         if (hasRole(role, _msgSender())) {
             _roles[role][_msgSender()] = false;

@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Script.sol";
+import 'forge-std/Script.sol';
 
-import "../../src/contracts/actions/nftx/SellNFTForETH.sol";
-import "../../src/contracts/actions/uniswap/SellTokensForETH.sol";
-import "../../src/contracts/authorities/AuthorityRegistry.sol";
-import "../../src/contracts/collections/CollectionRegistry.sol";
-import "../../src/contracts/migrations/MigrateFloorToken.sol";
-import "../../src/contracts/options/Option.sol";
-import "../../src/contracts/options/OptionDistributionWeightingCalculator.sol";
-import "../../src/contracts/options/OptionExchange.sol";
-import "../../src/contracts/pricing/UniswapV3PricingExecutor.sol";
-import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
-import "../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol";
-import "../../src/contracts/strategies/StrategyRegistry.sol";
-import "../../src/contracts/tokens/Floor.sol";
-import "../../src/contracts/vaults/Vault.sol";
-import "../../src/contracts/vaults/VaultFactory.sol";
-import "../../src/contracts/RewardsLedger.sol";
+import '../../src/contracts/actions/nftx/SellNFTForETH.sol';
+import '../../src/contracts/actions/uniswap/SellTokensForETH.sol';
+import '../../src/contracts/authorities/AuthorityRegistry.sol';
+import '../../src/contracts/collections/CollectionRegistry.sol';
+import '../../src/contracts/migrations/MigrateFloorToken.sol';
+import '../../src/contracts/options/Option.sol';
+import '../../src/contracts/options/OptionDistributionWeightingCalculator.sol';
+import '../../src/contracts/options/OptionExchange.sol';
+import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
+import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
+import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
+import '../../src/contracts/strategies/StrategyRegistry.sol';
+import '../../src/contracts/tokens/Floor.sol';
+import '../../src/contracts/vaults/Vault.sol';
+import '../../src/contracts/vaults/VaultFactory.sol';
+import '../../src/contracts/RewardsLedger.sol';
 
 /**
  * Deploys our contracts and validates them on Etherscan.
@@ -83,9 +83,9 @@ contract DeployCoreContracts is Script {
         vm.stopBroadcast();
     }
 
-    function _distributionCalculatorWeights() internal returns (uint256[] memory) {
+    function _distributionCalculatorWeights() internal returns (uint[] memory) {
         // Set our weighting ladder
-        uint256[] memory _weights = new uint[](21);
+        uint[] memory _weights = new uint[](21);
         _weights[0] = 1453;
         _weights[1] = 2758;
         _weights[2] = 2653;

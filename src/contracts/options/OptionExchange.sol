@@ -2,17 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
-import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
+import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
+import '@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol';
 
-import "@murky/Merkle.sol";
+import '@murky/Merkle.sol';
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import "./Option.sol";
-import "./OptionDistributionWeightingCalculator.sol";
-import "../../interfaces/options/OptionExchange.sol";
+import './Option.sol';
+import './OptionDistributionWeightingCalculator.sol';
+import '../../interfaces/options/OptionExchange.sol';
 
 /**
  * The {OptionExchange} will allow FLOOR to be burnt to redeem treasury assets.
@@ -49,10 +49,10 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     OptionPool[] internal pools;
 
     /// ..
-    mapping(uint256 => RequestStatus) public s_requests;
+    mapping(uint => RequestStatus) public s_requests;
 
     /// Maps the poolId to a merkle root
-    mapping(uint256 => bytes32) public optionPoolMerkleRoots;
+    mapping(uint => bytes32) public optionPoolMerkleRoots;
 
     /// We keep a track of the claims mapping the merkle DNA to true/false
     mapping(bytes32 => bool) public optionPoolMerkleRootClaims;
@@ -98,8 +98,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * Provides the `OptionPool` struct data. We sense check that the pool exists
      * and revert if it does not.
      */
-    function getOptionPool(uint256 poolId) external view returns (OptionPool memory) {
-        require(poolId < pools.length, "Pool does not exist");
+    function getOptionPool(uint poolId) external view returns (OptionPool memory) {
+        require(poolId < pools.length, 'Pool does not exist');
         return pools[poolId];
     }
 
@@ -113,14 +113,14 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * Should emit the {OptionPoolCreated} event.
      */
-    function createPool(address token, uint256 amount, uint16 maxDiscount, uint64 expires)
+    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires)
         external
-        returns (uint256 poolId)
+        returns (uint poolId)
     {
         // Sense check our provided data
-        require(expires > block.timestamp, "Pool already expired");
-        require(amount != 0, "No amount specified");
-        require(maxDiscount <= 100, "Max discount over 100%");
+        require(expires > block.timestamp, 'Pool already expired');
+        require(amount != 0, 'No amount specified');
+        require(maxDiscount <= 100, 'Max discount over 100%');
 
         // Create our pool
         pools.push(
@@ -136,7 +136,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         );
 
         // Transfer tokens from Treasury to the pool
-        require(IERC20(token).transferFrom(treasury, address(this), amount), "Unable to transfer from Treasury");
+        require(IERC20(token).transferFrom(treasury, address(this), amount), 'Unable to transfer from Treasury');
 
         poolId = pools.length - 1;
         emit OptionPoolCreated(poolId);
@@ -168,16 +168,16 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * When this call is made, if we have a low balance of $LINK token in our contract
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
-    function generateAllocations(uint256 poolId) external returns (uint256 requestId) {
+    function generateAllocations(uint poolId) external returns (uint requestId) {
         // Confirm that our pool exists
-        require(poolId < pools.length, "Pool does not exist");
+        require(poolId < pools.length, 'Pool does not exist');
 
         // Validate our pool
-        require(pools[poolId].amount != 0, "Pool has no amount");
-        require(pools[poolId].expires > block.timestamp, "Pool already expired");
+        require(pools[poolId].amount != 0, 'Pool has no amount');
+        require(pools[poolId].expires > block.timestamp, 'Pool already expired');
 
         // Confirm we don't already have a pending request for this pool
-        require(pools[poolId].requestId == 0, "Pool has existing request");
+        require(pools[poolId].requestId == 0, 'Pool has existing request');
 
         // Generate our random seed to trigger the process
         requestId = requestRandomness(callbackGasLimit, requestConfirmations, numWords);
@@ -209,25 +209,25 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * We should expect only our defined Oracle to call this method, so validation should
      * be made around this.
      */
-    function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal virtual override {
+    function fulfillRandomWords(uint _requestId, uint[] memory _randomWords) internal virtual override {
         // Confirm that our request is valid
-        require(s_requests[_requestId].paid > 0, "Request not found");
+        require(s_requests[_requestId].paid > 0, 'Request not found');
 
         // Update our request to apply the returned random values
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
 
         // Confirm that we have enough words returned
-        require(_randomWords.length >= numWords, "Insufficient words returned");
+        require(_randomWords.length >= numWords, 'Insufficient words returned');
 
         // Get our pool information
         OptionPool memory pool = pools[s_requests[_requestId].poolId];
 
         // Map our share allocation, which will always be < 100
-        uint256 allocatedAmount;
+        uint allocatedAmount;
 
         // Whilst we have remaining allocation of the pool amount assigned, create options
-        uint256 i;
+        uint i;
         while (allocatedAmount < 100) {
             unchecked {
                 ++i;
@@ -235,10 +235,10 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
             // Get our weighted share allocation. If it is equal to 0, then
             // we set it to 1 as the minimum value.
-            uint256 share = weighting.getShare(_randomWords[0] / 10000 * i);
+            uint share = weighting.getShare(_randomWords[0] / 10000 * i);
 
             // Get our discount allocation
-            uint256 discount = weighting.getDiscount(_randomWords[1] / 10000 * i);
+            uint discount = weighting.getDiscount(_randomWords[1] / 10000 * i);
 
             // If our share allocation puts us over the total pool amount then
             // we just need provide the user the maximum remaining.
@@ -272,7 +272,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
 
         // Get members of the vault and assign them a start and end position based
         // on percentage ownership.
-        for (uint256 k; k < i;) {
+        for (uint k; k < i;) {
             // Wrap our DNA and add to our merkle tree data leaves
             data[k] = bytes32(
                 abi.encodePacked(
@@ -304,8 +304,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * This wants to return a range from 0 - 100 to define rarity. A lower rarity
      * value will be rarer, whilst a higher value will be more common.
      */
-    function rarityScore(uint256 share, uint256 discount, uint256 maxDiscount) public pure returns (uint8) {
-        uint256 x = ((share + discount) * 10000) / (20 + maxDiscount);
+    function rarityScore(uint share, uint discount, uint maxDiscount) public pure returns (uint8) {
+        uint x = ((share + discount) * 10000) / (20 + maxDiscount);
         return uint8(x / 100);
     }
 
@@ -325,9 +325,9 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * Once minted, an ERC721 will be transferred to the recipient that will be used
      * to allow the holder to partially or fully action the option.
      */
-    function mintOptionAllocation(bytes32 dna, uint256 index, bytes32[] calldata merkleProof) external {
+    function mintOptionAllocation(bytes32 dna, uint index, bytes32[] calldata merkleProof) external {
         // Extract our pool ID from the DNA
-        uint256 poolId = uint256(dna << 8);
+        uint poolId = uint(dna << 8);
 
         // Confirm that our pool has not expired
         require(pools[poolId].expires > block.timestamp);
@@ -336,10 +336,10 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
         bytes32 node = keccak256(abi.encodePacked(msg.sender, dna, index));
 
         // Confirm that the leaf is on the merkle tree
-        require(MerkleProof.verify(merkleProof, optionPoolMerkleRoots[poolId], node), "Not found in merkle tree");
+        require(MerkleProof.verify(merkleProof, optionPoolMerkleRoots[poolId], node), 'Not found in merkle tree');
 
         // Confirm that the option has not already been claimed
-        require(!optionPoolMerkleRootClaims[node], "Already claimed");
+        require(!optionPoolMerkleRootClaims[node], 'Already claimed');
 
         // We can now mint our option allocation
         Option option = new Option();
@@ -391,7 +391,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      * If there is no remaining amount in the `OptionPool`, then the `OptionPool` will
      * not be deleted for historical purposes, but would emit the {OptionPoolClosed} event.
      */
-    function action(uint256 tokenId, uint256 floorIn, uint256 tokenOut, uint256 approvedMovement) external {
+    function action(uint tokenId, uint floorIn, uint tokenOut, uint approvedMovement) external {
         //
     }
 
@@ -400,7 +400,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * This will call our {Treasury} to get the required price via the {PriceExecutor}.
      */
-    function getRequiredFloorPrice(address token, uint256 amount) external returns (uint256) {
+    function getRequiredFloorPrice(address token, uint amount) external returns (uint) {
         //
     }
 
@@ -420,9 +420,9 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * This will emit this {OptionPoolClosed} event.
      */
-    function withdraw(uint256 poolId) external {
-        require(pools[poolId].expires < block.timestamp, "Not expired");
-        require(pools[poolId].amount != 0, "Empty");
+    function withdraw(uint poolId) external {
+        require(pools[poolId].expires < block.timestamp, 'Not expired');
+        require(pools[poolId].amount != 0, 'Empty');
 
         IERC20(pools[poolId].token).transfer(treasury, pools[poolId].amount);
 
@@ -435,8 +435,8 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * This should emit the {LinkBalanceIncreased} event.
      */
-    function depositLink(uint256 amount) external {
-        require(IERC20(linkAddress).transferFrom(msg.sender, address(this), amount), "Unable to transfer");
+    function depositLink(uint amount) external {
+        require(IERC20(linkAddress).transferFrom(msg.sender, address(this), amount), 'Unable to transfer');
 
         emit LinkBalanceIncreased(msg.sender, amount);
     }
@@ -458,7 +458,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      */
     function _detectLowLinkBalance() internal {
-        uint256 linkBalance = IERC20(linkAddress).balanceOf(address(this));
+        uint linkBalance = IERC20(linkAddress).balanceOf(address(this));
         if (linkBalance < 10 ether) {
             emit LinkBalanceLow(linkBalance);
         }
@@ -467,12 +467,12 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     /**
      *
      */
-    function getRequestStatus(uint256 _requestId)
+    function getRequestStatus(uint _requestId)
         external
         view
-        returns (uint256 paid, bool fulfilled, uint256[] memory randomWord)
+        returns (uint paid, bool fulfilled, uint[] memory randomWord)
     {
-        require(s_requests[_requestId].paid > 0, "Request not found");
+        require(s_requests[_requestId].paid > 0, 'Request not found');
         RequestStatus memory request = s_requests[_requestId];
         return (request.paid, request.fulfilled, request.randomWords);
     }

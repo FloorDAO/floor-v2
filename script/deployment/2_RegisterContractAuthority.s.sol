@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "forge-std/Script.sol";
+import 'forge-std/Script.sol';
 
-import "../../src/contracts/authorities/AuthorityControl.sol";
-import "../../src/contracts/authorities/AuthorityRegistry.sol";
+import '../../src/contracts/authorities/AuthorityControl.sol';
+import '../../src/contracts/authorities/AuthorityRegistry.sol';
 
 /**
  * Registers our default contract authorities.

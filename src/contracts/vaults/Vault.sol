@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import '@openzeppelin/contracts/access/AccessControl.sol';
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import "../authorities/AuthorityControl.sol";
+import '../authorities/AuthorityControl.sol';
 
-import "../../interfaces/strategies/BaseStrategy.sol";
-import "../../interfaces/vaults/Vault.sol";
+import '../../interfaces/strategies/BaseStrategy.sol';
+import '../../interfaces/vaults/Vault.sol';
 
 contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     address TREASURY;
@@ -23,7 +23,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     /**
      * The numerical ID of the vault that acts as an index for the {VaultFactory}
      */
-    uint256 public vaultId;
+    uint public vaultId;
 
     /**
      * Gets the contract address for the vault collection. Only assets from this contract
@@ -52,13 +52,13 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * the rewards generated for the user, as well as sense check withdrawal
      * request amounts.
      */
-    mapping(address => uint256) public positions;
-    mapping(address => uint256) public pendingPositions;
+    mapping(address => uint) public positions;
+    mapping(address => uint) public pendingPositions;
 
     /**
      * Stores the vault share of users based on their owned position.
      */
-    mapping(address => uint256) public share;
+    mapping(address => uint) public share;
 
     /**
      * Maintain a list of addresses with positions. This allows us to iterate
@@ -70,8 +70,8 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * Maintains a list of our total position to save gas when calculating
      * our address ownership shares.
      */
-    uint256 public totalPosition;
-    uint256 public totalPendingPosition;
+    uint public totalPosition;
+    uint public totalPendingPosition;
 
     /**
      * ...
@@ -83,7 +83,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      */
     function initialize(
         string memory _name,
-        uint256 _vaultId,
+        uint _vaultId,
         address _collection,
         address _strategy,
         address _vaultFactory
@@ -95,24 +95,24 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         vaultId = _vaultId;
 
         // Give our collection max approval
-        IERC20(_collection).approve(_strategy, type(uint256).max);
+        IERC20(_collection).approve(_strategy, type(uint).max);
     }
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
-    function deposit(uint256 amount) external nonReentrant returns (uint256) {
+    function deposit(uint amount) external nonReentrant returns (uint) {
         // Ensure that our vault is not paused
-        require(!paused, "Vault is currently paused");
+        require(!paused, 'Vault is currently paused');
 
         // Transfer tokens from our user to the vault
         IERC20(collection).transferFrom(msg.sender, address(this), amount);
 
         // Deposit the tokens into the strategy. This returns the amount of xToken
         // moved into the position for the address.
-        uint256 receivedAmount = strategy.deposit(amount);
-        require(receivedAmount != 0, "Zero amount received");
+        uint receivedAmount = strategy.deposit(amount);
+        require(receivedAmount != 0, 'Zero amount received');
 
         // Fire events to stalkers
         emit VaultDeposit(msg.sender, collection, receivedAmount);
@@ -134,16 +134,16 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint256 amount) external nonReentrant returns (uint256) {
+    function withdraw(uint amount) external nonReentrant returns (uint) {
         // Ensure we are withdrawing something
-        require(amount > 0, "Insufficient amount requested");
+        require(amount > 0, 'Insufficient amount requested');
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= positions[msg.sender] + pendingPositions[msg.sender], "Insufficient position");
+        require(amount <= positions[msg.sender] + pendingPositions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
-        uint256 receivedAmount = strategy.withdraw(amount);
-        require(receivedAmount != 0, "Zero amount received");
+        uint receivedAmount = strategy.withdraw(amount);
+        require(receivedAmount != 0, 'Zero amount received');
 
         // Transfer the tokens to the user
         IERC20(collection).transfer(msg.sender, receivedAmount);
@@ -194,11 +194,11 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     /**
      *
      */
-    function shares(bool excludeTreasury) external view returns (address[] memory, uint256[] memory) {
+    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory) {
         address[] memory users = new address[](stakers.length);
-        uint256[] memory percentages = new uint[](stakers.length);
+        uint[] memory percentages = new uint[](stakers.length);
 
-        for (uint256 i; i < stakers.length;) {
+        for (uint i; i < stakers.length;) {
             if (!excludeTreasury || stakers[i] == TREASURY) {
                 // TODO: Allow treasury to be excluded
                 users[i] = stakers[i];
@@ -213,10 +213,10 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         return (users, percentages);
     }
 
-    function claimRewards() external returns (uint256) {
+    function claimRewards() external returns (uint) {
         // Claim any unharvested rewards from the strategy
         strategy.claimRewards();
-        uint256 amount = strategy.unmintedRewards();
+        uint amount = strategy.unmintedRewards();
         // TODO: Transfer to treasury?
         strategy.registerMint(amount);
         return amount;
@@ -240,7 +240,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         }
 
         // Calculate our new shares based on new position values
-        for (uint256 i; i < stakers.length;) {
+        for (uint i; i < stakers.length;) {
             // Move our stakers pending position to be an actual position
             if (updatePending && pendingPositions[stakers[i]] != 0) {
                 positions[stakers[i]] += pendingPositions[stakers[i]];

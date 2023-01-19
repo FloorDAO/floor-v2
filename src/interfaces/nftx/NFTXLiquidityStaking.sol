@@ -8,18 +8,18 @@ interface INFTXLiquidityStaking {
     function stakingTokenProvider() external view returns (address);
     function vaultToken(address _stakingToken) external view returns (address);
     function stakingToken(address _vaultToken) external view returns (address);
-    function rewardDistributionToken(uint256 vaultId) external view returns (address);
-    function newRewardDistributionToken(uint256 vaultId) external view returns (address);
-    function oldRewardDistributionToken(uint256 vaultId) external view returns (address);
-    function unusedRewardDistributionToken(uint256 vaultId) external view returns (address);
+    function rewardDistributionToken(uint vaultId) external view returns (address);
+    function newRewardDistributionToken(uint vaultId) external view returns (address);
+    function oldRewardDistributionToken(uint vaultId) external view returns (address);
+    function unusedRewardDistributionToken(uint vaultId) external view returns (address);
     function rewardDistributionTokenAddr(address stakedToken, address rewardToken) external view returns (address);
 
     // Write functions.
-    function receiveRewards(uint256 vaultId, uint256 amount) external returns (bool);
-    function deposit(uint256 vaultId, uint256 amount) external;
-    function timelockDepositFor(uint256 vaultId, address account, uint256 amount, uint256 timelockLength) external;
-    function exit(uint256 vaultId, uint256 amount) external;
-    function rescue(uint256 vaultId) external;
-    function withdraw(uint256 vaultId, uint256 amount) external;
-    function claimRewards(uint256 vaultId) external;
+    function receiveRewards(uint vaultId, uint amount) external returns (bool);
+    function deposit(uint vaultId, uint amount) external;
+    function timelockDepositFor(uint vaultId, address account, uint amount, uint timelockLength) external;
+    function exit(uint vaultId, uint amount) external;
+    function rescue(uint vaultId) external;
+    function withdraw(uint vaultId, uint amount) external;
+    function claimRewards(uint vaultId) external;
 }

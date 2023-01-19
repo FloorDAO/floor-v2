@@ -11,10 +11,10 @@ abstract contract IOptionDistributionCalculator {
     /**
      * Get the share allocation based on the seed.
      */
-    function getShare(uint256 seed) external virtual returns (uint256);
+    function getShare(uint seed) external virtual returns (uint);
 
     /**
      * Get the discount allocation based on the seed.
      */
-    function getDiscount(uint256 seed) external virtual returns (uint256);
+    function getDiscount(uint seed) external virtual returns (uint);
 }

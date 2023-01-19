@@ -12,7 +12,7 @@ pragma solidity ^0.8.0;
  */
 interface IBasePricingExecutor {
     /// @dev When a token price is updated
-    event TokenPriceUpdated(address token, uint256 amount);
+    event TokenPriceUpdated(address token, uint amount);
 
     /**
      * Name of the pricing executor.
@@ -22,20 +22,20 @@ interface IBasePricingExecutor {
     /**
      * Gets our current mapped price of a token to ETH.
      */
-    function getETHPrice(address token) external returns (uint256);
+    function getETHPrice(address token) external returns (uint);
 
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrices(address[] memory token) external returns (uint256[] memory);
+    function getETHPrices(address[] memory token) external returns (uint[] memory);
 
     /**
      * Gets our current mapped price of a token to FLOOR.
      */
-    function getFloorPrice(address token) external returns (uint256);
+    function getFloorPrice(address token) external returns (uint);
 
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrices(address[] memory token) external returns (uint256[] memory);
+    function getFloorPrices(address[] memory token) external returns (uint[] memory);
 }

@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Context.sol";
+import '@openzeppelin/contracts/utils/Context.sol';
 
-import "../../interfaces/authorities/AuthorityControl.sol";
-import "../../interfaces/authorities/AuthorityRegistry.sol";
+import '../../interfaces/authorities/AuthorityControl.sol';
+import '../../interfaces/authorities/AuthorityRegistry.sol';
 
 /**
  * This contract is heavily based on the standardised OpenZeppelin `AccessControl` library.
@@ -24,30 +24,30 @@ import "../../interfaces/authorities/AuthorityRegistry.sol";
  */
 contract AuthorityControl is Context, IAuthorityControl {
     /// CollectionManager - Can approve token addresses to be allowed to be used in vaults
-    bytes32 public constant COLLECTION_MANAGER = keccak256("CollectionManager");
+    bytes32 public constant COLLECTION_MANAGER = keccak256('CollectionManager');
 
     /// FloorManager - Can mint and manage Floor and VeFloor tokens
-    bytes32 public constant FLOOR_MANAGER = keccak256("FloorManager");
+    bytes32 public constant FLOOR_MANAGER = keccak256('FloorManager');
 
     /// Governor - A likely DAO owned vote address to allow for wide scale decisions to
     /// be made and implemented.
-    bytes32 public constant GOVERNOR = keccak256("Governor");
+    bytes32 public constant GOVERNOR = keccak256('Governor');
 
     /// Guardian - Wallet address that will allow for Governor based actions, except without
     /// timeframe restrictions.
-    bytes32 public constant GUARDIAN = keccak256("Guardian");
+    bytes32 public constant GUARDIAN = keccak256('Guardian');
 
     /// StrategyManager - Can approve strategy contracts to be used on vaults
-    bytes32 public constant STRATEGY_MANAGER = keccak256("StrategyManager");
+    bytes32 public constant STRATEGY_MANAGER = keccak256('StrategyManager');
 
     /// TreasuryManager - Access to Treasury asset management
-    bytes32 public constant TREASURY_MANAGER = keccak256("TreasuryManager");
+    bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
 
     /// VaultManager - Can create new vaults against approved strategies and collections
-    bytes32 public constant VAULT_MANAGER = keccak256("VaultManager");
+    bytes32 public constant VAULT_MANAGER = keccak256('VaultManager');
 
     /// VoteManager - Can manage account votes
-    bytes32 public constant VOTE_MANAGER = keccak256("VoteManager");
+    bytes32 public constant VOTE_MANAGER = keccak256('VoteManager');
 
     IAuthorityRegistry public immutable registry;
 
@@ -58,7 +58,7 @@ contract AuthorityControl is Context, IAuthorityControl {
      * @param role The keccak256 encoded role string
      */
     modifier onlyRole(bytes32 role) {
-        require(registry.hasRole(role, _msgSender()), "Account does not have role");
+        require(registry.hasRole(role, _msgSender()), 'Account does not have role');
         _;
     }
 
@@ -67,7 +67,7 @@ contract AuthorityControl is Context, IAuthorityControl {
      * Reverts with a standardized message if sender does not have an admin role.
      */
     modifier onlyAdminRole() {
-        require(registry.hasAdminRole(_msgSender()), "Account does not have admin role");
+        require(registry.hasAdminRole(_msgSender()), 'Account does not have admin role');
         _;
     }
 

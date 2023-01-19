@@ -27,12 +27,12 @@ interface IVeFLOOR {
     /**
      * @dev Returns the amount of tokens in existence.
      */
-    function totalSupply() external view returns (uint256);
+    function totalSupply() external view returns (uint);
 
     /**
      * @dev Returns the amount of tokens owned by `account`.
      */
-    function balanceOf(address account) external view returns (uint256);
+    function balanceOf(address account) external view returns (uint);
 
     /**
      * Creates `_amount` token to `_to`. Must only be called by the owner.
@@ -40,5 +40,5 @@ interface IVeFLOOR {
      * @param _to The address that will receive the mint
      * @param _amount The amount to be minted
      */
-    function mint(address _to, uint256 _amount) external;
+    function mint(address _to, uint _amount) external;
 }

@@ -7,37 +7,37 @@ pragma solidity ^0.8.0;
  */
 interface ITreasury {
     /// @dev When native network token is withdrawn from the Treasury
-    event Deposit(uint256 amount);
+    event Deposit(uint amount);
 
     /// @dev When an ERC20 is depositted into the vault
-    event DepositERC20(address token, uint256 amount);
+    event DepositERC20(address token, uint amount);
 
     /// @dev When an ERC721 is depositted into the vault
-    event DepositERC721(address token, uint256 tokenId);
+    event DepositERC721(address token, uint tokenId);
 
     /// @dev When an ERC1155 is depositted into the vault
-    event DepositERC1155(address token, uint256 tokenId, uint256 amount);
+    event DepositERC1155(address token, uint tokenId, uint amount);
 
     /// @dev When native network token is withdrawn from the Treasury
-    event Withdraw(uint256 amount, address recipient);
+    event Withdraw(uint amount, address recipient);
 
     /// @dev When an ERC20 token is withdrawn from the Treasury
-    event WithdrawERC20(address token, uint256 amount, address recipient);
+    event WithdrawERC20(address token, uint amount, address recipient);
 
     /// @dev When an ERC721 token is withdrawn from the Treasury
-    event WithdrawERC721(address token, uint256 tokenId, address recipient);
+    event WithdrawERC721(address token, uint tokenId, address recipient);
 
     /// @dev When an ERC1155 is withdrawn from the vault
-    event WithdrawERC1155(address token, uint256 tokenId, uint256 amount, address recipient);
+    event WithdrawERC1155(address token, uint tokenId, uint amount, address recipient);
 
     /// @dev When multiplier pool has been updated
-    event MultiplierPoolUpdated(uint256 percent);
+    event MultiplierPoolUpdated(uint percent);
 
     /// @dev When FLOOR is minted
-    event FloorMinted(uint256 amount);
+    event FloorMinted(uint amount);
 
     /// @dev When an epoch has ended
-    event EpochEnded(uint256 timestamp, uint256 totalRewards);
+    event EpochEnded(uint timestamp, uint totalRewards);
 
     /**
      * Distributes reward tokens to the {RewardsLedger}, sending either the FLOOR token
@@ -111,45 +111,45 @@ interface ITreasury {
      * @dev We only want to do this on creation and for inflation. Have a think on how
      * we can implement this!
      */
-    function mint(uint256 amount) external;
+    function mint(uint amount) external;
 
     /**
      * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
      */
-    function depositERC20(address token, uint256 amount) external;
+    function depositERC20(address token, uint amount) external;
 
     /**
      * Allows an ERC721 token to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
      */
-    function depositERC721(address token, uint256 tokenId) external;
+    function depositERC721(address token, uint tokenId) external;
 
     /**
      * Allows an ERC1155 token(s) to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
      */
-    function depositERC1155(address token, uint256 tokenId, uint256 amount) external;
+    function depositERC1155(address token, uint tokenId, uint amount) external;
 
     /**
      * Allows an approved user to withdraw native token.
      */
-    function withdraw(address recipient, uint256 amount) external;
+    function withdraw(address recipient, uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC20 token from the vault.
      */
-    function withdrawERC20(address recipient, address token, uint256 amount) external;
+    function withdrawERC20(address recipient, address token, uint amount) external;
 
     /**
      * Allows an approved user to withdraw and ERC721 token from the vault.
      */
-    function withdrawERC721(address recipient, address token, uint256 tokenId) external;
+    function withdrawERC721(address recipient, address token, uint tokenId) external;
 
     /**
      * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
      */
-    function withdrawERC1155(address recipient, address token, uint256 tokenId, uint256 amount) external;
+    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
      * Allows the RewardsLedger contract address to be set.
@@ -169,7 +169,7 @@ interface ITreasury {
      * Sets the percentage of treasury rewards yield to be retained by the treasury, with
      * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
      */
-    function setRetainedTreasuryYieldPercentage(uint256 percent) external;
+    function setRetainedTreasuryYieldPercentage(uint percent) external;
 
     /**
      * With simple inflation you have people voting for pools that are not necessarily good
@@ -187,7 +187,7 @@ interface ITreasury {
      * So the treasury can have logic that allows us to set a multiplier pool and then a GWV
      * mechanic can decide the distribution
      */
-    function setPoolMultiplierPercentage(uint256 percent) external;
+    function setPoolMultiplierPercentage(uint percent) external;
 
     /**
      * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward

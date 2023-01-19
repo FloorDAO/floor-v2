@@ -13,21 +13,21 @@ pragma solidity ^0.8.0;
  */
 interface IGaugeWeightVote {
     /// Sent when a user casts or revokes their vote
-    event VoteCast(address collection, uint256 amount);
+    event VoteCast(address collection, uint amount);
 
     /// Sent when a snapshot is generated
-    event SnapshotCreated(address[] vault, uint256[] tokens);
+    event SnapshotCreated(address[] vault, uint[] tokens);
 
     /**
      * Mapping collection address -> total amount.
      */
-    function votes(address) external view returns (uint256);
+    function votes(address) external view returns (uint);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
      */
-    function userVotingPower(address _user) external view returns (uint256);
+    function userVotingPower(address _user) external view returns (uint);
 
     /**
      * The total number of votes that a user has available, calculated by:
@@ -36,7 +36,7 @@ interface IGaugeWeightVote {
      * votesAvailable_ = balanceOf(_user) - SUM(userVotes.votes_)
      * ```
      */
-    function userVotesAvailable(address _user) external view returns (uint256 votesAvailable_);
+    function userVotesAvailable(address _user) external view returns (uint votesAvailable_);
 
     /**
      * Provides a list of collection addresses that can be voted on.
@@ -59,13 +59,13 @@ interface IGaugeWeightVote {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(address _collection, uint256 _amount) external returns (uint256 totalVotes_);
+    function vote(address _collection, uint _amount) external returns (uint totalVotes_);
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
-    function revokeVotes(address[] memory _collection, uint256[] memory _amount) external;
+    function revokeVotes(address[] memory _collection, uint[] memory _amount) external;
 
     /**
      * Allows an authorised contract or wallet to revoke all user votes. This
@@ -110,5 +110,5 @@ interface IGaugeWeightVote {
      * percentage in the vault. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot(uint256 tokens) external returns (address[] memory users_, uint256[] memory userTokens_);
+    function snapshot(uint tokens) external returns (address[] memory users_, uint[] memory userTokens_);
 }

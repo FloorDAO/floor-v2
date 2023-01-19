@@ -15,7 +15,7 @@ pragma solidity ^0.8.0;
 
 interface IVaultFactory {
     /// @dev Sent when a vault is created successfully
-    event VaultCreated(uint256 indexed vaultId, address vaultAddress, address assetAddress);
+    event VaultCreated(uint indexed vaultId, address vaultAddress, address assetAddress);
 
     /// @dev Sent when a vault is paused or unpaused
     event VaultCreationPaused(bool paused);
@@ -33,12 +33,12 @@ interface IVaultFactory {
     /**
      * Provides a vault against the provided `vaultId` (index).
      */
-    function vault(uint256 _vaultId) external view returns (address);
+    function vault(uint _vaultId) external view returns (address);
 
     /**
      * Creates a vault with an approved strategy and collection.
      */
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
-        returns (uint256 vaultId_, address vaultAddr_);
+        returns (uint vaultId_, address vaultAddr_);
 }

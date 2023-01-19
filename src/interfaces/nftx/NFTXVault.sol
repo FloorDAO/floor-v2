@@ -14,20 +14,18 @@ interface INFTXVault {
     function enableRandomSwap() external view returns (bool);
     function enableTargetSwap() external view returns (bool);
 
-    function vaultId() external view returns (uint256);
-    function nftIdAt(uint256 holdingsIndex) external view returns (uint256);
-    function allHoldings() external view returns (uint256[] memory);
-    function totalHoldings() external view returns (uint256);
-    function mintFee() external view returns (uint256);
-    function randomRedeemFee() external view returns (uint256);
-    function targetRedeemFee() external view returns (uint256);
-    function randomSwapFee() external view returns (uint256);
-    function targetSwapFee() external view returns (uint256);
-    function vaultFees() external view returns (uint256, uint256, uint256, uint256, uint256);
+    function vaultId() external view returns (uint);
+    function nftIdAt(uint holdingsIndex) external view returns (uint);
+    function allHoldings() external view returns (uint[] memory);
+    function totalHoldings() external view returns (uint);
+    function mintFee() external view returns (uint);
+    function randomRedeemFee() external view returns (uint);
+    function targetRedeemFee() external view returns (uint);
+    function randomSwapFee() external view returns (uint);
+    function targetSwapFee() external view returns (uint);
+    function vaultFees() external view returns (uint, uint, uint, uint, uint);
 
-    function redeem(uint256 amount, uint256[] calldata specificIds) external returns (uint256[] calldata);
+    function redeem(uint amount, uint[] calldata specificIds) external returns (uint[] calldata);
 
-    function redeemTo(uint256 amount, uint256[] calldata specificIds, address to)
-        external
-        returns (uint256[] calldata);
+    function redeemTo(uint amount, uint[] calldata specificIds, address to) external returns (uint[] calldata);
 }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./authorities/AuthorityControl.sol";
+import './authorities/AuthorityControl.sol';
 
-import "../interfaces/tokens/Floor.sol";
-import "../interfaces/tokens/VeFloor.sol";
-import "../interfaces/RewardsLedger.sol";
-import "../interfaces/Treasury.sol";
+import '../interfaces/tokens/Floor.sol';
+import '../interfaces/tokens/VeFloor.sol';
+import '../interfaces/RewardsLedger.sol';
+import '../interfaces/Treasury.sol';
 
 /**
  * @dev The rewards ledger holds all available rewards available to be claimed
@@ -26,10 +26,10 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     address public immutable treasury;
 
     // Maintains a mapping of available token amounts by recipient
-    mapping(address => mapping(address => uint256)) internal allocations;
+    mapping(address => mapping(address => uint)) internal allocations;
 
     // Maintains a mapping of claimed token amounts by recipient
-    mapping(address => mapping(address => uint256)) public claimed;
+    mapping(address => mapping(address => uint)) public claimed;
 
     // Maintain a list of token addresses that the recipient has either currently, or
     // previously, had an allocation of. This allows us to iterate mappings.
@@ -57,15 +57,15 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      *
      * This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint256 amount) external returns (uint256) {
+    function allocate(address recipient, address token, uint amount) external returns (uint) {
         // We don't want to allow NULL address allocation
-        require(token != address(0), "Invalid token");
+        require(token != address(0), 'Invalid token');
 
         // Prevent zero values being allocated and wasting gas
-        require(amount != 0, "Invalid amount");
+        require(amount != 0, 'Invalid amount');
 
         // Ensure that it is our treasury sending the request
-        require(msg.sender == treasury, "Only treasury can allocate");
+        require(msg.sender == treasury, 'Only treasury can allocate');
 
         // Allocate the token amount to recipient token
         allocations[recipient][token] += amount;
@@ -87,19 +87,19 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     /**
      * Get the amount of available token for the recipient.
      */
-    function available(address recipient, address token) external view returns (uint256) {
+    function available(address recipient, address token) external view returns (uint) {
         return allocations[recipient][token];
     }
 
     /**
      * Get all tokens available to the recipient, as well as the amounts of each token.
      */
-    function availableTokens(address recipient) external view returns (address[] memory, uint256[] memory) {
-        uint256 length = tokens[recipient].length;
+    function availableTokens(address recipient) external view returns (address[] memory, uint[] memory) {
+        uint length = tokens[recipient].length;
         address[] memory tokens_ = new address[](length);
-        uint256[] memory amounts_ = new uint[](length);
+        uint[] memory amounts_ = new uint[](length);
 
-        for (uint256 i; i < tokens[recipient].length;) {
+        for (uint i; i < tokens[recipient].length;) {
             tokens_[i] = tokens[recipient][i];
             amounts_[i] = allocations[recipient][tokens[recipient][i]];
 
@@ -122,15 +122,15 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * If the user is claiming FLOOR token from the {Treasury}, then it will need
      * to call the `mint` function as the {Treasury} won't hold it already.
      */
-    function claim(address token, uint256 amount) external returns (uint256) {
+    function claim(address token, uint amount) external returns (uint) {
         // Ensure that we haven't paused claims
-        require(!paused, "Claiming currently paused");
+        require(!paused, 'Claiming currently paused');
 
         // Ensure that we aren't sending up a zero value for claim
-        require(amount != 0, "Invalid amount");
+        require(amount != 0, 'Invalid amount');
 
         // Ensure that the recipient has sufficient allocation of the requested token
-        require(allocations[msg.sender][token] >= amount, "Insufficient allocation");
+        require(allocations[msg.sender][token] >= amount, 'Insufficient allocation');
 
         // Decrement our recipients allocation before actioning the transfer to avoid
         // reentrancy issues.

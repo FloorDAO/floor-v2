@@ -16,10 +16,10 @@ pragma solidity ^0.8.0;
 
 interface IRewardsLedger {
     /// @dev Emitted when rewards are allocated to a user
-    event RewardsAllocated(address recipient, address token, uint256 amount);
+    event RewardsAllocated(address recipient, address token, uint amount);
 
     /// @dev Emitted when rewards are claimed by a user
-    event RewardsClaimed(address recipient, address token, uint256 amount);
+    event RewardsClaimed(address recipient, address token, uint amount);
 
     /// @dev Emitted when rewards claiming is paused or unpaused
     event RewardsPaused(bool paused);
@@ -34,12 +34,12 @@ interface IRewardsLedger {
      * information will be stored in a {RewardToken}, either creating or updating the
      * struct. This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint256 amount) external returns (uint256 available);
+    function allocate(address recipient, address token, uint amount) external returns (uint available);
 
     /**
      * Get the amount of available token for the recipient.
      */
-    function available(address recipient, address token) external view returns (uint256);
+    function available(address recipient, address token) external view returns (uint);
 
     /**
      * Get all tokens available to the recipient, as well as the amounts of each token.
@@ -47,7 +47,7 @@ interface IRewardsLedger {
     function availableTokens(address recipient)
         external
         view
-        returns (address[] memory tokens_, uint256[] memory amounts_);
+        returns (address[] memory tokens_, uint[] memory amounts_);
 
     /**
      * These tokens are stored in the {Treasury}, but will be allowed access from
@@ -60,7 +60,7 @@ interface IRewardsLedger {
      * If the user is claiming FLOOR token from the {Treasury}, then it will need
      * to call the `mint` function as the {Treasury} won't hold it already.
      */
-    function claim(address token, uint256 amount) external returns (uint256 totalClaimed);
+    function claim(address token, uint amount) external returns (uint totalClaimed);
 
     /**
      * Allows our governance to pause rewards being claimed. This should be used

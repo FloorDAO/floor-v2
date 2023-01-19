@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/Base64.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
+import '@openzeppelin/contracts/utils/Counters.sol';
+import '@openzeppelin/contracts/utils/Base64.sol';
+import '@openzeppelin/contracts/utils/Counters.sol';
 
-import "../../interfaces/options/Option.sol";
+import '../../interfaces/options/Option.sol';
 
 contract Option is ERC721URIStorage {
     using Counters for Counters.Counter;
@@ -16,7 +16,7 @@ contract Option is ERC721URIStorage {
     // can be burned (destroyed), so we need a separate counter.
     Counters.Counter private _tokenIdTracker;
 
-    constructor() ERC721("FloorOption", "FOPT") {}
+    constructor() ERC721('FloorOption', 'FOPT') {}
 
     /**
      * The DNA of our Option defines the struct of our Option, but without the
@@ -39,40 +39,40 @@ contract Option is ERC721URIStorage {
      *  return (_c << 4) | _d;
      * }
      */
-    mapping(uint256 => bytes32) private dna;
+    mapping(uint => bytes32) private dna;
 
     /**
      * Gets the allocation granted to the Option.
      */
-    function allocation(uint256 tokenId) public view returns (uint256) {
+    function allocation(uint tokenId) public view returns (uint) {
         return sliceUint(dna[tokenId], 0);
     }
 
     /**
      * Gets the reward amount granted to the Option.
      */
-    function rewardAmount(uint256 tokenId) public view returns (uint256) {
+    function rewardAmount(uint tokenId) public view returns (uint) {
         return sliceUint(dna[tokenId], 8);
     }
 
     /**
      * Gets the rarity of the Option, calculated at point of mint.
      */
-    function rarity(uint256 tokenId) public view returns (uint256) {
+    function rarity(uint tokenId) public view returns (uint) {
         return sliceUint(dna[tokenId], 16);
     }
 
     /**
      * Gets the pool ID that the Option is attributed to.
      */
-    function poolId(uint256 tokenId) public view returns (uint256) {
+    function poolId(uint tokenId) public view returns (uint) {
         return sliceUint(dna[tokenId], 20);
     }
 
     /**
      * Takes a bytes input and converts it to an integer
      */
-    function sliceUint(bytes32 bs, uint256 start) internal pure returns (uint256 x) {
+    function sliceUint(bytes32 bs, uint start) internal pure returns (uint x) {
         assembly {
             x := mload(add(bs, add(0x20, start)))
         }
@@ -93,7 +93,7 @@ contract Option is ERC721URIStorage {
      */
     function baseURI() public pure returns (string memory) {}
 
-    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+    function _beforeTokenTransfer(address from, address to, uint firstTokenId, uint batchSize)
         internal
         virtual
         override

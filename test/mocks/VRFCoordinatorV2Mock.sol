@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import '@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol';
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 /**
  * A mock for testing code that relies on Chainlink VRFCoordinatorV2.
@@ -13,7 +13,7 @@ contract VRFCoordinatorV2Mock {
     uint96 public immutable GAS_PRICE_LINK;
     address public immutable LINK_TOKEN;
 
-    uint256 s_nextRequestId;
+    uint s_nextRequestId;
 
     /**
      * Set up our contract parameters.
@@ -31,15 +31,15 @@ contract VRFCoordinatorV2Mock {
      * @param _consumer The VRF randomness consumer to send the result to
      * @param _numWords The number of words to generate
      */
-    function fulfillRandomWords(uint256 _requestId, address _consumer, uint256 _numWords) public {
+    function fulfillRandomWords(uint _requestId, address _consumer, uint _numWords) public {
         // We need to ensure that we received enough words
-        require(_numWords != 0, "Invalid number of words requested");
+        require(_numWords != 0, 'Invalid number of words requested');
 
         // Generate a series of random uints based on the requestId and loop
         // iteration.
-        uint256[] memory _words = new uint[](_numWords);
-        for (uint256 i; i < _numWords;) {
-            _words[i] = uint256(keccak256(abi.encode(_requestId, i)));
+        uint[] memory _words = new uint[](_numWords);
+        for (uint i; i < _numWords;) {
+            _words[i] = uint(keccak256(abi.encode(_requestId, i)));
             unchecked {
                 ++i;
             }
@@ -51,11 +51,11 @@ contract VRFCoordinatorV2Mock {
         VRFConsumerBaseV2 v;
         bytes memory callReq = abi.encodeWithSelector(v.rawFulfillRandomWords.selector, _requestId, _words);
         (bool success,) = _consumer.call{gas: 250000}(callReq);
-        require(success, "Unable to send response");
+        require(success, 'Unable to send response');
 
         // We now take a LINK payment to fund the transaction.
         uint96 payment = BASE_FEE * GAS_PRICE_LINK;
-        require(IERC20(LINK_TOKEN).transferFrom(_consumer, address(this), payment), "Insufficient balance");
+        require(IERC20(LINK_TOKEN).transferFrom(_consumer, address(this), payment), 'Insufficient balance');
     }
 
     /**
@@ -63,7 +63,7 @@ contract VRFCoordinatorV2Mock {
      * this would wait for a number of confirmations and it would be sent back
      * asynchronously.
      */
-    function requestRandomWords(uint32, uint16, uint32 _numWords) external returns (uint256 requestId) {
+    function requestRandomWords(uint32, uint16, uint32 _numWords) external returns (uint requestId) {
         // Bump up our seeding variable
         requestId = s_nextRequestId++;
 
@@ -77,7 +77,7 @@ contract VRFCoordinatorV2Mock {
     /**
      * We set a static request price of 0.01.
      */
-    function calculateRequestPrice(uint32) external pure returns (uint256) {
+    function calculateRequestPrice(uint32) external pure returns (uint) {
         return 10e16;
     }
 
@@ -85,14 +85,14 @@ contract VRFCoordinatorV2Mock {
      * This would normally be used to monitor subscription balances, but we aren't
      * interested in monitoring this in our mock.
      */
-    function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external pure {
+    function onTokenTransfer(address sender, uint amount, bytes calldata data) external pure {
         //
     }
 
     /**
      * Helper function to return the last request ID sent.
      */
-    function lastRequestId() external view returns (uint256) {
+    function lastRequestId() external view returns (uint) {
         return s_nextRequestId;
     }
 }

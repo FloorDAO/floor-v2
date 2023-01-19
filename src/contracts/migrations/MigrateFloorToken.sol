@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import "../tokens/Floor.sol";
-import "../../interfaces/migrations/MigrateFloorToken.sol";
+import '../tokens/Floor.sol';
+import '../../interfaces/migrations/MigrateFloorToken.sol';
 
 /**
  * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
@@ -25,7 +25,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
         0x164AFe96912099543BC2c48bb9358a095Db8e784 // sFloor
     ];
 
-    event FloorMigrated(address caller, uint256 amount);
+    event FloorMigrated(address caller, uint amount);
 
     address public immutable newFloor;
 
@@ -33,14 +33,14 @@ contract MigrateFloorToken is IMigrateFloorToken {
         newFloor = _newFloor;
     }
 
-    function mintTokens(uint256 _amount) external override {
+    function mintTokens(uint _amount) external override {
         FLOOR(newFloor).mint(address(this), _amount);
     }
 
     function upgradeFloorToken() external override {
         // Keep a running total of allocated tokens
-        uint256 floorAllocation;
-        uint256 tokenBalance;
+        uint floorAllocation;
+        uint tokenBalance;
         IERC20 token;
 
         // Loop through the tokens
@@ -67,7 +67,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
             }
         }
 
-        require(floorAllocation > 0, "No tokens available to migrate");
+        require(floorAllocation > 0, 'No tokens available to migrate');
 
         // Mint our FLOOR tokens to the sender
         FLOOR(newFloor).mint(msg.sender, floorAllocation);

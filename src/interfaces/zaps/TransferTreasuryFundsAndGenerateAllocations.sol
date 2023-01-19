@@ -15,5 +15,5 @@ interface ITransferTreasuryFundsAndGenerateAllocationsZap {
      *  - createPool
      *  - generateAllocations
      */
-    function execute(address token, uint256 amount, uint256 maxDiscount, uint256 expires) external;
+    function execute(address token, uint amount, uint maxDiscount, uint expires) external;
 }

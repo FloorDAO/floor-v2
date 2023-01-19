@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
-import "../authorities/AuthorityControl.sol";
+import '../authorities/AuthorityControl.sol';
 
-import "../../interfaces/nftx/NFTXInventoryStaking.sol";
-import "../../interfaces/strategies/BaseStrategy.sol";
+import '../../interfaces/nftx/NFTXInventoryStaking.sol';
+import '../../interfaces/strategies/BaseStrategy.sol';
 
 /**
  * Supports an Inventory Staking position against a single NFTX vault. This strategy
@@ -22,7 +22,7 @@ import "../../interfaces/strategies/BaseStrategy.sol";
  */
 contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
     bytes32 public name;
-    uint256 public vaultId;
+    uint public vaultId;
     address public vaultAddr;
 
     address public pool;
@@ -46,7 +46,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint256 public mintedRewards;
+    uint public mintedRewards;
 
     /**
      * This will return the internally tracked value of tokens that have been claimed by
@@ -54,14 +54,14 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint256 private lifetimeRewards;
+    uint private lifetimeRewards;
 
     /**
      * This will return the internally tracked value of all deposits made into the strategy.
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint256 public deposits;
+    uint public deposits;
 
     /**
      * ...
@@ -73,7 +73,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
     /**
      * ...
      */
-    function initialize(uint256 _vaultId, address _vaultAddr, bytes memory initData) public initializer {
+    function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
         (address _pool, address _underlyingToken, address _yieldToken, address _inventoryStaking, address _treasury) =
             abi.decode(initData, (address, address, address, address, address));
 
@@ -86,7 +86,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
 
-        IERC20(underlyingToken).approve(inventoryStaking, type(uint256).max);
+        IERC20(underlyingToken).approve(inventoryStaking, type(uint).max);
     }
 
     /**
@@ -101,10 +101,10 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      */
-    function deposit(uint256 amount) external onlyVault returns (uint256 amount_) {
-        require(amount != 0, "Cannot deposit 0");
+    function deposit(uint amount) external onlyVault returns (uint amount_) {
+        require(amount != 0, 'Cannot deposit 0');
 
-        uint256 startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
+        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
         INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
 
@@ -124,10 +124,10 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * - InventoryStaking.withdraw the difference to get the reward
      * - Distribute yield
      */
-    function withdraw(uint256 amount) external onlyVault returns (uint256 amount_) {
-        require(amount != 0, "Cannot claim 0");
+    function withdraw(uint amount) external onlyVault returns (uint amount_) {
+        require(amount != 0, 'Cannot claim 0');
 
-        uint256 startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
         INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
 
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
@@ -145,11 +145,11 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * - LiquidityStaking.claimRewards
      * - Distribute yield
      */
-    function claimRewards() public returns (uint256 amount_) {
+    function claimRewards() public returns (uint amount_) {
         amount_ = this.rewardsAvailable();
         if (amount_ != 0) {
             bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
-            require(success, "Unable to claim rewards");
+            require(success, 'Unable to claim rewards');
         }
 
         lifetimeRewards += amount_;
@@ -165,7 +165,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function rewardsAvailable() external view returns (uint256) {
+    function rewardsAvailable() external view returns (uint) {
         return INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
     }
 
@@ -174,7 +174,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function totalRewardsGenerated() external view returns (uint256) {
+    function totalRewardsGenerated() external view returns (uint) {
         return this.rewardsAvailable() + lifetimeRewards;
     }
 
@@ -186,7 +186,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function unmintedRewards() external view returns (uint256 amount_) {
+    function unmintedRewards() external view returns (uint amount_) {
         return IERC20(yieldToken).balanceOf(address(this));
     }
 
@@ -195,7 +195,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      */
-    function registerMint(uint256 amount) external onlyRole(TREASURY_MANAGER) {}
+    function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
 
     /**
      * Allows us to restrict calls to only be made by the connected vaultId.
