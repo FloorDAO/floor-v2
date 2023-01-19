@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import './authorities/AuthorityControl.sol';
 
 import '../interfaces/tokens/Floor.sol';
-import '../interfaces/tokens/VeFloor.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
 
@@ -22,7 +21,6 @@ import '../interfaces/Treasury.sol';
 contract RewardsLedger is AuthorityControl, IRewardsLedger {
     // Addresses of our internal contracts, assigned in the constructor
     IFLOOR public immutable floor;
-    IVeFLOOR public immutable veFloor;
     address public immutable treasury;
 
     // Maintains a mapping of available token amounts by recipient
@@ -43,9 +41,8 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      */
-    constructor(address _authority, address _floor, address _veFloor, address _treasury) AuthorityControl(_authority) {
+    constructor(address _authority, address _floor, address _treasury) AuthorityControl(_authority) {
         floor = IFLOOR(_floor);
-        veFloor = IVeFLOOR(_veFloor);
         treasury = _treasury;
     }
 
@@ -142,20 +139,12 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // If the user is claiming floor token it will need to be minted from
         // the {Treasury}, as opposed to just being transferred.
         if (token == address(floor)) {
-            // TODO: Mint this as floor and then stake on user's behalf into the
-            // {VeFloorStaking} contract.
+            // First we send the floor token to the recipient, as the staking contract will take
+            // the tokens from the origin caller, not the contract that calls it.
+            floor.transfer(msg.sender, amount);
 
-            // TODO: Floor should already be minted into this contract from the
-            // `endEpoch` function before done.
-
-            // TODO: Remove mint call
-            // Mint the floor token allocation to the recipient
-            // floor.mint(msg.sender, amount);
-        }
-        // TODO: Remove this conditional
-        else if (token == address(veFloor)) {
-            // Mint the floor token allocation to the recipient
-            veFloor.mint(msg.sender, amount);
+            // Stake the tokens into the {VeFloorStaking} contract
+            staking.deposit(amount);
         } else {
             // Transfer the tokens from the {Treasury} to the recipient
             ITreasury(treasury).withdrawERC20(msg.sender, token, amount);

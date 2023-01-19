@@ -172,24 +172,6 @@ interface ITreasury {
     function setRetainedTreasuryYieldPercentage(uint percent) external;
 
     /**
-     * With simple inflation you have people voting for pools that are not necessarily good
-     * for yield. With a yield multiplier people will only benefit if they vote for vaults
-     * that are productive. Users could vote to distribute from a multiplier pool, say 200%,
-     * boost and split that multiplier across vaults in the GWV.
-     *
-     * The DAO can adjust the size of the multiplier pool.
-     *
-     * So if all users voted for the PUNK vault it'd have a 200% multiplier. This would act
-     * as ongoing inflation (tied to yield), which the DAO can adjust to target some overall
-     * inflation amount. Then treasury yield can be left in treasury and not redirected to
-     * vaults. The DAO can use that yield to do giveaways/promotions.
-     *
-     * So the treasury can have logic that allows us to set a multiplier pool and then a GWV
-     * mechanic can decide the distribution
-     */
-    function setPoolMultiplierPercentage(uint percent) external;
-
-    /**
      * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward
      * tokens will be distributed directly, otherwise they will be converted to FLOOR token
      * first and then distributed.

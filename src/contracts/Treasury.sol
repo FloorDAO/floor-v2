@@ -14,7 +14,6 @@ import '../interfaces/collections/CollectionRegistry.sol';
 import '../interfaces/pricing/BasePricingExecutor.sol';
 import '../interfaces/strategies/StrategyRegistry.sol';
 import '../interfaces/tokens/Floor.sol';
-import '../interfaces/tokens/VeFloor.sol';
 import '../interfaces/vaults/Vault.sol';
 import '../interfaces/vaults/VaultFactory.sol';
 import '../interfaces/voting/GaugeWeightVote.sol';
@@ -40,7 +39,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     // Track our internal tokens
     IFLOOR public floor;
-    IVeFLOOR public veFloor;
 
     // Track our rewards ledger
     IRewardsLedger public rewardsLedger;
@@ -50,9 +48,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     // Track if floor minting is paused
     bool public floorMintingPaused;
-
-    // ..
-    uint public poolMultiplierPercentage;
 
     // ..
     uint public retainedTreasuryYieldPercentage;
@@ -72,14 +67,12 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         address _collectionRegistry,
         address _strategyRegistry,
         address _vaultFactory,
-        address _floor,
-        address _veFloor
+        address _floor
     ) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         floor = IFLOOR(_floor);
-        veFloor = IVeFLOOR(_veFloor);
     }
 
     /**
@@ -149,9 +142,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Get the prices of our approved collections
         this.getCollectionFloorPrices();
 
-        // Store the public and treasury yield generated, converted into veFLOOR
-        // token equivalent value. This will only be allocated is `floorMintingPaused`
-        // is False.
+        // Store the public and treasury yield generated, converted into floor token
+        // equivalent value. This will only be allocated is `floorMintingPaused` is False.
         uint treasuryFloorYield;
         uint publicFloorYield;
 
@@ -180,7 +172,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                         treasuryFloorYield += (vaultYield * percents[j]) / 100;
                     } else {
                         publicFloorYield += (vaultYield * percents[j]) / 100;
-                        rewardsLedger.allocate(users[j], address(veFloor), (vaultYield * percents[j]) / 100);
+                        rewardsLedger.allocate(users[j], address(floor), (vaultYield * percents[j]) / 100);
                     }
                 }
 
@@ -204,27 +196,30 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         }
 
         uint yieldRewards;
-        if (!floorMintingPaused && treasuryFloorYield != 0) {
-            // Determine the total amount of snapshot tokens. This should be calculated as all
-            // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-            // of the treasuryFloorYield.
-            yieldRewards = (treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000;
-            (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
+        if (!floorMintingPaused) {
+            // Mint floor tokens to the rewards ledger to cover the upcoming claims
+            floor.mint(address(rewardsLedger), publicFloorYield + yieldRewards);
 
-            // We can now register the user and veFloor token allocations from the snapshot into the
-            // {RewardsLedger} for the users to redeem when ready.
-            for (uint i; i < tokenUsers.length;) {
-                rewardsLedger.allocate(tokenUsers[i], address(veFloor), tokens[i]);
-                unchecked {
-                    ++i;
+            if (treasuryFloorYield != 0) {
+                // Determine the total amount of snapshot tokens. This should be calculated as all
+                // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+                // of the treasuryFloorYield.
+                yieldRewards = (treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000;
+                (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
+
+                // We can now register the user and floor token allocations from the snapshot into the
+                // {RewardsLedger} for the users to redeem when ready.
+                for (uint i; i < tokenUsers.length;) {
+                    rewardsLedger.allocate(tokenUsers[i], address(floor), tokens[i]);
+                    unchecked {
+                        ++i;
+                    }
                 }
             }
         }
 
-        // TODO: Mint floor here! :)
-
-        lastEpoch = block.timestamp;
         emit EpochEnded(block.timestamp, publicFloorYield + yieldRewards);
+        lastEpoch = block.timestamp;
     }
 
     /**
@@ -340,29 +335,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     function setRetainedTreasuryYieldPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
         require(percent <= 10000, 'Percentage too high');
         retainedTreasuryYieldPercentage = percent;
-    }
-
-    /**
-     * With simple inflation you have people voting for pools that are not necessarily good
-     * for yield. With a yield multiplier people will only benefit if they vote for vaults
-     * that are productive. Users could vote to distribute from a multiplier pool, say 200%,
-     * boost and split that multiplier across vaults in the GWV.
-     *
-     * The DAO can adjust the size of the multiplier pool.
-     *
-     * So if all users voted for the PUNK vault it'd have a 200% multiplier. This would act
-     * as ongoing inflation (tied to yield), which the DAO can adjust to target some overall
-     * inflation amount. Then treasury yield can be left in treasury and not redirected to
-     * vaults. The DAO can use that yield to do giveaways/promotions.
-     *
-     * So the treasury can have logic that allows us to set a multiplier pool and then a GWV
-     * mechanic can decide the distribution
-     */
-
-    // TODO: Drop multiplier stuff
-    function setPoolMultiplierPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
-        poolMultiplierPercentage = percent;
-        emit MultiplierPoolUpdated(percent);
     }
 
     /**
