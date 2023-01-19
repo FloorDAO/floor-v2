@@ -27,12 +27,10 @@ contract UniswapSellTokensForETHTest is FloorTest {
     // Store the treasury address
     address treasury;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
-
     /**
      * Sets up our mainnet fork and register our action contract.
      */
-    function setUp() public {
+    constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our Treasury. In this test we will just use an account that
         // we know has the tokens that we need. This test will need to be updated
         // when our {Treasury} contract is completed.
@@ -54,12 +52,12 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
         // Action our trade
         uint256 amountOut = action.execute(
-            abi.encodePacked(
-                USDC, // token0
-                USDC_FEE, // fee
-                uint256(10000000000), // amountIn
-                uint256(1), // amountOutMinimum
-                block.timestamp // deadline
+            abi.encode(
+                address(USDC), // token0
+                uint24(USDC_FEE), // fee
+                uint(10000000000), // amountIn
+                uint(1), // amountOutMinimum
+                uint(block.timestamp) // deadline
             )
         );
 
@@ -80,7 +78,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
         vm.expectRevert();
         action.execute(
-            abi.encodePacked(
+            abi.encode(
                 USDC, // token0
                 USDC_FEE, // fee
                 uint256(10000000000), // amountIn
@@ -104,7 +102,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
         vm.expectRevert("Too little received");
         action.execute(
-            abi.encodePacked(
+            abi.encode(
                 USDC, // token0
                 USDC_FEE, // fee
                 uint256(10000000000), // amountIn

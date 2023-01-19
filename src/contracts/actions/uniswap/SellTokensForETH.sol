@@ -31,14 +31,14 @@ contract UniswapSellTokensForETH is IAction {
     /**
      * Store our required information to action a swap.
      *
-     * @member token0 The contract address of the token being swapped
-     * @member fee The fee tier of the pool, used to determine the correct pool
+     * @param token0 The contract address of the token being swapped
+     * @param fee The fee tier of the pool, used to determine the correct pool
      * contract in which to execute the swap
-     * @member amountIn The amount of the token actually spent in the swap
-     * @member amountOutMinimum The minimum amount of WETH to receive. This helps
+     * @param amountIn The amount of the token actually spent in the swap
+     * @param amountOutMinimum The minimum amount of WETH to receive. This helps
      * protect against getting an unusually bad price for a trade due to a front
      * running sandwich or another type of price manipulation
-     * @member deadline The unix time after which a swap will fail, to protect
+     * @param deadline The unix time after which a swap will fail, to protect
      * against long-pending transactions and wild swings in prices
      */
     struct ActionRequest {

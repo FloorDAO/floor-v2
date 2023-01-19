@@ -60,7 +60,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
 
         // Action our trade
         uint256 amountOut = action.execute(
-            abi.encodePacked(
+            abi.encode(
                 RBC_CONTRACT, // asset
                 uint256(269), // vaultId
                 tokens, // tokenIds
@@ -97,7 +97,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         // Action our trade
         vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
         action.execute(
-            abi.encodePacked(
+            abi.encode(
                 RBC_CONTRACT, // asset
                 uint256(269), // vaultId
                 tokens, // tokenIds
