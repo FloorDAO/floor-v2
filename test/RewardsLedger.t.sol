@@ -7,9 +7,13 @@ import "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 import "../src/contracts/collections/CollectionRegistry.sol";
 import {veFLOOR} from "../src/contracts/tokens/VeFloor.sol";
 import "../src/contracts/tokens/Floor.sol";
+import "../src/contracts/staking/VeFloorStaking.sol";
 import "../src/contracts/strategies/StrategyRegistry.sol";
+import {GaugeWeightVote} from '../src/contracts/voting/GaugeWeightVote.sol';
 import "../src/contracts/RewardsLedger.sol";
 import "../src/contracts/Treasury.sol";
+
+import '../src/interfaces/voting/GaugeWeightVote.sol';
 
 import "./utilities/Environments.sol";
 
@@ -19,9 +23,11 @@ contract RewardsLedgerTest is FloorTest {
     veFLOOR veFloor;
     ERC20Mock erc20;
     CollectionRegistry collectionRegistry;
+    GaugeWeightVote gaugeWeightVote;
     RewardsLedger rewards;
     StrategyRegistry strategyRegistry;
     Treasury treasury;
+    VeFloorStaking veFloorStaking;
 
     /**
      * ..
@@ -45,30 +51,57 @@ contract RewardsLedgerTest is FloorTest {
             address(authorityRegistry),
             address(collectionRegistry), // address _collectionRegistry,
             address(strategyRegistry), // address _strategyRegistry,
-            address(this),
-            address(floor),
-            address(veFloor)
+            address(this),  // VaultFactory not needed
+            address(floor)
+        );
+
+        // Create our {GaugeWeightVote} contract
+        gaugeWeightVote = new GaugeWeightVote(
+            address(collectionRegistry),
+            address(this),  // Vault factory but not needed
+            address(veFloor),
+            address(authorityRegistry)
+        );
+
+        // Set up our {VeFloorStaking}
+        veFloorStaking = new VeFloorStaking(
+            address(authorityRegistry),
+            floor,
+            veFloor,
+            gaugeWeightVote,
+            1 ether,
+            1 ether,
+            5,
+            50,
+            20000
         );
 
         // Set up our {RewardsLedger}
         rewards = new RewardsLedger(
             address(authorityRegistry),
             address(floor),
-            address(veFloor),
+            address(veFloorStaking),
             address(treasury)
         );
 
-        // Set up our {RewardsLedger} to be a {FLOOR_MANAGER} so that it can correctly
-        // mint Floor and veFloor on claims.
-        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(rewards));
+        // Grant our {Treasury} contract the {REWARDS_MANAGER} role so we can correctly allocate
+        authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(treasury));
+
+        // Grant our {RewardsLedger} the {TREASURY_MANAGER} role so that it can distribute tokens
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(rewards));
+
+        // Grant our {RewardsLedger} the {STAKING_MANAGER} role so that it can stake on behalf of
+        // other users.
+        authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(rewards));
+
+        // Grant our {VeFloorStaking} the {FLOOR_MANAGER} role so that it can burn tokens
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(veFloorStaking));
+        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloorStaking));
     }
 
-    /**
-     * Set up our {RewardsLedger} and the other contracts required to instantiate it.
-     */
     function setUp() public {
-        // ..
+        // Mint floor tokens to the RewardsLedger to cover the upcoming claims
+        floor.mint(address(rewards), 100 ether);
     }
 
     /**
@@ -158,7 +191,7 @@ contract RewardsLedgerTest is FloorTest {
     {
         vm.startPrank(address(0));
 
-        vm.expectRevert("Only treasury can allocate");
+        vm.expectRevert("Account does not have role");
         rewards.allocate(address(this), token, amount);
 
         vm.stopPrank();
@@ -284,25 +317,42 @@ contract RewardsLedgerTest is FloorTest {
      * This should emit {RewardsClaimed}.
      */
     function test_CanClaimFloorTokens() public {
+        // Confirm our starting FLOOR token balance
+        assertEq(floor.balanceOf(address(this)), 0);
+        assertEq(floor.balanceOf(address(rewards)), 100 ether);
+
+        // Allocate 1 token from the {Treasury} to our test user
         vm.prank(address(treasury));
         rewards.allocate(address(this), address(floor), 1 ether);
 
+        // Confirm that the FLOOR token balances are still the same, even after
+        // the allocation.
+        assertEq(floor.balanceOf(address(this)), 0);
+        assertEq(floor.balanceOf(address(rewards)), 100 ether);
+
+        // Claim the allocated veFLOOR token rewards as our user
         rewards.claim(address(floor), 1 ether);
-    }
 
-    /**
-     * When a user has a sufficient allocation of veFloor then they should be able to
-     * claim it.
-     *
-     * This will mint from the Treasury and be sent to the sender as the recipient.
-     *
-     * This should emit {RewardsClaimed}.
-     */
-    function test_CanClaimVeFloorTokens() public {
-        vm.prank(address(treasury));
-        rewards.allocate(address(this), address(veFloor), 1 ether);
+        // We should now have 1 veFLOOR token in our user's balance
+        (uint veFloorBalance,,,) = veFloorStaking.userInfos(address(this));
+        assertEq(veFloorBalance, 1 ether);
 
-        rewards.claim(address(veFloor), 1 ether);
+        // Move the timestamp forward
+        skip(30);
+
+        // Check that we have veFloor token pending
+        assertEq(veFloorStaking.getPendingVeFloor(address(this)), 60 ether);
+
+        // Withdraw our staked veFloor, converting it to FLOOR
+        veFloorStaking.withdraw(veFloorBalance);
+
+        // We should now have 1 of the tokens minted into FLOOR
+        assertEq(floor.balanceOf(address(this)), veFloorBalance);
+        assertEq(floor.balanceOf(address(rewards)), 99 ether);
+
+        // We should now have 0 veFLOOR token in our user's balance
+        (veFloorBalance,,,) = veFloorStaking.userInfos(address(this));
+        assertEq(veFloorBalance, 0);
     }
 
     /**

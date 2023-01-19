@@ -67,16 +67,15 @@ contract TreasuryTest is FloorTest {
             address(collectionRegistry),  // address _collectionRegistry,
             address(strategyRegistry),    // address _strategyRegistry,
             VAULT_FACTORY,
-            address(floor),
-            address(veFloor)
+            address(floor)
         );
 
         // Set up our {RewardsLedger}
         rewards = new RewardsLedger(
             address(authorityRegistry),
             address(floor),
-            address(veFloor),
-            address(treasury)
+            address(treasury),
+            address(0)  // Staking
         );
 
         // Create our test users
@@ -549,24 +548,6 @@ contract TreasuryTest is FloorTest {
     function test_CannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {
         vm.expectRevert("Account does not have role");
         vm.prank(alice);
-        treasury.setPoolMultiplierPercentage(0);
-    }
-
-    /**
-     * Pool Multiplier Percentage get/set.
-     */
-    function test_CanSetPoolMultiplierPercentage(uint256 percentage) public {
-        vm.assume(percentage <= 10000);
-
-        assertEq(treasury.poolMultiplierPercentage(), 0);
-
-        treasury.setPoolMultiplierPercentage(percentage);
-        assertEq(treasury.poolMultiplierPercentage(), percentage);
-    }
-
-    function test_CannotSetPoolMultiplierPercentageWithoutPermissions() public {
-        vm.expectRevert("Account does not have role");
-        vm.prank(alice);
         treasury.setRetainedTreasuryYieldPercentage(0);
     }
 
@@ -754,7 +735,7 @@ contract TreasuryTest is FloorTest {
         assertEq(rewards.available(users[7], address(floor)), 210000000000000000000);
 
         // Confirm rewards ledger holds all expected floor to distribute to above users
-        // TODO: ..
+        assertEq(floor.balanceOf(address(rewards)), 123);
     }
 
     /**

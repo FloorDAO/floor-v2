@@ -48,6 +48,7 @@ contract VeFloorStakingTest is FloorTest {
 
         // Create our veFloor Staking contract
         veFloorStaking = new VeFloorStaking(
+            address(authorityRegistry),
             floor,
             veFloor,
             gaugeWeightVote,
@@ -185,8 +186,6 @@ contract VeFloorStakingTest is FloorTest {
         uint256 depositAmount = 100 ether;
         vm.prank(alice);
         veFloorStaking.deposit(depositAmount);
-
-        // const depositBlock = await ethers.provider.getBlock();
 
         // Check Floor balance after deposit
         assertEq(floor.balanceOf(alice), startAmount - depositAmount);

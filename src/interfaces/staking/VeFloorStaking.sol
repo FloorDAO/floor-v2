@@ -54,6 +54,13 @@ interface IVeFloorStaking {
     /// @param _amount The amount of FLOOR to deposit
     function deposit(uint _amount) external;
 
+    /// @notice Deposits FLOOR to start staking for veFLOOR on behalf of a recipient. This is
+    /// a protected function that only specific roles may execute. Note that any pending veFLOOR
+    /// will also be claimed in the process.
+    /// @param _amount The amount of FLOOR to deposit
+    /// @param _recipient Recipient of the veFLOOR
+    function depositFor(uint _amount, address _recipient) external;
+
     /// @notice Withdraw staked FLOOR. Note that unstaking any amount of FLOOR means you will
     /// lose all of your current veFLOOR.
     /// @param _amount The amount of FLOOR to unstake

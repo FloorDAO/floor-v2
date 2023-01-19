@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import './authorities/AuthorityControl.sol';
 
+import '../interfaces/staking/VeFloorStaking.sol';
 import '../interfaces/tokens/Floor.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
 
+
 /**
- * @dev The rewards ledger holds all available rewards available to be claimed
+ * The rewards ledger holds all available rewards available to be claimed
  * by FLOOR users, as well as keeping a simple ledger of all tokens already
  * claimed.
  *
@@ -21,6 +25,7 @@ import '../interfaces/Treasury.sol';
 contract RewardsLedger is AuthorityControl, IRewardsLedger {
     // Addresses of our internal contracts, assigned in the constructor
     IFLOOR public immutable floor;
+    IVeFloorStaking public staking;
     address public immutable treasury;
 
     // Maintains a mapping of available token amounts by recipient
@@ -41,8 +46,9 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      */
-    constructor(address _authority, address _floor, address _treasury) AuthorityControl(_authority) {
+    constructor(address _authority, address _floor, address _staking, address _treasury) AuthorityControl(_authority) {
         floor = IFLOOR(_floor);
+        staking = IVeFloorStaking(_staking);
         treasury = _treasury;
     }
 
@@ -54,15 +60,12 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      *
      * This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint amount) external returns (uint) {
+    function allocate(address recipient, address token, uint amount) external onlyRole(REWARDS_MANAGER) returns (uint) {
         // We don't want to allow NULL address allocation
         require(token != address(0), 'Invalid token');
 
         // Prevent zero values being allocated and wasting gas
         require(amount != 0, 'Invalid amount');
-
-        // Ensure that it is our treasury sending the request
-        require(msg.sender == treasury, 'Only treasury can allocate');
 
         // Allocate the token amount to recipient token
         allocations[recipient][token] += amount;
@@ -141,10 +144,10 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         if (token == address(floor)) {
             // First we send the floor token to the recipient, as the staking contract will take
             // the tokens from the origin caller, not the contract that calls it.
-            floor.transfer(msg.sender, amount);
+            floor.approve(address(staking), amount);
 
             // Stake the tokens into the {VeFloorStaking} contract
-            staking.deposit(amount);
+            staking.depositFor(amount, msg.sender);
         } else {
             // Transfer the tokens from the {Treasury} to the recipient
             ITreasury(treasury).withdrawERC20(msg.sender, token, amount);

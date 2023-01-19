@@ -45,6 +45,9 @@ contract RegisterContractAuthority is Script {
         // Give our {Treasury} contract roles to manage (mint) Floor tokens
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(TREASURY));
 
+        // Give our {Treasury} contract roles to allocate rewards
+        authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(TREASURY));
+
         // Give our Floor token migration contract the role to mint floor tokens directly
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(MIGRATE_FLOOR_TOKEN));
 

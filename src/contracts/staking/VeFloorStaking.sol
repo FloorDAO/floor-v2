@@ -2,10 +2,14 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+
+import '../authorities/AuthorityControl.sol';
 
 import '../tokens/VeFloor.sol';
 
@@ -16,7 +20,7 @@ import '../../interfaces/voting/GaugeWeightVote.sol';
 /// @author Trader Joe
 /// @notice Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
 /// voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
-contract VeFloorStaking is IVeFloorStaking, Ownable {
+contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -101,6 +105,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
     /// @param _speedUpDuration Length of time a user receives speed up benefits
     /// @param _maxCapPct Maximum limit of veFLOOR user can have as percentage points of staked FLOOR
     constructor(
+        address _authority,
         IERC20 _floor,
         veFLOOR _veFloor,
         IGaugeWeightVote _gaugeWeightVote,
@@ -109,7 +114,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         uint _speedUpThreshold,
         uint _speedUpDuration,
         uint _maxCapPct
-    ) {
+    ) AuthorityControl(_authority) {
         require(address(_floor) != address(0), 'VeFloorStaking: unexpected zero address for _floor');
         require(address(_veFloor) != address(0), 'VeFloorStaking: unexpected zero address for _veFloor');
         require(address(_gaugeWeightVote) != address(0), 'VeFloorStaking: unexpected zero address for _gaugeWeightVote');
@@ -189,13 +194,26 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
     /// will also be claimed in the process.
     /// @param _amount The amount of FLOOR to deposit
     function deposit(uint _amount) external {
+        _deposit(_amount, _msgSender());
+    }
+
+    /// @notice Deposits FLOOR to start staking for veFLOOR on behalf of a recipient. This is
+    /// a protected function that only specific roles may execute. Note that any pending veFLOOR
+    /// will also be claimed in the process.
+    /// @param _amount The amount of FLOOR to deposit
+    /// @param _recipient Recipient of the veFLOOR
+    function depositFor(uint _amount, address _recipient) external onlyRole(STAKING_MANAGER) {
+        _deposit(_amount, _recipient);
+    }
+
+    function _deposit(uint _amount, address _recipient) internal {
         require(_amount > 0, 'VeFloorStaking: expected deposit amount to be greater than zero');
 
         updateRewardVars();
 
-        UserInfo storage userInfo = userInfos[_msgSender()];
+        UserInfo storage userInfo = userInfos[_recipient];
 
-        if (_getUserHasNonZeroBalance(_msgSender())) {
+        if (_getUserHasNonZeroBalance(_recipient)) {
             // Transfer to the user their pending veFLOOR before updating their UserInfo
             _claim();
 
@@ -221,8 +239,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         userInfo.rewardDebt = accVeFloorPerShare.mul(userInfo.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION);
 
         floor.safeTransferFrom(_msgSender(), address(this), _amount);
-
-        emit Deposit(_msgSender(), _amount);
+        emit Deposit(_recipient, _amount);
     }
 
     /// @notice Withdraw staked FLOOR. Note that unstaking any amount of FLOOR means you will
@@ -364,4 +381,5 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
             emit Claim(_msgSender(), veFloorToClaim);
         }
     }
+
 }
