@@ -23,4 +23,11 @@ mainnet = "${MAINNET_RPC_URL}"
 goerli = {key = "${ETHERSCAN_API_KEY}"}
 mainnet = {key = "${ETHERSCAN_API_KEY}"}
 
+[doc]
+out = "docs"
+title = "Floor"
+book = "./book.toml"
+repository = "https://github.com/FloorDAO/floor-v2"
+ignore = ["**/*.t.sol"]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
