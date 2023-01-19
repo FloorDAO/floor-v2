@@ -12,13 +12,11 @@ import "../tokens/VeFloor.sol";
 import "../../interfaces/staking/VeFloorStaking.sol";
 import "../../interfaces/voting/GaugeWeightVote.sol";
 
-
 /// @title Vote Escrow Floor Staking
 /// @author Trader Joe
 /// @notice Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
 /// voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
 contract VeFloorStaking is IVeFloorStaking, Ownable {
-
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -33,22 +31,22 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         uint256 rewardDebt;
         uint256 lastClaimTimestamp;
         uint256 speedUpEndTimestamp;
-        /**
-         * @notice We do some fancy math here. Basically, any point in time, the amount of veFLOOR
-         * entitled to a user but is pending to be distributed is:
-         *
-         *   pendingReward = pendingBaseReward + pendingSpeedUpReward
-         *
-         *   pendingBaseReward = (user.balance * accVeFloorPerShare) - user.rewardDebt
-         *
-         *   if user.speedUpEndTimestamp != 0:
-         *     speedUpCeilingTimestamp = min(block.timestamp, user.speedUpEndTimestamp)
-         *     speedUpSecondsElapsed = speedUpCeilingTimestamp - user.lastClaimTimestamp
-         *     pendingSpeedUpReward = speedUpSecondsElapsed * user.balance * speedUpVeFloorPerSharePerSec
-         *   else:
-         *     pendingSpeedUpReward = 0
-         */
     }
+    /**
+     * @notice We do some fancy math here. Basically, any point in time, the amount of veFLOOR
+     * entitled to a user but is pending to be distributed is:
+     *
+     *   pendingReward = pendingBaseReward + pendingSpeedUpReward
+     *
+     *   pendingBaseReward = (user.balance * accVeFloorPerShare) - user.rewardDebt
+     *
+     *   if user.speedUpEndTimestamp != 0:
+     *     speedUpCeilingTimestamp = min(block.timestamp, user.speedUpEndTimestamp)
+     *     speedUpSecondsElapsed = speedUpCeilingTimestamp - user.lastClaimTimestamp
+     *     pendingSpeedUpReward = speedUpSecondsElapsed * user.balance * speedUpVeFloorPerSharePerSec
+     *   else:
+     *     pendingSpeedUpReward = 0
+     */
 
     IERC20 public floor;
     veFLOOR public veFloor;
@@ -102,7 +100,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
     /// @param _speedUpThreshold Percentage of total staked FLOOR user has to deposit receive speed up
     /// @param _speedUpDuration Length of time a user receives speed up benefits
     /// @param _maxCapPct Maximum limit of veFLOOR user can have as percentage points of staked FLOOR
-    constructor (
+    constructor(
         IERC20 _floor,
         veFLOOR _veFloor,
         IGaugeWeightVote _gaugeWeightVote,
@@ -236,8 +234,7 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
         UserInfo storage userInfo = userInfos[_msgSender()];
 
         require(
-            userInfo.balance >= _amount,
-            "VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked"
+            userInfo.balance >= _amount, "VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked"
         );
         updateRewardVars();
 
@@ -287,16 +284,14 @@ contract VeFloorStaking is IVeFloorStaking, Ownable {
                 )
             );
         }
-        uint256 pendingBaseVeFloor = _accVeFloorPerShare.mul(user.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION).sub(
-            user.rewardDebt
-        );
+        uint256 pendingBaseVeFloor =
+            _accVeFloorPerShare.mul(user.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION).sub(user.rewardDebt);
 
         // Calculate amount of pending speed up veFLOOR
         uint256 pendingSpeedUpVeFloor;
         if (user.speedUpEndTimestamp != 0) {
-            uint256 speedUpCeilingTimestamp = block.timestamp > user.speedUpEndTimestamp
-                ? user.speedUpEndTimestamp
-                : block.timestamp;
+            uint256 speedUpCeilingTimestamp =
+                block.timestamp > user.speedUpEndTimestamp ? user.speedUpEndTimestamp : block.timestamp;
             uint256 speedUpSecondsElapsed = speedUpCeilingTimestamp.sub(user.lastClaimTimestamp);
             uint256 speedUpAccVeFloorPerShare = speedUpSecondsElapsed.mul(speedUpVeFloorPerSharePerSec);
             pendingSpeedUpVeFloor = speedUpAccVeFloorPerShare.mul(user.balance).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION);

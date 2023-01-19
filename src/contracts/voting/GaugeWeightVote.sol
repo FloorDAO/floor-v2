@@ -2,15 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import '../authorities/AuthorityControl.sol';
+import "../authorities/AuthorityControl.sol";
 
-import '../../interfaces/collections/CollectionRegistry.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/tokens/veFloor.sol';
-import '../../interfaces/vaults/Vault.sol';
-import '../../interfaces/vaults/VaultFactory.sol';
-import '../../interfaces/voting/GaugeWeightVote.sol';
-
+import "../../interfaces/collections/CollectionRegistry.sol";
+import "../../interfaces/strategies/BaseStrategy.sol";
+import "../../interfaces/tokens/veFloor.sol";
+import "../../interfaces/vaults/Vault.sol";
+import "../../interfaces/vaults/VaultFactory.sol";
+import "../../interfaces/voting/GaugeWeightVote.sol";
 
 /**
  * The GWV will allow users to assign their veFloor position to a vault, or
@@ -22,15 +21,14 @@ import '../../interfaces/voting/GaugeWeightVote.sol';
  * https://github.com/saddle-finance/saddle-contract/blob/master/contracts/tokenomics/gauges/GaugeController.vy
  */
 contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
-
     /// Keep a store of the number of collections we want to reward pick per epoch
-    uint public sampleSize = 5;
+    uint256 public sampleSize = 5;
 
     address[] _vaults;
-    uint[] _tokens;
+    uint256[] _tokens;
 
     address[] _users;
-    uint[] _userTokens;
+    uint256[] _userTokens;
 
     address public FLOOR_TOKEN_VOTE = address(1);
 
@@ -54,25 +52,27 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * Mapping user address -> collection address -> amount.
      */
-    mapping(address => mapping(address => uint)) private userVotes;
+    mapping(address => mapping(address => uint256)) private userVotes;
 
     // Mapping collection address -> total amount.
-    mapping(address => uint) public votes;
+    mapping(address => uint256) public votes;
 
     // Store a list of collections each user has voted on to reduce the
     // number of iterations.
     mapping(address => address[]) public userVoteCollections;
 
     // Storage for yield calculations
-    mapping (address => uint) internal yieldStorage;
+    mapping(address => uint256) internal yieldStorage;
 
     // Track the previous snapshot that was made
-    uint public lastSnapshot;
+    uint256 public lastSnapshot;
 
     /**
      *
      */
-    constructor (address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority) AuthorityControl(_authority) {
+    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority)
+        AuthorityControl(_authority)
+    {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         veFloor = IVeFLOOR(_veFloor);
@@ -82,7 +82,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
      */
-    function userVotingPower(address _user) external view returns (uint) {
+    function userVotingPower(address _user) external view returns (uint256) {
         return veFloor.balanceOf(_user);
     }
 
@@ -93,14 +93,16 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * votesAvailable_ = balanceOf(_user) - SUM(userVotes.votes_)
      * ```
      */
-    function userVotesAvailable(address _user) external view returns (uint votesAvailable_) {
-        uint votesCast;
+    function userVotesAvailable(address _user) external view returns (uint256 votesAvailable_) {
+        uint256 votesCast;
 
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
-        for (uint i; i < userVoteCollections[_user].length;) {
+        for (uint256 i; i < userVoteCollections[_user].length;) {
             votesCast += votes[userVoteCollections[_user][i]];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return this.userVotingPower(_user) - votesCast;
@@ -122,16 +124,16 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(address _collection, uint _amount) external returns (uint totalVotes_) {
-        require(_amount != 0, 'Cannot vote with zero amount');
+    function vote(address _collection, uint256 _amount) external returns (uint256 totalVotes_) {
+        require(_amount != 0, "Cannot vote with zero amount");
 
         // Ensure the user has enough votes available to cast
-        require(this.userVotesAvailable(msg.sender) >= _amount, 'Insufficient voting power');
+        require(this.userVotesAvailable(msg.sender) >= _amount, "Insufficient voting power");
 
         // Confirm that the collection being voted for is approved and valid, if we
         // aren't voting for a zero address (which symbolises FLOOR).
         if (_collection != FLOOR_TOKEN_VOTE) {
-            require(collectionRegistry.isApproved(_collection), 'Collection not approved');
+            require(collectionRegistry.isApproved(_collection), "Collection not approved");
         }
 
         // If this is the first vote placed by a user, then we need to add it to
@@ -155,20 +157,20 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
-    function revokeVotes(address[] memory _collection, uint[] memory _amount) external {
-        uint length = _collection.length;
+    function revokeVotes(address[] memory _collection, uint256[] memory _amount) external {
+        uint256 length = _collection.length;
 
         // Validate our supplied array sizes
-        require(length != 0, 'No collections supplied');
-        require(length == _amount.length, 'Wrong amount count');
+        require(length != 0, "No collections supplied");
+        require(length == _amount.length, "Wrong amount count");
 
         // Iterate over our collections to revoke the user's vote amounts
-        for (uint i; i < length;) {
+        for (uint256 i; i < length;) {
             address collection = _collection[i];
-            uint amount = _amount[i];
+            uint256 amount = _amount[i];
 
             // Ensure that our user has sufficient votes against the collection to revoke
-            require(amount <= userVotes[msg.sender][collection], 'Insufficient votes to revoke');
+            require(amount <= userVotes[msg.sender][collection], "Insufficient votes to revoke");
 
             // Revoke votes from the collection
             userVotes[msg.sender][collection] -= amount;
@@ -182,7 +184,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             emit VoteCast(collection, votes[collection]);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -192,11 +196,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      */
     function revokeAllUserVotes(address _account) external onlyRole(VOTE_MANAGER) {
         // Iterate over our collections to revoke the user's vote amounts
-        for (uint i; i < userVoteCollections[_account].length;) {
+        for (uint256 i; i < userVoteCollections[_account].length;) {
             address collection = userVoteCollections[_account][i];
-            uint amount = userVotes[_account][collection];
+            uint256 amount = userVotes[_account][collection];
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
 
             // Ensure that our user has sufficient votes against the collection to revoke
             if (amount == 0) {
@@ -281,9 +287,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *      A - 42 FLOOR
      *      B - 58 FLOOR
      */
-    function snapshot(uint tokens) external returns (address[] memory, uint[] memory) {
+    function snapshot(uint256 tokens) external returns (address[] memory, uint256[] memory) {
         // Keep track of remaining tokens to avoid dust
-        uint remainingTokens = tokens;
+        uint256 remainingTokens = tokens;
 
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections = _topCollections();
@@ -291,25 +297,28 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // Iterate through our sample size of collections to get the total number of
         // votes placed that need to be used in distribution calculations to find
         // collection share.
-        uint totalRelevantVotes = 0;
-        for (uint i; i < collections.length;) {
+        uint256 totalRelevantVotes = 0;
+        for (uint256 i; i < collections.length;) {
             totalRelevantVotes += votes[collections[i]];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Set up our storage so we can push
         address[] storage users_ = _users;
-        uint[] storage userTokens_ = _userTokens;
+        uint256[] storage userTokens_ = _userTokens;
 
-        for (uint i; i < collections.length;) {
+        for (uint256 i; i < collections.length;) {
             // Reset the yield storage for the collection
             yieldStorage[collections[i]] = 0;
 
             // Calculate the reward allocation to be given to the collection based on
             // the number of votes from the total votes.
-            uint collectionRewards = remainingTokens;
+            uint256 collectionRewards = remainingTokens;
             if (i < collections.length - 1) {
-                collectionRewards = (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
+                collectionRewards =
+                    (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
@@ -321,45 +330,56 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 users_.push(FLOOR_TOKEN_VOTE);
                 userTokens_.push(collectionRewards);
 
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
             // Find the sub-percentage allocation given to each collection vault based on yield
             address[] memory collectionVaults = vaultFactory.vaultsForCollection(collections[i]);
 
-            for (uint j; j < collectionVaults.length;) {
-                uint rewards = _getCollectionVaultRewardsIndicator(collectionVaults[j]);
+            for (uint256 j; j < collectionVaults.length;) {
+                uint256 rewards = _getCollectionVaultRewardsIndicator(collectionVaults[j]);
 
                 yieldStorage[collectionVaults[j]] = rewards;
                 yieldStorage[collections[i]] += rewards;
 
-                unchecked { ++j; }
+                unchecked {
+                    ++j;
+                }
             }
 
-            for (uint j; j < collectionVaults.length;) {
+            for (uint256 j; j < collectionVaults.length;) {
                 // Get the rewards owed to the vault based on the yield share of the collection
-                uint vaultRewards = (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
+                uint256 vaultRewards =
+                    (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
 
                 // Get list of all staked users in the vault without taking the treasury
                 // position into account.
-                (address[] memory stakers, uint[] memory percentages) = IVault(collectionVaults[j]).shares(true);
+                (address[] memory stakers, uint256[] memory percentages) = IVault(collectionVaults[j]).shares(true);
 
                 // Allocate the vault share to each user
-                for (uint k; k < stakers.length;) {
+                for (uint256 k; k < stakers.length;) {
                     // Calculate the number of reward tokens
-                    uint userRewards = (vaultRewards * percentages[k]) / 10000;
+                    uint256 userRewards = (vaultRewards * percentages[k]) / 10000;
 
                     users_.push(stakers[k]);
                     userTokens_.push(userRewards);
 
-                    unchecked { ++k; }
+                    unchecked {
+                        ++k;
+                    }
                 }
 
-                unchecked { ++j; }
+                unchecked {
+                    ++j;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Update the snapshot time made
@@ -377,10 +397,10 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
-        for (uint i; i < options.length;) {
+        for (uint256 i; i < options.length;) {
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
-            uint j;
+            uint256 j;
             for (j; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
@@ -388,22 +408,28 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                     break;
                 }
 
-                unchecked { ++j; }
+                unchecked {
+                    ++j;
+                }
             }
 
             // If our `j` key is below the `sampleSize` we have requested, then we will
             // need to replace the key with our new collection and all subsequent keys will
             // shift down by 1, and any keys above the `sampleSize` will be deleted.
-            uint k;
+            uint256 k;
             for (k = sampleSize - 1; k > j;) {
                 collections[k] = collections[k - 1];
-                unchecked { --k; }
+                unchecked {
+                    --k;
+                }
             }
 
             // Update the new max element
             collections[k] = options[i];
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return collections;
@@ -412,8 +438,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /**
      * ..
      */
-    function setSampleSize(uint size) external onlyRole(VOTE_MANAGER) {
-        require(size != 0, 'Sample size must be above 0');
+    function setSampleSize(uint256 size) external onlyRole(VOTE_MANAGER) {
+        require(size != 0, "Sample size must be above 0");
         sampleSize = size;
     }
 
@@ -428,17 +454,19 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         collections_ = new address[](_approvedCollections.length + 1);
 
         // Add the approved collections to our new array
-        uint i;
+        uint256 i;
         for (i; i < _approvedCollections.length;) {
             collections_[i] = _approvedCollections[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Finally, add our FLOOR vote address
         collections_[i] = FLOOR_TOKEN_VOTE;
     }
 
-    function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint) {
+    function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint256) {
         return IBaseStrategy(IVault(vault).strategy()).totalRewardsGenerated();
     }
 
@@ -446,16 +474,17 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * ..
      */
     function _deleteUserCollectionVote(address account, address collection) internal returns (bool) {
-        for (uint i; i < userVoteCollections[account].length;) {
+        for (uint256 i; i < userVoteCollections[account].length;) {
             if (userVoteCollections[account][i] == collection) {
                 delete userVoteCollections[account][i];
                 return true;
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return false;
     }
-
 }

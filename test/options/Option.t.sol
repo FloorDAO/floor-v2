@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 
 contract OptionTest is Test {
-
     /**
      * Our token expands upon the ERC721 standard, so we need to ensure that
      * we can still access the inherited ERC721 attributes as expected.
@@ -55,5 +54,4 @@ contract OptionTest is Test {
      * should expect a revert when trying.
      */
     function testCannotBurnAnOptionWithRemainingBalance() public {}
-
 }

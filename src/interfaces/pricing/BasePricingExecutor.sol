@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * Pricing Executors will provide our Treasury with the pricing knowledge needed
  * to equate a reward token to that of FLOOR. Each executor will implement a single
@@ -12,9 +11,8 @@ pragma solidity ^0.8.0;
  * exectors to ensure that the required logic and functionality is made available.
  */
 interface IBasePricingExecutor {
-
     /// @dev When a token price is updated
-    event TokenPriceUpdated(address token, uint amount);
+    event TokenPriceUpdated(address token, uint256 amount);
 
     /**
      * Name of the pricing executor.
@@ -24,21 +22,20 @@ interface IBasePricingExecutor {
     /**
      * Gets our current mapped price of a token to ETH.
      */
-    function getETHPrice(address token) external returns (uint);
+    function getETHPrice(address token) external returns (uint256);
 
     /**
      * Gets our current mapped price of multiple tokens to ETH.
      */
-    function getETHPrices(address[] memory token) external returns (uint[] memory);
+    function getETHPrices(address[] memory token) external returns (uint256[] memory);
 
     /**
      * Gets our current mapped price of a token to FLOOR.
      */
-    function getFloorPrice(address token) external returns (uint);
+    function getFloorPrice(address token) external returns (uint256);
 
     /**
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrices(address[] memory token) external returns (uint[] memory);
-
+    function getFloorPrices(address[] memory token) external returns (uint256[] memory);
 }

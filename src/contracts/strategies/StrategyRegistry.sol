@@ -2,11 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-import '../authorities/AuthorityControl.sol';
-import '../../interfaces/strategies/StrategyRegistry.sol';
-
+import "../authorities/AuthorityControl.sol";
+import "../../interfaces/strategies/StrategyRegistry.sol";
 
 /**
  * Allows strategy contracts to be approved and revoked by addresses holding the
@@ -18,11 +17,10 @@ import '../../interfaces/strategies/StrategyRegistry.sol';
  */
 
 contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
-
     /// Store a mapping of our approved strategies
     mapping(address => bool) internal strategies;
 
-    constructor (address _authority) AuthorityControl(_authority) {}
+    constructor(address _authority) AuthorityControl(_authority) {}
 
     /**
      * Returns `true` if the contract address is an approved strategy, otherwise
@@ -37,7 +35,7 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      * implementation and conform to the {IStrategy} interface.
      */
     function approveStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
-        require(contractAddr != address(0), 'Cannot approve NULL strategy');
+        require(contractAddr != address(0), "Cannot approve NULL strategy");
 
         if (!strategies[contractAddr]) {
             strategies[contractAddr] = true;
@@ -50,10 +48,9 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      * are already instantiated with the strategy.
      */
     function revokeStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
-        require(strategies[contractAddr], 'Strategy is not approved');
+        require(strategies[contractAddr], "Strategy is not approved");
 
         strategies[contractAddr] = false;
         emit StrategyRevoked(contractAddr);
     }
-
 }

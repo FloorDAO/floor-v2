@@ -2,16 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/proxy/Clones.sol';
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
-import './Vault.sol';
-import '../authorities/AuthorityControl.sol';
-import '../../interfaces/collections/CollectionRegistry.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/strategies/StrategyRegistry.sol';
-import '../../interfaces/vaults/VaultFactory.sol';
-
+import "./Vault.sol";
+import "../authorities/AuthorityControl.sol";
+import "../../interfaces/collections/CollectionRegistry.sol";
+import "../../interfaces/strategies/BaseStrategy.sol";
+import "../../interfaces/strategies/StrategyRegistry.sol";
+import "../../interfaces/vaults/VaultFactory.sol";
 
 /**
  * Allows for vaults to be created, pairing them with a {Strategy} and an approved
@@ -27,7 +26,6 @@ import '../../interfaces/vaults/VaultFactory.sol';
  */
 
 contract VaultFactory is AuthorityControl, IVaultFactory {
-
     /// Maintains an array of all vaults created
     address[] private _vaults;
 
@@ -38,13 +36,13 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     address public immutable vaultImplementation;
 
     /// Mappings to aide is discoverability
-    mapping (uint => address) private vaultIds;
-    mapping (address => address[]) private collectionVaults;
+    mapping(uint256 => address) private vaultIds;
+    mapping(address => address[]) private collectionVaults;
 
     /**
      * Store our registries, mapped to their interfaces.
      */
-    constructor (
+    constructor(
         address _authority,
         address _collectionRegistry,
         address _strategyRegistry,
@@ -66,7 +64,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * Provides a vault against the provided `vaultId` (index).
      */
-    function vault(uint _vaultId) external view returns (address) {
+    function vault(uint256 _vaultId) external view returns (address) {
         return vaultIds[_vaultId];
     }
 
@@ -81,23 +79,19 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * Creates a vault with an approved strategy and collection.
      */
-    function createVault(
-        string memory _name,
-        address _strategy,
-        bytes memory _strategyInitData,
-        address _collection
-    ) external onlyRole(VAULT_MANAGER) returns (
-        uint vaultId_,
-        address vaultAddr_
-    ) {
+    function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
+        external
+        onlyRole(VAULT_MANAGER)
+        returns (uint256 vaultId_, address vaultAddr_)
+    {
         // No empty names, that's just silly
-        require(bytes(_name).length != 0, 'Name cannot be empty');
+        require(bytes(_name).length != 0, "Name cannot be empty");
 
         // Make sure strategy is approved
-        require(strategyRegistry.isApproved(_strategy), 'Strategy not approved');
+        require(strategyRegistry.isApproved(_strategy), "Strategy not approved");
 
         // Make sure the collection is approved
-        require(collectionRegistry.isApproved(_collection), 'Collection not approved');
+        require(collectionRegistry.isApproved(_collection), "Collection not approved");
 
         // Capture our vaultId, before we increment the array length
         vaultId_ = _vaults.length;
@@ -122,5 +116,4 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Finally we can emit our event to notify watchers of a new vault
         emit VaultCreated(vaultId_, vaultAddr_, _collection);
     }
-
 }

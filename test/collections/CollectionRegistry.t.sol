@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
+import "../../src/contracts/collections/CollectionRegistry.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract CollectionRegistryTest is FloorTest {
-
     /// Emitted when a collection is successfully approved
     event CollectionApproved(address contractAddr);
 
@@ -24,7 +22,7 @@ contract CollectionRegistryTest is FloorTest {
     // Set up a range of addresses to test with
     address internal USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address internal DAI  = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address internal DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address internal SHIB = 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE;
 
     /**
@@ -86,7 +84,7 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveNullAddressCollection() public {
-        vm.expectRevert('Cannot approve NULL collection');
+        vm.expectRevert("Cannot approve NULL collection");
         collectionRegistry.approveCollection(address(0));
     }
 
@@ -112,5 +110,4 @@ contract CollectionRegistryTest is FloorTest {
         vm.prank(alice);
         collectionRegistry.approveCollection(USDC);
     }
-
 }

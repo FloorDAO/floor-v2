@@ -2,39 +2,37 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
-import '../../src/interfaces/nftx/NFTXVault.sol';
-import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
+import "../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol";
+import "../../src/interfaces/nftx/NFTXVault.sol";
+import "../../src/interfaces/nftx/TimelockRewardDistributionToken.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract NFTXLiquidityStakingStrategyTest is FloorTest {
-
     NFTXLiquidityStakingStrategy strategy;
 
     /// Store our mainnet fork information
-    uint internal constant BLOCK_NUMBER = 16_133_601;
+    uint256 internal constant BLOCK_NUMBER = 16_133_601;
 
     // Holds 0.02963115425863499 SLP at block
     address testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
 
-    constructor () forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {}
 
     function setUp() public {
         // Set up our pricing executor
         strategy = new NFTXLiquidityStakingStrategy(bytes32('PUNK Liquidity Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,         // Vault ID
-            testUser,  // Vault Address (set to our testUser so that it can call strategy methods direct)
+            0, // Vault ID
+            testUser, // Vault Address (set to our testUser so that it can call strategy methods direct)
             abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-                0x0463a06fBc8bF28b3F120cd1BfC59483F099d332,  // _underlyingToken
-                0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f,  // _yieldToken
-                0x688c3E4658B5367da06fd629E41879beaB538E37,  // _liquidityStaking
-                0x688c3E4658B5367da06fd629E41879beaB538E37   // _treasury
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
+                0x0463a06fBc8bF28b3F120cd1BfC59483F099d332, // _underlyingToken
+                0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f, // _yieldToken
+                0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
+                0x688c3E4658B5367da06fd629E41879beaB538E37 // _treasury
             )
         );
     }
@@ -43,7 +41,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      *
      */
     function test_CanGetName() public {
-        assertEq(strategy.name(), 'PUNK Liquidity Vault');
+        assertEq(strategy.name(), "PUNK Liquidity Vault");
     }
 
     /**
@@ -123,7 +121,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * then we expect it to be reverted.
      */
     function test_CannotDepositZeroValue() public {
-        vm.expectRevert('Cannot deposit 0');
+        vm.expectRevert("Cannot deposit 0");
         vm.prank(testUser);
         strategy.deposit(0);
     }
@@ -171,7 +169,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * to make the request but we just expect a 0 value to be returned.
      */
     function test_CannotClaimZeroRewards() public {
-        vm.expectRevert('Cannot claim 0');
+        vm.expectRevert("Cannot claim 0");
         vm.prank(testUser);
         strategy.withdraw(0);
     }
@@ -224,5 +222,4 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
     function testCanCalculateTotalRewardsGenerated() public {
         assertEq(strategy.totalRewardsGenerated(), 0);
     }
-
 }

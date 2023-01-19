@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * @dev The rewards ledger holds all available rewards available to be claimed
  * by FLOOR users, as well as keeping a simple ledger of all tokens already
@@ -16,12 +15,11 @@ pragma solidity ^0.8.0;
  */
 
 interface IRewardsLedger {
-
     /// @dev Emitted when rewards are allocated to a user
-    event RewardsAllocated(address recipient, address token, uint amount);
+    event RewardsAllocated(address recipient, address token, uint256 amount);
 
     /// @dev Emitted when rewards are claimed by a user
-    event RewardsClaimed(address recipient, address token, uint amount);
+    event RewardsClaimed(address recipient, address token, uint256 amount);
 
     /// @dev Emitted when rewards claiming is paused or unpaused
     event RewardsPaused(bool paused);
@@ -36,17 +34,20 @@ interface IRewardsLedger {
      * information will be stored in a {RewardToken}, either creating or updating the
      * struct. This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint amount) external returns (uint available);
+    function allocate(address recipient, address token, uint256 amount) external returns (uint256 available);
 
     /**
      * Get the amount of available token for the recipient.
      */
-    function available(address recipient, address token) external view returns (uint);
+    function available(address recipient, address token) external view returns (uint256);
 
     /**
      * Get all tokens available to the recipient, as well as the amounts of each token.
      */
-    function availableTokens(address recipient) external view returns (address[] memory tokens_, uint[] memory amounts_);
+    function availableTokens(address recipient)
+        external
+        view
+        returns (address[] memory tokens_, uint256[] memory amounts_);
 
     /**
      * These tokens are stored in the {Treasury}, but will be allowed access from
@@ -59,7 +60,7 @@ interface IRewardsLedger {
      * If the user is claiming FLOOR token from the {Treasury}, then it will need
      * to call the `mint` function as the {Treasury} won't hold it already.
      */
-    function claim(address token, uint amount) external returns (uint totalClaimed);
+    function claim(address token, uint256 amount) external returns (uint256 totalClaimed);
 
     /**
      * Allows our governance to pause rewards being claimed. This should be used
@@ -67,5 +68,4 @@ interface IRewardsLedger {
      * until a fix can be put in place.
      */
     function pause(bool pause) external;
-
 }

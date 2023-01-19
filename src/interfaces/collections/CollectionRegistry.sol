@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * Allows collection contracts to be approved and revoked by addresses holding the
  * {CollectionManager} role. Only once approved can these collections be applied to
@@ -11,7 +10,6 @@ pragma solidity ^0.8.0;
  */
 
 interface ICollectionRegistry {
-
     /// Emitted when a collection is successfully approved
     event CollectionApproved(address contractAddr);
 
@@ -33,5 +31,4 @@ interface ICollectionRegistry {
      * Approves a collection contract to be used for vaults.
      */
     function approveCollection(address contractAddr) external;
-
 }

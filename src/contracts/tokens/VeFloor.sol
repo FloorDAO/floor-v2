@@ -2,17 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import '../authorities/AuthorityControl.sol';
+import "../authorities/AuthorityControl.sol";
 
-import '../../interfaces/tokens/VeFloor.sol';
-
+import "../../interfaces/tokens/VeFloor.sol";
 
 /**
  * The veFloor token is heavily influenced by the {VeJoeToken} token:
  * https://snowtrace.io/address/0x3cabf341943Bc8466245e4d6F1ae0f8D071a1456#code
  */
 contract veFLOOR is AuthorityControl, IVeFLOOR {
-
     /// Monitor balances held by users
     mapping(address => uint256) private _balances;
 
@@ -181,5 +179,4 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     function _afterTokenOperation(address _account, uint256 _newBalance) internal {
         // Silence is golden.
     }
-
 }

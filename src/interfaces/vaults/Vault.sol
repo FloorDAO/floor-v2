@@ -2,21 +2,25 @@
 
 pragma solidity ^0.8.0;
 
-import '../strategies/BaseStrategy.sol';
-
+import "../strategies/BaseStrategy.sol";
 
 interface IVault {
-
     /// @dev Emitted when a user deposits
-    event VaultDeposit(address depositor, address token, uint amount);
+    event VaultDeposit(address depositor, address token, uint256 amount);
 
     /// @dev Emitted when a user withdraws
-    event VaultWithdrawal(address withdrawer, address token, uint amount);
+    event VaultWithdrawal(address withdrawer, address token, uint256 amount);
 
     /**
      * ...
      */
-    function initialize(string memory _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory) external;
+    function initialize(
+        string memory _name,
+        uint256 _vaultId,
+        address _collection,
+        address _strategy,
+        address _vaultFactory
+    ) external;
 
     /**
      * Gets the contract address for the vault collection. Only assets from this contract
@@ -42,23 +46,23 @@ interface IVault {
     /**
      * TODO: ..
      */
-    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory);
+    function shares(bool excludeTreasury) external view returns (address[] memory, uint256[] memory);
 
     /**
      * TODO: ..
      */
-    function claimRewards() external returns (uint);
+    function claimRewards() external returns (uint256);
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
-    function deposit(uint amount) external returns (uint256);
+    function deposit(uint256 amount) external returns (uint256);
 
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint amount) external returns (uint256);
+    function withdraw(uint256 amount) external returns (uint256);
 
     /**
      * Pauses deposits from being made into the vault. This should only be called by
@@ -74,5 +78,4 @@ interface IVault {
      * maintained correctly in the `stakers` array.
      */
     function recalculateVaultShare(bool updatePending) external;
-
 }

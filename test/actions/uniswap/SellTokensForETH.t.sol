@@ -2,15 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import '../../../src/contracts/actions/uniswap/SellTokensForETH.sol';
+import "../../../src/contracts/actions/uniswap/SellTokensForETH.sol";
 
-import '../../utilities/Environments.sol';
-
+import "../../utilities/Environments.sol";
 
 contract UniswapSellTokensForETHTest is FloorTest {
-
     // Set up our Router02 address
     address internal constant UNISWAP_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
 
@@ -21,7 +19,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
     uint24 internal constant USDC_FEE = 500;
 
     /// Store our mainnet fork information
-    uint internal constant BLOCK_NUMBER = 16_016_064;
+    uint256 internal constant BLOCK_NUMBER = 16_016_064;
 
     // Store our action contract
     UniswapSellTokensForETH action;
@@ -29,7 +27,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
     // Store the treasury address
     address treasury;
 
-    constructor () forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {}
 
     /**
      * Sets up our mainnet fork and register our action contract.
@@ -55,13 +53,13 @@ contract UniswapSellTokensForETHTest is FloorTest {
         ERC20(USDC).approve(address(action), 10000000000);
 
         // Action our trade
-        uint amountOut = action.execute(
+        uint256 amountOut = action.execute(
             abi.encodePacked(
-                USDC,               // token0
-                USDC_FEE,           // fee
-                uint(10000000000),  // amountIn
-                uint(1),            // amountOutMinimum
-                block.timestamp     // deadline
+                USDC, // token0
+                USDC_FEE, // fee
+                uint256(10000000000), // amountIn
+                uint256(1), // amountOutMinimum
+                block.timestamp // deadline
             )
         );
 
@@ -83,11 +81,11 @@ contract UniswapSellTokensForETHTest is FloorTest {
         vm.expectRevert();
         action.execute(
             abi.encodePacked(
-                USDC,               // token0
-                USDC_FEE,           // fee
-                uint(10000000000),  // amountIn
-                uint(0),            // amountOutMinimum
-                block.timestamp     // deadline
+                USDC, // token0
+                USDC_FEE, // fee
+                uint256(10000000000), // amountIn
+                uint256(0), // amountOutMinimum
+                block.timestamp // deadline
             )
         );
 
@@ -104,18 +102,17 @@ contract UniswapSellTokensForETHTest is FloorTest {
         // Approve $10,000 against the action contract
         ERC20(USDC).approve(address(action), 10000000000);
 
-        vm.expectRevert('Too little received');
+        vm.expectRevert("Too little received");
         action.execute(
             abi.encodePacked(
-                USDC,               // token0
-                USDC_FEE,           // fee
-                uint(10000000000),  // amountIn
-                uint(100 ether),    // amountOutMinimum
-                block.timestamp     // deadline
+                USDC, // token0
+                USDC_FEE, // fee
+                uint256(10000000000), // amountIn
+                uint256(100 ether), // amountOutMinimum
+                block.timestamp // deadline
             )
         );
 
         vm.stopPrank();
     }
-
 }

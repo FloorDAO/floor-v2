@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-
 interface ITransferTreasuryFundsAndGenerateAllocationsZap {
-
     /**
      * To help save gas this zap concatenates three key calls from the {OptionExchange}
      * into a singular call. This will transfer assets from the {Treasury}, create a
@@ -17,6 +15,5 @@ interface ITransferTreasuryFundsAndGenerateAllocationsZap {
      *  - createPool
      *  - generateAllocations
      */
-    function execute(address token, uint amount, uint maxDiscount, uint expires) external;
-
+    function execute(address token, uint256 amount, uint256 maxDiscount, uint256 expires) external;
 }

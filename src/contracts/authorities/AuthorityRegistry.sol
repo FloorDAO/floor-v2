@@ -2,40 +2,41 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/utils/Context.sol';
+import "@openzeppelin/contracts/utils/Context.sol";
 
-import '../../interfaces/authorities/AuthorityRegistry.sol';
-
+import "../../interfaces/authorities/AuthorityRegistry.sol";
 
 /**
- * Roles can be granted and revoked dynamically via the {grantRole} and {revokeRole} functions. Each role
- * has an associated admin role, and only accounts that have a role's admin role can call {grantRole}
- * and {revokeRole}.
+ * The {AuthorityRegistry} allows us to assign roles to wallet addresses that we can persist across
+ * our various contracts. The roles will offer explicit permissions to perform actions within those
+ * contracts.
  *
- * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means that only accounts with
- * this role will be able to grant or revoke other roles. More complex role relationships can be created
- * by using {_setRoleAdmin}.
+ * Roles can be granted and revoked dynamically via the {grantRole} and {revokeRole} functions. Only
+ * accounts that have an admin role can call {grantRole} and {revokeRole}.
  */
 contract AuthorityRegistry is Context, IAuthorityRegistry {
-
     /// Explicit checks for admin roles required
-    bytes32 public constant GOVERNOR = keccak256('Governor');
-    bytes32 public constant GUARDIAN = keccak256('Guardian');
+    bytes32 public constant GOVERNOR = keccak256("Governor");
+    bytes32 public constant GUARDIAN = keccak256("Guardian");
 
     /// Role => Member => Access
     mapping(bytes32 => mapping(address => bool)) private _roles;
 
     /**
-     * The address that deploys the {AuthorityRegistry} becomes the default
-     * controller. This can only be overwritten by the existing.
+     * The address that deploys the {AuthorityRegistry} becomes the default controller.
      */
-    constructor () {
+    constructor() {
         // Set up our default admin role
         _grantRole(GOVERNOR, _msgSender());
     }
 
     /**
-     * @dev Returns `true` if `account` has been granted `role`.
+     * Returns `true` if `account` has been granted `role`.
+     *
+     * @param role The keccak256 encoded role string
+     * @param account Address to check ownership of role
+     *
+     * @return bool If the address has the specified user role
      */
     function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
         if (role == GOVERNOR) {
@@ -45,27 +46,29 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
     }
 
     /**
-     * @dev Returns `true` if `account` has been granted either the GOVERNOR or
-     * GUARDIAN `role`.
+     * Returns `true` if `account` has been granted either GOVERNOR or GUARDIAN role.
+     *
+     * @param account Address to check ownership of role
+     *
+     * @return bool If the address has the GOVERNOR or GUARDIAN role
      */
     function hasAdminRole(address account) public view returns (bool) {
         return (_roles[GOVERNOR][account] || _roles[GUARDIAN][account]);
     }
 
     /**
-     * @dev Grants `role` to `account`.
+     * Grants `role` to `account`. If `account` had not been already granted `role`, emits
+     * a {RoleGranted} event.
      *
-     * If `account` had not been already granted `role`, emits a {RoleGranted}
-     * event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
+     * The caller _must_ have an admin role, otherwise the call will be reverted.
      *
      * May emit a {RoleGranted} event.
+     *
+     * @param role The keccak256 encoded role string
+     * @param account Address to grant the role to
      */
     function grantRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), 'Only admin roles can grant roles');
+        require(hasAdminRole(_msgSender()), "Only admin roles can grant roles");
 
         if (role == GOVERNOR) {
             require(_roles[GOVERNOR][_msgSender()]);
@@ -77,6 +80,13 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
         _grantRole(role, account);
     }
 
+    /**
+     * Handles the internal logic to grant an account a role, if they don't already hold
+     * the role being granted.
+     *
+     * @param role The keccak256 encoded role string
+     * @param account Address to grant the role to
+     */
     function _grantRole(bytes32 role, address account) internal {
         if (!hasRole(role, account)) {
             _roles[role][account] = true;
@@ -85,19 +95,19 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
     }
 
     /**
-     * @dev Revokes `role` from `account`.
+     * Revokes `role` from `account`. If `account` had been granted `role`, emits a
+     * {RoleRevoked} event.
      *
-     * If `account` had been granted `role`, emits a {RoleRevoked} event.
-     *
-     * Requirements:
-     *
-     * - the caller must have ``role``'s admin role.
+     * The caller _must_ have an admin role, otherwise the call will be reverted.
      *
      * May emit a {RoleRevoked} event.
+     *
+     * @param role The keccak256 encoded role string
+     * @param account Address to revoke role from
      */
     function revokeRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), 'Only admin roles can revoke roles');
-        require(role != GOVERNOR, 'Governor role cannot be revoked');
+        require(hasAdminRole(_msgSender()), "Only admin roles can revoke roles");
+        require(role != GOVERNOR, "Governor role cannot be revoked");
 
         if (hasRole(role, account)) {
             _roles[role][account] = false;
@@ -106,7 +116,7 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
     }
 
     /**
-     * @dev Revokes `role` from the calling account.
+     * Revokes `role` from the calling account.
      *
      * Roles are often managed via {grantRole} and {revokeRole}: this function's
      * purpose is to provide a mechanism for accounts to lose their privileges
@@ -115,19 +125,18 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * If the calling account had been revoked `role`, emits a {RoleRevoked}
      * event.
      *
-     * Requirements:
-     *
-     * - the caller must be `account`.
-     *
      * May emit a {RoleRevoked} event.
+     *
+     * @dev The GOVERNOR role cannot be renounced.
+     *
+     * @param role The keccak256 encoded role string being revoked
      */
     function renounceRole(bytes32 role) public virtual override {
-        require(role != GOVERNOR, 'Governor role cannot be renounced');
+        require(role != GOVERNOR, "Governor role cannot be renounced");
 
         if (hasRole(role, _msgSender())) {
             _roles[role][_msgSender()] = false;
             emit RoleRevoked(role, _msgSender(), _msgSender());
         }
     }
-
 }

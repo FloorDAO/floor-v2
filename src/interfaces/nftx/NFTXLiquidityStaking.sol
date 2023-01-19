@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-
 interface INFTXLiquidityStaking {
-
     function nftxVaultFactory() external view returns (address);
     function rewardDistTokenImpl() external view returns (address);
     function stakingTokenProvider() external view returns (address);
@@ -24,5 +22,4 @@ interface INFTXLiquidityStaking {
     function rescue(uint256 vaultId) external;
     function withdraw(uint256 vaultId, uint256 amount) external;
     function claimRewards(uint256 vaultId) external;
-
 }

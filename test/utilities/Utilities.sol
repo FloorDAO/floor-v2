@@ -2,9 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import {DSTest} from 'ds-test/test.sol';
-import {Vm} from 'forge-std/Vm.sol';
-
+import {DSTest} from "ds-test/test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 /**
  * Common utilities for forge tests.
@@ -14,7 +13,7 @@ import {Vm} from 'forge-std/Vm.sol';
  */
 contract Utilities is DSTest {
     Vm internal immutable vm = Vm(HEVM_ADDRESS);
-    bytes32 internal nextUser = keccak256(abi.encodePacked('user address'));
+    bytes32 internal nextUser = keccak256(abi.encodePacked("user address"));
 
     address public deployer = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
 
@@ -32,7 +31,10 @@ contract Utilities is DSTest {
      * Creates a set number of users, giving them an initial fund. We can
      * additionally add user labels if wanted for easier referencing.
      */
-    function createUsers(uint256 userNum, uint256 initialFunds, string[] memory userLabels) public returns (address payable[] memory) {
+    function createUsers(uint256 userNum, uint256 initialFunds, string[] memory userLabels)
+        public
+        returns (address payable[] memory)
+    {
         address payable[] memory users = new address payable[](userNum);
         address payable user;
 
@@ -54,7 +56,9 @@ contract Utilities is DSTest {
                 vm.label(user, userLabels[i]);
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return users;
@@ -92,5 +96,4 @@ contract Utilities is DSTest {
         uint256 targetTimestamp = block.timestamp + numSeconds;
         vm.warp(targetTimestamp);
     }
-
 }

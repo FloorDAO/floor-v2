@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'forge-std/Script.sol';
+import "forge-std/Script.sol";
 
-import '../../src/contracts/authorities/AuthorityControl.sol';
-import '../../src/contracts/authorities/AuthorityRegistry.sol';
-
+import "../../src/contracts/authorities/AuthorityControl.sol";
+import "../../src/contracts/authorities/AuthorityRegistry.sol";
 
 /**
  * Registers our default contract authorities.
@@ -21,7 +20,6 @@ import '../../src/contracts/authorities/AuthorityRegistry.sol';
  * ```
  */
 contract RegisterContractAuthority is Script {
-
     address constant AUTHORITY_CONTROL = address(0);
     address constant AUTHORITY_REGISTRY = address(0);
 
@@ -29,7 +27,6 @@ contract RegisterContractAuthority is Script {
     address constant REWARDS_LEDGER = address(0);
     address constant TREASURY = address(0);
     address constant VE_FLOOR_STAKING = address(0);
-
 
     function run() external {
         // Load our authority contracts
@@ -61,5 +58,4 @@ contract RegisterContractAuthority is Script {
         // Stop collecting onchain transactions
         vm.stopBroadcast();
     }
-
 }

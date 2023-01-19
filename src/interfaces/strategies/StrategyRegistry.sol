@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * Allows strategy contracts to be approved and revoked by addresses holding the
  * {StrategyManager} role. Only once approved can these strategies be applied to
@@ -13,7 +12,6 @@ pragma solidity ^0.8.0;
  */
 
 interface IStrategyRegistry {
-
     /// Emitted when a strategy is successfully approved
     event StrategyApproved(address contractAddr);
 
@@ -37,5 +35,4 @@ interface IStrategyRegistry {
      * are already instantiated with the strategy.
      */
     function revokeStrategy(address contractAddr) external;
-
 }

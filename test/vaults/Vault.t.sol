@@ -2,19 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/authorities/AuthorityRegistry.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/vaults/Vault.sol';
+import "../../src/contracts/authorities/AuthorityRegistry.sol";
+import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
+import "../../src/contracts/vaults/Vault.sol";
 
-import '../../src/interfaces/strategies/BaseStrategy.sol';
+import "../../src/interfaces/strategies/BaseStrategy.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract VaultTest is FloorTest {
-
     /// Store our mainnet fork information
-    uint internal constant BLOCK_NUMBER = 16_075_930;
+    uint256 internal constant BLOCK_NUMBER = 16_075_930;
 
     /// Reference our vault through our tests
     IBaseStrategy strategy;
@@ -22,9 +20,9 @@ contract VaultTest is FloorTest {
 
     /// A wallet that holds PUNK token at the block
     address private constant PUNK_HOLDER = 0x0E239772E3BbfD125E7a9558ccb93D34946caD18;
-    uint private constant PUNK_BALANCE = 676000177241559782;
+    uint256 private constant PUNK_BALANCE = 676000177241559782;
 
-    constructor () forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {}
 
     /**
      * Our set up logic creates a valid {Vault} instance that we will
@@ -37,22 +35,22 @@ contract VaultTest is FloorTest {
         // Set up our Vault with authority
         vault = new Vault(address(authorityRegistry));
         vault.initialize(
-            'Test Vault',                                // Vault Name
-            2,                                           // Vault ID
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // Collection: PUNK token
-            address(strategy),                           // Strategy: PUNK
-            address(0)                                   // VaultFactory: NULL
+            "Test Vault", // Vault Name
+            2, // Vault ID
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // Collection: PUNK token
+            address(strategy), // Strategy: PUNK
+            address(0) // VaultFactory: NULL
         );
 
         strategy.initialize(
-            0,               // Vault ID
-            address(vault),  // Vault Address
+            0, // Vault ID
+            address(vault), // Vault Address
             abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-                0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
+                0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
             )
         );
     }
@@ -98,7 +96,7 @@ contract VaultTest is FloorTest {
      * Assets should be help in the vault until the strategy calls to stake
      * them.
      */
-    function test_CanDeposit(uint amount) public {
+    function test_CanDeposit(uint256 amount) public {
         // Avoid dust being returned and getting reverted
         vm.assume(amount > 1000 && amount <= PUNK_BALANCE);
 
@@ -114,12 +112,12 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Make a deposit from our user and get back the received number of xTokens. The
         // number of xTokens is the amount allocated to the position, not the deposit
         // amount itself.
-        uint receivedAmount = vault.deposit(amount);
+        uint256 receivedAmount = vault.deposit(amount);
 
         vm.stopPrank();
 
@@ -156,7 +154,7 @@ contract VaultTest is FloorTest {
      * contract. The return value should be the cumulative value of all
      * deposits made in the test.
      */
-    function test_CanREMOVEDepositMultipleTimes(uint amount1, uint amount2) public {
+    function test_CanREMOVEDepositMultipleTimes(uint256 amount1, uint256 amount2) public {
         vm.assume(amount1 > 10000 && amount1 < PUNK_BALANCE / 2);
         vm.assume(amount2 > 10000 && amount2 < PUNK_BALANCE / 2);
 
@@ -171,14 +169,14 @@ contract VaultTest is FloorTest {
         assertEq(vault.share(PUNK_HOLDER), 0);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Make 2 varied size deposits into our user's position. The second deposit will
         // return the cumulative user's position that includes both deposit returns.
-        uint receivedAmount1 = vault.deposit(amount1);
+        uint256 receivedAmount1 = vault.deposit(amount1);
         assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount1);
 
-        uint receivedAmount2 = vault.deposit(amount2);
+        uint256 receivedAmount2 = vault.deposit(amount2);
         assertEq(vault.pendingPositions(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
 
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount1 - amount2);
@@ -203,7 +201,7 @@ contract VaultTest is FloorTest {
      * we should expect a revert.
      */
     function test_CannotDepositWithoutApproval() public {
-        vm.expectRevert('ERC20: transfer amount exceeds balance');
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
         vault.deposit(50000);
     }
 
@@ -216,10 +214,10 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Try and deposit more tokens that our user has
-        vm.expectRevert('ERC20: transfer amount exceeds balance');
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
         vault.deposit(10 ether);
 
         vm.stopPrank();
@@ -235,7 +233,7 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Send ETH from our user to the vault
-        (bool success, ) = address(vault).call{value: 10 ether}('');
+        (bool success,) = address(vault).call{value: 10 ether}("");
         assertEq(success, false);
 
         vm.stopPrank();
@@ -244,7 +242,7 @@ contract VaultTest is FloorTest {
     /**
      * A sender should be able to withdraw fully from their staked position.
      */
-    function test_CanWithdrawPartially(uint amount) public {
+    function test_CanWithdrawPartially(uint256 amount) public {
         // Prevent our deposit from returning a 0 amount from staking
         vm.assume(amount > 10000);
 
@@ -252,11 +250,11 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Make a deposit of our full balance. This will return a slightly different
         // amount in xToken terms.
-        uint depositAmount = vault.deposit(PUNK_BALANCE);
+        uint256 depositAmount = vault.deposit(PUNK_BALANCE);
 
         // Ensure that our test amount is less that or equal to the amount of xToken
         // received from our deposit.
@@ -271,7 +269,7 @@ contract VaultTest is FloorTest {
         vault.recalculateVaultShare(true);
 
         // Process a withdrawal of a partial amount against our position
-        uint withdrawalAmount = vault.withdraw(amount);
+        uint256 withdrawalAmount = vault.withdraw(amount);
 
         // Our holder should now have just the withdrawn amount back in their wallet
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), withdrawalAmount);
@@ -291,7 +289,7 @@ contract VaultTest is FloorTest {
     /**
      * A sender should be able to withdraw partially from their staked position.
      */
-    function test_CanWithdrawFully(uint amount) public {
+    function test_CanWithdrawFully(uint256 amount) public {
         // Prevent our deposit from returning a 0 amount from staking
         vm.assume(amount > 10000 && amount <= PUNK_BALANCE);
 
@@ -299,17 +297,17 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Deposit an amount of tokens that the holder has approved
-        uint depositAmount = vault.deposit(amount);
+        uint256 depositAmount = vault.deposit(amount);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
         // Withdraw the same amount that we depositted
-        uint withdrawalAmount = vault.withdraw(depositAmount);
+        uint256 withdrawalAmount = vault.withdraw(depositAmount);
 
         // We need to take our base balance, minus the dust lost during the deposit
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount + withdrawalAmount);
@@ -328,7 +326,7 @@ contract VaultTest is FloorTest {
     /**
      * ..
      */
-    function test_CanWithdrawFromPendingPosition(uint amount1, uint amount2) public {
+    function test_CanWithdrawFromPendingPosition(uint256 amount1, uint256 amount2) public {
         // Ensure that the combined amounts don't go above our available balance
         vm.assume(amount1 > 1000 && amount2 > 1000);
         vm.assume(amount1 <= PUNK_BALANCE / 2 && amount2 <= PUNK_BALANCE / 2);
@@ -342,11 +340,11 @@ contract VaultTest is FloorTest {
 
         // We can deposit our first value and calculate our shares to move this deposit
         // position from pending to active
-        uint depositAmount1 = vault.deposit(amount1);
+        uint256 depositAmount1 = vault.deposit(amount1);
         vault.recalculateVaultShare(true);
 
         // Make our second deposit that will remain in pending
-        uint depositAmount2 = vault.deposit(amount2);
+        uint256 depositAmount2 = vault.deposit(amount2);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -360,7 +358,7 @@ contract VaultTest is FloorTest {
         // We can process our first withdrawal, and because `amount1` is less that
         // `amount2`, we know that there will still be a partial `pendingPosition` left
         // for the user, and their full actual position.
-        uint withdrawalAmount1 = vault.withdraw(depositAmount1);
+        uint256 withdrawalAmount1 = vault.withdraw(depositAmount1);
 
         // This will leave the user with 100% share still, as well as their full
         // position, but their pending position will have been reduced.
@@ -370,10 +368,13 @@ contract VaultTest is FloorTest {
 
         // Now we want to remove the remaining position, which will be reduced from
         // both the pending and actual position.
-        uint withdrawalAmount2 = vault.withdraw(depositAmount2);
+        uint256 withdrawalAmount2 = vault.withdraw(depositAmount2);
 
         // Our user should now have the complete withdrawn amount in their balance
-        assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount1 - amount2 + withdrawalAmount1 + withdrawalAmount2);
+        assertEq(
+            IERC20(vault.collection()).balanceOf(PUNK_HOLDER),
+            PUNK_BALANCE - amount1 - amount2 + withdrawalAmount1 + withdrawalAmount2
+        );
 
         // Vault and Strategy should have no holdings
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
@@ -390,17 +391,17 @@ contract VaultTest is FloorTest {
     /**
      * A sender should be able to make multiple withdrawal calls.
      */
-    function test_CanWithdrawMultipleTimes(uint amount) public {
+    function test_CanWithdrawMultipleTimes(uint256 amount) public {
         vm.assume(amount > 10000);
 
         // Connect to an account that has PUNK tokens
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Deposit enough to make sufficiently make 2 withdrawals of our fuzzy value
-        uint depositAmount = vault.deposit(PUNK_BALANCE);
+        uint256 depositAmount = vault.deposit(PUNK_BALANCE);
         vm.assume(amount < depositAmount / 2);
 
         // To pass this lock we need to manipulate the block timestamp to set it
@@ -412,8 +413,8 @@ contract VaultTest is FloorTest {
         vault.recalculateVaultShare(true);
 
         // Process 2 vault withdrawals
-        uint withdrawalAmount1 = vault.withdraw(amount);
-        uint withdrawalAmount2 = vault.withdraw(amount);
+        uint256 withdrawalAmount1 = vault.withdraw(amount);
+        uint256 withdrawalAmount2 = vault.withdraw(amount);
 
         // Our user should now have the twice withdrawn amount in their balance
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), withdrawalAmount1 + withdrawalAmount2);
@@ -443,7 +444,7 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
 
         // Approve use of PUNK token
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
         // Try and deposit more tokens that our user has
         vault.deposit(500000);
@@ -454,7 +455,7 @@ contract VaultTest is FloorTest {
 
         // Expect our call to be reverted as we are trying to withdraw twice the amount
         // that we deposited.
-        vm.expectRevert('Insufficient position');
+        vm.expectRevert("Insufficient position");
         vault.withdraw(1000000);
 
         vm.stopPrank();
@@ -470,12 +471,12 @@ contract VaultTest is FloorTest {
 
         // Make a deposit across different holders
         vm.startPrank(PUNK_HOLDER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
         vault.deposit(100000);
         vm.stopPrank();
 
         vm.startPrank(ALT_USER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
         vault.deposit(200000);
         vm.stopPrank();
 
@@ -510,7 +511,7 @@ contract VaultTest is FloorTest {
 
         // Make another deposit from a new user to confirm it is recalculated
         vm.startPrank(LATE_USER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
         vault.deposit(300000);
         vm.stopPrank();
 
@@ -566,9 +567,9 @@ contract VaultTest is FloorTest {
         assertEq(vault.paused(), true);
 
         vm.startPrank(PUNK_HOLDER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
+        IERC20(vault.collection()).approve(address(vault), type(uint256).max);
 
-        vm.expectRevert('Vault is currently paused');
+        vm.expectRevert("Vault is currently paused");
         vault.deposit(100000);
 
         vm.stopPrank();
@@ -576,8 +577,7 @@ contract VaultTest is FloorTest {
 
     function test_CannotPauseWithoutPermissions() public {
         vm.prank(PUNK_HOLDER);
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vault.pause(true);
     }
-
 }

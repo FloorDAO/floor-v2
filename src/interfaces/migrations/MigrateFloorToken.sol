@@ -2,10 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-
 interface IMigrateFloorToken {
-
-    function mintTokens(uint _amount) external;
+    function mintTokens(uint256 _amount) external;
 
     /**
      * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
@@ -18,5 +16,4 @@ interface IMigrateFloorToken {
      * should be made prior to calling this contract function.
      */
     function upgradeFloorToken() external;
-
 }

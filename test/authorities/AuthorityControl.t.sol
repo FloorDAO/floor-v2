@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract AuthorityControlTest is FloorTest {
-
     // Set up an unknown role for use in tests
-    bytes32 private constant UNKNOWN = keccak256('Unknown');
+    bytes32 private constant UNKNOWN = keccak256("Unknown");
 
     // Set up a small collection of users to test with
     address alice;
@@ -258,5 +256,4 @@ contract AuthorityControlTest is FloorTest {
         vm.prank(bob);
         authorityRegistry.renounceRole(UNKNOWN);
     }
-
 }

@@ -2,14 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * This interface expands upon the OpenZeppelin `IAccessControl` interface:
  * https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/contracts/access/IAccessControl.sol
  */
 
 interface IAuthorityRegistry {
-
     /**
      * @dev Emitted when `account` is granted `role`.
      *
@@ -76,5 +74,4 @@ interface IAuthorityRegistry {
      * - the caller must be `account`.
      */
     function renounceRole(bytes32 role) external;
-
 }

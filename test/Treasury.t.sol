@@ -2,29 +2,27 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/mocks/ERC20Mock.sol';
+import "@openzeppelin/contracts/mocks/ERC20Mock.sol";
 
-import './mocks/erc/ERC721Mock.sol';
-import './mocks/erc/ERC1155Mock.sol';
-import './mocks/PricingExecutor.sol';
+import "./mocks/erc/ERC721Mock.sol";
+import "./mocks/erc/ERC1155Mock.sol";
+import "./mocks/PricingExecutor.sol";
 
-import '../src/contracts/collections/CollectionRegistry.sol';
-import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
-import '../src/contracts/tokens/Floor.sol';
-import '../src/contracts/strategies/StrategyRegistry.sol';
-import '../src/contracts/vaults/Vault.sol';
-import '../src/contracts/vaults/VaultFactory.sol';
-import '../src/contracts/RewardsLedger.sol';
-import '../src/contracts/Treasury.sol';
+import "../src/contracts/collections/CollectionRegistry.sol";
+import {veFLOOR} from "../src/contracts/tokens/VeFloor.sol";
+import "../src/contracts/tokens/Floor.sol";
+import "../src/contracts/strategies/StrategyRegistry.sol";
+import "../src/contracts/vaults/Vault.sol";
+import "../src/contracts/vaults/VaultFactory.sol";
+import "../src/contracts/RewardsLedger.sol";
+import "../src/contracts/Treasury.sol";
 
-import '../src/interfaces/vaults/Vault.sol';
-import '../src/interfaces/voting/GaugeWeightVote.sol';
+import "../src/interfaces/vaults/Vault.sol";
+import "../src/interfaces/voting/GaugeWeightVote.sol";
 
-import './utilities/Environments.sol';
-
+import "./utilities/Environments.sol";
 
 contract TreasuryTest is FloorTest {
-
     address VAULT_FACTORY = address(10);
     address VOTE_CONTRACT = address(12);
 
@@ -44,7 +42,7 @@ contract TreasuryTest is FloorTest {
 
     PricingExecutorMock pricingExecutorMock;
 
-    constructor () {
+    constructor() {
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 
@@ -55,8 +53,8 @@ contract TreasuryTest is FloorTest {
         // Set up a fake ERC20 token that we can test with. We use the {Floor} token
         // contract as a base as this already implements IERC20. We have no initial
         // balance.
-        erc20   = new ERC20Mock();
-        erc721  = new ERC721Mock();
+        erc20 = new ERC20Mock();
+        erc721 = new ERC721Mock();
         erc1155 = new ERC1155Mock();
 
         // Set up our registries
@@ -96,7 +94,7 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {FloorMinted}.
      */
-    function test_CanMintFloor(uint amount) public {
+    function test_CanMintFloor(uint256 amount) public {
         vm.assume(amount > 0);
 
         treasury.mint(amount);
@@ -109,7 +107,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintFloorWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.mint(100 ether);
 
@@ -123,7 +121,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintZeroFloor() public {
-        vm.expectRevert('Cannot mint zero Floor');
+        vm.expectRevert("Cannot mint zero Floor");
         treasury.mint(0);
 
         assertEq(floor.balanceOf(address(treasury)), 0);
@@ -134,7 +132,7 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {Deposit}.
      */
-    function test_CanDepositNativeToken(uint amount) public {
+    function test_CanDepositNativeToken(uint256 amount) public {
         vm.assume(amount <= address(alice).balance);
 
         // Confirm that the {Treasury} starts with 0ETH
@@ -142,7 +140,7 @@ contract TreasuryTest is FloorTest {
 
         // Send the {Treasury} 10ETH from Alice
         vm.prank(alice);
-        (bool sent,) = address(treasury).call{value: amount}('');
+        (bool sent,) = address(treasury).call{value: amount}("");
 
         // Confirm that the ETH was sent successfully
         assertTrue(sent);
@@ -157,7 +155,7 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {DepositERC20}.
      */
-    function test_CanDepositERC20(uint mintAmount, uint depositAmount) public {
+    function test_CanDepositERC20(uint256 mintAmount, uint256 depositAmount) public {
         // The deposit amount must be <= the mint amount
         vm.assume(depositAmount <= mintAmount);
 
@@ -185,7 +183,7 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {DepositERC721}.
      */
-    function test_CanDepositERC721(uint tokenId) public {
+    function test_CanDepositERC721(uint256 tokenId) public {
         // Give Alice an ERC721 to facilitate the test
         erc721.mint(alice, tokenId);
 
@@ -208,12 +206,12 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {DepositERC1155}.
      */
-    function test_CanDepositERC1155(uint tokenId, uint mintAmount, uint depositAmount) public {
+    function test_CanDepositERC1155(uint256 tokenId, uint256 mintAmount, uint256 depositAmount) public {
         // The deposit amount must be <= the mint amount
         vm.assume(depositAmount <= mintAmount);
 
         // Give Alice an ERC1155 to facilitate the test
-        erc1155.mint(alice, tokenId, mintAmount, '');
+        erc1155.mint(alice, tokenId, mintAmount, "");
 
         // Confirm our starting owner of the ERC1155
         assertEq(erc1155.balanceOf(alice, tokenId), mintAmount);
@@ -235,18 +233,18 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {Withdraw}.
      */
-    function test_CanWithdrawNativeToken(uint depositAmount, uint withdrawAmount) public {
+    function test_CanWithdrawNativeToken(uint256 depositAmount, uint256 withdrawAmount) public {
         // The deposit amount must be >= the withdraw amount, but less than Alice's ETH balance
         vm.assume(depositAmount >= withdrawAmount);
         vm.assume(depositAmount <= address(alice).balance);
 
         // Capture Alice's starting ETH balance
-        uint aliceStartAmount = address(alice).balance;
-        uint bobStartAmount = address(bob).balance;
+        uint256 aliceStartAmount = address(alice).balance;
+        uint256 bobStartAmount = address(bob).balance;
 
         // Send the {Treasury} 10ETH from Alice
         vm.prank(alice);
-        (bool sent,) = address(treasury).call{value: depositAmount}('');
+        (bool sent,) = address(treasury).call{value: depositAmount}("");
         assertTrue(sent);
 
         // Confirm that the {Treasury} has received the expected 10ETH
@@ -269,10 +267,10 @@ contract TreasuryTest is FloorTest {
     function test_CannotWithdrawNativeTokenWithoutPermissions() public {
         // Send the {Treasury} 10ETH from Alice
         vm.prank(alice);
-        (bool sent,) = address(treasury).call{value: 10 ether}('');
+        (bool sent,) = address(treasury).call{value: 10 ether}("");
         assertTrue(sent);
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(carol);
         treasury.withdraw(carol, 5 ether);
     }
@@ -314,7 +312,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {WithdrawERC20}.
      */
     function test_CannotWithdrawInvalidERC20() public {
-        vm.expectRevert('ERC20: transfer amount exceeds balance');
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
         vm.prank(bob);
         treasury.withdrawERC20(bob, address(erc20), 3 ether);
     }
@@ -335,7 +333,7 @@ contract TreasuryTest is FloorTest {
         treasury.depositERC20(address(erc20), 4 ether);
         vm.stopPrank();
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(carol);
         treasury.withdrawERC20(bob, address(erc20), 3 ether);
     }
@@ -346,7 +344,7 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {WithdrawERC721}.
      */
-    function test_CanWithdrawERC721(uint tokenId) public {
+    function test_CanWithdrawERC721(uint256 tokenId) public {
         // Give Alice an ERC721 to facilitate the test
         erc721.mint(alice, tokenId);
 
@@ -372,7 +370,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawInvalidERC721() public {
         // Withdraw the ERC721 to Bob's wallet
-        vm.expectRevert('ERC721: invalid token ID');
+        vm.expectRevert("ERC721: invalid token ID");
         vm.prank(bob);
         treasury.withdrawERC721(bob, address(erc721), 123);
     }
@@ -385,7 +383,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawERC721WithoutPermissions() public {
         // Withdraw the ERC721 to Carol's wallet
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(carol);
         treasury.withdrawERC721(bob, address(erc721), 123);
     }
@@ -396,12 +394,12 @@ contract TreasuryTest is FloorTest {
      *
      * This should emit {WithdrawERC721}.
      */
-    function test_CanWithdrawERC1155(uint tokenId, uint depositAmount, uint withdrawAmount) public {
+    function test_CanWithdrawERC1155(uint256 tokenId, uint256 depositAmount, uint256 withdrawAmount) public {
         // The deposit amount must be >= the withdraw amount
         vm.assume(depositAmount >= withdrawAmount);
 
         // Give Alice an ERC1155 to facilitate the test
-        erc1155.mint(alice, tokenId, depositAmount, '');
+        erc1155.mint(alice, tokenId, depositAmount, "");
 
         // Send the {Treasury} tokens from Alice
         vm.startPrank(alice);
@@ -427,7 +425,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawInvalidERC1155() public {
         // Withdraw the ERC1155 to Bob's wallet
-        vm.expectRevert('ERC1155: insufficient balance for transfer');
+        vm.expectRevert("ERC1155: insufficient balance for transfer");
         vm.prank(bob);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 1);
     }
@@ -440,7 +438,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawInvalidERC1155Amount() public {
         // Give Alice an ERC1155 to facilitate the test
-        erc1155.mint(alice, 1, 3, '');
+        erc1155.mint(alice, 1, 3, "");
 
         // Send the {Treasury} 2 tokens from Alice
         vm.startPrank(alice);
@@ -449,7 +447,7 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
 
         // Withdraw the ERC1155 to Bob's wallet
-        vm.expectRevert('ERC1155: insufficient balance for transfer');
+        vm.expectRevert("ERC1155: insufficient balance for transfer");
         vm.prank(bob);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
@@ -462,7 +460,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawERC1155WithoutPermissions() public {
         // Give Alice an ERC1155 to facilitate the test
-        erc1155.mint(alice, 1, 3, '');
+        erc1155.mint(alice, 1, 3, "");
 
         // Send the {Treasury} 2 tokens from Alice
         vm.startPrank(alice);
@@ -471,7 +469,7 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
 
         // Withdraw the ERC1155 to Bob's wallet
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
@@ -492,7 +490,7 @@ contract TreasuryTest is FloorTest {
      * don't pass a `NULL` address value. We expect a revert.
      */
     function test_CannotSetRewardsLedgerContractNullValue() public {
-        vm.expectRevert('Cannot set to null address');
+        vm.expectRevert("Cannot set to null address");
         treasury.setRewardsLedgerContract(address(0));
     }
 
@@ -502,7 +500,7 @@ contract TreasuryTest is FloorTest {
      * be reverted.
      */
     function test_CannotSetRewardsLedgerContractWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.setRewardsLedgerContract(address(1));
     }
@@ -518,12 +516,12 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetGaugeWeightVoteContractNullValue() public {
-        vm.expectRevert('Cannot set to null address');
+        vm.expectRevert("Cannot set to null address");
         treasury.setGaugeWeightVoteContract(address(0));
     }
 
     function test_CannotSetGaugeWeightVoteContractWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.setGaugeWeightVoteContract(address(1));
     }
@@ -531,7 +529,7 @@ contract TreasuryTest is FloorTest {
     /**
      * Retained Treasury Yield Percentage get/set.
      */
-    function test_CanSetRetainedTreasuryYieldPercentage(uint percentage) public {
+    function test_CanSetRetainedTreasuryYieldPercentage(uint256 percentage) public {
         vm.assume(percentage <= 10000);
 
         assertEq(treasury.retainedTreasuryYieldPercentage(), 0);
@@ -540,16 +538,16 @@ contract TreasuryTest is FloorTest {
         assertEq(treasury.retainedTreasuryYieldPercentage(), percentage);
     }
 
-    function test_CannotSetRetainedTreasuryYieldPercentageOverOneHundredPercent(uint percentage) public {
+    function test_CannotSetRetainedTreasuryYieldPercentageOverOneHundredPercent(uint256 percentage) public {
         // Ensure our test amount is over 100%
         vm.assume(percentage > 10000);
 
-        vm.expectRevert('Percentage too high');
+        vm.expectRevert("Percentage too high");
         treasury.setRetainedTreasuryYieldPercentage(percentage);
     }
 
     function test_CannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.setPoolMultiplierPercentage(0);
     }
@@ -557,7 +555,7 @@ contract TreasuryTest is FloorTest {
     /**
      * Pool Multiplier Percentage get/set.
      */
-    function test_CanSetPoolMultiplierPercentage(uint percentage) public {
+    function test_CanSetPoolMultiplierPercentage(uint256 percentage) public {
         vm.assume(percentage <= 10000);
 
         assertEq(treasury.poolMultiplierPercentage(), 0);
@@ -567,7 +565,7 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetPoolMultiplierPercentageWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.setRetainedTreasuryYieldPercentage(0);
     }
@@ -610,7 +608,7 @@ contract TreasuryTest is FloorTest {
      * anything and we should have our call reverted.
      */
     function test_CannotGetFloorPricesWithoutPricingExecutor() public {
-        vm.expectRevert('No pricing executor set');
+        vm.expectRevert("No pricing executor set");
         treasury.getCollectionFloorPrices();
     }
 
@@ -625,12 +623,12 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetPricingExecutorNullValue() public {
-        vm.expectRevert('Cannot set to null address');
+        vm.expectRevert("Cannot set to null address");
         treasury.setPricingExecutor(address(0));
     }
 
     function test_CannotSetPricingExecutorWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         treasury.setPricingExecutor(address(1));
     }
@@ -655,16 +653,13 @@ contract TreasuryTest is FloorTest {
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](5);
-        (vaults[0], vaults[1], vaults[2], vaults[3], vaults[4]) = (address(5), address(6), address(7), address(8), address(9));
+        (vaults[0], vaults[1], vaults[2], vaults[3], vaults[4]) =
+            (address(5), address(6), address(7), address(8), address(9));
 
         // Create a unique set of test users
         users = utilities.createUsers(8, 0);
 
-        vm.mockCall(
-            VAULT_FACTORY,
-            abi.encodeWithSelector(VaultFactory.vaults.selector),
-            abi.encode(vaults)
-        );
+        vm.mockCall(VAULT_FACTORY, abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(vaults));
 
         // Approve our vault collections
         collectionRegistry.approveCollection(address(1));
@@ -674,11 +669,11 @@ contract TreasuryTest is FloorTest {
 
         // Mock our rewards yield claim amount. For simplicity of future calculations, I've made
         // these the same as the number of users that have (mock) staked against to it
-        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(8 ether)));
-        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
-        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(5 ether)));
-        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(6 ether)));
-        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(4 ether)));
+        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint256(8 ether)));
+        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint256(1 ether)));
+        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint256(5 ether)));
+        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint256(6 ether)));
+        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint256(4 ether)));
 
         // Mock our collection for each vault
         vm.mockCall(vaults[0], abi.encodeWithSelector(IVault.collection.selector), abi.encode(address(1)));
@@ -689,9 +684,11 @@ contract TreasuryTest is FloorTest {
 
         // Mock our vault shares
         address[] memory shareUsers = new address[](7);
-        uint[] memory userShares = new uint[](7);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5], shareUsers[6]) = (address(treasury), users[0], users[1], users[2], users[3], users[4], users[5]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5], userShares[6]) = (3000, 1000, 1500, 1500, 2000, 500, 250);
+        uint256[] memory userShares = new uint[](7);
+        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5], shareUsers[6]) =
+            (address(treasury), users[0], users[1], users[2], users[3], users[4], users[5]);
+        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5], userShares[6]) =
+            (3000, 1000, 1500, 1500, 2000, 500, 250);
         vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
 
         shareUsers = new address[](1);
@@ -702,14 +699,17 @@ contract TreasuryTest is FloorTest {
 
         shareUsers = new address[](5);
         userShares = new uint[](5);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) = (address(treasury), users[3], users[4], users[6], users[7]);
+        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) =
+            (address(treasury), users[3], users[4], users[6], users[7]);
         (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4]) = (2000, 2000, 2500, 2500, 1000);
         vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
 
         shareUsers = new address[](6);
         userShares = new uint[](6);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5]) = (address(treasury), users[0], users[2], users[4], users[6], users[7]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5]) = (2000, 2500, 2500, 1000, 1000, 1000);
+        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5]) =
+            (address(treasury), users[0], users[2], users[4], users[6], users[7]);
+        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5]) =
+            (2000, 2500, 2500, 1000, 1000, 1000);
         vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
 
         shareUsers = new address[](4);
@@ -719,36 +719,42 @@ contract TreasuryTest is FloorTest {
         vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
 
         // Mock vault share recalculation (ignore)
-        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
+        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
+        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
+        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
+        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
+        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
 
         // Mock our vote distribution. Our token distribution amount from the log is coming in
         // as `1928957360.000000000000000000`, so we can split this between a number of users.
         shareUsers = new address[](5);
         userShares = new uint[](5);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) = (users[0], users[2], users[3], users[4], users[6]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4]) = (4 ether, 3 ether, 1 ether, 1 ether, 3 ether);
-        vm.mockCall(VOTE_CONTRACT, abi.encodeWithSelector(IGaugeWeightVote.snapshot.selector), abi.encode(shareUsers, userShares));
+        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) =
+            (users[0], users[2], users[3], users[4], users[6]);
+        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4]) =
+            (4 ether, 3 ether, 1 ether, 1 ether, 3 ether);
+        vm.mockCall(
+            VOTE_CONTRACT,
+            abi.encodeWithSelector(IGaugeWeightVote.snapshot.selector),
+            abi.encode(shareUsers, userShares)
+        );
 
         // Trigger our epoch end
         treasury.endEpoch();
 
         // Confirm the amount allocated to each user
-        assertEq(rewards.available(address(treasury), address(veFloor)), 0);
-        assertEq(rewards.available(users[0], address(veFloor)), 234000000000000000000);
-        assertEq(rewards.available(users[1], address(veFloor)), 120000000000000000000);
-        assertEq(rewards.available(users[2], address(veFloor)), 273000000000000000000);
-        assertEq(rewards.available(users[3], address(veFloor)), 261000000000000000000);
-        assertEq(rewards.available(users[4], address(veFloor)), 226000000000000000000);
-        assertEq(rewards.available(users[5], address(veFloor)), 120000000000000000000);
-        assertEq(rewards.available(users[6], address(veFloor)), 288000000000000000000);
-        assertEq(rewards.available(users[7], address(veFloor)), 210000000000000000000);
+        assertEq(rewards.available(address(treasury), address(floor)), 0);
+        assertEq(rewards.available(users[0], address(floor)), 234000000000000000000);
+        assertEq(rewards.available(users[1], address(floor)), 120000000000000000000);
+        assertEq(rewards.available(users[2], address(floor)), 273000000000000000000);
+        assertEq(rewards.available(users[3], address(floor)), 261000000000000000000);
+        assertEq(rewards.available(users[4], address(floor)), 226000000000000000000);
+        assertEq(rewards.available(users[5], address(floor)), 120000000000000000000);
+        assertEq(rewards.available(users[6], address(floor)), 288000000000000000000);
+        assertEq(rewards.available(users[7], address(floor)), 210000000000000000000);
 
-        // Confirm that the {Treasury} has no allocation
-        assertEq(rewards.available(address(treasury), address(veFloor)), 0);
+        // Confirm rewards ledger holds all expected floor to distribute to above users
+        // TODO: ..
     }
 
     /**
@@ -761,9 +767,7 @@ contract TreasuryTest is FloorTest {
 
         // Mock our VaultFactory call to return no vaults
         vm.mockCall(
-            address(treasury),
-            abi.encodeWithSelector(VaultFactory.vaults.selector),
-            abi.encode(new address[](0))
+            address(treasury), abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(new address[](0))
         );
 
         // Call an initial trigger, which should pass as no vaults or staked users
@@ -772,12 +776,11 @@ contract TreasuryTest is FloorTest {
 
         // Calling the epoch again should result in a reversion as we have not
         // respected the enforced timelock.
-        vm.expectRevert('Not enough time since last epoch');
+        vm.expectRevert("Not enough time since last epoch");
         treasury.endEpoch();
 
         // After moving forwards 7 days, we can now successfully end another epoch
         vm.warp(block.timestamp + 7 days);
         treasury.endEpoch();
     }
-
 }

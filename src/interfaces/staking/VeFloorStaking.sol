@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-
 interface IVeFloorStaking {
-
     event Claim(address indexed user, uint256 amount);
     event Deposit(address indexed user, uint256 amount);
     event UpdateMaxCapPct(address indexed user, uint256 maxCapPct);
@@ -71,5 +69,4 @@ interface IVeFloorStaking {
 
     /// @notice Update reward variables
     function updateRewardVars() external;
-
 }

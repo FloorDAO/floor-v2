@@ -2,25 +2,40 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import "@uniswap/v3-core/contracts/libraries/FullMath.sol";
+import "@uniswap/v3-core/contracts/libraries/TickMath.sol";
 
-import '../../interfaces/pricing/BasePricingExecutor.sol';
-
+import "../../interfaces/pricing/BasePricingExecutor.sol";
 
 interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
 }
 
 interface IUniswapV3Pool {
-    function slot0() external view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked);
+    function slot0()
+        external
+        view
+        returns (
+            uint160 sqrtPriceX96,
+            int24 tick,
+            uint16 observationIndex,
+            uint16 observationCardinality,
+            uint16 observationCardinalityNext,
+            uint8 feeProtocol,
+            bool unlocked
+        );
     function liquidity() external view returns (uint128);
-    function observe(uint32[] calldata secondsAgos) external view returns (int56[] memory tickCumulatives, uint160[] memory liquidityCumulatives);
-    function observations(uint256 index) external view returns (uint32 blockTimestamp, int56 tickCumulative, uint160 liquidityCumulative, bool initialized);
+    function observe(uint32[] calldata secondsAgos)
+        external
+        view
+        returns (int56[] memory tickCumulatives, uint160[] memory liquidityCumulatives);
+    function observations(uint256 index)
+        external
+        view
+        returns (uint32 blockTimestamp, int56 tickCumulative, uint160 liquidityCumulative, bool initialized);
 }
-
 
 /**
  * The Uniswap pricing executor will query either a singular token or multiple
@@ -35,7 +50,6 @@ interface IUniswapV3Pool {
  * TOKEN -> FLOOR via ETH as an interim.
  */
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
-
     /// Maintain an immutable address of the Uniswap V3 Pool Factory contract
     IUniswapV3Factory public immutable uniswapV3PoolFactory;
 
@@ -54,7 +68,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Factory : 0x1F98431c8aD98523631AE4a59f267346ea31F984
      * Floor   : TBC
      */
-    constructor (address _poolFactory, address _floor) {
+    constructor(address _poolFactory, address _floor) {
         uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
         floor = _floor;
     }
@@ -63,20 +77,20 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Name of the pricing executor.
      */
     function name() external pure returns (string memory) {
-        return 'UniswapV3PricingExecutor';
+        return "UniswapV3PricingExecutor";
     }
 
     /**
      * Gets our live price of a token to ETH.
      */
-    function getETHPrice(address token) external returns (uint) {
+    function getETHPrice(address token) external returns (uint256) {
         return _getPrice(token);
     }
 
     /**
      * Gets our live prices of multiple tokens to ETH.
      */
-    function getETHPrices(address[] memory tokens) external returns (uint[] memory output) {
+    function getETHPrices(address[] memory tokens) external returns (uint256[] memory output) {
         return _getPrices(tokens);
     }
 
@@ -88,35 +102,37 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * FLOOR token. We can then determine the amount of returned token based on
      * live price values.
      */
-    function getFloorPrice(address token) external returns (uint) {
+    function getFloorPrice(address token) external returns (uint256) {
         address[] memory tokens = new address[](2);
         tokens[0] = token;
         tokens[1] = address(floor);
 
-        uint[] memory prices = _getPrices(tokens);
+        uint256[] memory prices = _getPrices(tokens);
         return _calculateFloorPrice(token, prices[0], prices[1]);
     }
 
     /**
      * Gets a live mapped price of multiple tokens to FLOOR.
      */
-    function getFloorPrices(address[] memory tokens) external returns (uint[] memory) {
+    function getFloorPrices(address[] memory tokens) external returns (uint256[] memory) {
         // We first need to get our Floor price, as well as our token prices
-        uint floorPrice = _getPrice(address(floor));
-        uint[] memory prices = _getPrices(tokens);
+        uint256 floorPrice = _getPrice(address(floor));
+        uint256[] memory prices = _getPrices(tokens);
 
         // Gas saves by storing the array length
-        uint tokensLength = tokens.length;
+        uint256 tokensLength = tokens.length;
 
         // We only need to store the same number of tokens passed in, so we exclude
         // our additional floor price request from the response.
-        uint[] memory output = new uint[](tokensLength);
+        uint256[] memory output = new uint[](tokensLength);
 
         // Each iteration requires us to calculate the floor price based on the token
         // so that we can return the token amount in the correct decimal accuracy.
-        for (uint i; i < tokensLength;) {
+        for (uint256 i; i < tokensLength;) {
             output[i] = _calculateFloorPrice(tokens[i], prices[i], floorPrice);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return output;
@@ -126,7 +142,11 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * This helper function allows us to return the amount of tokens a user would receive
      * for 1 FLOOR token, returned in the decimal accuracy of the base token.
      */
-    function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
+    function _calculateFloorPrice(address token, uint256 tokenPrice, uint256 floorPrice)
+        internal
+        view
+        returns (uint256)
+    {
         return (floorPrice * 10 ** ERC20(token).decimals()) / tokenPrice;
     }
 
@@ -158,7 +178,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         uint128 bestLiquidity = 0;
 
         // We iterate over our fee ladder
-        for (uint i = 0; i < fees.length;) {
+        for (uint256 i = 0; i < fees.length;) {
             // Load our candidate pool
             address candidatePool = uniswapV3PoolFactory.getPool(token, WETH, fees[i]);
 
@@ -175,11 +195,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
                 }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Ensure we don't have a NULL pool
-        require(pool != address(0), 'Unknown pool');
+        require(pool != address(0), "Unknown pool");
 
         poolAddresses[token] = pool;
         return poolAddresses[token];
@@ -194,7 +216,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         address pool = _poolAddress(token);
 
         // Set our default TWAP ago time
-        uint ago = 1800;
+        uint256 ago = 1800;
 
         // We set our TWAP range to 30 minutes
         uint32[] memory secondsAgos = new uint32[](2);
@@ -202,14 +224,16 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // If we cannot find an observation for our desired time, then we attempt to fallback
         // on the latest observation available to us
-        (bool success, bytes memory data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+        (bool success, bytes memory data) =
+            pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
         if (!success) {
             if (keccak256(data) != keccak256(abi.encodeWithSignature("Error(string)", "OLD"))) revertBytes(data);
 
             // The oldest available observation in the ring buffer is the index following the current (accounting for wrapping),
             // since this is the one that will be overwritten next.
             (,, uint16 index, uint16 cardinality,,,) = IUniswapV3Pool(pool).slot0();
-            (uint32 oldestAvailableAge,,,bool initialized) = IUniswapV3Pool(pool).observations((index + 1) % cardinality);
+            (uint32 oldestAvailableAge,,, bool initialized) =
+                IUniswapV3Pool(pool).observations((index + 1) % cardinality);
 
             // If the following observation in a ring buffer of our current cardinality is uninitialized, then all the
             // observations at higher indices are also uninitialized, so we wrap back to index 0, which we now know
@@ -229,18 +253,24 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         int56[] memory tickCumulatives = abi.decode(data, (int56[])); // don't bother decoding the liquidityCumulatives array
 
         // Get our tick value from the cumulatives
-        int24 tick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(int(ago)));
+        int24 tick = int24((tickCumulatives[1] - tickCumulatives[0]) / int56(int256(ago)));
 
         // Get our token price
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
         return decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96);
     }
 
-    function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
+    function decodeSqrtPriceX96(address underlying, uint256 underlyingDecimalsScaler, uint256 sqrtPriceX96)
+        private
+        pure
+        returns (uint256 price)
+    {
         if (uint160(underlying) < uint160(WETH)) {
-            price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2**(96*2)) / 1e18) / underlyingDecimalsScaler;
+            price =
+                FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint256(2 ** (96 * 2)) / 1e18) / underlyingDecimalsScaler;
         } else {
-            price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2**(96*2)) / (1e18 * underlyingDecimalsScaler));
+            price =
+                FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint256(2 ** (96 * 2)) / (1e18 * underlyingDecimalsScaler));
             if (price == 0) return 1e36;
             price = 1e36 / price;
         }
@@ -255,10 +285,12 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * unfortunately the best we can do with what we have.
      */
     function _getPrices(address[] memory tokens) internal returns (uint256[] memory) {
-        uint[] memory prices = new uint[](tokens.length);
-        for (uint i; i < tokens.length;) {
+        uint256[] memory prices = new uint[](tokens.length);
+        for (uint256 i; i < tokens.length;) {
             prices[i] = _getPrice(tokens[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         return prices;
     }
@@ -275,5 +307,4 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         revert("e/empty-error");
     }
-
 }

@@ -2,17 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import 'forge-std/Test.sol';
+import "forge-std/Test.sol";
 
-import '../../src/contracts/authorities/AuthorityControl.sol';
-import '../../src/contracts/authorities/AuthorityRegistry.sol';
+import "../../src/contracts/authorities/AuthorityControl.sol";
+import "../../src/contracts/authorities/AuthorityRegistry.sol";
 
-import '../utilities/Utilities.sol';
-
+import "../utilities/Utilities.sol";
 
 contract FloorTest is Test {
-
-    uint mainnetFork;
+    uint256 mainnetFork;
 
     AuthorityControl authorityControl;
     AuthorityRegistry authorityRegistry;
@@ -22,7 +20,7 @@ contract FloorTest is Test {
 
     address constant DEPLOYER = 0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84;
 
-    constructor () {
+    constructor() {
         // Set up our utilities class
         utilities = new Utilities();
 
@@ -30,11 +28,11 @@ contract FloorTest is Test {
         users = utilities.createUsers(5, 100 ether);
 
         // Label our users
-        vm.label(users[0], 'Alice');
-        vm.label(users[1], 'Bob');
-        vm.label(users[2], 'Carol');
-        vm.label(users[3], 'David');
-        vm.label(users[4], 'Earl');
+        vm.label(users[0], "Alice");
+        vm.label(users[1], "Bob");
+        vm.label(users[2], "Carol");
+        vm.label(users[3], "David");
+        vm.label(users[4], "Earl");
 
         // Set up our authority registry
         authorityRegistry = new AuthorityRegistry();
@@ -43,9 +41,9 @@ contract FloorTest is Test {
         authorityControl = new AuthorityControl(address(authorityRegistry));
     }
 
-    modifier forkBlock(uint blockNumber) {
+    modifier forkBlock(uint256 blockNumber) {
         // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.rpcUrl('mainnet'));
+        mainnetFork = vm.createFork(vm.rpcUrl("mainnet"));
 
         // Select our fork for the VM
         vm.selectFork(mainnetFork);
@@ -57,5 +55,4 @@ contract FloorTest is Test {
         require(block.number == blockNumber);
         _;
     }
-
 }

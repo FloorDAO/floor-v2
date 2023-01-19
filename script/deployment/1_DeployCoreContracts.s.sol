@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'forge-std/Script.sol';
+import "forge-std/Script.sol";
 
-import '../../src/contracts/actions/nftx/SellNFTForETH.sol';
-import '../../src/contracts/actions/uniswap/SellTokensForETH.sol';
-import '../../src/contracts/authorities/AuthorityRegistry.sol';
-import '../../src/contracts/collections/CollectionRegistry.sol';
-import '../../src/contracts/migrations/MigrateFloorToken.sol';
-import '../../src/contracts/options/Option.sol';
-import '../../src/contracts/options/OptionDistributionWeightingCalculator.sol';
-import '../../src/contracts/options/OptionExchange.sol';
-import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
-import '../../src/contracts/strategies/StrategyRegistry.sol';
-import '../../src/contracts/tokens/Floor.sol';
-import '../../src/contracts/vaults/Vault.sol';
-import '../../src/contracts/vaults/VaultFactory.sol';
-import '../../src/contracts/RewardsLedger.sol';
-
+import "../../src/contracts/actions/nftx/SellNFTForETH.sol";
+import "../../src/contracts/actions/uniswap/SellTokensForETH.sol";
+import "../../src/contracts/authorities/AuthorityRegistry.sol";
+import "../../src/contracts/collections/CollectionRegistry.sol";
+import "../../src/contracts/migrations/MigrateFloorToken.sol";
+import "../../src/contracts/options/Option.sol";
+import "../../src/contracts/options/OptionDistributionWeightingCalculator.sol";
+import "../../src/contracts/options/OptionExchange.sol";
+import "../../src/contracts/pricing/UniswapV3PricingExecutor.sol";
+import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
+import "../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol";
+import "../../src/contracts/strategies/StrategyRegistry.sol";
+import "../../src/contracts/tokens/Floor.sol";
+import "../../src/contracts/vaults/Vault.sol";
+import "../../src/contracts/vaults/VaultFactory.sol";
+import "../../src/contracts/RewardsLedger.sol";
 
 /**
  * Deploys our contracts and validates them on Etherscan.
@@ -36,7 +35,6 @@ import '../../src/contracts/RewardsLedger.sol';
  * ```
  */
 contract DeployCoreContracts is Script {
-
     function run() external {
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.
@@ -50,7 +48,8 @@ contract DeployCoreContracts is Script {
         FLOOR floor = new FLOOR(address(authorityRegistry));
         // veFLOOR veFloor = new VeFLOOR(address(authorityRegistry));
 
-        NFTXInventoryStakingStrategy inventoryStakingStrategy = new NFTXInventoryStakingStrategy('NFTX Inventory Staking', address(authorityRegistry));
+        NFTXInventoryStakingStrategy inventoryStakingStrategy =
+            new NFTXInventoryStakingStrategy('NFTX Inventory Staking', address(authorityRegistry));
 
         // Treasury treasury = new Treasury();
         VaultFactory vaultFactory = new VaultFactory(
@@ -60,7 +59,8 @@ contract DeployCoreContracts is Script {
             address(vault)
         );
 
-        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0x1F98431c8aD98523631AE4a59f267346ea31F984, address(floor));
+        UniswapV3PricingExecutor pricingExecutor =
+            new UniswapV3PricingExecutor(0x1F98431c8aD98523631AE4a59f267346ea31F984, address(floor));
 
         OptionExchange optionExchange = new OptionExchange(
             address(0),  //  address(treasury),
@@ -68,7 +68,8 @@ contract DeployCoreContracts is Script {
             0x5A861794B927983406fCE1D062e00b9368d97Df6   // Chainlink VRF2 wrapper: https://docs.chain.link/vrf/v2/direct-funding/supported-networks
         );
 
-        OptionDistributionWeightingCalculator optionDistributionWeightingCalculator = new OptionDistributionWeightingCalculator(abi.encode(_distributionCalculatorWeights()));
+        OptionDistributionWeightingCalculator optionDistributionWeightingCalculator =
+            new OptionDistributionWeightingCalculator(abi.encode(_distributionCalculatorWeights()));
         optionExchange.setOptionDistributionWeightingCalculator(address(optionDistributionWeightingCalculator));
 
         Option option = new Option();
@@ -82,9 +83,9 @@ contract DeployCoreContracts is Script {
         vm.stopBroadcast();
     }
 
-    function _distributionCalculatorWeights() internal returns (uint[] memory) {
+    function _distributionCalculatorWeights() internal returns (uint256[] memory) {
         // Set our weighting ladder
-        uint[] memory _weights = new uint[](21);
+        uint256[] memory _weights = new uint[](21);
         _weights[0] = 1453;
         _weights[1] = 2758;
         _weights[2] = 2653;
@@ -109,5 +110,4 @@ contract DeployCoreContracts is Script {
 
         return _weights;
     }
-
 }

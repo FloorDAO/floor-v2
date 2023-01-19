@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'forge-std/Script.sol';
+import "forge-std/Script.sol";
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-import '../../src/contracts/options/Option.sol';
-import '../../src/contracts/options/OptionDistributionWeightingCalculator.sol';
-import '../../src/contracts/options/OptionExchange.sol';
-
+import "../../src/contracts/options/Option.sol";
+import "../../src/contracts/options/OptionDistributionWeightingCalculator.sol";
+import "../../src/contracts/options/OptionExchange.sol";
 
 /**
  * Outputs a seeded distribution of option weightings. This can be used for
@@ -16,9 +15,8 @@ import '../../src/contracts/options/OptionExchange.sol';
  * production level system.
  */
 contract VisualiseOptionWeighting is Script {
-
-    uint SEED_1 = 9876543210;
-    uint SEED_2 = 1234567890;
+    uint256 SEED_1 = 9876543210;
+    uint256 SEED_2 = 1234567890;
 
     function run() public {
         OptionDistributionWeightingCalculator weighting = new OptionDistributionWeightingCalculator(
@@ -26,19 +24,21 @@ contract VisualiseOptionWeighting is Script {
         );
 
         // Map our share allocation, which will always be < 100
-        uint allocatedAmount;
+        uint256 allocatedAmount;
 
         // Whilst we have remaining allocation of the pool amount assigned, create options
-        uint i;
+        uint256 i;
         while (allocatedAmount < 100) {
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
 
             // Get our weighted share allocation. If it is equal to 0, then
             // we set it to 1 as the minimum value.
-            uint share = weighting.getShare(SEED_1 / 10000 * i);
+            uint256 share = weighting.getShare(SEED_1 / 10000 * i);
 
             // Get our discount allocation
-            uint discount = weighting.getDiscount(SEED_2 / 10000 * i);
+            uint256 discount = weighting.getDiscount(SEED_2 / 10000 * i);
 
             // If our share allocation puts us over the total pool amount then
             // we just need provide the user the maximum remaining.
@@ -46,16 +46,22 @@ contract VisualiseOptionWeighting is Script {
                 share = 100 - allocatedAmount;
             }
 
-            console.log(string(abi.encodePacked('Share: ', Strings.toString(share), '% :: Discount: ', Strings.toString(discount), '%')));
+            console.log(
+                string(
+                    abi.encodePacked(
+                        "Share: ", Strings.toString(share), "% :: Discount: ", Strings.toString(discount), "%"
+                    )
+                )
+            );
 
             // Add our share to the allocated amount
             allocatedAmount += share;
         }
     }
 
-    function _distribution() internal pure returns (uint[] memory) {
+    function _distribution() internal pure returns (uint256[] memory) {
         // Set our weighting ladder
-        uint[] memory _weights = new uint[](21);
+        uint256[] memory _weights = new uint[](21);
         _weights[0] = 1453;
         _weights[1] = 2758;
         _weights[2] = 2653;
@@ -80,5 +86,4 @@ contract VisualiseOptionWeighting is Script {
 
         return _weights;
     }
-
 }

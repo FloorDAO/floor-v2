@@ -2,17 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/strategies/StrategyRegistry.sol';
-import '../../src/contracts/vaults/Vault.sol';
-import '../../src/contracts/vaults/VaultFactory.sol';
+import "../../src/contracts/collections/CollectionRegistry.sol";
+import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
+import "../../src/contracts/strategies/StrategyRegistry.sol";
+import "../../src/contracts/vaults/Vault.sol";
+import "../../src/contracts/vaults/VaultFactory.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract VaultFactoryTest is FloorTest {
-
     CollectionRegistry collectionRegistry;
     StrategyRegistry strategyRegistry;
     VaultFactory vaultFactory;
@@ -25,9 +23,9 @@ contract VaultFactoryTest is FloorTest {
     address strategy;
 
     /// Store our mainnet fork information
-    uint internal constant BLOCK_NUMBER = 16_075_930;
+    uint256 internal constant BLOCK_NUMBER = 16_075_930;
 
-    constructor () forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {}
 
     /**
      * Deploy the {VaultFactory} contract but don't create any vaults, as we want to
@@ -41,7 +39,8 @@ contract VaultFactoryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        approvedStrategy =
+            address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
         strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy'), address(authorityRegistry)));
 
         // Approve our test strategy implementation
@@ -82,7 +81,7 @@ contract VaultFactoryTest is FloorTest {
      * response but with just a single item inside it.
      */
     function test_VaultsWithSingleVault() public {
-        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault("Test Vault", approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultFactory.vaults().length, 1);
     }
@@ -92,9 +91,9 @@ contract VaultFactoryTest is FloorTest {
      * receive all in an array.
      */
     function test_VaultsWithMultipleVaults() public {
-        vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
-        vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), approvedCollection);
-        vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault("Test Vault 1", approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault("Test Vault 2", approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vaultFactory.createVault("Test Vault 3", approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultFactory.vaults().length, 3);
     }
@@ -105,7 +104,8 @@ contract VaultFactoryTest is FloorTest {
      */
     function test_CanGetVault() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint256 vaultId, address vault) =
+            vaultFactory.createVault("Test Vault 1", approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         // Confirm that the vault address stored in our vault factory matches the
         // one that was just cloned.
@@ -127,10 +127,11 @@ contract VaultFactoryTest is FloorTest {
      */
     function test_CanCreateVault() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint256 vaultId, address vault) =
+            vaultFactory.createVault("Test Vault 1", approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultId, 0);
-        require(vault != address(0), 'Invalid vault address');
+        require(vault != address(0), "Invalid vault address");
     }
 
     /**
@@ -140,8 +141,8 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithEmptyName() public {
-        vm.expectRevert('Name cannot be empty');
-        vaultFactory.createVault('', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        vm.expectRevert("Name cannot be empty");
+        vaultFactory.createVault("", approvedStrategy, _strategyInitBytes(), approvedCollection);
     }
 
     /**
@@ -151,8 +152,8 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithUnapprovedStrategy() public {
-        vm.expectRevert('Strategy not approved');
-        vaultFactory.createVault('Test Vault', strategy, _strategyInitBytes(), approvedCollection);
+        vm.expectRevert("Strategy not approved");
+        vaultFactory.createVault("Test Vault", strategy, _strategyInitBytes(), approvedCollection);
     }
 
     /**
@@ -162,8 +163,8 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithUnapprovedCollection() public {
-        vm.expectRevert('Collection not approved');
-        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
+        vm.expectRevert("Collection not approved");
+        vaultFactory.createVault("Test Vault", approvedStrategy, _strategyInitBytes(), collection);
     }
 
     /**
@@ -171,12 +172,11 @@ contract VaultFactoryTest is FloorTest {
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {
         return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-            0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
+            0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
         );
     }
-
 }

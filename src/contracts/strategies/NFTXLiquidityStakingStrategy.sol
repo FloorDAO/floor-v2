@@ -2,15 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-import '../authorities/AuthorityControl.sol';
+import "../authorities/AuthorityControl.sol";
 
-import '../../interfaces/nftx/NFTXLiquidityStaking.sol';
-import '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
-
+import "../../interfaces/nftx/NFTXLiquidityStaking.sol";
+import "../../interfaces/nftx/TimelockRewardDistributionToken.sol";
+import "../../interfaces/strategies/BaseStrategy.sol";
 
 /**
  * Supports an Liquidity Staking position against a single NFTX vault. This strategy
@@ -23,20 +22,19 @@ import '../../interfaces/strategies/BaseStrategy.sol';
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
-
-    uint public vaultId;
+    uint256 public vaultId;
     address public vaultAddr;
     address public pool;
 
     /**
      * The underlying token will be a liquidity SLP as defined by the {LiquidityStaking} contract.
      */
-    address public underlyingToken;  // SLP
+    address public underlyingToken; // SLP
 
     /**
      * The reward yield token will be the token defined in the {LiquidityStaking} contract.
      */
-    address public yieldToken;  // xSLP
+    address public yieldToken; // xSLP
 
     bytes32 public name;
 
@@ -49,7 +47,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint public mintedRewards;
+    uint256 public mintedRewards;
 
     /**
      * This will return the internally tracked value of tokens that have been claimed by
@@ -57,33 +55,28 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint private lifetimeRewards;
+    uint256 private lifetimeRewards;
 
     /**
      * This will return the internally tracked value of all deposits made into the strategy.
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint public deposits;
+    uint256 public deposits;
 
     /**
      * ...
      */
-    constructor (bytes32 _name, address _authority) AuthorityControl(_authority) {
+    constructor(bytes32 _name, address _authority) AuthorityControl(_authority) {
         name = _name;
     }
 
     /**
      * ...
      */
-    function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
-        (
-            address _pool,
-            address _underlyingToken,
-            address _yieldToken,
-            address _liquidityStaking,
-            address _treasury
-        ) = abi.decode(initData, (address, address, address, address, address));
+    function initialize(uint256 _vaultId, address _vaultAddr, bytes memory initData) public initializer {
+        (address _pool, address _underlyingToken, address _yieldToken, address _liquidityStaking, address _treasury) =
+            abi.decode(initData, (address, address, address, address, address));
 
         pool = _pool;
         underlyingToken = _underlyingToken;
@@ -94,7 +87,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
         liquidityStaking = _liquidityStaking;
         treasury = _treasury;
 
-        IERC20(underlyingToken).approve(_liquidityStaking, type(uint).max);
+        IERC20(underlyingToken).approve(_liquidityStaking, type(uint256).max);
     }
 
     /**
@@ -113,14 +106,14 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *     initialise the pool
      * - We receive xSLP back to the strategy
      */
-    function deposit(uint amount) external onlyVault returns (uint xTokensReceived) {
-        require(amount != 0, 'Cannot deposit 0');
+    function deposit(uint256 amount) external onlyVault returns (uint256 xTokensReceived) {
+        require(amount != 0, "Cannot deposit 0");
 
         // Get the SLP token from the user
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
 
         // Get our xSLP starting balance
-        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
+        uint256 startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
 
         // Stake our SLP to get xSLP back
         INFTXLiquidityStaking(liquidityStaking).deposit(vaultId, amount);
@@ -135,10 +128,10 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
     /**
      * Allows the user to burn xToken to receive base their original token.
      */
-    function withdraw(uint amount) external onlyVault returns (uint amount_) {
-        require(amount != 0, 'Cannot claim 0');
+    function withdraw(uint256 amount) external onlyVault returns (uint256 amount_) {
+        require(amount != 0, "Cannot claim 0");
 
-        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        uint256 startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
         INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, amount);
 
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
@@ -156,14 +149,14 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * - LiquidityStaking.claimRewards
      * - Distribute yield
      */
-     function claimRewards() public returns (uint amount_) {
+    function claimRewards() public returns (uint256 amount_) {
         amount_ = this.rewardsAvailable();
         INFTXLiquidityStaking(liquidityStaking).claimRewards(vaultId);
 
         lifetimeRewards += amount_;
 
         emit Harvest(yieldToken, amount_);
-     }
+    }
 
     /**
      * The token amount of reward yield available to be claimed on the connected external
@@ -173,7 +166,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function rewardsAvailable() external view returns (uint) {
+    function rewardsAvailable() external view returns (uint256) {
         return ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
     }
 
@@ -182,7 +175,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function totalRewardsGenerated() external view returns (uint) {
+    function totalRewardsGenerated() external view returns (uint256) {
         return this.rewardsAvailable() + lifetimeRewards;
     }
 
@@ -194,7 +187,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    function unmintedRewards() external view returns (uint amount_) {
+    function unmintedRewards() external view returns (uint256 amount_) {
         return IERC20(pool).balanceOf(address(this));
     }
 
@@ -203,7 +196,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      */
-    function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
+    function registerMint(uint256 amount) external onlyRole(TREASURY_MANAGER) {}
 
     /**
      * Allows us to restrict calls to only be made by the connected vaultId.
@@ -212,5 +205,4 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
         require(msg.sender == vaultAddr);
         _;
     }
-
 }

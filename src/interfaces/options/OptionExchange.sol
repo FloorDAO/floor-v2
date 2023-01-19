@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * The {OptionExchange} will allow FLOOR to be burnt to redeem treasury assets.
  * This is important to allow us to balance token value against treasury backed
@@ -24,7 +23,6 @@ pragma solidity ^0.8.0;
  * function documentation.
  */
 interface IOptionExchange {
-
     /**
      * Each active pool will have a corresponding `OptionPool` structure. This
      * will define the token and amount made available for options, as well as
@@ -47,26 +45,24 @@ interface IOptionExchange {
      * longer be redeemable against the pool
      */
     struct OptionPool {
-        uint amount;
-        uint initialAmount;
+        uint256 amount;
+        uint256 initialAmount;
         address token;
         uint16 maxDiscount;
         uint64 expires;
         bool initialised;
-        uint requestId;
+        uint256 requestId;
     }
-
 
     /**
      * ...
      */
     struct RequestStatus {
-        uint paid; // amount paid in link
+        uint256 paid; // amount paid in link
         bool fulfilled;
-        uint[] randomWords;
-        uint poolId;
+        uint256[] randomWords;
+        uint256 poolId;
     }
-
 
     /**
      * Each `OptionPool` will have a 1:n releationship with `OptionAllocation`s, with
@@ -86,35 +82,35 @@ interface IOptionExchange {
      */
     struct OptionAllocation {
         address recipient;
-        uint poolId;
-        uint amount;
-        uint discount;
+        uint256 poolId;
+        uint256 amount;
+        uint256 discount;
     }
 
     /// @dev Emitted when an `OptionAllocation` is created
-    event AllocationCreated(address recipient, uint poolId, uint amount, uint discount);
+    event AllocationCreated(address recipient, uint256 poolId, uint256 amount, uint256 discount);
 
     /// @dev Emitted when a user has minted their allocated {Option}
-    event AllocationMinted(uint tokenId);
+    event AllocationMinted(uint256 tokenId);
 
     /// @dev Emitted when a new `OptionPool` is created
-    event OptionPoolCreated(uint poolId);
+    event OptionPoolCreated(uint256 poolId);
 
     /// @dev Emitted when an `OptionPool` has been depleted through either through all
     /// options being actioned or after it has expired and it has been withdrawn. This
     /// will not be emitted purely at point of expiry.
-    event OptionPoolClosed(uint poolId);
+    event OptionPoolClosed(uint256 poolId);
 
     /// @dev Emitted when our $LINK balance drops below a set threshold
-    event LinkBalanceLow(uint remainingBalance);
+    event LinkBalanceLow(uint256 remainingBalance);
 
     /// @dev Emitted when our $LINK balance has been updated. These senders should be
     /// praised like the true giga chads that they are.
-    event LinkBalanceIncreased(address sender, uint amount);
+    event LinkBalanceIncreased(address sender, uint256 amount);
 
     /// @dev Emitted when we have received a response from Chainlink with our generated
     /// allocations
-    event RequestFulfilled(uint requestId, bytes32 merkleRoot);
+    event RequestFulfilled(uint256 requestId, bytes32 merkleRoot);
 
     /// @dev Emitted when our exchange FLOOR recipient address is updated
     event UpdatedFloorRecipient(address newRecipient);
@@ -126,7 +122,7 @@ interface IOptionExchange {
      * Provides the `OptionPool` struct data. If the index cannot be found, then we
      * will receive an empty response.
      */
-    function getOptionPool(uint poolId) external returns (OptionPool memory);
+    function getOptionPool(uint256 poolId) external returns (OptionPool memory);
 
     /**
      * Starts the process of our allocation generation; sending a request to a specified
@@ -154,7 +150,7 @@ interface IOptionExchange {
      * When this call is made, if we have a low balance of $LINK token in our contract
      * then we will need to fire an {LinkBalanceLow} event to pick this up.
      */
-    function generateAllocations(uint poolId) external returns (uint requestId);
+    function generateAllocations(uint256 poolId) external returns (uint256 requestId);
 
     /**
      * Allows our {TreasuryManager} to create an `OptionPool` from tokens that have been
@@ -167,7 +163,7 @@ interface IOptionExchange {
      *
      * Should emit the {OptionPoolCreated} event.
      */
-    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint);
+    function createPool(address token, uint256 amount, uint16 maxDiscount, uint64 expires) external returns (uint256);
 
     /**
      * Allows the specified recipient to mint their `OptionAllocation`. This will
@@ -185,7 +181,7 @@ interface IOptionExchange {
      * Once minted, an ERC721 will be transferred to the recipient that will be used
      * to allow the holder to partially or fully action the option.
      */
-    function mintOptionAllocation(bytes32 dna, uint index, bytes32[] calldata merkleProof) external;
+    function mintOptionAllocation(bytes32 dna, uint256 index, bytes32[] calldata merkleProof) external;
 
     /**
      * We should be able to action a holders {Option} to allow them to exchange their
@@ -229,14 +225,14 @@ interface IOptionExchange {
      * If there is no remaining amount in the `OptionPool`, then the `OptionPool` will
      * not be deleted for historical purposes, but would emit the {OptionPoolClosed} event.
      */
-    function action(uint tokenId, uint floorIn, uint tokenOut, uint approvedMovement) external;
+    function action(uint256 tokenId, uint256 floorIn, uint256 tokenOut, uint256 approvedMovement) external;
 
     /**
      * The amount of FLOOR required to mint the specified `amount` of the `token`.
      *
      * This will call our {Treasury} to get the required price via the {PriceExecutor}.
      */
-    function getRequiredFloorPrice(address token, uint amount) external returns (uint);
+    function getRequiredFloorPrice(address token, uint256 amount) external returns (uint256);
 
     /**
      * Provides a list of all allocations that the user has available to be minted.
@@ -255,7 +251,7 @@ interface IOptionExchange {
      * If there is substantial assets remaining, we could bypass our `withdraw` call and
      * instead just call `createPool` again with the same token referenced.
      */
-    function withdraw(uint poolId) external;
+    function withdraw(uint256 poolId) external;
 
     /**
      * Allows any sender to provide ChainLink token balance to the contract. This is
@@ -263,7 +259,7 @@ interface IOptionExchange {
      *
      * This should emit the {LinkBalanceIncreased} event.
      */
-    function depositLink(uint amount) external;
+    function depositLink(uint256 amount) external;
 
     /**
      * By default, FLOOR received from an {Option} being actioned will be burnt by
@@ -275,5 +271,4 @@ interface IOptionExchange {
      * @param newRecipient The new address that will receive exchanged FLOOR tokens
      */
     function setFloorRecipient(address newRecipient) external;
-
 }

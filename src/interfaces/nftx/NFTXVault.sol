@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 interface INFTXVault {
     function manager() external view returns (address);
     function assetAddress() external view returns (address);
@@ -26,14 +25,9 @@ interface INFTXVault {
     function targetSwapFee() external view returns (uint256);
     function vaultFees() external view returns (uint256, uint256, uint256, uint256, uint256);
 
-    function redeem(uint256 amount, uint256[] calldata specificIds)
+    function redeem(uint256 amount, uint256[] calldata specificIds) external returns (uint256[] calldata);
+
+    function redeemTo(uint256 amount, uint256[] calldata specificIds, address to)
         external
         returns (uint256[] calldata);
-
-    function redeemTo(
-        uint256 amount,
-        uint256[] calldata specificIds,
-        address to
-    ) external returns (uint256[] calldata);
-
 }

@@ -2,21 +2,19 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/strategies/StrategyRegistry.sol';
-import {veFLOOR} from '../../src/contracts/tokens/VeFloor.sol';
-import '../../src/contracts/vaults/Vault.sol';
-import '../../src/contracts/vaults/VaultFactory.sol';
-import '../../src/contracts/voting/GaugeWeightVote.sol';
+import "../../src/contracts/collections/CollectionRegistry.sol";
+import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
+import "../../src/contracts/strategies/StrategyRegistry.sol";
+import {veFLOOR} from "../../src/contracts/tokens/VeFloor.sol";
+import "../../src/contracts/vaults/Vault.sol";
+import "../../src/contracts/vaults/VaultFactory.sol";
+import "../../src/contracts/voting/GaugeWeightVote.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract GaugeWeightVoteTest is FloorTest {
-
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     GaugeWeightVote gaugeWeightVote;
@@ -26,14 +24,14 @@ contract GaugeWeightVoteTest is FloorTest {
     veFLOOR veFloor;
 
     // A set of collections to be referenced during testing
-    address approvedCollection1   = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    address approvedCollection2   = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
-    address approvedCollection3   = 0x524cAB2ec69124574082676e6F654a18df49A048;
+    address approvedCollection1 = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address approvedCollection2 = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+    address approvedCollection3 = 0x524cAB2ec69124574082676e6F654a18df49A048;
     address unapprovedCollection1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address unapprovedCollection2 = 0xd68c4149Ec6fC585124E8827a2b102b68712543c;
 
     // Constant for floor token collection vote
-    address floorTokenCollection  = address(1);
+    address floorTokenCollection = address(1);
 
     // Strat
     address approvedStrategy;
@@ -42,12 +40,13 @@ contract GaugeWeightVoteTest is FloorTest {
     address alice;
     address bob;
 
-    constructor () {
+    constructor() {
         // Create our {StrategyRegistry}
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        approvedStrategy =
+            address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
 
         // Approve our test strategy implementation
         strategyRegistry.approveStrategy(approvedStrategy);
@@ -87,13 +86,13 @@ contract GaugeWeightVoteTest is FloorTest {
         (alice, bob) = (users[0], users[1]);
 
         // Label our approved collections for easier traces
-        vm.label(floorTokenCollection, 'floorTokenCollection');
-        vm.label(approvedCollection1, 'approvedCollection1');
-        vm.label(approvedCollection2, 'approvedCollection2');
-        vm.label(approvedCollection3, 'approvedCollection3');
-        vm.label(unapprovedCollection1, 'unapprovedCollection1');
-        vm.label(unapprovedCollection2, 'unapprovedCollection2');
-        vm.label(approvedStrategy, 'approvedStrategy');
+        vm.label(floorTokenCollection, "floorTokenCollection");
+        vm.label(approvedCollection1, "approvedCollection1");
+        vm.label(approvedCollection2, "approvedCollection2");
+        vm.label(approvedCollection3, "approvedCollection3");
+        vm.label(unapprovedCollection1, "unapprovedCollection1");
+        vm.label(unapprovedCollection2, "unapprovedCollection2");
+        vm.label(approvedStrategy, "approvedStrategy");
     }
 
     function setUp() public {
@@ -128,7 +127,7 @@ contract GaugeWeightVoteTest is FloorTest {
         assertEq(gaugeWeightVote.userVotesAvailable(alice), 100 ether);
     }
 
-    function test_canGetVotesAvailableWithVeBalanceAndVotesCast(uint voteAmount) public {
+    function test_canGetVotesAvailableWithVeBalanceAndVotesCast(uint256 voteAmount) public {
         vm.assume(voteAmount > 0);
         vm.assume(voteAmount <= veFloor.balanceOf(alice));
 
@@ -141,7 +140,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteWithZeroBalance() public {
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert("Insufficient voting power");
         vm.prank(address(0));
         gaugeWeightVote.vote(approvedCollection1, 1 ether);
 
@@ -149,7 +148,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteWithMoreTokensThanBalance() public {
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert("Insufficient voting power");
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 101 ether);
 
@@ -162,7 +161,7 @@ contract GaugeWeightVoteTest is FloorTest {
 
         assertEq(gaugeWeightVote.votes(approvedCollection1), 80 ether);
 
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert("Insufficient voting power");
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 21 ether);
 
@@ -170,7 +169,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteOnUnapprovedCollection() public {
-        vm.expectRevert('Collection not approved');
+        vm.expectRevert("Collection not approved");
         vm.prank(alice);
         gaugeWeightVote.vote(unapprovedCollection1, 1 ether);
 
@@ -178,7 +177,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteWithZeroAmount() public {
-        vm.expectRevert('Cannot vote with zero amount');
+        vm.expectRevert("Cannot vote with zero amount");
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 0);
     }
@@ -222,10 +221,10 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](1);
+        uint256[] memory amounts = new uint[](1);
         amounts[0] = 10 ether;
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert("Insufficient votes to revoke");
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -234,9 +233,9 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](0);
+        uint256[] memory amounts = new uint[](0);
 
-        vm.expectRevert('Wrong amount count');
+        vm.expectRevert("Wrong amount count");
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
 
@@ -244,16 +243,16 @@ contract GaugeWeightVoteTest is FloorTest {
         amounts[0] = 1 ether;
         amounts[1] = 2 ether;
 
-        vm.expectRevert('Wrong amount count');
+        vm.expectRevert("Wrong amount count");
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
 
     function test_cannotRevokeWithNoCollections() public {
         address[] memory collections = new address[](0);
-        uint[] memory amounts = new uint[](0);
+        uint256[] memory amounts = new uint[](0);
 
-        vm.expectRevert('No collections supplied');
+        vm.expectRevert("No collections supplied");
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -262,10 +261,10 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](1);
+        uint256[] memory amounts = new uint[](1);
         amounts[0] = 5 ether;
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert("Insufficient votes to revoke");
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -274,7 +273,7 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](1);
+        uint256[] memory amounts = new uint[](1);
         amounts[0] = 2 ether;
 
         vm.startPrank(alice);
@@ -289,7 +288,7 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](1);
+        uint256[] memory amounts = new uint[](1);
         amounts[0] = 10 ether;
 
         vm.startPrank(alice);
@@ -305,7 +304,7 @@ contract GaugeWeightVoteTest is FloorTest {
         collections[0] = approvedCollection1;
         collections[1] = approvedCollection2;
 
-        uint[] memory amounts = new uint[](2);
+        uint256[] memory amounts = new uint[](2);
         amounts[0] = 2 ether;
         amounts[1] = 5 ether;
 
@@ -323,13 +322,13 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](1);
         collections[0] = approvedCollection1;
 
-        uint[] memory amounts = new uint[](1);
+        uint256[] memory amounts = new uint[](1);
         amounts[0] = 20 ether;
 
         vm.startPrank(alice);
         gaugeWeightVote.vote(approvedCollection1, 10 ether);
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert("Insufficient votes to revoke");
         gaugeWeightVote.revokeVotes(collections, amounts);
         vm.stopPrank();
 
@@ -365,7 +364,7 @@ contract GaugeWeightVoteTest is FloorTest {
     function test_cannotSetSampleSizeWithoutPermission() public {
         assertEq(gaugeWeightVote.sampleSize(), 5);
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert("Account does not have role");
         vm.prank(alice);
         gaugeWeightVote.setSampleSize(10);
 
@@ -375,7 +374,7 @@ contract GaugeWeightVoteTest is FloorTest {
     function test_cannotSetSampleSizeToZero() public {
         assertEq(gaugeWeightVote.sampleSize(), 5);
 
-        vm.expectRevert('Sample size must be above 0');
+        vm.expectRevert("Sample size must be above 0");
         gaugeWeightVote.setSampleSize(0);
 
         assertEq(gaugeWeightVote.sampleSize(), 5);
@@ -410,13 +409,17 @@ contract GaugeWeightVoteTest is FloorTest {
         gaugeWeightVote.setSampleSize(3);
 
         // Approvals aren't needed and may throw issues with our mocked setups
-        vm.mockCall(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
+        vm.mockCall(
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,
+            abi.encodeWithSelector(IERC20.approve.selector),
+            abi.encode(true)
+        );
 
         // Create a vault for our collections
-        address vault1 = _createCollectionVault(approvedCollection1, 'Vault 1');
-        address vault2 = _createCollectionVault(approvedCollection2, 'Vault 2');
-        address vault3 = _createCollectionVault(approvedCollection3, 'Vault 3');
-        address vault4 = _createCollectionVault(approvedCollection3, 'Vault 4');
+        address vault1 = _createCollectionVault(approvedCollection1, "Vault 1");
+        address vault2 = _createCollectionVault(approvedCollection2, "Vault 2");
+        address vault3 = _createCollectionVault(approvedCollection3, "Vault 3");
+        address vault4 = _createCollectionVault(approvedCollection3, "Vault 4");
 
         _mockVaultStrategyRewardsGenerated(vault1, 10 ether);
         _mockVaultStrategyRewardsGenerated(vault2, 20 ether);
@@ -424,7 +427,7 @@ contract GaugeWeightVoteTest is FloorTest {
         _mockVaultStrategyRewardsGenerated(vault4, 6 ether);
 
         address[] memory _users = new address[](1);
-        uint[] memory _tokens = new uint[](1);
+        uint256[] memory _tokens = new uint[](1);
 
         _users[0] = alice;
         _tokens[0] = 10000;
@@ -447,7 +450,7 @@ contract GaugeWeightVoteTest is FloorTest {
         _tokens[1] = 6000;
         _mockUserVaultShares(vault3, _users, _tokens);
 
-        (address[] memory rewardUsers, uint[] memory userTokens) = gaugeWeightVote.snapshot(10000 ether);
+        (address[] memory rewardUsers, uint256[] memory userTokens) = gaugeWeightVote.snapshot(10000 ether);
 
         vm.clearMockedCalls();
 
@@ -468,8 +471,8 @@ contract GaugeWeightVoteTest is FloorTest {
         assertEq(userTokens[4], 262500000000000000000);
         assertEq(userTokens[5], 1312500000000000000000);
 
-        uint allocationTotal = 0;
-        for (uint i; i < userTokens.length; ++i) {
+        uint256 allocationTotal = 0;
+        for (uint256 i; i < userTokens.length; ++i) {
             allocationTotal += userTokens[i];
         }
         assertEq(allocationTotal, 10000 ether);
@@ -478,17 +481,15 @@ contract GaugeWeightVoteTest is FloorTest {
     /**
      * ...
      */
-    function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
+    function _createCollectionVault(address collection, string memory vaultName)
+        internal
+        returns (address vaultAddr_)
+    {
         // Approvals aren't needed and may throw issues with our mocked setups
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
 
         // Create the vault via the factory
-        (, vaultAddr_) = vaultFactory.createVault(
-            vaultName,
-            approvedStrategy,
-            _strategyInitBytes(),
-            collection
-        );
+        (, vaultAddr_) = vaultFactory.createVault(vaultName, approvedStrategy, _strategyInitBytes(), collection);
 
         // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
@@ -499,15 +500,15 @@ contract GaugeWeightVoteTest is FloorTest {
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {
         return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-            0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
+            0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
         );
     }
 
-    function _mockVaultStrategyRewardsGenerated(address vault, uint amount) internal {
+    function _mockVaultStrategyRewardsGenerated(address vault, uint256 amount) internal {
         vm.mockCall(
             address(Vault(vault).strategy()),
             abi.encodeWithSelector(NFTXInventoryStakingStrategy.totalRewardsGenerated.selector),
@@ -515,12 +516,7 @@ contract GaugeWeightVoteTest is FloorTest {
         );
     }
 
-    function _mockUserVaultShares(address vault, address[] memory users, uint[] memory shares) internal {
-        vm.mockCall(
-            address(vault),
-            abi.encodeWithSelector(Vault.shares.selector),
-            abi.encode(users, shares)
-        );
+    function _mockUserVaultShares(address vault, address[] memory users, uint256[] memory shares) internal {
+        vm.mockCall(address(vault), abi.encodeWithSelector(Vault.shares.selector), abi.encode(users, shares));
     }
-
 }

@@ -2,37 +2,35 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
+import "../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol";
 
-import '../utilities/Environments.sol';
-
+import "../utilities/Environments.sol";
 
 contract NFTXInventoryStakingStrategyTest is FloorTest {
-
     NFTXInventoryStakingStrategy strategy;
 
     /// Store our mainnet fork information
-    uint internal constant BLOCK_NUMBER = 16_126_124;
+    uint256 internal constant BLOCK_NUMBER = 16_126_124;
 
     // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
     address testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
 
-    constructor () forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {}
 
     function setUp() public {
         // Set up our pricing executor
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'), address(authorityRegistry));
         strategy.initialize(
-            0,         // Vault ID
-            testUser,  // Vault Address (set to our testUser so that it can call strategy methods direct)
+            0, // Vault ID
+            testUser, // Vault Address (set to our testUser so that it can call strategy methods direct)
             abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _pool
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A,  // _underlyingToken
-                0x08765C76C758Da951DC73D3a8863B34752Dd76FB,  // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,  // _inventoryStaking
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893   // _treasury
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
+                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
+                0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
             )
         );
     }
@@ -41,7 +39,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * Checks that we can get the strategy name set in the constructor.
      */
     function test_CanGetName() public {
-        assertEq(strategy.name(), 'PUNK Vault');
+        assertEq(strategy.name(), "PUNK Vault");
     }
 
     /**
@@ -119,7 +117,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * then we expect it to be reverted.
      */
     function test_CannotDepositZeroValue() public {
-        vm.expectRevert('Cannot deposit 0');
+        vm.expectRevert("Cannot deposit 0");
         vm.prank(testUser);
         strategy.deposit(0);
     }
@@ -134,10 +132,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.deposit(1 ether);
+        uint256 depositAmount = strategy.deposit(1 ether);
 
         // If we try to claim straight away, our user will be locked
-        vm.expectRevert('User locked');
+        vm.expectRevert("User locked");
         strategy.withdraw(0.5 ether);
 
         // To pass this lock we need to manipulate the block timestamp to set it
@@ -145,7 +143,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         vm.warp(block.timestamp + 10 days);
 
         // Confirm that we cannot claim more than our token balance
-        vm.expectRevert('ERC20: burn amount exceeds balance');
+        vm.expectRevert("ERC20: burn amount exceeds balance");
         strategy.withdraw(depositAmount + 1);
 
         // We can now claim rewards via the strategy that will eat away from our
@@ -164,7 +162,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * to make the request but we just expect a 0 value to be returned.
      */
     function test_CannotClaimZeroRewards() public {
-        vm.expectRevert('Cannot claim 0');
+        vm.expectRevert("Cannot claim 0");
         vm.prank(testUser);
         strategy.withdraw(0);
     }
@@ -179,7 +177,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.deposit(1 ether);
+        uint256 depositAmount = strategy.deposit(1 ether);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -238,5 +236,4 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     function testCanCalculateTotalRewardsGenerated() public {
         assertEq(strategy.totalRewardsGenerated(), 0);
     }
-
 }

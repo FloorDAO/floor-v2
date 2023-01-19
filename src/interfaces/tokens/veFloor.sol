@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 /**
  * Vote Escrow ERC20 Token Interface.
  *
@@ -14,7 +13,6 @@ pragma solidity ^0.8.0;
  */
 
 interface IVeFLOOR {
-
     /**
      * @dev Returns the name of the token.
      */
@@ -42,6 +40,5 @@ interface IVeFLOOR {
      * @param _to The address that will receive the mint
      * @param _amount The amount to be minted
      */
-    function mint(address _to, uint _amount) external;
-
+    function mint(address _to, uint256 _amount) external;
 }

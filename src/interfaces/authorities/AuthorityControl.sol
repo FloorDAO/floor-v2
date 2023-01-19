@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-
 interface IAuthorityControl {
-
     /**
      * @dev Returns `true` if `account` has been granted `role`.
      */
@@ -15,5 +13,4 @@ interface IAuthorityControl {
      * GUARDIAN `role`.
      */
     function hasAdminRole(address account) external view returns (bool);
-
 }

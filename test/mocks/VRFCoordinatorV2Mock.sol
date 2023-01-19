@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol';
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * A mock for testing code that relies on Chainlink VRFCoordinatorV2.
  */
 contract VRFCoordinatorV2Mock {
-
     uint96 public immutable BASE_FEE;
     uint96 public immutable GAS_PRICE_LINK;
     address public immutable LINK_TOKEN;
 
-    uint s_nextRequestId;
-
+    uint256 s_nextRequestId;
 
     /**
      * Set up our contract parameters.
@@ -27,7 +24,6 @@ contract VRFCoordinatorV2Mock {
         LINK_TOKEN = _linkToken;
     }
 
-
     /**
      * @notice fulfillRandomWordsWithOverride allows the user to pass in their own random words.
      *
@@ -37,14 +33,16 @@ contract VRFCoordinatorV2Mock {
      */
     function fulfillRandomWords(uint256 _requestId, address _consumer, uint256 _numWords) public {
         // We need to ensure that we received enough words
-        require(_numWords != 0, 'Invalid number of words requested');
+        require(_numWords != 0, "Invalid number of words requested");
 
         // Generate a series of random uints based on the requestId and loop
         // iteration.
-        uint[] memory _words = new uint[](_numWords);
-        for (uint i; i < _numWords;) {
-            _words[i] = uint(keccak256(abi.encode(_requestId, i)));
-            unchecked { ++i; }
+        uint256[] memory _words = new uint[](_numWords);
+        for (uint256 i; i < _numWords;) {
+            _words[i] = uint256(keccak256(abi.encode(_requestId, i)));
+            unchecked {
+                ++i;
+            }
         }
 
         // Send our call back to our base contract (referenced by `_consumer`) using
@@ -52,24 +50,20 @@ contract VRFCoordinatorV2Mock {
         // for a large amount of gas to ensure it lands.
         VRFConsumerBaseV2 v;
         bytes memory callReq = abi.encodeWithSelector(v.rawFulfillRandomWords.selector, _requestId, _words);
-        (bool success, ) = _consumer.call{gas: 250000}(callReq);
-        require(success, 'Unable to send response');
+        (bool success,) = _consumer.call{gas: 250000}(callReq);
+        require(success, "Unable to send response");
 
         // We now take a LINK payment to fund the transaction.
         uint96 payment = BASE_FEE * GAS_PRICE_LINK;
-        require(
-            IERC20(LINK_TOKEN).transferFrom(_consumer, address(this), payment),
-            'Insufficient balance'
-        );
+        require(IERC20(LINK_TOKEN).transferFrom(_consumer, address(this), payment), "Insufficient balance");
     }
-
 
     /**
      * As this is a mock, we immediately send our completed transaction. Normally
      * this would wait for a number of confirmations and it would be sent back
      * asynchronously.
      */
-    function requestRandomWords(uint32, uint16, uint32 _numWords) external returns (uint requestId) {
+    function requestRandomWords(uint32, uint16, uint32 _numWords) external returns (uint256 requestId) {
         // Bump up our seeding variable
         requestId = s_nextRequestId++;
 
@@ -80,28 +74,25 @@ contract VRFCoordinatorV2Mock {
         return requestId;
     }
 
-
     /**
      * We set a static request price of 0.01.
      */
-    function calculateRequestPrice(uint32) external pure returns (uint) {
+    function calculateRequestPrice(uint32) external pure returns (uint256) {
         return 10e16;
     }
-
 
     /**
      * This would normally be used to monitor subscription balances, but we aren't
      * interested in monitoring this in our mock.
      */
-    function onTokenTransfer(address sender, uint amount, bytes calldata data) external pure {
+    function onTokenTransfer(address sender, uint256 amount, bytes calldata data) external pure {
         //
     }
 
     /**
      * Helper function to return the last request ID sent.
      */
-    function lastRequestId() external view returns (uint) {
+    function lastRequestId() external view returns (uint256) {
         return s_nextRequestId;
     }
-
 }
