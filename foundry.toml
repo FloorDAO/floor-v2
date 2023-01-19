@@ -40,6 +40,6 @@ quote_style = "single"
 number_underscore = "preserve"
 override_spacing = true
 wrap_comments = false
-ignore = ["**/*.t.sol"]
+ignore = []
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
