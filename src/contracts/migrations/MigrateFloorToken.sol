@@ -17,9 +17,6 @@ import '../../interfaces/migrations/MigrateFloorToken.sol';
  *
  * The balance of all tokens will be attempted to be migrated, so 4 full approvals
  * should be made prior to calling this contract function.
- *
- * TODO: Deployment script will need to mint enough floor for all tokens and keep it in
- * this contract.
  */
 contract MigrateFloorToken is IMigrateFloorToken {
 
@@ -49,7 +46,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
         IERC20 token;
 
         // Loop through the tokens
-        for (uint8 i; i < 4;) {
+        for (uint8 i; i < MIGRATED_TOKENS.length;) {
             token = IERC20(MIGRATED_TOKENS[i]);
 
             // Get the user's balance of the token
@@ -73,7 +70,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
         require(floorAllocation > 0, 'No tokens available to migrate');
 
         // Mint our FLOOR tokens to the sender
-        FLOOR(newFloor).transfer(msg.sender, floorAllocation);
+        FLOOR(newFloor).mint(msg.sender, floorAllocation);
         emit FloorMigrated(msg.sender, floorAllocation);
     }
 
