@@ -83,9 +83,14 @@ contract TreasuryTest is FloorTest {
 
         // Give our {Treasury} contract roles to manage (mint) Floor tokens
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(treasury));
+        authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(treasury));
 
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
+
+        // Grant our {RewardsLedger} the required roles
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(rewards));
+        authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(rewards));
     }
 
     /**
@@ -706,8 +711,7 @@ contract TreasuryTest is FloorTest {
         vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
         vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(""));
 
-        // Mock our vote distribution. Our token distribution amount from the log is coming in
-        // as `1928957360.000000000000000000`, so we can split this between a number of users.
+        // Mock our vote distribution
         shareUsers = new address[](5);
         userShares = new uint[](5);
         (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) =
@@ -725,17 +729,17 @@ contract TreasuryTest is FloorTest {
 
         // Confirm the amount allocated to each user
         assertEq(rewards.available(address(treasury), address(floor)), 0);
-        assertEq(rewards.available(users[0], address(floor)), 234000000000000000000);
-        assertEq(rewards.available(users[1], address(floor)), 120000000000000000000);
-        assertEq(rewards.available(users[2], address(floor)), 273000000000000000000);
-        assertEq(rewards.available(users[3], address(floor)), 261000000000000000000);
-        assertEq(rewards.available(users[4], address(floor)), 226000000000000000000);
-        assertEq(rewards.available(users[5], address(floor)), 120000000000000000000);
-        assertEq(rewards.available(users[6], address(floor)), 288000000000000000000);
-        assertEq(rewards.available(users[7], address(floor)), 210000000000000000000);
+        assertEq(rewards.available(users[0], address(floor)), 234 ether);
+        assertEq(rewards.available(users[1], address(floor)), 120 ether);
+        assertEq(rewards.available(users[2], address(floor)), 273 ether);
+        assertEq(rewards.available(users[3], address(floor)), 261 ether);
+        assertEq(rewards.available(users[4], address(floor)), 226 ether);
+        assertEq(rewards.available(users[5], address(floor)), 120 ether);
+        assertEq(rewards.available(users[6], address(floor)), 288 ether);
+        assertEq(rewards.available(users[7], address(floor)), 210 ether);
 
         // Confirm rewards ledger holds all expected floor to distribute to above users
-        assertEq(floor.balanceOf(address(rewards)), 123);
+        assertEq(floor.balanceOf(address(rewards)), 4187929680 ether);
     }
 
     /**
@@ -747,9 +751,7 @@ contract TreasuryTest is FloorTest {
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Mock our VaultFactory call to return no vaults
-        vm.mockCall(
-            address(treasury), abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(new address[](0))
-        );
+        vm.mockCall(VAULT_FACTORY, abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(new address[](0)));
 
         // Call an initial trigger, which should pass as no vaults or staked users
         // are set up for the test.

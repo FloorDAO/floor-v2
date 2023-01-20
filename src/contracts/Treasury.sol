@@ -200,7 +200,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         uint yieldRewards;
         if (!floorMintingPaused) {
             // Mint floor tokens to the rewards ledger to cover the upcoming claims
-            floor.mint(address(rewardsLedger), publicFloorYield + yieldRewards);
+            if (publicFloorYield + yieldRewards != 0) {
+                floor.mint(address(rewardsLedger), publicFloorYield + yieldRewards);
+            }
 
             if (treasuryFloorYield != 0) {
                 // Determine the total amount of snapshot tokens. This should be calculated as all
