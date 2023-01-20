@@ -60,6 +60,13 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     // Store our token floor price
     mapping(address => uint) public tokenFloorPrice;
 
+    // Keep a list of allocations so that we can send as a batch
+    address[] internal allocationUser;
+    address[] internal allocationToken;
+    uint[] internal allocationAmount;
+
+    bytes[] internal allocationArray;
+
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
@@ -144,10 +151,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Get the prices of our approved collections
         this.getCollectionFloorPrices();
 
-        // Store the public and treasury yield generated, converted into floor token
-        // equivalent value. This will only be allocated is `floorMintingPaused` is False.
-        uint treasuryFloorYield;
-        uint publicFloorYield;
+        // Store the yield generated, converted into floor token equivalent value. This will
+        // only be allocated is `floorMintingPaused` is False.
+        uint totalYield;
 
         // Iterate over vaults
         for (uint i; i < vaults.length;) {
@@ -160,49 +166,44 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             // Get our vault collection address
             address vaultCollection = vault.collection();
 
-            // Get the share inclusive of the treasury position
-            (address[] memory users, uint[] memory percents) = vault.shares(false);
-            for (uint j; j < users.length;) {
-                // If our floor minting is paused, then we just want to directly allocate
-                // the generated token to the user, rather than converting it to FLOOR.
-                if (floorMintingPaused && users[j] != address(this)) {
-                    rewardsLedger.allocate(users[j], vaultCollection, (vaultYield * percents[j]) / 100);
-                } else {
-                    // If our user share address is matched as the {Treasury} address, then
-                    // we need to attribute it to a separate increment.
-                    if (users[j] == address(this)) {
-                        treasuryFloorYield += (vaultYield * percents[j]) / 100;
-                    } else {
-                        publicFloorYield += (vaultYield * percents[j]) / 100;
-                        rewardsLedger.allocate(users[j], address(floor), (vaultYield * percents[j]) / 100);
-                    }
-                }
-
-                unchecked {
-                    ++j;
-                }
+            // If our floor minting is paused, then we just want to directly allocate
+            // the generated token to the user, rather than converting it to FLOOR.
+            if (floorMintingPaused && users[j] != address(this)) {
+                // Distribute tokens directly into the rewards ledger for the user. This will
+                // add more gas, but this is (in theory) a smaller use case.
+                rewards.allocate(users[j], vaultCollection, 0);
             }
+            else {
+                // Calculate the reward yield in FLOOR token terms
+                uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
 
-            // Multiply our token yield to find the floor token equivalent value
-            if (!floorMintingPaused) {
-                treasuryFloorYield *= tokenFloorPrice[vaultCollection];
-                publicFloorYield *= tokenFloorPrice[vaultCollection];
+                // Multiply our token yield to find the floor token equivalent value
+                totalYield += floorTokenRewardAmount;
+
+                // Distribute the reward yield to our reward token
+                IVaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
             }
 
             // Update our vault share an apply pending positions
-            vault.recalculateVaultShare(true);
+            vault.migratePendingDeposits();
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
 
-        uint yieldRewards;
+        // We mint our floor token yield to our {RewardsLedger}, which will be redeemed by
+        // the user by burning their XToken against the vault.
         if (!floorMintingPaused) {
+            floor.mint(address(rewardsLedger), totalYield);
+        }
+
+        // WE SHOULD HOPEFULLY ALSO BE ABLE TO GET THE TREASURY BALANCE BY SAYING
+        // XVAULT.BALANCEOF(TREASURY) AND MINUSING FROM XVAULT.TOTALSUPPLY()
+
+        /*
+        uint yieldRewards;
+        if (!floorMintingPaused && totalYield != 0) {
             // Mint floor tokens to the rewards ledger to cover the upcoming claims
-            if (publicFloorYield + yieldRewards != 0) {
-                floor.mint(address(rewardsLedger), publicFloorYield + yieldRewards);
-            }
+            floor.mint(address(rewardsLedger), totalYield);
 
             if (treasuryFloorYield != 0) {
                 // Determine the total amount of snapshot tokens. This should be calculated as all
@@ -214,15 +215,23 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 // We can now register the user and floor token allocations from the snapshot into the
                 // {RewardsLedger} for the users to redeem when ready.
                 for (uint i; i < tokenUsers.length;) {
-                    rewardsLedger.allocate(tokenUsers[i], address(floor), tokens[i]);
+                    // allocationUser.push(tokenUsers[i]);
+                    // allocationToken.push(address(floor));
+                    // allocationAmount.push(tokens[i]);
+
+                    // allocationArray.push(abi.encode(tokenUsers[i], address(floor), tokens[i]));
+
+                    _allocation = bytes.concat(_allocation, abi.encode(tokenUsers[i], uint8(0), uint128(tokens[i])));
+
                     unchecked {
                         ++i;
                     }
                 }
             }
         }
+        */
 
-        emit EpochEnded(block.timestamp, publicFloorYield + yieldRewards);
+        emit EpochEnded(block.timestamp, totalYield);
         lastEpoch = block.timestamp;
     }
 

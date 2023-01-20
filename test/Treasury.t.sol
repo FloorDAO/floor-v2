@@ -766,4 +766,57 @@ contract TreasuryTest is FloorTest {
         vm.warp(block.timestamp + 7 days);
         treasury.endEpoch();
     }
+
+    function test_CanHandleEpochStressTest() public {
+        uint vaultCount = 10;
+        uint stakerCount = 100;
+
+        // Set our required internal contracts
+        treasury.setRewardsLedgerContract(address(rewards));
+        treasury.setGaugeWeightVoteContract(address(12));
+        treasury.setPricingExecutor(address(pricingExecutorMock));
+
+        // Set up a list of vault shares
+        uint[] memory shares = new uint[](stakerCount);
+        for (uint j; j < stakerCount;) {
+            shares[j] = 10000 / stakerCount;
+            unchecked { ++j; }
+        }
+
+        // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
+        // set up the {Treasury} contract).
+        address[] memory vaults = new address[](vaultCount);
+        for (uint i; i < vaultCount;) {
+            vaults[i] = address(uint160(uint(0 + i)));
+
+            // Approve a unique collection
+            collectionRegistry.approveCollection(address(uint160(uint(vaultCount + i))));
+            vm.mockCall(vaults[i], abi.encodeWithSelector(IVault.collection.selector), abi.encode(address(uint160(uint(vaultCount + i)))));
+
+            // Set up a mock that will set rewards to be a static amount of ether
+            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
+
+            // Set a list of stakers against the vault
+            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.shares.selector), abi.encode(utilities.createUsers(stakerCount), shares));
+
+            // Mock vault share recalculation (ignore)
+            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
+
+            unchecked { ++i; }
+        }
+
+        // Mock our VaultFactory call to return no vaults
+        vm.mockCall(VAULT_FACTORY, abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(vaults));
+
+        // Mock our vote distribution
+        vm.mockCall(
+            VOTE_CONTRACT,
+            abi.encodeWithSelector(IGaugeWeightVote.snapshot.selector),
+            abi.encode(utilities.createUsers(stakerCount, 0), shares)
+        );
+
+        // Trigger our epoch end and pray to the gas gods
+        treasury.endEpoch();
+    }
+
 }

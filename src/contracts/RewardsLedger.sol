@@ -33,11 +33,6 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     // Maintains a mapping of claimed token amounts by recipient
     mapping(address => mapping(address => uint)) public claimed;
 
-    // Maintain a list of token addresses that the recipient has either currently, or
-    // previously, had an allocation of. This allows us to iterate mappings.
-    mapping(address => address[]) internal tokens;
-    mapping(address => mapping(address => bool)) internal tokenStore;
-
     // Allow the claim logic to be paused
     bool public paused;
 
@@ -59,11 +54,7 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      *
      * This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint amount)
-        external
-        onlyRole(REWARDS_MANAGER)
-        returns (uint)
-    {
+    function allocate(address recipient, address token, uint amount) external onlyRole(REWARDS_MANAGER) returns (uint) {
         // We don't want to allow NULL address allocation
         require(token != address(0), 'Invalid token');
 
@@ -72,13 +63,6 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
 
         // Allocate the token amount to recipient token
         allocations[recipient][token] += amount;
-
-        // If this is a token that the user has not previously been allocated, then
-        // we can add it to the user's list of tokens.
-        if (!tokenStore[recipient][token]) {
-            tokens[recipient].push(token);
-            tokenStore[recipient][token] = true;
-        }
 
         // Fire our allocation event
         emit RewardsAllocated(recipient, token, amount);
@@ -92,26 +76,6 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      */
     function available(address recipient, address token) external view returns (uint) {
         return allocations[recipient][token];
-    }
-
-    /**
-     * Get all tokens available to the recipient, as well as the amounts of each token.
-     */
-    function availableTokens(address recipient) external view returns (address[] memory, uint[] memory) {
-        uint length = tokens[recipient].length;
-        address[] memory tokens_ = new address[](length);
-        uint[] memory amounts_ = new uint[](length);
-
-        for (uint i; i < tokens[recipient].length;) {
-            tokens_[i] = tokens[recipient][i];
-            amounts_[i] = allocations[recipient][tokens[recipient][i]];
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        return (tokens_, amounts_);
     }
 
     /**

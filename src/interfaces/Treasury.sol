@@ -181,28 +181,6 @@ interface ITreasury {
     function pauseFloorMinting(bool enabled) external;
 
     /**
-     * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
-     * as user rewards. Updated prices will be stored against a rudimentary caching system that
-     * will only source a new token price mapping against FLOOR if it has surpassed a set time
-     * window (e.g. 30 minutes).
-     *
-     * The vault will handle its own internal price calculation and stale caching logic based
-     * on a {VaultPricingStrategy} tied to the vault.
-     *
-     * @dev Our FLOOR ETH price is determined by:
-     * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-     *
-     * Our token ETH price is determined by (e.g. PUNK):
-     * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-     *
-     * Questions:
-     * - Can we just compare FLOOR <-> TOKEN on Uniswap? Rather than each to ETH? It wouldn't need
-     *   to affect the price as this is just a x:y without actioning. Check Twade notes, higher value
-     *   in direct comparison due to hops.
-     */
-    function getCollectionFloorPrices() external;
-
-    /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
     function setPricingExecutor(address contractAddr) external;

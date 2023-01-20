@@ -33,7 +33,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     ICollectionRegistry public immutable collectionRegistry;
     IStrategyRegistry public immutable strategyRegistry;
 
+    /// Implementation addresses that will be cloned
     address public immutable vaultImplementation;
+    address public immutable vaultXTokenImplementation;
 
     /// Mappings to aide is discoverability
     mapping(uint => address) private vaultIds;
@@ -46,12 +48,14 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _authority,
         address _collectionRegistry,
         address _strategyRegistry,
-        address _vaultImplementation
+        address _vaultImplementation,
+        address _vaultXTokenImplementation
     ) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
 
         vaultImplementation = _vaultImplementation;
+        vaultXTokenImplementation = _vaultXTokenImplementation;
     }
 
     /**
@@ -82,7 +86,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
         onlyRole(VAULT_MANAGER)
-        returns (uint vaultId_, address vaultAddr_)
+        returns (uint vaultId_, address vaultAddr_, address vaultXTokenAddr_)
     {
         // No empty names, that's just silly
         require(bytes(_name).length != 0, 'Name cannot be empty');
@@ -103,6 +107,10 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
         IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
 
+        // Create our {VaultXToken} for the vault
+        vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
+        IVaultXToken(vaultXTokenAddr_).initialize(floor, _name, _name);
+
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
 
@@ -114,6 +122,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         collectionVaults[_collection].push(vaultAddr_);
 
         // Finally we can emit our event to notify watchers of a new vault
-        emit VaultCreated(vaultId_, vaultAddr_, _collection);
+        emit VaultCreated(vaultId_, vaultAddr_, vaultXTokenAddr_, _collection);
     }
 }

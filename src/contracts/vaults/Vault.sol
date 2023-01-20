@@ -3,16 +3,21 @@
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
+import '@openzeppelin/contracts/proxy/Clones.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import '../authorities/AuthorityControl.sol';
+import '../tokens/VaultXToken.sol';
 
 import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/vaults/Vault.sol';
 
 contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
+    /**
+     * ..
+     */
     address TREASURY;
 
     /**
@@ -52,26 +57,21 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * the rewards generated for the user, as well as sense check withdrawal
      * request amounts.
      */
-    mapping(address => uint) public positions;
     mapping(address => uint) public pendingPositions;
-
-    /**
-     * Stores the vault share of users based on their owned position.
-     */
-    mapping(address => uint) public share;
 
     /**
      * Maintain a list of addresses with positions. This allows us to iterate
      * our mappings to determine share ownership.
      */
-    address[] public stakers;
+    address[] public pendingStakers;
 
     /**
      * Maintains a list of our total position to save gas when calculating
      * our address ownership shares.
      */
-    uint public totalPosition;
     uint public totalPendingPosition;
+
+    address vaultXTokenImplementation;
 
     /**
      * ...
@@ -86,13 +86,15 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         uint _vaultId,
         address _collection,
         address _strategy,
-        address _vaultFactory
+        address _vaultFactory,
+        address _vaultXTokenImplementation
     ) public initializer {
         collection = _collection;
         name = _name;
         strategy = IBaseStrategy(_strategy);
         vaultFactory = _vaultFactory;
         vaultId = _vaultId;
+        vaultXTokenImplementation = _vaultXTokenImplementation;
 
         // Give our collection max approval
         IERC20(_collection).approve(_strategy, type(uint).max);
@@ -119,8 +121,8 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
         // If our user has just entered a position then we add them to
         // our list of addresses.
-        if (positions[msg.sender] == 0) {
-            stakers.push(msg.sender);
+        if (pendingPositions[msg.sender] == 0) {
+            pendingStakers.push(msg.sender);
         }
 
         // Update our user's position
@@ -139,7 +141,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         require(amount > 0, 'Insufficient amount requested');
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= positions[msg.sender] + pendingPositions[msg.sender], 'Insufficient position');
+        require(amount <= vaultXToken.balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);
@@ -154,14 +156,15 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // Reduce the user's pending position to 0 before looking at the total
         // position. This will ensure that the user exits a pending position and can
         // still receive rewards. We are nice like that.
-        if (pendingPositions[msg.sender] != 0) {
-            if (pendingPositions[msg.sender] > amount) {
+        uint pendingPosition = pendingPositions[msg.sender];
+        if (pendingPosition != 0) {
+            if (pendingPosition > amount) {
                 pendingPositions[msg.sender] -= amount;
                 totalPendingPosition -= amount;
                 amount = 0;
             } else {
-                amount -= pendingPositions[msg.sender];
-                totalPendingPosition -= pendingPositions[msg.sender];
+                amount -= pendingPosition;
+                totalPendingPosition -= pendingPosition;
                 pendingPositions[msg.sender] = 0;
             }
         }
@@ -169,14 +172,11 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // If we still have a remaining withdrawal amount then we need to remove it
         // from their active position, which will also affect their vault share.
         if (amount != 0) {
-            totalPosition -= amount;
-            positions[msg.sender] -= amount;
+            // Withdraw any pending rewards for the user
+            vaultXToken.withdrawReward(msg.sender);
 
-            // Update our vault share calculation. We update our user's share to 0 as it
-            // will be recalculated in the next step and this allows us to handle them fully
-            // withdrawing without needing a second iterator in our share recalculation.
-            share[msg.sender] = 0;
-            this.recalculateVaultShare(false);
+            // Burn the remaining amount from the user's xToken balance
+            vaultXToken.burnFrom(msg.sender, amount);
         }
 
         // Return the amount of underlying token returned from staking withdrawal
@@ -194,25 +194,6 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     /**
      *
      */
-    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory) {
-        address[] memory users = new address[](stakers.length);
-        uint[] memory percentages = new uint[](stakers.length);
-
-        for (uint i; i < stakers.length;) {
-            if (!excludeTreasury || stakers[i] == TREASURY) {
-                // TODO: Allow treasury to be excluded
-                users[i] = stakers[i];
-                percentages[i] = share[stakers[i]];
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        return (users, percentages);
-    }
-
     function claimRewards() external returns (uint) {
         // Claim any unharvested rewards from the strategy
         strategy.claimRewards();
@@ -231,31 +212,26 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      */
 
     // TODO: Only approved users should be able to updatePending!
-    function recalculateVaultShare(bool updatePending) external {
-        if (updatePending) {
-            // Update our total positions, moving the pending position into the total and
-            // then resetting the pending value to 0.
-            totalPosition += totalPendingPosition;
-            totalPendingPosition = 0;
-        }
+    function migratePendingDeposits() external {
+        // Update our total positions, moving the pending position into the total and
+        // then resetting the pending value to 0.
+        totalPendingPosition = 0;
 
         // Calculate our new shares based on new position values
-        for (uint i; i < stakers.length;) {
-            // Move our stakers pending position to be an actual position
-            if (updatePending && pendingPositions[stakers[i]] != 0) {
-                positions[stakers[i]] += pendingPositions[stakers[i]];
-                pendingPositions[stakers[i]] = 0;
-            }
+        for (uint i; i < pendingStakers.length;) {
+            VaultXToken(xToken).mint(pendingPositions[pendingStakers[i]]);
 
-            if (positions[stakers[i]] != 0) {
-                // Determine the share to 2 decimal accuracy
-                // e.g. 100% = 10000
-                share[stakers[i]] = 100000000 / ((totalPosition * 10000) / (positions[stakers[i]]));
-            }
+            // Move our staker's pending position to be an actual position
+            pendingPositions[pendingStakers[i]] = 0;
 
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
+
+        // Clear some gas
+        delete pendingStakers;
+    }
+
+    function xToken() public view returns (address) {
+        return Clones.predictDeterministicAddress(address(vaultXTokenImplementation), vaultId);
     }
 }
