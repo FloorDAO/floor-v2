@@ -2,19 +2,19 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import "../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol";
-import "../../src/interfaces/nftx/NFTXVault.sol";
-import "../../src/interfaces/nftx/TimelockRewardDistributionToken.sol";
+import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
+import '../../src/interfaces/nftx/NFTXVault.sol';
+import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract NFTXLiquidityStakingStrategyTest is FloorTest {
     NFTXLiquidityStakingStrategy strategy;
 
     /// Store our mainnet fork information
-    uint256 internal constant BLOCK_NUMBER = 16_133_601;
+    uint internal constant BLOCK_NUMBER = 16_133_601;
 
     // Holds 0.02963115425863499 SLP at block
     address testUser = 0x5cC3cB20B2531C4A6d59Bf37aac8aCD0e8D099d3;
@@ -41,7 +41,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      *
      */
     function test_CanGetName() public {
-        assertEq(strategy.name(), "PUNK Liquidity Vault");
+        assertEq(strategy.name(), 'PUNK Liquidity Vault');
     }
 
     /**
@@ -121,7 +121,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * then we expect it to be reverted.
      */
     function test_CannotDepositZeroValue() public {
-        vm.expectRevert("Cannot deposit 0");
+        vm.expectRevert('Cannot deposit 0');
         vm.prank(testUser);
         strategy.deposit(0);
     }
@@ -147,7 +147,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
         vm.startPrank(0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
 
         // IERC20(strategy.pool()).approve(strategy.pool(), type(uint).max);
-        uint256[] memory tokenIds = new uint256[](0);
+        uint[] memory tokenIds = new uint256[](0);
         INFTXVault(strategy.pool()).redeem(1, tokenIds);
 
         vm.stopPrank();
@@ -169,7 +169,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
      * to make the request but we just expect a 0 value to be returned.
      */
     function test_CannotClaimZeroRewards() public {
-        vm.expectRevert("Cannot claim 0");
+        vm.expectRevert('Cannot claim 0');
         vm.prank(testUser);
         strategy.withdraw(0);
     }

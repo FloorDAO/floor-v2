@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/strategies/StrategyRegistry.sol";
+import '../../src/contracts/strategies/StrategyRegistry.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract StrategyRegistryTest is FloorTest {
     /// Emitted when a strategy is successfully approved
@@ -82,7 +82,7 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyApproved}.
      */
     function test_ApproveNullAddressStrategy() public {
-        vm.expectRevert("Cannot approve NULL strategy");
+        vm.expectRevert('Cannot approve NULL strategy');
         strategyRegistry.approveStrategy(address(0));
     }
 
@@ -124,7 +124,7 @@ contract StrategyRegistryTest is FloorTest {
      */
     function test_CannotApproveStrategyWithoutPermissions() public {
         vm.prank(alice);
-        vm.expectRevert("Account does not have role");
+        vm.expectRevert('Account does not have role');
         strategyRegistry.approveStrategy(USDC);
     }
 
@@ -153,7 +153,7 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyRevoked}.
      */
     function test_RevokeUnapprovedStrategy() public {
-        vm.expectRevert("Strategy is not approved");
+        vm.expectRevert('Strategy is not approved');
         strategyRegistry.revokeStrategy(USDT);
     }
 
@@ -166,7 +166,7 @@ contract StrategyRegistryTest is FloorTest {
      */
     function test_CannotRevokeStrategyWithoutPermissions() public {
         vm.prank(alice);
-        vm.expectRevert("Account does not have role");
+        vm.expectRevert('Account does not have role');
         strategyRegistry.revokeStrategy(USDC);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import 'forge-std/console.sol';
 
 import './authorities/AuthorityControl.sol';
 
@@ -9,7 +9,6 @@ import '../interfaces/staking/VeFloorStaking.sol';
 import '../interfaces/tokens/Floor.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
-
 
 /**
  * The rewards ledger holds all available rewards available to be claimed
@@ -60,7 +59,11 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      *
      * This can only be called by an approved caller.
      */
-    function allocate(address recipient, address token, uint amount) external onlyRole(REWARDS_MANAGER) returns (uint) {
+    function allocate(address recipient, address token, uint amount)
+        external
+        onlyRole(REWARDS_MANAGER)
+        returns (uint)
+    {
         // We don't want to allow NULL address allocation
         require(token != address(0), 'Invalid token');
 

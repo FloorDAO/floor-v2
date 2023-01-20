@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import "../../src/contracts/migrations/MigrateFloorToken.sol";
-import "../../src/contracts/tokens/Floor.sol";
+import '../../src/contracts/migrations/MigrateFloorToken.sol';
+import '../../src/contracts/tokens/Floor.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract MigrateFloorTokenTest is FloorTest {
     FLOOR newFloor;
@@ -19,9 +19,9 @@ contract MigrateFloorTokenTest is FloorTest {
     /// aFloor (200) : 0xd7Ddf70125342f44E65ccbafAe5135F2bB6526bB
     /// gFloor (500) : 0x544C7D7f4F407b1B55D581CcD563c7Ca8aCfC686
     /// sFloor (310) : 0xc58bDf3d06073987983989eBFA1aC8187161fA71
-    uint256 internal constant BLOCK_NUMBER = 16_016_064;
+    uint internal constant BLOCK_NUMBER = 16_016_064;
 
-    event FloorMigrated(address caller, uint256 amount);
+    event FloorMigrated(address caller, uint amount);
 
     /**
      * We cannot use our setUp function here, as it causes issues with the
@@ -111,15 +111,15 @@ contract MigrateFloorTokenTest is FloorTest {
         );
     }
 
-    function assertTokenTransfer(address _token, address _account, uint256 _output, bool _approved)
+    function assertTokenTransfer(address _token, address _account, uint _output, bool _approved)
         private
-        returns (uint256)
+        returns (uint)
     {
         IERC20 token = IERC20(_token);
 
         // We want to capture our user's initial balances
-        uint256 initialBalance = token.balanceOf(_account);
-        uint256 initialNewTokenBalance = newFloor.balanceOf(_account);
+        uint initialBalance = token.balanceOf(_account);
+        uint initialNewTokenBalance = newFloor.balanceOf(_account);
 
         // Set up our requests to be sent from the test user
         vm.startPrank(_account);
@@ -140,7 +140,7 @@ contract MigrateFloorTokenTest is FloorTest {
         // If our token is not asserted to be approved, then we want to expect a
         // revert to be triggered.
         if (!_approved) {
-            vm.expectRevert("ERC20: transfer amount exceeds allowance");
+            vm.expectRevert('ERC20: transfer amount exceeds allowance');
         }
 
         // Run our floor token migration contract

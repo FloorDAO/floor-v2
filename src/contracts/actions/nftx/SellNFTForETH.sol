@@ -67,18 +67,12 @@ contract NFTXSellNFTForETH is IAction {
     function execute(bytes calldata _request) public returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
-        (address asset, uint vaultId, uint[] memory tokenIds, uint minEthOut, address[] memory path) = abi.decode(
-            _request, (address, uint, uint[], uint, address[])
-        );
+        (address asset, uint vaultId, uint[] memory tokenIds, uint minEthOut, address[] memory path) =
+            abi.decode(_request, (address, uint, uint[], uint, address[]));
 
         // Now we can map our extracted data into our ActionRequest
-        ActionRequest memory request = ActionRequest({
-            asset: asset,
-            vaultId: vaultId,
-            tokenIds: tokenIds,
-            minEthOut: minEthOut,
-            path: path
-        });
+        ActionRequest memory request =
+            ActionRequest({asset: asset, vaultId: vaultId, tokenIds: tokenIds, minEthOut: minEthOut, path: path});
 
         // Ensure that we have tokenIds sent
         uint length = request.tokenIds.length;

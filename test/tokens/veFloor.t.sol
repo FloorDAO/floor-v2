@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/tokens/VeFloor.sol";
+import '../../src/contracts/tokens/VeFloor.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract VeFloorTokenTest is FloorTest {
     // Store some test users
@@ -27,9 +27,9 @@ contract VeFloorTokenTest is FloorTest {
      * role, so we need to ensure that they are able to call with any positive uint amount to
      * be minted and that it succeeds in sending to the recipient.
      */
-    function test_CanMintWithRole(uint256 amount) public {
+    function test_CanMintWithRole(uint amount) public {
         // Confirm we can't mint directly
-        vm.expectRevert("Account does not have role");
+        vm.expectRevert('Account does not have role');
         vm.prank(bob);
         veFloor.mint(bob, amount);
 
@@ -46,7 +46,7 @@ contract VeFloorTokenTest is FloorTest {
     /**
      * Holders of veFloor should be able to burn their tokens.
      */
-    function test_CanBurn(uint256 mintAmount, uint256 burnAmount) public {
+    function test_CanBurn(uint mintAmount, uint burnAmount) public {
         vm.assume(mintAmount > 0);
         vm.assume(burnAmount > 0);
         vm.assume(mintAmount > burnAmount);

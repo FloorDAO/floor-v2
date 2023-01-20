@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
-import "../../../src/contracts/actions/nftx/SellNFTForETH.sol";
+import '../../../src/contracts/actions/nftx/SellNFTForETH.sol';
 
-import "../../utilities/Environments.sol";
+import '../../utilities/Environments.sol';
 
 contract NFTXSellNFTForETHTest is FloorTest {
     // ..
@@ -16,7 +16,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
     address internal constant MARKETPLACE_ZAP = 0x0fc584529a2AEfA997697FAfAcbA5831faC0c22d;
 
     // Store our mainnet fork information
-    uint256 internal constant BLOCK_NUMBER = 16_134_863;
+    uint internal constant BLOCK_NUMBER = 16_134_863;
 
     // Store our action contract
     NFTXSellNFTForETH action;
@@ -47,7 +47,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         // Has vault-valid NFTs at block
         vm.startPrank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
 
-        uint256[] memory tokens = new uint[](2);
+        uint[] memory tokens = new uint[](2);
         tokens[0] = 1;
         tokens[1] = 1870;
 
@@ -59,12 +59,12 @@ contract NFTXSellNFTForETHTest is FloorTest {
         ERC721(RBC_CONTRACT).setApprovalForAll(address(action), true);
 
         // Action our trade
-        uint256 amountOut = action.execute(
+        uint amountOut = action.execute(
             abi.encode(
                 RBC_CONTRACT, // asset
-                uint256(269), // vaultId
+                uint(269), // vaultId
                 tokens, // tokenIds
-                uint256(13044045363965763), // minEthOut
+                uint(13044045363965763), // minEthOut
                 path // path
             )
         );
@@ -75,7 +75,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CannotCompleteSellWithInsufficientEthOut(uint256 minEthOut) public {
+    function test_CannotCompleteSellWithInsufficientEthOut(uint minEthOut) public {
         // We assume our fuzz test value is above the amountOut from a successful
         // test sale with the same parameters.
         vm.assume(minEthOut > 13175803397945216);
@@ -83,7 +83,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         // Has vault-valid NFTs at block
         vm.startPrank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
 
-        uint256[] memory tokens = new uint[](2);
+        uint[] memory tokens = new uint[](2);
         tokens[0] = 1;
         tokens[1] = 1870;
 
@@ -95,13 +95,13 @@ contract NFTXSellNFTForETHTest is FloorTest {
         ERC721(RBC_CONTRACT).setApprovalForAll(address(action), true);
 
         // Action our trade
-        vm.expectRevert("UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        vm.expectRevert('UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
         action.execute(
             abi.encode(
                 RBC_CONTRACT, // asset
-                uint256(269), // vaultId
+                uint(269), // vaultId
                 tokens, // tokenIds
-                uint256(23044045363965763), // minEthOut
+                uint(23044045363965763), // minEthOut
                 path // path
             )
         );

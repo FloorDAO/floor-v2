@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/collections/CollectionRegistry.sol";
-import "../../src/contracts/staking/VeFloorStaking.sol";
-import "../../src/contracts/tokens/Floor.sol";
-import "../../src/contracts/tokens/VeFloor.sol";
-import {GaugeWeightVote} from "../../src/contracts/voting/GaugeWeightVote.sol";
+import '../../src/contracts/collections/CollectionRegistry.sol';
+import '../../src/contracts/staking/VeFloorStaking.sol';
+import '../../src/contracts/tokens/Floor.sol';
+import '../../src/contracts/tokens/VeFloor.sol';
+import {GaugeWeightVote} from '../../src/contracts/voting/GaugeWeightVote.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract VeFloorStakingTest is FloorTest {
     // Contract mappings
@@ -18,11 +18,11 @@ contract VeFloorStakingTest is FloorTest {
     VeFloorStaking veFloorStaking;
 
     // Set our default values
-    uint256 veFloorPerSharePerSec = 1 ether;
-    uint256 speedUpVeFloorPerSharePerSec = 1 ether;
-    uint256 speedUpThreshold = 5;
-    uint256 speedUpDuration = 50;
-    uint256 maxCapPct = 20000;
+    uint veFloorPerSharePerSec = 1 ether;
+    uint speedUpVeFloorPerSharePerSec = 1 ether;
+    uint speedUpThreshold = 5;
+    uint speedUpDuration = 50;
+    uint maxCapPct = 20000;
 
     // Store our test users that will be mapped to our users created
     // in the environment.
@@ -85,7 +85,7 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetMaxCapPct() public {
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert('Ownable: caller is not the owner');
         vm.prank(alice);
         veFloorStaking.setMaxCapPct(maxCapPct + 1);
     }
@@ -93,12 +93,12 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldNotAllowNonOwnerToSetLowerMaxCapPct() public {
         assertEq(veFloorStaking.maxCapPct(), maxCapPct);
 
-        vm.expectRevert("VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct");
+        vm.expectRevert('VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct');
         veFloorStaking.setMaxCapPct(maxCapPct - 1);
     }
 
     function test_ShouldNotAllowNonOwnerToSetMaxCapPctAboveUpperLimit() public {
-        vm.expectRevert("VeFloorStaking: expected new _maxCapPct to be non-zero and <= 10000000");
+        vm.expectRevert('VeFloorStaking: expected new _maxCapPct to be non-zero and <= 10000000');
         veFloorStaking.setMaxCapPct(10000001);
     }
 
@@ -114,13 +114,13 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetVeFloorPerSharePerSec() public {
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert('Ownable: caller is not the owner');
         vm.prank(alice);
         veFloorStaking.setVeFloorPerSharePerSec(1.5 ether);
     }
 
     function test_ShouldNotAllowOwnerToSetVeFloorPerSharePerSecGreaterThanUpperLimit() public {
-        vm.expectRevert("VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36");
+        vm.expectRevert('VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36');
         veFloorStaking.setVeFloorPerSharePerSec(1e37);
     }
 
@@ -136,18 +136,18 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetSpeedUpThreshold() public {
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert('Ownable: caller is not the owner');
         vm.prank(alice);
         veFloorStaking.setSpeedUpThreshold(10);
     }
 
     function test_ShouldNotAllowOwnerToSetSpeedUpThresholdToZero() public {
-        vm.expectRevert("VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100");
+        vm.expectRevert('VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
         veFloorStaking.setSpeedUpThreshold(0);
     }
 
     function test_ShouldNotAllowOwnerToSetSpeedUpThresholdAboveUpperLimit() public {
-        vm.expectRevert("VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100");
+        vm.expectRevert('VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
         veFloorStaking.setSpeedUpThreshold(101);
     }
 
@@ -163,14 +163,14 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowZeroDeposit() public {
-        vm.expectRevert("VeFloorStaking: expected deposit amount to be greater than zero");
+        vm.expectRevert('VeFloorStaking: expected deposit amount to be greater than zero');
         vm.prank(alice);
         veFloorStaking.deposit(0);
     }
 
     function test_ShouldHaveCorrectUpdatedUserInfoAfterFirstTimeDeposit() public {
         // Get Alice's information before any deposit has been made
-        (uint256 balance, uint256 rewardDebt, uint256 lastClaimTimestamp, uint256 speedUpEndTimestamp) =
+        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) =
             veFloorStaking.userInfos(alice);
 
         assertEq(balance, 0);
@@ -179,11 +179,11 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(speedUpEndTimestamp, 0);
 
         // Check Floor balance before deposit
-        uint256 startAmount = 1000 ether;
+        uint startAmount = 1000 ether;
         assertEq(floor.balanceOf(alice), startAmount);
 
         // Deposit 100 tokens as Alice
-        uint256 depositAmount = 100 ether;
+        uint depositAmount = 100 ether;
         vm.prank(alice);
         veFloorStaking.deposit(depositAmount);
 
@@ -205,7 +205,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloorStaking.deposit(5 ether);
         vm.stopPrank();
 
-        (uint256 balance,,,) = veFloorStaking.userInfos(alice);
+        (uint balance,,,) = veFloorStaking.userInfos(alice);
         assertEq(balance, 105 ether);
     }
 
@@ -238,7 +238,7 @@ contract VeFloorStakingTest is FloorTest {
 
         veFloorStaking.claim();
 
-        (,,, uint256 speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
+        (,,, uint speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
         assertEq(speedUpEndTimestamp, 0);
 
         veFloorStaking.deposit(5 ether);
@@ -257,7 +257,7 @@ contract VeFloorStakingTest is FloorTest {
 
         veFloorStaking.deposit(1 ether);
 
-        (,,, uint256 speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
+        (,,, uint speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
         assertEq(speedUpEndTimestamp, 0);
     }
 
@@ -273,7 +273,7 @@ contract VeFloorStakingTest is FloorTest {
 
         veFloorStaking.deposit(1 ether);
 
-        (,,, uint256 speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
+        (,,, uint speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
         assertEq(speedUpEndTimestamp, block.timestamp + speedUpDuration);
 
         vm.stopPrank();
@@ -285,7 +285,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.startPrank(alice);
         veFloorStaking.deposit(100 ether);
 
-        (,,, uint256 initialDepositSpeedUpEndTimestamp) = veFloorStaking.userInfos(alice);
+        (,,, uint initialDepositSpeedUpEndTimestamp) = veFloorStaking.userInfos(alice);
         assertEq(initialDepositSpeedUpEndTimestamp, block.timestamp + speedUpDuration);
 
         // Increase by some amount of time less than speedUpDuration
@@ -294,7 +294,7 @@ contract VeFloorStakingTest is FloorTest {
         // Deposit speedUpThreshold amount so that speed up period gets extended
         veFloorStaking.deposit(5 ether);
 
-        (,,, uint256 secondDepositSpeedUpEndTimestamp) = veFloorStaking.userInfos(alice);
+        (,,, uint secondDepositSpeedUpEndTimestamp) = veFloorStaking.userInfos(alice);
 
         assertGt(secondDepositSpeedUpEndTimestamp, initialDepositSpeedUpEndTimestamp);
         assertEq(secondDepositSpeedUpEndTimestamp, block.timestamp + speedUpDuration);
@@ -312,12 +312,12 @@ contract VeFloorStakingTest is FloorTest {
 
         veFloorStaking.claim();
 
-        (,, uint256 lastClaimTimestamp,) = veFloorStaking.userInfos(alice);
+        (,, uint lastClaimTimestamp,) = veFloorStaking.userInfos(alice);
         assertEq(lastClaimTimestamp, block.timestamp);
 
         skip(maxCapPct);
 
-        uint256 pendingVeFloor = veFloorStaking.getPendingVeFloor(alice);
+        uint pendingVeFloor = veFloorStaking.getPendingVeFloor(alice);
         assertEq(pendingVeFloor, 0);
 
         veFloorStaking.deposit(5 ether);
@@ -331,13 +331,13 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowZeroWithdraw() public {
-        vm.expectRevert("VeFloorStaking: expected withdraw amount to be greater than zero");
+        vm.expectRevert('VeFloorStaking: expected withdraw amount to be greater than zero');
         vm.prank(alice);
         veFloorStaking.withdraw(0);
     }
 
     function test_ShouldNotAllowWithdrawAmountGreaterThanUserBalance() public {
-        vm.expectRevert("VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked");
+        vm.expectRevert('VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked');
         vm.prank(alice);
         veFloorStaking.withdraw(1);
     }
@@ -346,7 +346,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         veFloorStaking.deposit(100 ether);
 
-        uint256 depositBlock = block.timestamp;
+        uint depositBlock = block.timestamp;
 
         assertEq(floor.balanceOf(alice), 900 ether);
 
@@ -355,11 +355,11 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         veFloorStaking.claim();
 
-        uint256 claimBlock = block.timestamp;
+        uint claimBlock = block.timestamp;
 
         assertGt(veFloor.balanceOf(alice), 0);
 
-        (uint256 balance, uint256 rewardDebt, uint256 lastClaimTimestamp, uint256 speedUpEndTimestamp) =
+        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) =
             veFloorStaking.userInfos(alice);
         assertEq(balance, 100 ether);
         assertEq(rewardDebt, veFloor.balanceOf(alice) / 2); // Divide by 2 since half of it is from the speed up
@@ -369,7 +369,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         veFloorStaking.withdraw(5 ether);
 
-        uint256 withdrawBlock = block.timestamp;
+        uint withdrawBlock = block.timestamp;
 
         // Check user info fields are updated correctly
         (balance, rewardDebt, lastClaimTimestamp, speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
@@ -388,7 +388,7 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotBeAbleToClaimWithZeroBalance() public {
-        vm.expectRevert("VeFloorStaking: cannot claim veFLOOR when no FLOOR is staked");
+        vm.expectRevert('VeFloorStaking: cannot claim veFLOOR when no FLOOR is staked');
         vm.prank(alice);
         veFloorStaking.claim();
     }
@@ -402,7 +402,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         veFloorStaking.claim();
 
-        uint256 claimBlock = block.timestamp;
+        uint claimBlock = block.timestamp;
 
         // lastRewardTimestamp
         assertEq(veFloorStaking.lastRewardTimestamp(), claimBlock);
@@ -461,11 +461,11 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         veFloorStaking.deposit(100 ether);
 
-        uint256 depositBlock = block.timestamp;
+        uint depositBlock = block.timestamp;
 
         skip(30);
 
-        uint256 accVeFloorPerShareBeforeUpdate = veFloorStaking.accVeFloorPerShare();
+        uint accVeFloorPerShareBeforeUpdate = veFloorStaking.accVeFloorPerShare();
 
         veFloorStaking.updateRewardVars();
         assertEq(veFloorStaking.lastRewardTimestamp(), depositBlock + 30);

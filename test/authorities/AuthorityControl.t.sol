@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract AuthorityControlTest is FloorTest {
     // Set up an unknown role for use in tests
-    bytes32 private constant UNKNOWN = keccak256("Unknown");
+    bytes32 private constant UNKNOWN = keccak256('Unknown');
 
     // Set up a small collection of users to test with
     address alice;
@@ -20,7 +20,7 @@ contract AuthorityControlTest is FloorTest {
      * Deploys our AuthorityControl which will in turn create our
      * expected roles and permissions in the constructor.
      */
-    constructor () {
+    constructor() {
         // Set up a small pool of test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
     }

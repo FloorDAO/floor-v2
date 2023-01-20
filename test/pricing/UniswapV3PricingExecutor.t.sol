@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/pricing/UniswapV3PricingExecutor.sol";
-import "../../src/contracts/tokens/Floor.sol";
+import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
+import '../../src/contracts/tokens/Floor.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 /**
  * For this test we will want to implement Forge forking cheatcode to ensure
@@ -18,7 +18,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     UniswapV3PricingExecutor executor;
 
     /// Store our mainnet fork information
-    uint256 internal constant BLOCK_NUMBER = 16_075_930;
+    uint internal constant BLOCK_NUMBER = 16_075_930;
 
     address internal UNISWAP_FACTORY = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
@@ -54,7 +54,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * executor.
      */
     function test_Name() public {
-        assertEq(executor.name(), "UniswapV3PricingExecutor");
+        assertEq(executor.name(), 'UniswapV3PricingExecutor');
     }
 
     /**
@@ -70,7 +70,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * for, then we will expect a revert.
      */
     function test_ETHPriceOfUnknownToken() public {
-        vm.expectRevert("Unknown pool");
+        vm.expectRevert('Unknown pool');
         executor.getETHPrice(UNKNOWN);
     }
 
@@ -94,7 +94,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         tokens[1] = FLOORV1;
         tokens[2] = USDC;
 
-        uint256[] memory prices = executor.getETHPrices(tokens);
+        uint[] memory prices = executor.getETHPrices(tokens);
 
         assertEq(prices[0], X2Y2_ETH_PRICE);
         assertEq(prices[1], FLOORV1_ETH_PRICE);
@@ -106,7 +106,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_ETHPriceOfManyTokens() public {
         address[] memory tokens = new address[](25);
-        for (uint256 i; i < 25;) {
+        for (uint i; i < 25;) {
             tokens[i] = USDC;
             unchecked {
                 ++i;
@@ -121,7 +121,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
-        uint256[] memory prices = executor.getETHPrices(tokens);
+        uint[] memory prices = executor.getETHPrices(tokens);
         assertEq(prices.length, 0);
     }
 
@@ -133,7 +133,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         address[] memory tokens = new address[](1);
         tokens[0] = FLOORV1;
 
-        uint256[] memory prices = executor.getETHPrices(tokens);
+        uint[] memory prices = executor.getETHPrices(tokens);
 
         assertEq(prices[0], FLOORV1_ETH_PRICE);
     }
@@ -147,7 +147,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         address[] memory tokens = new address[](1);
         tokens[0] = UNKNOWN;
 
-        vm.expectRevert("Unknown pool");
+        vm.expectRevert('Unknown pool');
         executor.getETHPrices(tokens);
     }
 
@@ -163,7 +163,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * If we don't have a price for a token, then we expect a revert.
      */
     function test_FloorPriceOfUnknownToken() public {
-        vm.expectRevert("Unknown pool");
+        vm.expectRevert('Unknown pool');
         executor.getFloorPrice(UNKNOWN);
     }
 
@@ -176,7 +176,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         tokens[0] = X2Y2;
         tokens[1] = USDC;
 
-        uint256[] memory prices = executor.getFloorPrices(tokens);
+        uint[] memory prices = executor.getFloorPrices(tokens);
 
         assertEq(prices[0], X2Y2_FLOOR_PRICE);
         assertEq(prices[1], USDC_FLOOR_PRICE);
@@ -187,7 +187,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_FloorPriceOfManyTokens() public {
         address[] memory tokens = new address[](25);
-        for (uint256 i; i < 25;) {
+        for (uint i; i < 25;) {
             tokens[i] = USDC;
             unchecked {
                 ++i;
@@ -202,7 +202,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_FloorPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
-        uint256[] memory prices = executor.getFloorPrices(tokens);
+        uint[] memory prices = executor.getFloorPrices(tokens);
         assertEq(prices.length, 0);
     }
 
@@ -214,7 +214,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         address[] memory tokens = new address[](1);
         tokens[0] = X2Y2;
 
-        uint256[] memory prices = executor.getFloorPrices(tokens);
+        uint[] memory prices = executor.getFloorPrices(tokens);
 
         assertEq(prices[0], X2Y2_FLOOR_PRICE);
     }

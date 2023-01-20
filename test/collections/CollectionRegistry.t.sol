@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/collections/CollectionRegistry.sol";
+import '../../src/contracts/collections/CollectionRegistry.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract CollectionRegistryTest is FloorTest {
     /// Emitted when a collection is successfully approved
@@ -84,7 +84,7 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveNullAddressCollection() public {
-        vm.expectRevert("Cannot approve NULL collection");
+        vm.expectRevert('Cannot approve NULL collection');
         collectionRegistry.approveCollection(address(0));
     }
 

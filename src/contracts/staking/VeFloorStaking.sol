@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import 'forge-std/console.sol';
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -381,5 +381,4 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
             emit Claim(_msgSender(), veFloorToClaim);
         }
     }
-
 }

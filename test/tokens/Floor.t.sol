@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../../src/contracts/tokens/Floor.sol";
+import '../../src/contracts/tokens/Floor.sol';
 
-import "../utilities/Environments.sol";
+import '../utilities/Environments.sol';
 
 contract FloorTokenTest is FloorTest {
     // Store some test users
@@ -23,19 +23,19 @@ contract FloorTokenTest is FloorTest {
     }
 
     function test_TokenIsValidERC20() public {
-        assertEq(floor.name(), "Floor");
-        assertEq(floor.symbol(), "FLOOR");
+        assertEq(floor.name(), 'Floor');
+        assertEq(floor.symbol(), 'FLOOR');
         assertEq(floor.decimals(), 18);
     }
 
     function test_CannotMintWithoutPermissions() public {
-        vm.expectRevert("Account does not have role");
+        vm.expectRevert('Account does not have role');
         vm.prank(alice);
         floor.mint(alice, 100 ether);
     }
 
     function test_MintingIncreasesTotalSupply() public {
-        uint256 supplyBefore = floor.totalSupply();
+        uint supplyBefore = floor.totalSupply();
 
         floor.mint(alice, 100 ether);
 
@@ -43,7 +43,7 @@ contract FloorTokenTest is FloorTest {
     }
 
     function test_BurningReducedTotalSupply() public {
-        uint256 supplyBefore = floor.totalSupply();
+        uint supplyBefore = floor.totalSupply();
 
         // Mint 100 tokens to Alice
         floor.mint(alice, 100 ether);

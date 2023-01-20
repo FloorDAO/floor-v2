@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import "../../../src/contracts/actions/uniswap/SellTokensForETH.sol";
+import '../../../src/contracts/actions/uniswap/SellTokensForETH.sol';
 
-import "../../utilities/Environments.sol";
+import '../../utilities/Environments.sol';
 
 contract UniswapSellTokensForETHTest is FloorTest {
     // Set up our Router02 address
@@ -19,7 +19,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
     uint24 internal constant USDC_FEE = 500;
 
     /// Store our mainnet fork information
-    uint256 internal constant BLOCK_NUMBER = 16_016_064;
+    uint internal constant BLOCK_NUMBER = 16_016_064;
 
     // Store our action contract
     UniswapSellTokensForETH action;
@@ -51,7 +51,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         ERC20(USDC).approve(address(action), 10000000000);
 
         // Action our trade
-        uint256 amountOut = action.execute(
+        uint amountOut = action.execute(
             abi.encode(
                 address(USDC), // token0
                 uint24(USDC_FEE), // fee
@@ -81,8 +81,8 @@ contract UniswapSellTokensForETHTest is FloorTest {
             abi.encode(
                 USDC, // token0
                 USDC_FEE, // fee
-                uint256(10000000000), // amountIn
-                uint256(0), // amountOutMinimum
+                uint(10000000000), // amountIn
+                uint(0), // amountOutMinimum
                 block.timestamp // deadline
             )
         );
@@ -100,13 +100,13 @@ contract UniswapSellTokensForETHTest is FloorTest {
         // Approve $10,000 against the action contract
         ERC20(USDC).approve(address(action), 10000000000);
 
-        vm.expectRevert("Too little received");
+        vm.expectRevert('Too little received');
         action.execute(
             abi.encode(
                 USDC, // token0
                 USDC_FEE, // fee
-                uint256(10000000000), // amountIn
-                uint256(100 ether), // amountOutMinimum
+                uint(10000000000), // amountIn
+                uint(100 ether), // amountOutMinimum
                 block.timestamp // deadline
             )
         );

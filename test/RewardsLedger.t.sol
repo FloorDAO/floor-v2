@@ -2,20 +2,20 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import '@openzeppelin/contracts/mocks/ERC20Mock.sol';
 
-import "../src/contracts/collections/CollectionRegistry.sol";
-import {veFLOOR} from "../src/contracts/tokens/VeFloor.sol";
-import "../src/contracts/tokens/Floor.sol";
-import "../src/contracts/staking/VeFloorStaking.sol";
-import "../src/contracts/strategies/StrategyRegistry.sol";
+import '../src/contracts/collections/CollectionRegistry.sol';
+import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
+import '../src/contracts/tokens/Floor.sol';
+import '../src/contracts/staking/VeFloorStaking.sol';
+import '../src/contracts/strategies/StrategyRegistry.sol';
 import {GaugeWeightVote} from '../src/contracts/voting/GaugeWeightVote.sol';
-import "../src/contracts/RewardsLedger.sol";
-import "../src/contracts/Treasury.sol";
+import '../src/contracts/RewardsLedger.sol';
+import '../src/contracts/Treasury.sol';
 
 import '../src/interfaces/voting/GaugeWeightVote.sol';
 
-import "./utilities/Environments.sol";
+import './utilities/Environments.sol';
 
 contract RewardsLedgerTest is FloorTest {
     // Contract references
@@ -130,9 +130,9 @@ contract RewardsLedgerTest is FloorTest {
      *
      * This should emit {RewardsAllocated}.
      */
-    function test_CanAllocate(address token, uint256 amount) public assumeTokenAndAmount(token, amount) {
+    function test_CanAllocate(address token, uint amount) public assumeTokenAndAmount(token, amount) {
         vm.prank(address(treasury));
-        uint256 allocatedAmount = rewards.allocate(address(this), token, amount);
+        uint allocatedAmount = rewards.allocate(address(this), token, amount);
 
         assertEq(allocatedAmount, amount);
         assertEq(rewards.available(address(this), token), amount);
@@ -144,17 +144,17 @@ contract RewardsLedgerTest is FloorTest {
      *
      * Each time we allocate, it should emit {RewardsAllocated}.
      */
-    function test_CanAllocateMultipleTimes(address token, uint256 amount1, uint256 amount2)
+    function test_CanAllocateMultipleTimes(address token, uint amount1, uint amount2)
         public
         assumeTokenAndAmount(token, 1)
     {
         // Avoid overflow errors with fuzzy values
-        vm.assume(amount1 > 0 && amount1 < type(uint256).max / 2);
-        vm.assume(amount2 > 0 && amount2 < type(uint256).max / 2);
+        vm.assume(amount1 > 0 && amount1 < type(uint).max / 2);
+        vm.assume(amount2 > 0 && amount2 < type(uint).max / 2);
 
         vm.startPrank(address(treasury));
-        uint256 allocatedAmount1 = rewards.allocate(address(this), token, amount1);
-        uint256 allocatedAmount2 = rewards.allocate(address(this), token, amount2);
+        uint allocatedAmount1 = rewards.allocate(address(this), token, amount1);
+        uint allocatedAmount2 = rewards.allocate(address(this), token, amount2);
         vm.stopPrank();
 
         assertEq(allocatedAmount1, amount1);
@@ -166,10 +166,10 @@ contract RewardsLedgerTest is FloorTest {
     /**
      * Our {RewardsLedger} should prevent a NULL token address from being passed.
      */
-    function test_CannotAllocateNullToken(uint256 amount) public {
+    function test_CannotAllocateNullToken(uint amount) public {
         vm.assume(amount > 0);
 
-        vm.expectRevert("Invalid token");
+        vm.expectRevert('Invalid token');
         rewards.allocate(address(this), address(0), amount);
     }
 
@@ -177,7 +177,7 @@ contract RewardsLedgerTest is FloorTest {
      * Our {RewardsLedger} should prevent a zero amount value from being passed.
      */
     function test_CannotAllocateZeroAmount(address token) public assumeTokenAndAmount(token, 1) {
-        vm.expectRevert("Invalid amount");
+        vm.expectRevert('Invalid amount');
         rewards.allocate(address(this), token, 0);
     }
 
@@ -185,13 +185,13 @@ contract RewardsLedgerTest is FloorTest {
      * Only certain roles are allowed to allocate tokens, so we need to ensure that an
      * unexpected sender is reverted.
      */
-    function test_CannotAllocateWithoutPermissions(address token, uint256 amount)
+    function test_CannotAllocateWithoutPermissions(address token, uint amount)
         public
         assumeTokenAndAmount(token, amount)
     {
         vm.startPrank(address(0));
 
-        vm.expectRevert("Account does not have role");
+        vm.expectRevert('Account does not have role');
         rewards.allocate(address(this), token, amount);
 
         vm.stopPrank();
@@ -221,7 +221,7 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(rewards.available(address(100), address(400)), 3 ether);
         assertEq(rewards.available(address(100), address(500)), 4 ether);
 
-        (address[] memory tokens, uint256[] memory amounts) = rewards.availableTokens(address(100));
+        (address[] memory tokens, uint[] memory amounts) = rewards.availableTokens(address(100));
 
         assertEq(tokens[0], address(200));
         assertEq(tokens[1], address(300));
@@ -234,7 +234,7 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(amounts[3], 4 ether);
     }
 
-    function test_AvailableAndClaimed(uint256 amount1, uint256 amount2) public {
+    function test_AvailableAndClaimed(uint amount1, uint amount2) public {
         vm.assume(amount2 > 0);
         vm.assume(amount1 > amount2);
 
@@ -283,7 +283,7 @@ contract RewardsLedgerTest is FloorTest {
      *
      * This should emit {RewardsClaimed}.
      */
-    function test_CanClaimTokens(uint256 amount) public {
+    function test_CanClaimTokens(uint amount) public {
         vm.assume(amount > 0);
 
         vm.prank(address(treasury));
@@ -298,13 +298,13 @@ contract RewardsLedgerTest is FloorTest {
     /**
      *
      */
-    function test_CannotClaimTokensWithoutTreasuryBalance(uint256 amount) public {
+    function test_CannotClaimTokensWithoutTreasuryBalance(uint amount) public {
         vm.assume(amount > 0);
 
         vm.prank(address(treasury));
         rewards.allocate(address(this), address(erc20), amount);
 
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        vm.expectRevert('ERC20: transfer amount exceeds balance');
         rewards.claim(address(erc20), amount);
     }
 
@@ -359,11 +359,11 @@ contract RewardsLedgerTest is FloorTest {
      * A user should not be able to claim if they have not been allocated any amount
      * of the token. This should revert.
      */
-    function test_CannotClaimTokensWithoutNoAllocation(address token, uint256 amount)
+    function test_CannotClaimTokensWithoutNoAllocation(address token, uint amount)
         public
         assumeTokenAndAmount(token, amount)
     {
-        vm.expectRevert("Insufficient allocation");
+        vm.expectRevert('Insufficient allocation');
         rewards.claim(token, amount);
     }
 
@@ -371,7 +371,7 @@ contract RewardsLedgerTest is FloorTest {
      * A user should not be able to claim more than the amount of the token that they have
      * been allocated. This should revert.
      */
-    function test_CannotClaimTokensWithoutSufficientAllocation(address token, uint256 amount1, uint256 amount2)
+    function test_CannotClaimTokensWithoutSufficientAllocation(address token, uint amount1, uint amount2)
         public
         assumeTokenAndAmount(token, amount1)
     {
@@ -380,7 +380,7 @@ contract RewardsLedgerTest is FloorTest {
         vm.prank(address(treasury));
         rewards.allocate(address(this), token, amount1);
 
-        vm.expectRevert("Insufficient allocation");
+        vm.expectRevert('Insufficient allocation');
         rewards.claim(token, amount2);
     }
 
@@ -403,16 +403,13 @@ contract RewardsLedgerTest is FloorTest {
      * A user should not be able to claim when the contract is paused, even if they have a
      * valid allocation of the token. This should revert.
      */
-    function test_CannotClaimTokensWhenPaused(address token, uint256 amount)
-        public
-        assumeTokenAndAmount(token, amount)
-    {
+    function test_CannotClaimTokensWhenPaused(address token, uint amount) public assumeTokenAndAmount(token, amount) {
         rewards.pause(true);
 
         vm.prank(address(treasury));
         rewards.allocate(address(this), token, amount);
 
-        vm.expectRevert("Claiming currently paused");
+        vm.expectRevert('Claiming currently paused');
         rewards.claim(token, amount);
     }
 
@@ -423,14 +420,14 @@ contract RewardsLedgerTest is FloorTest {
      */
     function test_CannotPauseWithoutPermissions() public {
         vm.prank(address(0));
-        vm.expectRevert("Account does not have admin role");
+        vm.expectRevert('Account does not have admin role');
         rewards.pause(true);
     }
 
     /**
      * Helper modifier to make validation assumptions around the token and amount.
      */
-    modifier assumeTokenAndAmount(address token, uint256 amount) {
+    modifier assumeTokenAndAmount(address token, uint amount) {
         vm.assume(token != address(0));
         vm.assume(token != address(floor) && token != address(veFloor));
         vm.assume(amount > 0);
