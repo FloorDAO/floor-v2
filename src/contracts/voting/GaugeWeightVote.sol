@@ -309,6 +309,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         address[] storage users_ = _users;
         uint[] storage userTokens_ = _userTokens;
 
+        /*
         for (uint i; i < collections.length;) {
             // Reset the yield storage for the collection
             yieldStorage[collections[i]] = 0;
@@ -384,6 +385,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Update the snapshot time made
         lastSnapshot = block.timestamp;
+        */
 
         return (users_, userTokens_);
     }

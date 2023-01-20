@@ -10,6 +10,7 @@ import '@openzeppelin/contracts/interfaces/IERC1155.sol';
 import '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
 
 import './authorities/AuthorityControl.sol';
+import './tokens/VaultXToken.sol';
 
 import '../interfaces/actions/Action.sol';
 import '../interfaces/collections/CollectionRegistry.sol';
@@ -168,21 +169,19 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
             // If our floor minting is paused, then we just want to directly allocate
             // the generated token to the user, rather than converting it to FLOOR.
-            if (floorMintingPaused && users[j] != address(this)) {
-                // Distribute tokens directly into the rewards ledger for the user. This will
+            if (floorMintingPaused) {
+                // TODO: Distribute tokens directly into the rewards ledger for the user. This will
                 // add more gas, but this is (in theory) a smaller use case.
-                rewards.allocate(users[j], vaultCollection, 0);
             }
-            else {
-                // Calculate the reward yield in FLOOR token terms
-                uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
 
-                // Multiply our token yield to find the floor token equivalent value
-                totalYield += floorTokenRewardAmount;
+            // Calculate the reward yield in FLOOR token terms
+            uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
 
-                // Distribute the reward yield to our reward token
-                IVaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
-            }
+            // Multiply our token yield to find the floor token equivalent value
+            totalYield += floorTokenRewardAmount;
+
+            // Distribute the reward yield to our reward token
+            VaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
 
             // Update our vault share an apply pending positions
             vault.migratePendingDeposits();

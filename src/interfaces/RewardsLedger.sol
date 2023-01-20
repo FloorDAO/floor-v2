@@ -42,14 +42,6 @@ interface IRewardsLedger {
     function available(address recipient, address token) external view returns (uint);
 
     /**
-     * Get all tokens available to the recipient, as well as the amounts of each token.
-     */
-    function availableTokens(address recipient)
-        external
-        view
-        returns (address[] memory tokens_, uint[] memory amounts_);
-
-    /**
      * These tokens are stored in the {Treasury}, but will be allowed access from
      * this contract to allow them to be claimed at a later time.
      *

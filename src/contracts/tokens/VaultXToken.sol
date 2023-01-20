@@ -1,14 +1,18 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradable.sol";
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 
-// import '../interfaces/tokens/VaultXToken.sol';
+import {SafeMathAlt} from '../utils/SafeMath.sol';
+import {SafeMathInt} from '../utils/SafeMathInt.sol';
+
+import '../../interfaces/staking/VeFloorStaking.sol';
+// import '../../interfaces/tokens/VaultXToken.sol';
 
 
 /**
@@ -18,7 +22,11 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradable.sol";
  * A mintable ERC20 token that allows anyone to pay and distribute a target token
  * to token holders as dividends and allows token holders to withdraw their dividends.
  */
-contract VaultXToken is Initializable, ERC20, Ownable {
+contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
+
+    using SafeMathAlt for uint256;
+    using SafeMathInt for int256;
+    using SafeERC20 for IERC20;
 
     IERC20 public target;
 
@@ -48,12 +56,24 @@ contract VaultXToken is Initializable, ERC20, Ownable {
     mapping(address => int256) internal magnifiedRewardCorrections;
     mapping(address => uint256) internal withdrawnRewards;
 
+    address public rewardsLedger;
+    IVeFloorStaking public staking;
+
     /**
      *
      */
-    function initialize(address vault, string memory _name, string memory _symbol) public initializer {
+    function initialize(
+        address _target,
+        address _rewardsLedger,
+        address _staking,
+        string memory _name,
+        string memory _symbol
+    ) public initializer {
+        __Ownable_init();
         __ERC20_init(_name, _symbol);
-        target = _target;
+        rewardsLedger = _rewardsLedger;
+        target = IERC20(_target);
+        staking = IVeFloorStaking(_staking);
     }
 
     /**
@@ -142,7 +162,7 @@ contract VaultXToken is Initializable, ERC20, Ownable {
             // the user. This will give them veFloor tokens that they can choose to withdraw.
             target.safeTransferFrom(rewardsLedger, address(this), _withdrawableReward);
             target.approve(address(staking), _withdrawableReward);
-            staking.depositFor(amount, msg.sender);
+            staking.depositFor(_withdrawableReward, msg.sender);
 
             emit RewardWithdrawn(user, _withdrawableReward);
         }

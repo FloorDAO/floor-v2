@@ -141,7 +141,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         require(amount > 0, 'Insufficient amount requested');
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= vaultXToken.balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
+        require(amount <= VaultXToken(xToken()).balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);
@@ -173,10 +173,10 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // from their active position, which will also affect their vault share.
         if (amount != 0) {
             // Withdraw any pending rewards for the user
-            vaultXToken.withdrawReward(msg.sender);
+            VaultXToken(xToken()).withdrawReward(msg.sender);
 
             // Burn the remaining amount from the user's xToken balance
-            vaultXToken.burnFrom(msg.sender, amount);
+            VaultXToken(xToken()).burnFrom(msg.sender, amount);
         }
 
         // Return the amount of underlying token returned from staking withdrawal
@@ -219,7 +219,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
         // Calculate our new shares based on new position values
         for (uint i; i < pendingStakers.length;) {
-            VaultXToken(xToken).mint(pendingPositions[pendingStakers[i]]);
+            VaultXToken(xToken()).mint(pendingStakers[i], pendingPositions[pendingStakers[i]]);
 
             // Move our staker's pending position to be an actual position
             pendingPositions[pendingStakers[i]] = 0;
@@ -231,7 +231,10 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         delete pendingStakers;
     }
 
+    /**
+     * ..
+     */
     function xToken() public view returns (address) {
-        return Clones.predictDeterministicAddress(address(vaultXTokenImplementation), vaultId);
+        return Clones.predictDeterministicAddress(address(vaultXTokenImplementation), bytes32(vaultId));
     }
 }

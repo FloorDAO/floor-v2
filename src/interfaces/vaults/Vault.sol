@@ -19,7 +19,8 @@ interface IVault {
         uint _vaultId,
         address _collection,
         address _strategy,
-        address _vaultFactory
+        address _vaultFactory,
+        address _vaultXTokenImplementation
     ) external;
 
     /**
@@ -42,11 +43,6 @@ interface IVault {
      * The numerical ID of the vault that acts as an index for the {VaultFactory}
      */
     function vaultId() external view returns (uint);
-
-    /**
-     * TODO: ..
-     */
-    function shares(bool excludeTreasury) external view returns (address[] memory, uint[] memory);
 
     /**
      * TODO: ..
@@ -77,5 +73,10 @@ interface IVault {
      * This assumes that when a user enters or exits a position, that their address is
      * maintained correctly in the `stakers` array.
      */
-    function recalculateVaultShare(bool updatePending) external;
+    function migratePendingDeposits() external;
+
+    /**
+     * ..
+     */
+    function xToken() external returns (address);
 }

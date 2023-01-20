@@ -7,6 +7,8 @@ import '@openzeppelin/contracts/proxy/Clones.sol';
 
 import './Vault.sol';
 import '../authorities/AuthorityControl.sol';
+import '../tokens/VaultXToken.sol';
+
 import '../../interfaces/collections/CollectionRegistry.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/strategies/StrategyRegistry.sol';
@@ -41,6 +43,10 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     mapping(uint => address) private vaultIds;
     mapping(address => address[]) private collectionVaults;
 
+    address public floor;
+    address public rewardsLedger;
+    address public staking;
+
     /**
      * Store our registries, mapped to their interfaces.
      */
@@ -49,13 +55,20 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _collectionRegistry,
         address _strategyRegistry,
         address _vaultImplementation,
-        address _vaultXTokenImplementation
+        address _vaultXTokenImplementation,
+        address _floor,
+        address _rewardsLedger,
+        address _staking
     ) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
 
         vaultImplementation = _vaultImplementation;
         vaultXTokenImplementation = _vaultXTokenImplementation;
+
+        floor = _floor;
+        rewardsLedger = _rewardsLedger;
+        staking = _staking;
     }
 
     /**
@@ -86,7 +99,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
         onlyRole(VAULT_MANAGER)
-        returns (uint vaultId_, address vaultAddr_, address vaultXTokenAddr_)
+        returns (uint vaultId_, address vaultAddr_)
     {
         // No empty names, that's just silly
         require(bytes(_name).length != 0, 'Name cannot be empty');
@@ -105,11 +118,11 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
         // Create our {Vault} with provided information
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
+        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenImplementation);
 
         // Create our {VaultXToken} for the vault
-        vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
-        IVaultXToken(vaultXTokenAddr_).initialize(floor, _name, _name);
+        address vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
+        VaultXToken(vaultXTokenAddr_).initialize(floor, rewardsLedger, staking, _name, _name);
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);

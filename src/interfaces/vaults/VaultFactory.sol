@@ -15,7 +15,7 @@ pragma solidity ^0.8.0;
 
 interface IVaultFactory {
     /// @dev Sent when a vault is created successfully
-    event VaultCreated(uint indexed vaultId, address vaultAddress, address assetAddress);
+    event VaultCreated(uint indexed vaultId, address vaultAddress, address vaultXTokenAddress, address assetAddress);
 
     /// @dev Sent when a vault is paused or unpaused
     event VaultCreationPaused(bool paused);
