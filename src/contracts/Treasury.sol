@@ -191,7 +191,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
         // We mint our floor token yield to our {RewardsLedger}, which will be redeemed by
         // the user by burning their XToken against the vault.
-        if (!floorMintingPaused) {
+        if (!floorMintingPaused && totalYield != 0) {
             floor.mint(address(rewardsLedger), totalYield);
         }
 

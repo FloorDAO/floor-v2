@@ -36,6 +36,7 @@ import '../../src/contracts/RewardsLedger.sol';
  */
 contract DeployCoreContracts is Script {
     function run() external {
+        /*
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.
         vm.startBroadcast();
@@ -81,6 +82,7 @@ contract DeployCoreContracts is Script {
 
         // Stop collecting onchain transactions
         vm.stopBroadcast();
+        */
     }
 
     function _distributionCalculatorWeights() internal returns (uint[] memory) {

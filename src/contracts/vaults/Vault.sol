@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/proxy/Clones.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -71,7 +70,10 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      */
     uint public totalPendingPosition;
 
-    address vaultXTokenImplementation;
+    /**
+     * ..
+     */
+    address internal vaultXToken;
 
     /**
      * ...
@@ -87,14 +89,14 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         address _collection,
         address _strategy,
         address _vaultFactory,
-        address _vaultXTokenImplementation
+        address _vaultXToken
     ) public initializer {
         collection = _collection;
         name = _name;
         strategy = IBaseStrategy(_strategy);
         vaultFactory = _vaultFactory;
         vaultId = _vaultId;
-        vaultXTokenImplementation = _vaultXTokenImplementation;
+        vaultXToken = _vaultXToken;
 
         // Give our collection max approval
         IERC20(_collection).approve(_strategy, type(uint).max);
@@ -235,6 +237,24 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * ..
      */
     function xToken() public view returns (address) {
-        return Clones.predictDeterministicAddress(address(vaultXTokenImplementation), bytes32(vaultId));
+        return vaultXToken;
+    }
+
+    /**
+     * ..
+     */
+    function position(address user) public view returns (uint) {
+        return VaultXToken(xToken()).balanceOf(address(user));
+    }
+
+    /**
+     * ..
+     */
+    function share(address user) public view returns (uint) {
+        if (VaultXToken(xToken()).totalSupply() == 0) {
+            return 0;
+        }
+
+        return (VaultXToken(xToken()).balanceOf(address(user)) * 10000) / VaultXToken(xToken()).totalSupply();
     }
 }

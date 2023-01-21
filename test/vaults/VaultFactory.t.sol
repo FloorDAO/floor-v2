@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
+import '../../src/contracts/tokens/VaultXToken.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
 
@@ -15,6 +16,7 @@ contract VaultFactoryTest is FloorTest {
     StrategyRegistry strategyRegistry;
     VaultFactory vaultFactory;
     Vault vaultImplementation;
+    VaultXToken vaultXTokenImplementation;
 
     address approvedCollection;
     address approvedStrategy;
@@ -59,12 +61,19 @@ contract VaultFactoryTest is FloorTest {
         // Deploy our vault implementation
         vaultImplementation = new Vault(address(authorityRegistry));
 
+        // Deploy our vault implementation
+        vaultXTokenImplementation = new VaultXToken();
+
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
             address(strategyRegistry),
-            address(vaultImplementation)
+            address(vaultImplementation),
+            address(vaultXTokenImplementation),
+            address(0), // _floor
+            address(0), // _rewardsLedger
+            address(0) // _staking
         );
     }
 

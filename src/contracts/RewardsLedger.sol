@@ -75,6 +75,8 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * Get the amount of available token for the recipient.
      */
     function available(address recipient, address token) external view returns (uint) {
+        // TODO: If the user is looking at floor, we should also compute what is available
+        // from across their staked vaults.
         return allocations[recipient][token];
     }
 
@@ -106,8 +108,7 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // We can increment the amount of claimed token
         claimed[msg.sender][token] += amount;
 
-        // If the user is claiming floor token it will need to be minted from
-        // the {Treasury}, as opposed to just being transferred.
+        // TODO: Write about floor option
         if (token == address(floor)) {
             // First we send the floor token to the recipient, as the staking contract will take
             // the tokens from the origin caller, not the contract that calls it.

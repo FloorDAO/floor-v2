@@ -71,6 +71,7 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
     ) public initializer {
         __Ownable_init();
         __ERC20_init(_name, _symbol);
+
         rewardsLedger = _rewardsLedger;
         target = IERC20(_target);
         staking = IVeFloorStaking(_staking);
@@ -137,7 +138,8 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
      *
      * @dev It reverts if the total supply of tokens is 0.
      */
-    function distributeRewards(uint amount) external virtual onlyOwner {
+     // TODO: Needs to be onlyOwner or approved role
+    function distributeRewards(uint amount) external virtual {
         require(totalSupply() != 0, "RewardDist: 0 supply");
         require(amount != 0, "RewardDist: 0 amount");
 

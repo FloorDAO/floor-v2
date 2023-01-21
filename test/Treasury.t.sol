@@ -11,6 +11,7 @@ import './mocks/PricingExecutor.sol';
 import '../src/contracts/collections/CollectionRegistry.sol';
 import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
 import '../src/contracts/tokens/Floor.sol';
+import '../src/contracts/tokens/VaultXToken.sol';
 import '../src/contracts/strategies/StrategyRegistry.sol';
 import '../src/contracts/vaults/Vault.sol';
 import '../src/contracts/vaults/VaultFactory.sol';
@@ -23,13 +24,19 @@ import '../src/interfaces/voting/GaugeWeightVote.sol';
 import './utilities/Environments.sol';
 
 contract TreasuryTest is FloorTest {
+
+    // We only need hardcoded addresses for certain contracts as the responses
+    // will be mocked.
+    address STAKING_CONTRACT = address(0);
     address VAULT_FACTORY = address(10);
     address VOTE_CONTRACT = address(12);
 
+    // We want to store a small number of specific users for testing
     address alice;
     address bob;
     address carol;
 
+    // Track our internal contract addresses
     FLOOR floor;
     veFLOOR veFloor;
     ERC20Mock erc20;
@@ -39,7 +46,6 @@ contract TreasuryTest is FloorTest {
     RewardsLedger rewards;
     StrategyRegistry strategyRegistry;
     Treasury treasury;
-
     PricingExecutorMock pricingExecutorMock;
 
     constructor() {
@@ -64,8 +70,8 @@ contract TreasuryTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(collectionRegistry),  // address _collectionRegistry,
-            address(strategyRegistry),    // address _strategyRegistry,
+            address(collectionRegistry),
+            address(strategyRegistry),
             VAULT_FACTORY,
             address(floor)
         );
@@ -75,7 +81,7 @@ contract TreasuryTest is FloorTest {
             address(authorityRegistry),
             address(floor),
             address(treasury),
-            address(0)  // Staking
+            STAKING_CONTRACT
         );
 
         // Create our test users
@@ -633,7 +639,7 @@ contract TreasuryTest is FloorTest {
     function test_CanEndEpoch() public {
         // Set our required internal contracts
         treasury.setRewardsLedgerContract(address(rewards));
-        treasury.setGaugeWeightVoteContract(address(12));
+        treasury.setGaugeWeightVoteContract(VOTE_CONTRACT);
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
@@ -668,78 +674,118 @@ contract TreasuryTest is FloorTest {
         vm.mockCall(vaults[3], abi.encodeWithSelector(IVault.collection.selector), abi.encode(address(3)));
         vm.mockCall(vaults[4], abi.encodeWithSelector(IVault.collection.selector), abi.encode(address(4)));
 
-        // Mock our vault shares
-        address[] memory shareUsers = new address[](7);
-        uint[] memory userShares = new uint[](7);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5], shareUsers[6]) =
-            (address(treasury), users[0], users[1], users[2], users[3], users[4], users[5]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5], userShares[6]) =
-            (3000, 1000, 1500, 1500, 2000, 500, 250);
-        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
+        // Deploy our vault xToken contracts
+        VaultXToken[] memory vaultXTokens = new VaultXToken[](vaults.length);
+        for (uint i; i < vaults.length; ++i) {
+            vaultXTokens[i] = _deployVaultXToken(vaults[i]);
+        }
 
-        shareUsers = new address[](1);
-        userShares = new uint[](1);
-        shareUsers[0] = address(treasury);
-        userShares[0] = 10000;
-        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
+        // Set up our vault shares by assigning vault xTokens
+        vm.startPrank(vaults[0]);
+        vaultXTokens[0].mint(address(treasury), 300 ether);
+        vaultXTokens[0].mint(address(users[0]), 100 ether);
+        vaultXTokens[0].mint(address(users[1]), 150 ether);
+        vaultXTokens[0].mint(address(users[2]), 150 ether);
+        vaultXTokens[0].mint(address(users[3]), 200 ether);
+        vaultXTokens[0].mint(address(users[4]), 50 ether);
+        vaultXTokens[0].mint(address(users[5]), 30 ether);
+        vm.stopPrank();
 
-        shareUsers = new address[](5);
-        userShares = new uint[](5);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) =
-            (address(treasury), users[3], users[4], users[6], users[7]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4]) = (2000, 2000, 2500, 2500, 1000);
-        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
+        vm.startPrank(vaults[1]);
+        vaultXTokens[1].mint(address(treasury), 1000 ether);
+        vm.stopPrank();
 
-        shareUsers = new address[](6);
-        userShares = new uint[](6);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4], shareUsers[5]) =
-            (address(treasury), users[0], users[2], users[4], users[6], users[7]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4], userShares[5]) =
-            (2000, 2500, 2500, 1000, 1000, 1000);
-        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
+        vm.startPrank(vaults[2]);
+        vaultXTokens[2].mint(address(treasury), 200 ether);
+        vaultXTokens[2].mint(address(users[3]), 200 ether);
+        vaultXTokens[2].mint(address(users[4]), 250 ether);
+        vaultXTokens[2].mint(address(users[6]), 250 ether);
+        vaultXTokens[2].mint(address(users[7]), 100 ether);
+        vm.stopPrank();
 
-        shareUsers = new address[](4);
-        userShares = new uint[](4);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3]) = (address(treasury), users[5], users[6], users[7]);
-        (userShares[0], userShares[1], userShares[2], userShares[3]) = (2500, 2500, 2500, 2500);
-        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.shares.selector), abi.encode(shareUsers, userShares));
+        vm.startPrank(vaults[3]);
+        vaultXTokens[3].mint(address(treasury), 200 ether);
+        vaultXTokens[3].mint(address(users[0]), 250 ether);
+        vaultXTokens[3].mint(address(users[2]), 250 ether);
+        vaultXTokens[3].mint(address(users[4]), 100 ether);
+        vaultXTokens[3].mint(address(users[6]), 100 ether);
+        vaultXTokens[3].mint(address(users[7]), 100 ether);
+        vm.stopPrank();
+
+        vm.startPrank(vaults[4]);
+        vaultXTokens[4].mint(address(treasury), 250 ether);
+        vaultXTokens[4].mint(address(users[5]), 250 ether);
+        vaultXTokens[4].mint(address(users[6]), 250 ether);
+        vaultXTokens[4].mint(address(users[7]), 250 ether);
+        vm.stopPrank();
 
         // Mock vault share recalculation (ignore)
-        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-
-        // Mock our vote distribution
-        shareUsers = new address[](5);
-        userShares = new uint[](5);
-        (shareUsers[0], shareUsers[1], shareUsers[2], shareUsers[3], shareUsers[4]) =
-            (users[0], users[2], users[3], users[4], users[6]);
-        (userShares[0], userShares[1], userShares[2], userShares[3], userShares[4]) =
-            (4 ether, 3 ether, 1 ether, 1 ether, 3 ether);
-        vm.mockCall(
-            VOTE_CONTRACT,
-            abi.encodeWithSelector(IGaugeWeightVote.snapshot.selector),
-            abi.encode(shareUsers, userShares)
-        );
+        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
 
         // Trigger our epoch end
         treasury.endEpoch();
 
-        // Confirm the amount allocated to each user
-        assertEq(rewards.available(address(treasury), address(floor)), 0);
-        assertEq(rewards.available(users[0], address(floor)), 234 ether);
-        assertEq(rewards.available(users[1], address(floor)), 120 ether);
-        assertEq(rewards.available(users[2], address(floor)), 273 ether);
-        assertEq(rewards.available(users[3], address(floor)), 261 ether);
-        assertEq(rewards.available(users[4], address(floor)), 226 ether);
-        assertEq(rewards.available(users[5], address(floor)), 120 ether);
-        assertEq(rewards.available(users[6], address(floor)), 288 ether);
-        assertEq(rewards.available(users[7], address(floor)), 210 ether);
+        // Confirm the amount allocated to each user on each xToken
+        assertEq(vaultXTokens[0].dividendOf(address(treasury)), 26938775510204081632);
+        assertEq(vaultXTokens[1].dividendOf(address(treasury)), 21999999999999999999);
+        assertEq(vaultXTokens[2].dividendOf(address(treasury)), 21999999999999999999);
+        assertEq(vaultXTokens[3].dividendOf(address(treasury)), 39599999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(address(treasury)), 43999999999999999999);
+
+        assertEq(vaultXTokens[0].dividendOf(users[0]), 8979591836734693877);
+        assertEq(vaultXTokens[1].dividendOf(users[0]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[0]), 0);
+        assertEq(vaultXTokens[3].dividendOf(users[0]), 49499999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(users[0]), 0);
+
+        assertEq(vaultXTokens[0].dividendOf(users[1]), 13469387755102040816);
+        assertEq(vaultXTokens[1].dividendOf(users[1]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[1]), 0);
+        assertEq(vaultXTokens[3].dividendOf(users[1]), 0);
+        assertEq(vaultXTokens[4].dividendOf(users[1]), 0);
+
+        assertEq(vaultXTokens[0].dividendOf(users[2]), 13469387755102040816);
+        assertEq(vaultXTokens[1].dividendOf(users[2]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[2]), 0);
+        assertEq(vaultXTokens[3].dividendOf(users[2]), 49499999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(users[2]), 0);
+
+        assertEq(vaultXTokens[0].dividendOf(users[3]), 17959183673469387755);
+        assertEq(vaultXTokens[1].dividendOf(users[3]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[3]), 21999999999999999999);
+        assertEq(vaultXTokens[3].dividendOf(users[3]), 0);
+        assertEq(vaultXTokens[4].dividendOf(users[3]), 0);
+
+        assertEq(vaultXTokens[0].dividendOf(users[4]), 4489795918367346938);
+        assertEq(vaultXTokens[1].dividendOf(users[4]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[4]), 27499999999999999999);
+        assertEq(vaultXTokens[3].dividendOf(users[4]), 19799999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(users[4]), 0);
+
+        assertEq(vaultXTokens[0].dividendOf(users[5]), 2693877551020408163);
+        assertEq(vaultXTokens[1].dividendOf(users[5]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[5]), 0);
+        assertEq(vaultXTokens[3].dividendOf(users[5]), 0);
+        assertEq(vaultXTokens[4].dividendOf(users[5]), 43999999999999999999);
+
+        assertEq(vaultXTokens[0].dividendOf(users[6]), 0);
+        assertEq(vaultXTokens[1].dividendOf(users[6]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[6]), 27499999999999999999);
+        assertEq(vaultXTokens[3].dividendOf(users[6]), 19799999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(users[6]), 43999999999999999999);
+
+        assertEq(vaultXTokens[0].dividendOf(users[7]), 0);
+        assertEq(vaultXTokens[1].dividendOf(users[7]), 0);
+        assertEq(vaultXTokens[2].dividendOf(users[7]), 10999999999999999999);
+        assertEq(vaultXTokens[3].dividendOf(users[7]), 19799999999999999999);
+        assertEq(vaultXTokens[4].dividendOf(users[7]), 43999999999999999999);
 
         // Confirm rewards ledger holds all expected floor to distribute to above users
-        assertEq(floor.balanceOf(address(rewards)), 4187929680 ether);
+        assertEq(floor.balanceOf(address(rewards)), 594000000000000000000);
     }
 
     /**
@@ -768,26 +814,24 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 10;
-        uint stakerCount = 100;
+        uint vaultCount = 50;
+        uint stakerCount = 1000;
 
         // Set our required internal contracts
         treasury.setRewardsLedgerContract(address(rewards));
-        treasury.setGaugeWeightVoteContract(address(12));
+        treasury.setGaugeWeightVoteContract(VOTE_CONTRACT);
         treasury.setPricingExecutor(address(pricingExecutorMock));
-
-        // Set up a list of vault shares
-        uint[] memory shares = new uint[](stakerCount);
-        for (uint j; j < stakerCount;) {
-            shares[j] = 10000 / stakerCount;
-            unchecked { ++j; }
-        }
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
-        for (uint i; i < vaultCount;) {
-            vaults[i] = address(uint160(uint(0 + i)));
+        VaultXToken[] memory vaultXTokens = new VaultXToken[](vaultCount);
+        address payable[] memory stakers = utilities.createUsers(stakerCount);
+
+        for (uint i; i < vaultCount; ++i) {
+            // Determine our vault address
+            vaults[i] = address(uint160(uint(1 + i)));
+            vaultXTokens[i] = _deployVaultXToken(vaults[i]);
 
             // Approve a unique collection
             collectionRegistry.approveCollection(address(uint160(uint(vaultCount + i))));
@@ -796,27 +840,33 @@ contract TreasuryTest is FloorTest {
             // Set up a mock that will set rewards to be a static amount of ether
             vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
 
-            // Set a list of stakers against the vault
-            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.shares.selector), abi.encode(utilities.createUsers(stakerCount), shares));
+            // Set a list of stakers against the vault by giving them xToken
+            vm.startPrank(vaults[i]);
+            for (uint j; j < stakerCount; ++j) {
+                vaultXTokens[i].mint(stakers[j], 10 ether);
+            }
+            vm.stopPrank();
 
-            // Mock vault share recalculation (ignore)
-            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.recalculateVaultShare.selector), abi.encode(''));
-
-            unchecked { ++i; }
+            // Mock pending deposits migration (ignore)
+            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
         }
 
         // Mock our VaultFactory call to return no vaults
         vm.mockCall(VAULT_FACTORY, abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(vaults));
 
-        // Mock our vote distribution
-        vm.mockCall(
-            VOTE_CONTRACT,
-            abi.encodeWithSelector(IGaugeWeightVote.snapshot.selector),
-            abi.encode(utilities.createUsers(stakerCount, 0), shares)
-        );
-
         // Trigger our epoch end and pray to the gas gods
         treasury.endEpoch();
+    }
+
+    function _deployVaultXToken(address vault) internal returns (VaultXToken) {
+        VaultXToken vaultXToken = new VaultXToken();
+        vaultXToken.initialize(address(floor), address(rewards), STAKING_CONTRACT, 'xToken', 'XTOKEN');
+
+        vm.mockCall(vault, abi.encodeWithSelector(Vault.xToken.selector), abi.encode(address(vaultXToken)));
+
+        vaultXToken.transferOwnership(vault);
+
+        return vaultXToken;
     }
 
 }

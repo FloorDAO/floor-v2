@@ -20,7 +20,7 @@ interface IVault {
         address _collection,
         address _strategy,
         address _vaultFactory,
-        address _vaultXTokenImplementation
+        address _vaultXToken
     ) external;
 
     /**

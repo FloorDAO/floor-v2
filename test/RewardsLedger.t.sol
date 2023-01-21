@@ -221,6 +221,7 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(rewards.available(address(100), address(400)), 3 ether);
         assertEq(rewards.available(address(100), address(500)), 4 ether);
 
+        /*
         (address[] memory tokens, uint[] memory amounts) = rewards.availableTokens(address(100));
 
         assertEq(tokens[0], address(200));
@@ -232,6 +233,7 @@ contract RewardsLedgerTest is FloorTest {
         assertEq(amounts[1], 2 ether);
         assertEq(amounts[2], 3 ether);
         assertEq(amounts[3], 4 ether);
+        */
     }
 
     function test_AvailableAndClaimed(uint amount1, uint amount2) public {

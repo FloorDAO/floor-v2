@@ -31,7 +31,7 @@ repository = "https://github.com/FloorDAO/floor-v2"
 ignore = ["**/*.t.sol"]
 
 [fmt]
-line_length = 120
+line_length = 140
 tab_width = 4
 bracket_spacing = false
 int_types = "short"

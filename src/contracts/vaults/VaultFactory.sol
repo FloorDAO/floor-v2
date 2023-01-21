@@ -43,6 +43,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     mapping(uint => address) private vaultIds;
     mapping(address => address[]) private collectionVaults;
 
+    /// Internal contract references
     address public floor;
     address public rewardsLedger;
     address public staking;
@@ -116,13 +117,19 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Deploy a new {Strategy} instance using the clone mechanic
         address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
 
-        // Create our {Vault} with provided information
+        // Determine our deployed addresses
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenImplementation);
+        address vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
+
+        // Create our {Vault} with provided information
+        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenAddr_);
 
         // Create our {VaultXToken} for the vault
-        address vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
         VaultXToken(vaultXTokenAddr_).initialize(floor, rewardsLedger, staking, _name, _name);
+
+        // Transfer our ownership of the the VaultXToken from the {VaultFactory} to the {Vault}
+        // that we have created.
+        VaultXToken(vaultXTokenAddr_).transferOwnership(vaultAddr_);
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
