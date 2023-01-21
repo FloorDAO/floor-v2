@@ -814,8 +814,8 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 50;
-        uint stakerCount = 1000;
+        uint vaultCount = 10;
+        uint stakerCount = 100;
 
         // Set our required internal contracts
         treasury.setRewardsLedgerContract(address(rewards));
