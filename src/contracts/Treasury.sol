@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/interfaces/IERC1155.sol';
@@ -277,9 +275,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * Allows an approved user to withdraw an ERC20 token from the vault.
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
-        console.log('A');
         bool success = IERC20(token).transfer(recipient, amount);
-        console.log('B');
         require(success, 'Unable to withdraw');
         emit WithdrawERC20(token, amount, recipient);
     }

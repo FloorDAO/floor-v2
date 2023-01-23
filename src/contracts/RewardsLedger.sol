@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import './authorities/AuthorityControl.sol';
 import './tokens/VaultXToken.sol';
 
@@ -12,8 +10,6 @@ import '../interfaces/vaults/Vault.sol';
 import '../interfaces/vaults/VaultFactory.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
-
-import "forge-std/console.sol";
 
 /**
  * The rewards ledger holds all available rewards available to be claimed
@@ -126,20 +122,16 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     }
 
     function claimFloor() public returns (uint) {
-        console.log('A');
         // Get start balance
         uint startBalance = floor.balanceOf(msg.sender);
-        console.log('B');
+
         // Iterate the vaults and claim until we have reached our limit
         address[] memory vaults = vaultFactory.vaults();
         for (uint i; i < vaults.length;) {
-            console.log('C');
             VaultXToken(IVault(vaults[i]).xToken()).withdrawReward(msg.sender);
-            console.log('D');
             unchecked { ++i; }
         }
 
-        console.log('E');
         return floor.balanceOf(msg.sender) - startBalance;
     }
 
