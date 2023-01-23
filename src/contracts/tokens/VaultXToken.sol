@@ -14,6 +14,8 @@ import {SafeMathInt} from '../utils/SafeMathInt.sol';
 import '../../interfaces/staking/VeFloorStaking.sol';
 // import '../../interfaces/tokens/VaultXToken.sol';
 
+import "forge-std/console.sol";
+
 
 /**
  * VaultXToken - (Based on Dividend Token)
@@ -155,16 +157,23 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
      *
      * @dev It emits a `RewardWithdrawn` event if the amount of withdrawn target is greater than 0.
      */
-    function withdrawReward(address user) external onlyOwner {
+    // TODO: Needs onlyOwner
+    function withdrawReward(address user) external {
+        console.log('1');
         uint256 _withdrawableReward = withdrawableRewardOf(user);
+        console.log('2');
         if (_withdrawableReward != 0) {
+            console.log('3');
             withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
+            console.log('4');
 
             // Withdraw FLOOR tokens from the rewards ledger and then stake them on behalf of
             // the user. This will give them veFloor tokens that they can choose to withdraw.
-            target.safeTransferFrom(rewardsLedger, address(this), _withdrawableReward);
+            // target.safeTransferFrom(rewardsLedger, address(this), _withdrawableReward);
             target.approve(address(staking), _withdrawableReward);
-            staking.depositFor(_withdrawableReward, msg.sender);
+            console.log('5');
+            staking.depositFor(_withdrawableReward, user);
+            console.log('6');
 
             emit RewardWithdrawn(user, _withdrawableReward);
         }

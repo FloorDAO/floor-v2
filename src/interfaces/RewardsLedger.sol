@@ -54,6 +54,10 @@ interface IRewardsLedger {
      */
     function claim(address token, uint amount) external returns (uint totalClaimed);
 
+    function claimFloor() external returns (uint totalClaimed);
+
+    function availableFloor(address user) external returns (uint available);
+
     /**
      * Allows our governance to pause rewards being claimed. This should be used
      * if an issue is found in the code causing incorrect rewards being distributed,

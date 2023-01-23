@@ -12,9 +12,11 @@ import '../src/contracts/collections/CollectionRegistry.sol';
 import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
 import '../src/contracts/tokens/Floor.sol';
 import '../src/contracts/tokens/VaultXToken.sol';
+import '../src/contracts/staking/VeFloorStaking.sol';
 import '../src/contracts/strategies/StrategyRegistry.sol';
 import '../src/contracts/vaults/Vault.sol';
 import '../src/contracts/vaults/VaultFactory.sol';
+import {GaugeWeightVote} from '../src/contracts/voting/GaugeWeightVote.sol';
 import '../src/contracts/RewardsLedger.sol';
 import '../src/contracts/Treasury.sol';
 
@@ -27,9 +29,7 @@ contract TreasuryTest is FloorTest {
 
     // We only need hardcoded addresses for certain contracts as the responses
     // will be mocked.
-    address STAKING_CONTRACT = address(0);
     address VAULT_FACTORY = address(10);
-    address VOTE_CONTRACT = address(12);
 
     // We want to store a small number of specific users for testing
     address alice;
@@ -47,6 +47,8 @@ contract TreasuryTest is FloorTest {
     StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
+    GaugeWeightVote gaugeWeightVote;
+    VeFloorStaking veFloorStaking;
 
     constructor() {
         // Set up our mock pricing executor
@@ -76,12 +78,34 @@ contract TreasuryTest is FloorTest {
             address(floor)
         );
 
+        // Create our Gauge Weight Vote contract
+        gaugeWeightVote = new GaugeWeightVote(
+            address(collectionRegistry),
+            address(this),  // Vault factory but not needed
+            address(veFloor),
+            address(authorityRegistry)
+        );
+
+        // Create our veFloor Staking contract
+        veFloorStaking = new VeFloorStaking(
+            address(authorityRegistry),
+            floor,
+            veFloor,
+            gaugeWeightVote,
+            1 ether,
+            1 ether,
+            5,
+            50,
+            20000
+        );
+
         // Set up our {RewardsLedger}
         rewards = new RewardsLedger(
             address(authorityRegistry),
             address(floor),
             address(treasury),
-            STAKING_CONTRACT
+            address(veFloorStaking),
+            VAULT_FACTORY
         );
 
         // Create our test users
@@ -97,6 +121,10 @@ contract TreasuryTest is FloorTest {
         // Grant our {RewardsLedger} the required roles
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(rewards));
         authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(rewards));
+
+        // Grant our {veFloorStaking} contract the authority to manage veFloor
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(veFloorStaking));
+        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloorStaking));
     }
 
     /**
@@ -639,7 +667,7 @@ contract TreasuryTest is FloorTest {
     function test_CanEndEpoch() public {
         // Set our required internal contracts
         treasury.setRewardsLedgerContract(address(rewards));
-        treasury.setGaugeWeightVoteContract(VOTE_CONTRACT);
+        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
@@ -729,12 +757,13 @@ contract TreasuryTest is FloorTest {
         // Trigger our epoch end
         treasury.endEpoch();
 
-        // Confirm the amount allocated to each user on each xToken
-        assertEq(vaultXTokens[0].dividendOf(address(treasury)), 26938775510204081632);
-        assertEq(vaultXTokens[1].dividendOf(address(treasury)), 21999999999999999999);
-        assertEq(vaultXTokens[2].dividendOf(address(treasury)), 21999999999999999999);
-        assertEq(vaultXTokens[3].dividendOf(address(treasury)), 39599999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(address(treasury)), 43999999999999999999);
+        // Confirm the amount allocated to each user on each xToken. The {Treasury} will
+        // not hold any tokens as they will have been burnt.
+        assertEq(vaultXTokens[0].dividendOf(address(treasury)), 0);
+        assertEq(vaultXTokens[1].dividendOf(address(treasury)), 0);
+        assertEq(vaultXTokens[2].dividendOf(address(treasury)), 0);
+        assertEq(vaultXTokens[3].dividendOf(address(treasury)), 0);
+        assertEq(vaultXTokens[4].dividendOf(address(treasury)), 0);
 
         assertEq(vaultXTokens[0].dividendOf(users[0]), 8979591836734693877);
         assertEq(vaultXTokens[1].dividendOf(users[0]), 0);
@@ -784,8 +813,9 @@ contract TreasuryTest is FloorTest {
         assertEq(vaultXTokens[3].dividendOf(users[7]), 19799999999999999999);
         assertEq(vaultXTokens[4].dividendOf(users[7]), 43999999999999999999);
 
-        // Confirm rewards ledger holds all expected floor to distribute to above users
-        assertEq(floor.balanceOf(address(rewards)), 594000000000000000000);
+        // The rewards ledger will not hold the tokens, they will be in the individual
+        // vaults.
+        assertEq(floor.balanceOf(address(rewards)), 0);
     }
 
     /**
@@ -819,7 +849,7 @@ contract TreasuryTest is FloorTest {
 
         // Set our required internal contracts
         treasury.setRewardsLedgerContract(address(rewards));
-        treasury.setGaugeWeightVoteContract(VOTE_CONTRACT);
+        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
@@ -860,7 +890,7 @@ contract TreasuryTest is FloorTest {
 
     function _deployVaultXToken(address vault) internal returns (VaultXToken) {
         VaultXToken vaultXToken = new VaultXToken();
-        vaultXToken.initialize(address(floor), address(rewards), STAKING_CONTRACT, 'xToken', 'XTOKEN');
+        vaultXToken.initialize(address(floor), address(rewards), address(veFloorStaking), 'xToken', 'XTOKEN');
 
         vm.mockCall(vault, abi.encodeWithSelector(Vault.xToken.selector), abi.encode(address(vaultXToken)));
 

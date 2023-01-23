@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 import '../authorities/AuthorityControl.sol';
 
+import '../tokens/VaultXToken.sol';
+
 import '../../interfaces/collections/CollectionRegistry.sol';
 import '../../interfaces/strategies/BaseStrategy.sol';
 import '../../interfaces/tokens/veFloor.sol';
@@ -16,23 +18,15 @@ import '../../interfaces/voting/GaugeWeightVote.sol';
  * optionally case it to a veFloor, which will use a constant value. As the
  * vaults will be rendered as an address, the veFloor vote will take a NULL
  * address value.
- *
- * At point of development this can take influence from:
- * https://github.com/saddle-finance/saddle-contract/blob/master/contracts/tokenomics/gauges/GaugeController.vy
  */
 contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
 
-    address[] _vaults;
-    uint[] _tokens;
-
-    address[] _users;
-    uint[] _userTokens;
-
+    /// Hardcoded address to map to the FLOOR token vault
     address public FLOOR_TOKEN_VOTE = address(1);
 
-    /// ..
+    /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
     IVaultFactory immutable vaultFactory;
     IVeFLOOR immutable veFloor;
@@ -98,6 +92,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
+        // TODO: Can this just be a global counter, rather than a loop?
+        // e.g. a userVotesCast() function
         for (uint i; i < userVoteCollections[_user].length;) {
             votesCast += votes[userVoteCollections[_user][i]];
             unchecked {
@@ -287,39 +283,39 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *      A - 42 FLOOR
      *      B - 58 FLOOR
      */
-    function snapshot(uint tokens) external returns (address[] memory, uint[] memory) {
+    function snapshot(uint tokens) external returns (address[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections = _topCollections();
+        uint collectionsLength = collections.length;
 
         // Iterate through our sample size of collections to get the total number of
         // votes placed that need to be used in distribution calculations to find
         // collection share.
-        uint totalRelevantVotes = 0;
-        for (uint i; i < collections.length;) {
+        uint totalRelevantVotes;
+        for (uint i; i < collectionsLength;) {
             totalRelevantVotes += votes[collections[i]];
             unchecked {
                 ++i;
             }
         }
 
-        // Set up our storage so we can push
-        address[] storage users_ = _users;
-        uint[] storage userTokens_ = _userTokens;
+        // Map consistant variables
+        uint collectionRewards;
 
-        /*
-        for (uint i; i < collections.length;) {
+        // Iterate over our collections
+        for (uint i; i < collectionsLength;) {
             // Reset the yield storage for the collection
             yieldStorage[collections[i]] = 0;
 
             // Calculate the reward allocation to be given to the collection based on
             // the number of votes from the total votes.
-            uint collectionRewards = remainingTokens;
-            if (i < collections.length - 1) {
-                collectionRewards =
-                    (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
+            if (i == collectionsLength - 1) {
+                collectionRewards = remainingTokens;
+            } else {
+                collectionRewards = (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
@@ -328,18 +324,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             // If we have the FLOOR token vote, then we just set a null vault
             if (collections[i] == FLOOR_TOKEN_VOTE) {
-                users_.push(FLOOR_TOKEN_VOTE);
-                userTokens_.push(collectionRewards);
+                // TODO: How do we distribute floor to users??
 
-                unchecked {
-                    ++i;
-                }
+                // We don't need to process the rest of our loop
+                unchecked { ++i; }
                 continue;
             }
 
             // Find the sub-percentage allocation given to each collection vault based on yield
             address[] memory collectionVaults = vaultFactory.vaultsForCollection(collections[i]);
-
             for (uint j; j < collectionVaults.length;) {
                 uint rewards = _getCollectionVaultRewardsIndicator(collectionVaults[j]);
 
@@ -352,30 +345,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             }
 
             for (uint j; j < collectionVaults.length;) {
-                // Get the rewards owed to the vault based on the yield share of the collection
-                uint vaultRewards =
-                    (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
+                // Get the rewards owed to the vault based on the yield share of the collection and
+                // assign the rewards to the vault xToken
+                uint vaultRewards = (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
 
-                // Get list of all staked users in the vault without taking the treasury
-                // position into account.
-                (address[] memory stakers, uint[] memory percentages) = IVault(collectionVaults[j]).shares(true);
+                // We assume that the snapshot tokens have already been transferred to the rewards
+                // ledger at this point
+                VaultXToken(IVault(collectionVaults[j]).xToken()).distributeRewards(vaultRewards);
 
-                // Allocate the vault share to each user
-                for (uint k; k < stakers.length;) {
-                    // Calculate the number of reward tokens
-                    uint userRewards = (vaultRewards * percentages[k]) / 10000;
-
-                    users_.push(stakers[k]);
-                    userTokens_.push(userRewards);
-
-                    unchecked {
-                        ++k;
-                    }
-                }
-
-                unchecked {
-                    ++j;
-                }
+                unchecked { ++j; }
             }
 
             unchecked {
@@ -385,9 +363,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Update the snapshot time made
         lastSnapshot = block.timestamp;
-        */
-
-        return (users_, userTokens_);
+        return collections;
     }
 
     function _topCollections() internal view returns (address[] memory) {

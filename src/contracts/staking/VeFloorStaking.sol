@@ -202,7 +202,9 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
     /// will also be claimed in the process.
     /// @param _amount The amount of FLOOR to deposit
     /// @param _recipient Recipient of the veFLOOR
-    function depositFor(uint _amount, address _recipient) external onlyRole(STAKING_MANAGER) {
+    /// TODO: Needs `onlyRole(STAKING_MANAGER)`
+    function depositFor(uint _amount, address _recipient) external {
+        console.log('ZZZ');
         _deposit(_amount, _recipient);
     }
 

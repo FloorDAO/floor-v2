@@ -10,13 +10,13 @@ import '@openzeppelin/contracts/interfaces/IERC1155.sol';
 import '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
 
 import './authorities/AuthorityControl.sol';
+import './tokens/Floor.sol';
 import './tokens/VaultXToken.sol';
 
 import '../interfaces/actions/Action.sol';
 import '../interfaces/collections/CollectionRegistry.sol';
 import '../interfaces/pricing/BasePricingExecutor.sol';
 import '../interfaces/strategies/StrategyRegistry.sol';
-import '../interfaces/tokens/Floor.sol';
 import '../interfaces/vaults/Vault.sol';
 import '../interfaces/vaults/VaultFactory.sol';
 import '../interfaces/voting/GaugeWeightVote.sol';
@@ -41,7 +41,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     IVaultFactory public vaultFactory;
 
     // Track our internal tokens
-    IFLOOR public floor;
+    FLOOR public floor;
 
     // Track our rewards ledger
     IRewardsLedger public rewardsLedger;
@@ -82,7 +82,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
-        floor = IFLOOR(_floor);
+        floor = FLOOR(_floor);
     }
 
     /**
@@ -152,10 +152,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Get the prices of our approved collections
         this.getCollectionFloorPrices();
 
-        // Store the yield generated, converted into floor token equivalent value. This will
-        // only be allocated is `floorMintingPaused` is False.
-        uint totalYield;
-
         // Iterate over vaults
         for (uint i; i < vaults.length;) {
             // Parse our vault address into the Vault interface
@@ -176,12 +172,11 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
             // Calculate the reward yield in FLOOR token terms
             uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
-
-            // Multiply our token yield to find the floor token equivalent value
-            totalYield += floorTokenRewardAmount;
-
-            // Distribute the reward yield to our reward token
-            VaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
+            if (floorTokenRewardAmount != 0) {
+                // Distribute the reward yield to our reward token
+                floor.mint(vault.xToken(), floorTokenRewardAmount);
+                VaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
+            }
 
             // Update our vault share an apply pending positions
             vault.migratePendingDeposits();
@@ -191,46 +186,32 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
         // We mint our floor token yield to our {RewardsLedger}, which will be redeemed by
         // the user by burning their XToken against the vault.
-        if (!floorMintingPaused && totalYield != 0) {
-            floor.mint(address(rewardsLedger), totalYield);
-        }
+        if (!floorMintingPaused) {
+            // Withdraw our dividend reward tokens from the {Treasury} xToken
+            // positions. We can then use these amount withdrawn to power the voting
+            // snapshot.
 
-        // WE SHOULD HOPEFULLY ALSO BE ABLE TO GET THE TREASURY BALANCE BY SAYING
-        // XVAULT.BALANCEOF(TREASURY) AND MINUSING FROM XVAULT.TOTALSUPPLY()
+            // Confirm we are not retaining all {Treasury} yield
+            if (retainedTreasuryYieldPercentage != 10000) {
+                // Claim our tokens from the {Treasury} xToken allocation
+                uint claimAmount = rewardsLedger.claimFloor();
+                if (claimAmount != 0) {
+                    // Determine the total amount of snapshot tokens. This should be calculated as all
+                    // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+                    // of the treasuryFloorYield.
+                    uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
 
-        /*
-        uint yieldRewards;
-        if (!floorMintingPaused && totalYield != 0) {
-            // Mint floor tokens to the rewards ledger to cover the upcoming claims
-            floor.mint(address(rewardsLedger), totalYield);
+                    // Transfer tokens to our rewards ledger and burn any tokens not transferred
+                    floor.transfer(address(rewardsLedger), yieldRewards);
+                    floor.burn(claimAmount - yieldRewards);
 
-            if (treasuryFloorYield != 0) {
-                // Determine the total amount of snapshot tokens. This should be calculated as all
-                // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-                // of the treasuryFloorYield.
-                yieldRewards = (treasuryFloorYield * (10000 - retainedTreasuryYieldPercentage)) / 10000;
-                (address[] memory tokenUsers, uint[] memory tokens) = voteContract.snapshot(yieldRewards);
-
-                // We can now register the user and floor token allocations from the snapshot into the
-                // {RewardsLedger} for the users to redeem when ready.
-                for (uint i; i < tokenUsers.length;) {
-                    // allocationUser.push(tokenUsers[i]);
-                    // allocationToken.push(address(floor));
-                    // allocationAmount.push(tokens[i]);
-
-                    // allocationArray.push(abi.encode(tokenUsers[i], address(floor), tokens[i]));
-
-                    _allocation = bytes.concat(_allocation, abi.encode(tokenUsers[i], uint8(0), uint128(tokens[i])));
-
-                    unchecked {
-                        ++i;
-                    }
+                    // Process the snapshot, which will reward xTokens holders directly
+                    voteContract.snapshot(yieldRewards);
                 }
             }
         }
-        */
 
-        emit EpochEnded(block.timestamp, totalYield);
+        // emit EpochEnded(block.timestamp);
         lastEpoch = block.timestamp;
     }
 

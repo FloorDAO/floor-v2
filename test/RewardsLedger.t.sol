@@ -81,7 +81,8 @@ contract RewardsLedgerTest is FloorTest {
             address(authorityRegistry),
             address(floor),
             address(veFloorStaking),
-            address(treasury)
+            address(treasury),
+            address(0)  // VaultFactory - NULL
         );
 
         // Grant our {Treasury} contract the {REWARDS_MANAGER} role so we can correctly allocate

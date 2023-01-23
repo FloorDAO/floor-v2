@@ -4,11 +4,16 @@ pragma solidity ^0.8.0;
 import 'forge-std/console.sol';
 
 import './authorities/AuthorityControl.sol';
+import './tokens/VaultXToken.sol';
 
 import '../interfaces/staking/VeFloorStaking.sol';
 import '../interfaces/tokens/Floor.sol';
+import '../interfaces/vaults/Vault.sol';
+import '../interfaces/vaults/VaultFactory.sol';
 import '../interfaces/RewardsLedger.sol';
 import '../interfaces/Treasury.sol';
+
+import "forge-std/console.sol";
 
 /**
  * The rewards ledger holds all available rewards available to be claimed
@@ -26,6 +31,7 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     IFLOOR public immutable floor;
     IVeFloorStaking public staking;
     address public immutable treasury;
+    IVaultFactory public immutable vaultFactory;
 
     // Maintains a mapping of available token amounts by recipient
     mapping(address => mapping(address => uint)) internal allocations;
@@ -40,10 +46,11 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      */
-    constructor(address _authority, address _floor, address _staking, address _treasury) AuthorityControl(_authority) {
+    constructor(address _authority, address _floor, address _staking, address _treasury, address _vaultFactory) AuthorityControl(_authority) {
         floor = IFLOOR(_floor);
         staking = IVeFloorStaking(_staking);
         treasury = _treasury;
+        vaultFactory = IVaultFactory(_vaultFactory);
     }
 
     /**
@@ -108,24 +115,42 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         // We can increment the amount of claimed token
         claimed[msg.sender][token] += amount;
 
-        // TODO: Write about floor option
-        if (token == address(floor)) {
-            // First we send the floor token to the recipient, as the staking contract will take
-            // the tokens from the origin caller, not the contract that calls it.
-            floor.approve(address(staking), amount);
-
-            // Stake the tokens into the {VeFloorStaking} contract
-            staking.depositFor(amount, msg.sender);
-        } else {
-            // Transfer the tokens from the {Treasury} to the recipient
-            ITreasury(treasury).withdrawERC20(msg.sender, token, amount);
-        }
+        // Transfer the tokens from the {Treasury} to the recipient
+        ITreasury(treasury).withdrawERC20(msg.sender, token, amount);
 
         // Fire a message for our stalkers
         emit RewardsClaimed(msg.sender, token, amount);
 
         // Return the total amount claimed
         return claimed[msg.sender][token];
+    }
+
+    function claimFloor() public returns (uint) {
+        console.log('A');
+        // Get start balance
+        uint startBalance = floor.balanceOf(msg.sender);
+        console.log('B');
+        // Iterate the vaults and claim until we have reached our limit
+        address[] memory vaults = vaultFactory.vaults();
+        for (uint i; i < vaults.length;) {
+            console.log('C');
+            VaultXToken(IVault(vaults[i]).xToken()).withdrawReward(msg.sender);
+            console.log('D');
+            unchecked { ++i; }
+        }
+
+        console.log('E');
+        return floor.balanceOf(msg.sender) - startBalance;
+    }
+
+    function availableFloor(address user) public returns (uint available_) {
+        address[] memory vaults = vaultFactory.vaults();
+
+        // Iterate the vaults and sum the total dividend amounts
+        for (uint i; i < vaults.length;) {
+            available_ += VaultXToken(IVault(vaults[i]).xToken()).dividendOf(user);
+            unchecked { ++i; }
+        }
     }
 
     /**
@@ -137,4 +162,5 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
         paused = _paused;
         emit RewardsPaused(_paused);
     }
+
 }
