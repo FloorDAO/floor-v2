@@ -207,7 +207,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             // Revoke votes from the collection
             votes[collection] -= amount;
-            userVotes[msg.sender][collection] = 0;
+            userVotes[_account][collection] = 0;
 
             // Delete the collection from our user's reference array
             _deleteUserCollectionVote(_account, collection);
@@ -373,13 +373,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // Get all of our collections
         address[] memory options = this.voteOptions();
 
+        uint j;
+        uint k;
+
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
         for (uint i; i < options.length;) {
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
-            uint j;
-            for (j; j < sampleSize && j <= i;) {
+            for (j = 0; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
                 if (votes[options[i]] > votes[collections[j]]) {
@@ -394,7 +396,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             // If our `j` key is below the `sampleSize` we have requested, then we will
             // need to replace the key with our new collection and all subsequent keys will
             // shift down by 1, and any keys above the `sampleSize` will be deleted.
-            uint k;
             for (k = sampleSize - 1; k > j;) {
                 collections[k] = collections[k - 1];
                 unchecked {
