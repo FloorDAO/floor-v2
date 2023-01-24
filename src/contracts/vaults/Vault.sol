@@ -2,22 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../authorities/AuthorityControl.sol';
-import '../tokens/VaultXToken.sol';
+import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/vaults/Vault.sol';
+import {VaultXToken} from '../tokens/VaultXToken.sol';
 
-contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
-    /**
-     * ..
-     */
-    address TREASURY;
+import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+import {IVault} from '../../interfaces/vaults/Vault.sol';
+
+contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
 
     /**
      * The human-readable name of the vault.
@@ -78,11 +73,6 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     /**
      * ...
      */
-    constructor(address _authority) AuthorityControl(_authority) {}
-
-    /**
-     * ...
-     */
     function initialize(
         string memory _name,
         uint _vaultId,
@@ -91,15 +81,14 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         address _vaultFactory,
         address _vaultXToken
     ) public initializer {
+        __Ownable_init();
+
         collection = _collection;
         name = _name;
         strategy = IBaseStrategy(_strategy);
         vaultFactory = _vaultFactory;
         vaultId = _vaultId;
         vaultXToken = _vaultXToken;
-
-        // Give our collection max approval
-        IERC20(_collection).approve(_strategy, type(uint).max);
     }
 
     /**
@@ -115,6 +104,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
         // Deposit the tokens into the strategy. This returns the amount of xToken
         // moved into the position for the address.
+        IERC20(collection).approve(address(strategy), amount);
         uint receivedAmount = strategy.deposit(amount);
         require(receivedAmount != 0, 'Zero amount received');
 
@@ -143,7 +133,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         require(amount > 0, 'Insufficient amount requested');
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= VaultXToken(xToken()).balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
+        require(amount <= VaultXToken(vaultXToken).balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);
@@ -175,10 +165,10 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
         // from their active position, which will also affect their vault share.
         if (amount != 0) {
             // Withdraw any pending rewards for the user
-            VaultXToken(xToken()).withdrawReward(msg.sender);
+            VaultXToken(vaultXToken).withdrawReward(msg.sender);
 
             // Burn the remaining amount from the user's xToken balance
-            VaultXToken(xToken()).burnFrom(msg.sender, amount);
+            VaultXToken(vaultXToken).burnFrom(msg.sender, amount);
         }
 
         // Return the amount of underlying token returned from staking withdrawal
@@ -189,7 +179,7 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * Pauses deposits from being made into the vault. This should only be called by
      * a guardian or governor.
      */
-    function pause(bool _pause) external onlyRole(VAULT_MANAGER) {
+    function pause(bool _pause) external onlyOwner {
         paused = _pause;
     }
 
@@ -206,22 +196,12 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
     }
 
     /**
-     * Recalculates the share ownership of each address with a position. This precursory
-     * calculation allows us to save gas during epoch calculation.
-     *
-     * This assumes that when a user enters or exits a position, that their address is
-     * maintained correctly in the `stakers` array.
+     * ..
      */
-
-    // TODO: Only approved users should be able to updatePending!
-    function migratePendingDeposits() external {
-        // Update our total positions, moving the pending position into the total and
-        // then resetting the pending value to 0.
-        totalPendingPosition = 0;
-
+    function migratePendingDeposits() external onlyOwner {
         // Calculate our new shares based on new position values
         for (uint i; i < pendingStakers.length;) {
-            VaultXToken(xToken()).mint(pendingStakers[i], pendingPositions[pendingStakers[i]]);
+            VaultXToken(vaultXToken).mint(pendingStakers[i], pendingPositions[pendingStakers[i]]);
 
             // Move our staker's pending position to be an actual position
             pendingPositions[pendingStakers[i]] = 0;
@@ -231,6 +211,14 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
 
         // Clear some gas
         delete pendingStakers;
+
+        // Reset our pending positions to 0, as we have now migrated them
+        totalPendingPosition = 0;
+    }
+
+    function distributeRewards(uint amount) external onlyOwner {
+        // Pass-through function to xToken
+        VaultXToken(vaultXToken).distributeRewards(amount);
     }
 
     /**
@@ -244,17 +232,17 @@ contract Vault is AuthorityControl, Initializable, IVault, ReentrancyGuard {
      * ..
      */
     function position(address user) public view returns (uint) {
-        return VaultXToken(xToken()).balanceOf(address(user));
+        return VaultXToken(vaultXToken).balanceOf(address(user));
     }
 
     /**
      * ..
      */
     function share(address user) public view returns (uint) {
-        if (VaultXToken(xToken()).totalSupply() == 0) {
+        if (VaultXToken(vaultXToken).totalSupply() == 0) {
             return 0;
         }
 
-        return (VaultXToken(xToken()).balanceOf(address(user)) * 10000) / VaultXToken(xToken()).totalSupply();
+        return (VaultXToken(vaultXToken).balanceOf(address(user)) * 10000) / VaultXToken(vaultXToken).totalSupply();
     }
 }

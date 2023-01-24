@@ -79,4 +79,7 @@ interface IVault {
      * ..
      */
     function xToken() external returns (address);
+
+    function distributeRewards(uint amount) external;
+
 }

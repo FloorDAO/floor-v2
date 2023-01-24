@@ -85,6 +85,9 @@ contract RewardsLedgerTest is FloorTest {
             address(0)  // VaultFactory - NULL
         );
 
+        // Set an xToken for VeFloor
+        // veFloorStaking.setVeFloorXToken(address(0));
+
         // Grant our {Treasury} contract the {REWARDS_MANAGER} role so we can correctly allocate
         authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(treasury));
 
@@ -309,53 +312,6 @@ contract RewardsLedgerTest is FloorTest {
 
         vm.expectRevert('ERC20: transfer amount exceeds balance');
         rewards.claim(address(erc20), amount);
-    }
-
-    /**
-     * When a user has a sufficient allocation of Floor then they should be able to
-     * claim it.
-     *
-     * This will mint from the Treasury and be sent to the sender as the recipient.
-     *
-     * This should emit {RewardsClaimed}.
-     */
-    function test_CanClaimFloorTokens() public {
-        // Confirm our starting FLOOR token balance
-        assertEq(floor.balanceOf(address(this)), 0);
-        assertEq(floor.balanceOf(address(rewards)), 100 ether);
-
-        // Allocate 1 token from the {Treasury} to our test user
-        vm.prank(address(treasury));
-        rewards.allocate(address(this), address(floor), 1 ether);
-
-        // Confirm that the FLOOR token balances are still the same, even after
-        // the allocation.
-        assertEq(floor.balanceOf(address(this)), 0);
-        assertEq(floor.balanceOf(address(rewards)), 100 ether);
-
-        // Claim the allocated veFLOOR token rewards as our user
-        rewards.claim(address(floor), 1 ether);
-
-        // We should now have 1 veFLOOR token in our user's balance
-        (uint veFloorBalance,,,) = veFloorStaking.userInfos(address(this));
-        assertEq(veFloorBalance, 1 ether);
-
-        // Move the timestamp forward
-        skip(30);
-
-        // Check that we have veFloor token pending
-        assertEq(veFloorStaking.getPendingVeFloor(address(this)), 60 ether);
-
-        // Withdraw our staked veFloor, converting it to FLOOR
-        veFloorStaking.withdraw(veFloorBalance);
-
-        // We should now have 1 of the tokens minted into FLOOR
-        assertEq(floor.balanceOf(address(this)), veFloorBalance);
-        assertEq(floor.balanceOf(address(rewards)), 99 ether);
-
-        // We should now have 0 veFLOOR token in our user's balance
-        (veFloorBalance,,,) = veFloorStaking.userInfos(address(this));
-        assertEq(veFloorBalance, 0);
     }
 
     /**

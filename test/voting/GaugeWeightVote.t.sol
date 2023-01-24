@@ -60,7 +60,7 @@ contract GaugeWeightVoteTest is FloorTest {
         collectionRegistry.approveCollection(approvedCollection3);
 
         // Deploy our vault implementation
-        vaultImplementation = new Vault(address(authorityRegistry));
+        vaultImplementation = new Vault();
 
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
@@ -68,8 +68,6 @@ contract GaugeWeightVoteTest is FloorTest {
             address(collectionRegistry),
             address(strategyRegistry),
             address(vaultImplementation),
-            address(0),
-            address(0),
             address(0),
             address(0)
         );

@@ -8,13 +8,12 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 
+import '../authorities/AuthorityControl.sol';
 import {SafeMathAlt} from '../utils/SafeMath.sol';
 import {SafeMathInt} from '../utils/SafeMathInt.sol';
 
 import '../../interfaces/staking/VeFloorStaking.sol';
-// import '../../interfaces/tokens/VaultXToken.sol';
-
-import "forge-std/console.sol";
+import '../../interfaces/tokens/VaultXToken.sol';
 
 
 /**
@@ -24,7 +23,7 @@ import "forge-std/console.sol";
  * A mintable ERC20 token that allows anyone to pay and distribute a target token
  * to token holders as dividends and allows token holders to withdraw their dividends.
  */
-contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
+contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
 
     using SafeMathAlt for uint256;
     using SafeMathInt for int256;
@@ -58,7 +57,6 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
     mapping(address => int256) internal magnifiedRewardCorrections;
     mapping(address => uint256) internal withdrawnRewards;
 
-    address public rewardsLedger;
     IVeFloorStaking public staking;
 
     /**
@@ -66,7 +64,6 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
      */
     function initialize(
         address _target,
-        address _rewardsLedger,
         address _staking,
         string memory _name,
         string memory _symbol
@@ -74,7 +71,6 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
         __Ownable_init();
         __ERC20_init(_name, _symbol);
 
-        rewardsLedger = _rewardsLedger;
         target = IERC20(_target);
         staking = IVeFloorStaking(_staking);
     }
@@ -110,7 +106,7 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
         return true;
     }
 
-    function mint(address account, uint256 amount) public onlyOwner virtual {
+    function mint(address account, uint256 amount) public virtual onlyOwner {
         _mint(account, amount);
     }
 
@@ -140,13 +136,12 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
      *
      * @dev It reverts if the total supply of tokens is 0.
      */
-     // TODO: Needs to be onlyOwner or approved role
-    function distributeRewards(uint amount) external virtual {
+    function distributeRewards(uint amount) external virtual onlyOwner {
         require(totalSupply() != 0, "RewardDist: 0 supply");
         require(amount != 0, "RewardDist: 0 amount");
 
         // Because we receive the tokens from the staking contract, we assume the FLOOR tokens
-        // have already been sent to the {RewardsLedger}.
+        // have already been sent.
         magnifiedRewardPerShare = magnifiedRewardPerShare.add((amount).mul(magnitude) / totalSupply());
 
         emit RewardsDistributed(msg.sender, amount);
@@ -157,23 +152,15 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
      *
      * @dev It emits a `RewardWithdrawn` event if the amount of withdrawn target is greater than 0.
      */
-    // TODO: Needs onlyOwner
     function withdrawReward(address user) external {
-        console.log('1');
         uint256 _withdrawableReward = withdrawableRewardOf(user);
-        console.log('2');
         if (_withdrawableReward != 0) {
-            console.log('3');
             withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
-            console.log('4');
 
             // Withdraw FLOOR tokens from the rewards ledger and then stake them on behalf of
             // the user. This will give them veFloor tokens that they can choose to withdraw.
-            // target.safeTransferFrom(rewardsLedger, address(this), _withdrawableReward);
             target.approve(address(staking), _withdrawableReward);
-            console.log('5');
             staking.depositFor(_withdrawableReward, user);
-            console.log('6');
 
             emit RewardWithdrawn(user, _withdrawableReward);
         }
@@ -251,15 +238,5 @@ contract VaultXToken is ERC20Upgradeable, OwnableUpgradeable {
             (magnifiedRewardPerShare.mul(value)).toInt256()
         );
     }
-
-    /// @dev This event MUST emit when target is distributed to token holders.
-    /// @param from The address which sends target to this contract.
-    /// @param weiAmount The amount of distributed target in wei.
-    event RewardsDistributed(address indexed from, uint256 weiAmount);
-
-    /// @dev This event MUST emit when an address withdraws their dividend.
-    /// @param to The address which withdraws target from this contract.
-    /// @param weiAmount The amount of withdrawn target in wei.
-    event RewardWithdrawn(address indexed to, uint256 weiAmount);
 
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC721.sol';
 import '@openzeppelin/contracts/interfaces/IERC1155.sol';
@@ -148,7 +150,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         address[] memory vaults = vaultFactory.vaults();
 
         // Get the prices of our approved collections
-        this.getCollectionFloorPrices();
+        if (!floorMintingPaused) {
+            this.getCollectionFloorPrices();
+        }
 
         // Iterate over vaults
         for (uint i; i < vaults.length;) {
@@ -166,6 +170,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             if (floorMintingPaused) {
                 // TODO: Distribute tokens directly into the rewards ledger for the user. This will
                 // add more gas, but this is (in theory) a smaller use case.
+                continue;
             }
 
             // Calculate the reward yield in FLOOR token terms
@@ -173,39 +178,38 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             if (floorTokenRewardAmount != 0) {
                 // Distribute the reward yield to our reward token
                 floor.mint(vault.xToken(), floorTokenRewardAmount);
-                VaultXToken(vault.xToken()).distributeRewards(floorTokenRewardAmount);
+                vaultFactory.distributeRewards(vault.vaultId(), floorTokenRewardAmount);
             }
 
             // Update our vault share an apply pending positions
-            vault.migratePendingDeposits();
+            vaultFactory.migratePendingDeposits(vault.vaultId());
 
             unchecked { ++i; }
         }
 
         // We mint our floor token yield to our {RewardsLedger}, which will be redeemed by
         // the user by burning their XToken against the vault.
-        if (!floorMintingPaused) {
-            // Withdraw our dividend reward tokens from the {Treasury} xToken
-            // positions. We can then use these amount withdrawn to power the voting
-            // snapshot.
 
-            // Confirm we are not retaining all {Treasury} yield
-            if (retainedTreasuryYieldPercentage != 10000) {
-                // Claim our tokens from the {Treasury} xToken allocation
-                uint claimAmount = rewardsLedger.claimFloor();
-                if (claimAmount != 0) {
-                    // Determine the total amount of snapshot tokens. This should be calculated as all
-                    // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-                    // of the treasuryFloorYield.
-                    uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
+        // Withdraw our dividend reward tokens from the {Treasury} xToken
+        // positions. We can then use these amount withdrawn to power the voting
+        // snapshot.
 
-                    // Transfer tokens to our rewards ledger and burn any tokens not transferred
-                    floor.transfer(address(rewardsLedger), yieldRewards);
-                    floor.burn(claimAmount - yieldRewards);
+        // Confirm we are not retaining all {Treasury} yield
+        if (!floorMintingPaused && retainedTreasuryYieldPercentage != 10000 && address(rewardsLedger) != address(0)) {
+            // Claim our tokens from the {Treasury} xToken allocation
+            uint claimAmount = rewardsLedger.claimFloor();
+            if (claimAmount != 0) {
+                // Determine the total amount of snapshot tokens. This should be calculated as all
+                // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+                // of the treasuryFloorYield.
+                uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
 
-                    // Process the snapshot, which will reward xTokens holders directly
-                    voteContract.snapshot(yieldRewards);
-                }
+                // Transfer tokens to our rewards ledger and burn any tokens not transferred
+                floor.transfer(address(rewardsLedger), yieldRewards);
+                floor.burn(claimAmount - yieldRewards);
+
+                // Process the snapshot, which will reward xTokens holders directly
+                voteContract.snapshot(yieldRewards);
             }
         }
 

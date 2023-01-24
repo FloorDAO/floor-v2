@@ -41,4 +41,11 @@ interface IVaultFactory {
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
         returns (uint vaultId_, address vaultAddr_);
+
+    function pause(uint _vaultId, bool _paused) external;
+
+    function migratePendingDeposits(uint _vaultId) external;
+
+    function distributeRewards(uint _vaultId, uint _amount) external;
+
 }

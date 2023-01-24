@@ -59,7 +59,7 @@ contract VaultFactoryTest is FloorTest {
         collectionRegistry.approveCollection(approvedCollection);
 
         // Deploy our vault implementation
-        vaultImplementation = new Vault(address(authorityRegistry));
+        vaultImplementation = new Vault();
 
         // Deploy our vault implementation
         vaultXTokenImplementation = new VaultXToken();
@@ -71,9 +71,7 @@ contract VaultFactoryTest is FloorTest {
             address(strategyRegistry),
             address(vaultImplementation),
             address(vaultXTokenImplementation),
-            address(0), // _floor
-            address(0), // _rewardsLedger
-            address(0) // _staking
+            address(0) // _floor
         );
     }
 

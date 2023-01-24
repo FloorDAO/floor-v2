@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/proxy/Clones.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
@@ -12,13 +12,16 @@ import '../authorities/AuthorityControl.sol';
 import '../tokens/VeFloor.sol';
 
 import '../../interfaces/staking/VeFloorStaking.sol';
+import '../../interfaces/tokens/VaultXToken.sol';
 import '../../interfaces/voting/GaugeWeightVote.sol';
+
 
 /// @title Vote Escrow Floor Staking
 /// @author Trader Joe
 /// @notice Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
 /// voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
-contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
+contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
+
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -52,6 +55,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
 
     IERC20 public floor;
     veFLOOR public veFloor;
+    IVaultXToken public xVeFloor;
     IGaugeWeightVote public gaugeWeightVote;
 
     /// @notice The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
@@ -153,9 +157,14 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
         VEFLOOR_PER_SHARE_PER_SEC_PRECISION = 1e18;
     }
 
+    /// Sets our veFloor xToken
+    function setVeFloorXToken(address _xVeFloor) external onlyRole(STAKING_MANAGER) {
+        xVeFloor = IVaultXToken(_xVeFloor);
+    }
+
     /// @notice Set maxCapPct
     /// @param _maxCapPct The new maxCapPct
-    function setMaxCapPct(uint _maxCapPct) external onlyOwner {
+    function setMaxCapPct(uint _maxCapPct) external onlyRole(STAKING_MANAGER) {
         require(_maxCapPct > maxCapPct, 'VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct');
         require(
             _maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct,
@@ -167,7 +176,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
 
     /// @notice Set veFloorPerSharePerSec
     /// @param _veFloorPerSharePerSec The new veFloorPerSharePerSec
-    function setVeFloorPerSharePerSec(uint _veFloorPerSharePerSec) external onlyOwner {
+    function setVeFloorPerSharePerSec(uint _veFloorPerSharePerSec) external onlyRole(STAKING_MANAGER) {
         require(
             _veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
             'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36'
@@ -179,7 +188,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
 
     /// @notice Set speedUpThreshold
     /// @param _speedUpThreshold The new speedUpThreshold
-    function setSpeedUpThreshold(uint _speedUpThreshold) external onlyOwner {
+    function setSpeedUpThreshold(uint _speedUpThreshold) external onlyRole(STAKING_MANAGER) {
         require(
             _speedUpThreshold != 0 && _speedUpThreshold <= 100,
             'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100'
@@ -200,7 +209,6 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
     /// will also be claimed in the process.
     /// @param _amount The amount of FLOOR to deposit
     /// @param _recipient Recipient of the veFLOOR
-    /// TODO: Needs `onlyRole(STAKING_MANAGER)`
     function depositFor(uint _amount, address _recipient) external {
         _deposit(_amount, _recipient);
     }
@@ -238,6 +246,12 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
         userInfo.rewardDebt = accVeFloorPerShare.mul(userInfo.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION);
 
         floor.safeTransferFrom(_msgSender(), address(this), _amount);
+
+        // Deposit into the xtoken as well
+        if (address(xVeFloor) != address(0)) {
+            xVeFloor.mint(_recipient, _amount);
+        }
+
         emit Deposit(_recipient, _amount);
     }
 
@@ -263,6 +277,11 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking, Ownable {
         // Burn the user's current veFLOOR balance
         uint userVeFloorBalance = veFloor.balanceOf(_msgSender());
         veFloor.burnFrom(_msgSender(), userVeFloorBalance);
+
+        // Burn xToken position as well
+        if (address(xVeFloor) != address(0)) {
+            xVeFloor.burnFrom(_msgSender(), _amount);
+        }
 
         // Send user their requested amount of staked FLOOR
         floor.safeTransfer(_msgSender(), _amount);

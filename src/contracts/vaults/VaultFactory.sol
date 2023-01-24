@@ -2,17 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/proxy/Clones.sol';
+// import {AccessControl} from '@openzeppelin/contracts/access/AccessControl.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
-import './Vault.sol';
-import '../authorities/AuthorityControl.sol';
-import '../tokens/VaultXToken.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
+import {VaultXToken} from '../tokens/VaultXToken.sol';
 
-import '../../interfaces/collections/CollectionRegistry.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/strategies/StrategyRegistry.sol';
-import '../../interfaces/vaults/VaultFactory.sol';
+import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
+import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
+import {IVault} from '../../interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 
 /**
  * Allows for vaults to be created, pairing them with a {Strategy} and an approved
@@ -45,7 +45,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
     /// Internal contract references
     address public floor;
-    address public rewardsLedger;
     address public staking;
 
     /**
@@ -57,10 +56,12 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _strategyRegistry,
         address _vaultImplementation,
         address _vaultXTokenImplementation,
-        address _floor,
-        address _rewardsLedger,
-        address _staking
+        address _floor
     ) AuthorityControl(_authority) {
+        require(_collectionRegistry != address(0), '_collectionRegistry cannot be NULL');
+        require(_strategyRegistry != address(0), '_strategyRegistry cannot be NULL');
+        require(_floor != address(0), 'FLOOR token cannot be NULL');
+
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
 
@@ -68,8 +69,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         vaultXTokenImplementation = _vaultXTokenImplementation;
 
         floor = _floor;
-        rewardsLedger = _rewardsLedger;
-        staking = _staking;
     }
 
     /**
@@ -102,6 +101,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         onlyRole(VAULT_MANAGER)
         returns (uint vaultId_, address vaultAddr_)
     {
+        // ..
+        require(staking != address(0), 'Staking contract cannot be NULL');
+
         // No empty names, that's just silly
         require(bytes(_name).length != 0, 'Name cannot be empty');
 
@@ -125,7 +127,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenAddr_);
 
         // Create our {VaultXToken} for the vault
-        VaultXToken(vaultXTokenAddr_).initialize(floor, rewardsLedger, staking, _name, _name);
+        VaultXToken(vaultXTokenAddr_).initialize(floor, staking, _name, _name);
 
         // Transfer our ownership of the the VaultXToken from the {VaultFactory} to the {Vault}
         // that we have created.
@@ -144,4 +146,21 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Finally we can emit our event to notify watchers of a new vault
         emit VaultCreated(vaultId_, vaultAddr_, vaultXTokenAddr_, _collection);
     }
+
+    function pause(uint _vaultId, bool _paused) public onlyRole(VAULT_MANAGER) {
+        IVault(vaultIds[_vaultId]).pause(_paused);
+    }
+
+    function migratePendingDeposits(uint _vaultId) public onlyRole(VAULT_MANAGER) {
+        IVault(vaultIds[_vaultId]).migratePendingDeposits();
+    }
+
+    function distributeRewards(uint _vaultId, uint _amount) public onlyRole(REWARDS_MANAGER) {
+        IVault(vaultIds[_vaultId]).distributeRewards(_amount);
+    }
+
+    function setStakingContract(address _staking) public onlyRole(VAULT_MANAGER) {
+        staking = _staking;
+    }
+
 }

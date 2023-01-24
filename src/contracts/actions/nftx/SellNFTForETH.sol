@@ -78,7 +78,7 @@ contract NFTXSellNFTForETH is IAction {
         uint length = request.tokenIds.length;
         require(length != 0, 'No tokens provided');
 
-        // TODO: Expand support to 1155 and PUNKs
+        // Loop through our tokens to transfer
         for (uint i; i < length;) {
             ERC721(request.asset).safeTransferFrom(msg.sender, address(this), request.tokenIds[i]);
             unchecked {

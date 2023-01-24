@@ -25,6 +25,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
     /// Hardcoded address to map to the FLOOR token vault
     address public FLOOR_TOKEN_VOTE = address(1);
+    address internal FLOOR_TOKEN_VOTE_XTOKEN;
 
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
@@ -47,6 +48,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * Mapping user address -> collection address -> amount.
      */
     mapping(address => mapping(address => uint)) private userVotes;
+    mapping(address => uint) private totalUserVotes;
 
     // Mapping collection address -> total amount.
     mapping(address => uint) public votes;
@@ -88,20 +90,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * ```
      */
     function userVotesAvailable(address _user) external view returns (uint votesAvailable_) {
-        uint votesCast;
-
-        // Iterate over all of our approved collections to check if they have more votes than
-        // any of the collections currently stored.
-        // TODO: Can this just be a global counter, rather than a loop?
-        // e.g. a userVotesCast() function
-        for (uint i; i < userVoteCollections[_user].length;) {
-            votesCast += votes[userVoteCollections[_user][i]];
-            unchecked {
-                ++i;
-            }
-        }
-
-        return this.userVotingPower(_user) - votesCast;
+        return this.userVotingPower(_user) - totalUserVotes[_user];
     }
 
     /**
@@ -140,6 +129,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Store our user's vote
         userVotes[msg.sender][_collection] += _amount;
+        totalUserVotes[msg.sender] += _amount;
 
         // Increment the collection vote amount
         votes[_collection] += _amount;
@@ -170,6 +160,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             // Revoke votes from the collection
             userVotes[msg.sender][collection] -= amount;
+            totalUserVotes[msg.sender] -= amount;
             votes[collection] -= amount;
 
             // If the user no longer has a vote on the collection, then we can remove it
@@ -214,6 +205,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             emit VoteCast(collection, votes[collection]);
         }
+
+        totalUserVotes[_account] = 0;
     }
 
     /**
@@ -322,9 +315,11 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 remainingTokens -= collectionRewards;
             }
 
-            // If we have the FLOOR token vote, then we just set a null vault
-            if (collections[i] == FLOOR_TOKEN_VOTE) {
-                // TODO: How do we distribute floor to users??
+            // If we have the FLOOR token collection vote, we can distribute to the assigned
+            // xToken reward distributor.
+            if (collections[i] == FLOOR_TOKEN_VOTE && FLOOR_TOKEN_VOTE_XTOKEN != address(0)) {
+                // We will have a specific veFloor xToken at this point to distribute to.
+                VaultXToken(FLOOR_TOKEN_VOTE_XTOKEN).distributeRewards(collectionRewards);
 
                 // We don't need to process the rest of our loop
                 unchecked { ++i; }
@@ -465,5 +460,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         }
 
         return false;
+    }
+
+    function setFloorXToken(address x) public onlyRole(VOTE_MANAGER) {
+        FLOOR_TOKEN_VOTE_XTOKEN = x;
     }
 }

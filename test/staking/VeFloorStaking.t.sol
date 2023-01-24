@@ -85,7 +85,7 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetMaxCapPct() public {
-        vm.expectRevert('Ownable: caller is not the owner');
+        vm.expectRevert('Account does not have role');
         vm.prank(alice);
         veFloorStaking.setMaxCapPct(maxCapPct + 1);
     }
@@ -114,7 +114,7 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetVeFloorPerSharePerSec() public {
-        vm.expectRevert('Ownable: caller is not the owner');
+        vm.expectRevert('Account does not have role');
         vm.prank(alice);
         veFloorStaking.setVeFloorPerSharePerSec(1.5 ether);
     }
@@ -136,7 +136,7 @@ contract VeFloorStakingTest is FloorTest {
      */
 
     function test_ShouldNotAllowNonOwnerToSetSpeedUpThreshold() public {
-        vm.expectRevert('Ownable: caller is not the owner');
+        vm.expectRevert('Account does not have role');
         vm.prank(alice);
         veFloorStaking.setSpeedUpThreshold(10);
     }

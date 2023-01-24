@@ -75,11 +75,11 @@ contract RewardsLedger is AuthorityControl, IRewardsLedger {
     }
 
     /**
-     * Get the amount of available token for the recipient.
+     * Get the amount of available tokens for the recipient. This does not include the
+     * available Floor tokens to collection, as this is returned by the `availableFloor`
+     * function call. This should be made separately by the frontend.
      */
     function available(address recipient, address token) external view returns (uint) {
-        // TODO: If the user is looking at floor, we should also compute what is available
-        // from across their staked vaults.
         return allocations[recipient][token];
     }
 

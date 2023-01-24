@@ -85,8 +85,6 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
 
         inventoryStaking = _inventoryStaking;
         treasury = _treasury;
-
-        IERC20(underlyingToken).approve(inventoryStaking, type(uint).max);
     }
 
     /**
@@ -106,6 +104,8 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
 
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+
+        IERC20(underlyingToken).approve(inventoryStaking, amount);
         INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
 
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
