@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
-import '../../../interfaces/actions/Action.sol';
-import '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
+import {IAction} from '../../../interfaces/actions/Action.sol';
+import {INFTXMarketplaceZap} from '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
 
 /**
  * This action allows us to batch sell ERC721 NFT tokens from the {Treasury}

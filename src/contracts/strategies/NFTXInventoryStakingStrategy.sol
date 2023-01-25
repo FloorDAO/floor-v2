@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
-import '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import '../../interfaces/nftx/NFTXInventoryStaking.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
+import {INFTXInventoryStaking} from '../../interfaces/nftx/NFTXInventoryStaking.sol';
+import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
 
 /**
  * Supports an Inventory Staking position against a single NFTX vault. This strategy
@@ -21,23 +21,28 @@ import '../../interfaces/strategies/BaseStrategy.sol';
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
-    bytes32 public name;
+    /// The human-readable name of the inventory strategy
+    bytes32 public immutable name;
+
+    /// The vault ID that the strategy is attached to
     uint public vaultId;
+
+    /// The address of the vault the strategy is attached to
     address public vaultAddr;
 
+    /// TODO: Needed?
     address public pool;
 
-    /**
-     * The underlying token will be the same as the address of the NFTX vault.
-     */
+    /// The underlying token will be the same as the address of the NFTX vault.
     address public underlyingToken;
 
-    /**
-     * The reward yield will be a vault xToken as defined by the InventoryStaking contract.
-     */
+    /// The reward yield will be a vault xToken as defined by the InventoryStaking contract.
     address public yieldToken;
 
+    /// Address of the NFTX Inventory Staking contract
     address public inventoryStaking;
+
+    /// Address of the Floor {Treasury}
     address public treasury;
 
     /**
@@ -64,14 +69,21 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
     uint public deposits;
 
     /**
-     * ...
+     * Sets our strategy name and initializes our {AuthorityControl}.
+     *
+     * @param _name Human-readable name of the strategy
+     * @param _authority {AuthorityRegistry} contract address
      */
     constructor(bytes32 _name, address _authority) AuthorityControl(_authority) {
         name = _name;
     }
 
     /**
-     * ...
+     * Sets up our contract variables.
+     *
+     * @param _vaultId Numeric ID of vault the strategy is attached to
+     * @param _vaultAddr Address of vault the strategy is attached to
+     * @param initData Encoded data to be decoded
      */
     function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
         (address _pool, address _underlyingToken, address _yieldToken, address _inventoryStaking, address _treasury) =
@@ -98,52 +110,66 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
+     *
+     * @param Amount of underlying token to deposit
+     *
+     * @return Amount of yield token returned from NFTX
      */
     function deposit(uint amount) external onlyVault returns (uint amount_) {
+        // Prevent users from trying to deposit nothing
         require(amount != 0, 'Cannot deposit 0');
 
+        // Capture our starting balance
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
+
+        // Transfer the underlying token from our caller
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
 
+        // Approve the NFTX contract against our underlying token
         IERC20(underlyingToken).approve(inventoryStaking, amount);
+
+        // Deposit the token into the NFTX contract
         INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
 
+        // Determine the amount of yield token returned from our deposit
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
         deposits += amount_;
 
+        // Emit our event to followers
         emit Deposit(underlyingToken, amount, msg.sender);
     }
 
     /**
-     * Harvest possible rewards from strategy. The rewards generated from the strategy
-     * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
-     * turn be made available in the {RewardsLedger}.
+     * Withdraws an amount of our position from the NFTX strategy.
      *
-     * - Get the vaultID from the underlying address
-     * - Calculate the additional xToken held, above the staking token
-     * - InventoryStaking.withdraw the difference to get the reward
-     * - Distribute yield
+     * @param amount Amount of yield token to withdraw
+     *
+     * @return Amount of the underlying token returned
      */
     function withdraw(uint amount) external onlyVault returns (uint amount_) {
+        // Prevent users from trying to claim nothing
         require(amount != 0, 'Cannot claim 0');
 
+        // Capture our starting balance
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+
+        // Process our withdrawal against the NFTX contract
         INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
 
+        // Determine the amount of `underlyingToken` received
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+
+        // Transfer the received token to the caller
         IERC20(underlyingToken).transfer(msg.sender, amount_);
 
+        // Fire an event to show amount of token claimed and the recipient
         emit Withdraw(underlyingToken, amount_, msg.sender);
     }
 
     /**
-     * Harvest possible rewards from strategy. The rewards generated from the strategy
-     * will be sent to the Treasury and minted to FLOOR (if not paused), which will in
-     * turn be made available in the {RewardsLedger}.
+     * Harvest possible rewards from strategy.
      *
-     * - Get the vaultID from the underlying address
-     * - LiquidityStaking.claimRewards
-     * - Distribute yield
+     * @return amount_ Amount of rewards claimed
      */
     function claimRewards() public returns (uint amount_) {
         amount_ = this.rewardsAvailable();
@@ -164,6 +190,8 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * provide a proper amount and we can determine if it's financially beneficial to claim.
      *
      * This value is stored in terms of the `yieldToken`.
+     *
+     * @return The available rewards to be claimed
      */
     function rewardsAvailable() external view returns (uint) {
         return INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
@@ -173,6 +201,8 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * Total rewards generated by the strategy in all time. This is pure bragging rights.
      *
      * This value is stored in terms of the `yieldToken`.
+     *
+     * @return Total rewards generated by strategy
      */
     function totalRewardsGenerated() external view returns (uint) {
         return this.rewardsAvailable() + lifetimeRewards;
@@ -185,8 +215,10 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * `rewardsAvailable` to determine pending rewards.
      *
      * This value is stored in terms of the `yieldToken`.
+     *
+     * @return Amount of unminted rewards held in the contract
      */
-    function unmintedRewards() external view returns (uint amount_) {
+    function unmintedRewards() external view returns (uint) {
         return IERC20(yieldToken).balanceOf(address(this));
     }
 
@@ -194,6 +226,8 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * This is a call that will only be available for the {Treasury} to indicate that it
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
+     *
+     * @param Amount of token to be registered as minted
      */
     function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
 

@@ -2,43 +2,50 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/proxy/Clones.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
-import '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import '../tokens/VeFloor.sol';
+import {IVeFloorStaking} from '../../interfaces/staking/VeFloorStaking.sol';
+import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
+import {IVeFLOOR} from '../../interfaces/tokens/VeFloor.sol';
+import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
 
-import '../../interfaces/staking/VeFloorStaking.sol';
-import '../../interfaces/tokens/VaultXToken.sol';
-import '../../interfaces/voting/GaugeWeightVote.sol';
 
-
-/// @title Vote Escrow Floor Staking
-/// @author Trader Joe
-/// @notice Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
-/// voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
+/**
+ * Vote Escrow Floor Staking
+ *
+ * Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
+ * voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
+ *
+ * Heavily influenced from TraderJoe veJOE staking contract.
+ */
 contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
 
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
-    /// @notice Info for each user
-    /// `balance`: Amount of FLOOR currently staked by user
-    /// `rewardDebt`: The reward debt of the user
-    /// `lastClaimTimestamp`: The timestamp of user's last claim or withdraw
-    /// `speedUpEndTimestamp`: The timestamp when user stops receiving speed up benefits, or
-    /// zero if user is not currently receiving speed up benefits
+    /**
+     * Stores information about each user.
+     *
+     * `balance`: Amount of FLOOR currently staked by user
+     * `rewardDebt`: The reward debt of the user
+     * `lastClaimTimestamp`: The timestamp of user's last claim or withdraw
+     * `speedUpEndTimestamp`: The timestamp when user stops receiving speed up benefits, or
+     * zero if user is not currently receiving speed up benefits
+     */
     struct UserInfo {
         uint balance;
         uint rewardDebt;
         uint lastClaimTimestamp;
         uint speedUpEndTimestamp;
     }
+
     /**
-     * @notice We do some fancy math here. Basically, any point in time, the amount of veFLOOR
+     * We do some fancy math here. Basically, any point in time, the amount of veFLOOR
      * entitled to a user but is pending to be distributed is:
      *
      *   pendingReward = pendingBaseReward + pendingSpeedUpReward
@@ -53,59 +60,65 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
      *     pendingSpeedUpReward = 0
      */
 
-    IERC20 public floor;
-    veFLOOR public veFloor;
-    IVaultXToken public xVeFloor;
-    IGaugeWeightVote public gaugeWeightVote;
+    /// Internal contract references, set in constructor
+    IERC20 public immutable floor;
+    IVeFLOOR public immutable veFloor;
+    IVaultXToken public immutable xVeFloor;
+    IGaugeWeightVote public immutable gaugeWeightVote;
 
-    /// @notice The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
+    /// The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
     /// For example, if user has `n` FLOOR staked, they can own a maximum of `n * maxCapPct / 100` veFLOOR.
     uint public maxCapPct;
 
-    /// @notice The upper limit of `maxCapPct`
+    /// The upper limit of `maxCapPct`
     uint public upperLimitMaxCapPct;
 
-    /// @notice The accrued veFloor per share, scaled to `ACC_VEFLOOR_PER_SHARE_PRECISION`
+    /// The accrued veFloor per share, scaled to `ACC_VEFLOOR_PER_SHARE_PRECISION`
     uint public accVeFloorPerShare;
 
-    /// @notice Precision of `accVeFloorPerShare`
+    /// Precision of `accVeFloorPerShare`
     uint public ACC_VEFLOOR_PER_SHARE_PRECISION;
 
-    /// @notice The last time that the reward variables were updated
+    /// The last time that the reward variables were updated
     uint public lastRewardTimestamp;
 
-    /// @notice veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
+    /// veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
     uint public veFloorPerSharePerSec;
 
-    /// @notice Speed up veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
+    /// Speed up veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
     uint public speedUpVeFloorPerSharePerSec;
 
-    /// @notice The upper limit of `veFloorPerSharePerSec` and `speedUpVeFloorPerSharePerSec`
+    /// The upper limit of `veFloorPerSharePerSec` and `speedUpVeFloorPerSharePerSec`
     uint public upperLimitVeFloorPerSharePerSec;
 
-    /// @notice Precision of `veFloorPerSharePerSec`
+    /// Precision of `veFloorPerSharePerSec`
     uint public VEFLOOR_PER_SHARE_PER_SEC_PRECISION;
 
-    /// @notice Percentage of user's current staked FLOOR user has to deposit in order to start
+    /// Percentage of user's current staked FLOOR user has to deposit in order to start
     /// receiving speed up benefits, in parts per 100.
+    ///
     /// @dev Specifically, user has to deposit at least `speedUpThreshold/100 * userStakedFloor` FLOOR.
     /// The only exception is the user will also receive speed up benefits if they are depositing
     /// with zero balance
     uint public speedUpThreshold;
 
-    /// @notice The length of time a user receives speed up benefits
+    /// The length of time a user receives speed up benefits
     uint public speedUpDuration;
 
+    /// Handle mapping of user information to their wallet address
     mapping(address => UserInfo) public userInfos;
 
-    /// @notice Initialize with needed parameters
-    /// @param _floor Address of the FLOOR token contract
-    /// @param _veFloor Address of the veFLOOR token contract
-    /// @param _veFloorPerSharePerSec veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
-    /// @param _speedUpVeFloorPerSharePerSec Similar to `_veFloorPerSharePerSec` but for speed up
-    /// @param _speedUpThreshold Percentage of total staked FLOOR user has to deposit receive speed up
-    /// @param _speedUpDuration Length of time a user receives speed up benefits
-    /// @param _maxCapPct Maximum limit of veFLOOR user can have as percentage points of staked FLOOR
+    /**
+     * Initialize with needed parameters.
+     *
+     * @param _floor Address of the FLOOR token contract
+     * @param _veFloor Address of the veFLOOR token contract
+     * @param _veFloorPerSharePerSec veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
+     * @param _speedUpVeFloorPerSharePerSec Similar to `_veFloorPerSharePerSec` but for speed up
+     * @param _speedUpThreshold Percentage of total staked FLOOR user has to deposit receive speed up
+     * @param _speedUpDuration Length of time a user receives speed up benefits
+     * @param _maxCapPct Maximum limit of veFLOOR user can have as percentage points of staked FLOOR
+     */
     constructor(
         address _authority,
         IERC20 _floor,
@@ -117,6 +130,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         uint _speedUpDuration,
         uint _maxCapPct
     ) AuthorityControl(_authority) {
+        // Ensure our contract addresses aren't sent as NULL
         require(address(_floor) != address(0), 'VeFloorStaking: unexpected zero address for _floor');
         require(address(_veFloor) != address(0), 'VeFloorStaking: unexpected zero address for _veFloor');
         require(address(_gaugeWeightVote) != address(0), 'VeFloorStaking: unexpected zero address for _gaugeWeightVote');
@@ -157,13 +171,20 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         VEFLOOR_PER_SHARE_PER_SEC_PRECISION = 1e18;
     }
 
-    /// Sets our veFloor xToken
+    /**
+     * Sets our veFloor xToken address.
+     *
+     * @param Address of xVeFloor token
+     */
     function setVeFloorXToken(address _xVeFloor) external onlyRole(STAKING_MANAGER) {
         xVeFloor = IVaultXToken(_xVeFloor);
     }
 
-    /// @notice Set maxCapPct
-    /// @param _maxCapPct The new maxCapPct
+    /**
+     * Set maxCapPct.
+     *
+     * @param _maxCapPct The new maxCapPct
+     */
     function setMaxCapPct(uint _maxCapPct) external onlyRole(STAKING_MANAGER) {
         require(_maxCapPct > maxCapPct, 'VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct');
         require(
@@ -174,8 +195,11 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit UpdateMaxCapPct(_msgSender(), _maxCapPct);
     }
 
-    /// @notice Set veFloorPerSharePerSec
-    /// @param _veFloorPerSharePerSec The new veFloorPerSharePerSec
+    /**
+     * Set veFloorPerSharePerSec.
+     *
+     * @param _veFloorPerSharePerSec The new veFloorPerSharePerSec
+     */
     function setVeFloorPerSharePerSec(uint _veFloorPerSharePerSec) external onlyRole(STAKING_MANAGER) {
         require(
             _veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
@@ -186,8 +210,11 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit UpdateVeFloorPerSharePerSec(_msgSender(), _veFloorPerSharePerSec);
     }
 
-    /// @notice Set speedUpThreshold
-    /// @param _speedUpThreshold The new speedUpThreshold
+    /**
+     * Set speedUpThreshold.
+     *
+     * @param _speedUpThreshold The new speedUpThreshold
+     */
     function setSpeedUpThreshold(uint _speedUpThreshold) external onlyRole(STAKING_MANAGER) {
         require(
             _speedUpThreshold != 0 && _speedUpThreshold <= 100,
@@ -197,22 +224,34 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit UpdateSpeedUpThreshold(_msgSender(), _speedUpThreshold);
     }
 
-    /// @notice Deposits FLOOR to start staking for veFLOOR. Note that any pending veFLOOR
-    /// will also be claimed in the process.
-    /// @param _amount The amount of FLOOR to deposit
+    /**
+     * Deposits FLOOR to start staking for veFLOOR. Note that any pending veFLOOR will also
+     * be claimed in the process.
+     *
+     * @param _amount The amount of FLOOR to deposit
+     */
     function deposit(uint _amount) external {
         _deposit(_amount, _msgSender());
     }
 
-    /// @notice Deposits FLOOR to start staking for veFLOOR on behalf of a recipient. This is
-    /// a protected function that only specific roles may execute. Note that any pending veFLOOR
-    /// will also be claimed in the process.
-    /// @param _amount The amount of FLOOR to deposit
-    /// @param _recipient Recipient of the veFLOOR
+    /**
+     * Deposits FLOOR to start staking for veFLOOR on behalf of a recipient. This is
+     * a protected function that only specific roles may execute. Note that any pending veFLOOR
+     * will also be claimed in the process.
+     *
+     * @param _amount The amount of FLOOR to deposit
+     * @param _recipient Recipient of the veFLOOR
+     */
     function depositFor(uint _amount, address _recipient) external {
         _deposit(_amount, _recipient);
     }
 
+    /**
+     * Internal logic for handling a deposit.
+     *
+     * @param _amount The amount of FLOOR to deposit
+     * @param _recipient Recipient of the veFLOOR
+     */
     function _deposit(uint _amount, address _recipient) internal {
         require(_amount > 0, 'VeFloorStaking: expected deposit amount to be greater than zero');
 
@@ -255,9 +294,12 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit Deposit(_recipient, _amount);
     }
 
-    /// @notice Withdraw staked FLOOR. Note that unstaking any amount of FLOOR means you will
-    /// lose all of your current veFLOOR.
-    /// @param _amount The amount of FLOOR to unstake
+    /**
+     * Withdraw staked FLOOR. Note that unstaking any amount of FLOOR means you will lose all
+     * of your current veFLOOR.
+     *
+     * @param _amount The amount of FLOOR to unstake
+     */
     function withdraw(uint _amount) external {
         require(_amount > 0, 'VeFloorStaking: expected withdraw amount to be greater than zero');
 
@@ -292,16 +334,22 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit Withdraw(_msgSender(), _amount, userVeFloorBalance);
     }
 
-    /// @notice Claim any pending veFLOOR
+    /**
+     * Claim any pending veFLOOR.
+     */
     function claim() external {
         require(_getUserHasNonZeroBalance(_msgSender()), 'VeFloorStaking: cannot claim veFLOOR when no FLOOR is staked');
         updateRewardVars();
         _claim();
     }
 
-    /// @notice Get the pending amount of veFLOOR for a given user
-    /// @param _user The user to lookup
-    /// @return The number of pending veFLOOR tokens for `_user`
+    /**
+     * Get the pending amount of veFLOOR for a given user.
+     *
+     * @param _user The user to lookup
+     *
+     * @return The number of pending veFLOOR tokens for `_user`
+     */
     function getPendingVeFloor(address _user) public view returns (uint) {
         if (!_getUserHasNonZeroBalance(_user)) {
             return 0;
@@ -350,7 +398,9 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         }
     }
 
-    /// @notice Update reward variables
+    /**
+     * Update reward variables
+     */
     function updateRewardVars() public {
         if (block.timestamp <= lastRewardTimestamp) {
             return;
@@ -372,14 +422,20 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         emit UpdateRewardVars(lastRewardTimestamp, accVeFloorPerShare);
     }
 
-    /// @notice Checks to see if a given user currently has staked FLOOR
-    /// @param _user The user address to check
-    /// @return Whether `_user` currently has staked FLOOR
+    /**
+     * Checks to see if a given user currently has staked FLOOR.
+     *
+     * @param _user The user address to check
+     *
+     * @return Whether `_user` currently has staked FLOOR
+     */
     function _getUserHasNonZeroBalance(address _user) private view returns (bool) {
         return userInfos[_user].balance > 0;
     }
 
-    /// @dev Helper to claim any pending veFLOOR
+    /**
+     * Helper to claim any pending veFLOOR.
+     */
     function _claim() private {
         uint veFloorToClaim = getPendingVeFloor(_msgSender());
 

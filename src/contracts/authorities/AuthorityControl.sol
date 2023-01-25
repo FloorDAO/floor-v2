@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/utils/Context.sol';
+import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 
-import '../../interfaces/authorities/AuthorityControl.sol';
-import '../../interfaces/authorities/AuthorityRegistry.sol';
+import {IAuthorityControl} from '../../interfaces/authorities/AuthorityControl.sol';
+import {IAuthorityRegistry} from '../../interfaces/authorities/AuthorityRegistry.sol';
 
 /**
  * This contract is heavily based on the standardised OpenZeppelin `AccessControl` library.
@@ -55,6 +55,7 @@ contract AuthorityControl is Context, IAuthorityControl {
     /// VoteManager - Can manage account votes
     bytes32 public constant VOTE_MANAGER = keccak256('VoteManager');
 
+    /// Reference to the {AuthorityRegistry} contract that maintains role allocations
     IAuthorityRegistry public immutable registry;
 
     /**

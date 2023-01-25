@@ -2,17 +2,26 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
+import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
-import '../../interfaces/pricing/BasePricingExecutor.sol';
+import {IBasePricingExecutor} from '../../interfaces/pricing/BasePricingExecutor.sol';
 
+/**
+ * Partial interface for the {IUniswapV3Factory} contract. The full interface can be found here:
+ * https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
+ *
+ */
 interface IUniswapV3Factory {
     function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
 }
 
+/**
+ * Partial interface for the {IUniswapV3Pool}. The full interface can be found here:
+ * https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Pool.sol
+ */
 interface IUniswapV3Pool {
     function slot0()
         external
@@ -65,8 +74,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Set our immutable contract addresses.
      *
-     * Factory : 0x1F98431c8aD98523631AE4a59f267346ea31F984
-     * Floor   : TBC
+     * @dev Mainnet Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
      */
     constructor(address _poolFactory, address _floor) {
         uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
@@ -74,7 +82,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * Name of the pricing executor.
+     * Name of the pricing executor; this should be unique from other pricing executors.
+     *
+     * @return string Pricing Executor name
      */
     function name() external pure returns (string memory) {
         return 'UniswapV3PricingExecutor';
@@ -82,6 +92,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
     /**
      * Gets our live price of a token to ETH.
+     *
+     * @param token Token to find price of
+     *
+     * @return uint The ETH value of a singular token
      */
     function getETHPrice(address token) external returns (uint) {
         return _getPrice(token);
@@ -89,6 +103,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
     /**
      * Gets our live prices of multiple tokens to ETH.
+     *
+     * @param token Tokens to find price of
+     *
+     * @return uint[] The ETH values of a singular token, mapping to passed token index
      */
     function getETHPrices(address[] memory tokens) external returns (uint[] memory output) {
         return _getPrices(tokens);
@@ -100,19 +118,29 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      *
      * We get the latest price of not only the requested token, but also for the
      * FLOOR token. We can then determine the amount of returned token based on
-     * live price values.
+     * live price values from Token -> ETH -> FLOOR.
+     *
+     * @param token Token to find price of
+     *
+     * @return uint The FLOOR value of a singular token
      */
     function getFloorPrice(address token) external returns (uint) {
+        // Send our token address, as well as our FLOOR address
         address[] memory tokens = new address[](2);
         tokens[0] = token;
         tokens[1] = address(floor);
 
+        // Get our token prices and find the converted value into FLOOR
         uint[] memory prices = _getPrices(tokens);
         return _calculateFloorPrice(token, prices[0], prices[1]);
     }
 
     /**
      * Gets a live mapped price of multiple tokens to FLOOR.
+     *
+     * @param token Tokens to find price of
+     *
+     * @return uint The FLOOR values of tokens passed
      */
     function getFloorPrices(address[] memory tokens) external returns (uint[] memory) {
         // We first need to get our Floor price, as well as our token prices
@@ -141,6 +169,12 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * This helper function allows us to return the amount of tokens a user would receive
      * for 1 FLOOR token, returned in the decimal accuracy of the base token.
+     *
+     * @param token Contract token to get FLOOR price of
+     * @param tokenPrice Spot price of passed token contract for 1 token
+     * @param floorPrice Spot price of FLOOR for 1 token
+     *
+     * @return The amount of FLOOR returned if one token sold
      */
     function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
         return (floorPrice * 10 ** ERC20(token).decimals()) / tokenPrice;
@@ -153,9 +187,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      *
      * For gas optimisation, we cache the pool address that is calculated, to prevent
      * subsequent external calls being required.
+     *
+     * @param token The token contract to find the ETH pool of
+     *
+     * @return address The UniSwap ETH:token pool
      */
     function _poolAddress(address token) internal returns (address) {
-        // If we have a cached pool, then reference this
+        // If we have a cached pool, then reference this for gas saves
         if (poolAddresses[token] != address(0)) {
             return poolAddresses[token];
         }
@@ -170,8 +208,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // Store variables that will be updated as we browse our liquidity offerings to find
         // the best pool to attribute.
-        address pool = address(0);
-        uint128 bestLiquidity = 0;
+        address pool;
+        uint128 bestLiquidity;
 
         // We iterate over our fee ladder
         for (uint i = 0; i < fees.length;) {
@@ -199,12 +237,18 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         // Ensure we don't have a NULL pool
         require(pool != address(0), 'Unknown pool');
 
+        // Store the optimal token pool into an internal cache. This prevents of pools
+        // from being referenced in the future, but saves substantial gas over time.
         poolAddresses[token] = pool;
         return poolAddresses[token];
     }
 
     /**
      * Retrieves the token price in WETH from a Uniswap pool.
+     *
+     * @param token The token contract to find the ETH price of
+     *
+     * @return Price of the token in ETH
      */
     function _getPrice(address token) internal returns (uint) {
         // We can get the cached / fresh pool address for our token <-> WETH pool. If the

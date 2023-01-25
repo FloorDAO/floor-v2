@@ -1,19 +1,17 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
 
-import '../authorities/AuthorityControl.sol';
 import {SafeMathAlt} from '../utils/SafeMath.sol';
 import {SafeMathInt} from '../utils/SafeMathInt.sol';
 
-import '../../interfaces/staking/VeFloorStaking.sol';
-import '../../interfaces/tokens/VaultXToken.sol';
+import {IVeFloorStaking} from '../../interfaces/staking/VeFloorStaking.sol';
+import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 
 
 /**
@@ -29,6 +27,7 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     using SafeMathInt for int256;
     using SafeERC20 for IERC20;
 
+    /// The ERC20 token that will be distributed as rewards
     IERC20 public target;
 
     // With `magnitude`, we can properly distribute dividends even if the amount of received
@@ -57,10 +56,16 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     mapping(address => int256) internal magnifiedRewardCorrections;
     mapping(address => uint256) internal withdrawnRewards;
 
+    /// Staking contract
     IVeFloorStaking public staking;
 
     /**
+     * Set up our required parameters.
      *
+     * @param _target ERC20 contract address used for reward distribution
+     * @param _staking Address of the {VeFloorStaking} contract
+     * @param _name Name of our xToken
+     * @param _symbol Symbol of our xToken
      */
     function initialize(
         address _target,
@@ -76,7 +81,12 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     }
 
     /**
-     * ..
+     * Transfers the token from the called to the recipient.
+     *
+     * @param recipient Recipient of the tokens
+     * @param amount Amount of token to be sent
+     *
+     * TODO: Does this want to be disabled?
      */
     function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
@@ -106,15 +116,24 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
         return true;
     }
 
+    /**
+     * Allows the owner of the xToken (the parent vault) to mint.
+     *
+     * @param account Recipient of the tokens
+     * @param amount Amount of token to be minted
+     */
     function mint(address account, uint256 amount) public virtual onlyOwner {
         _mint(account, amount);
     }
 
     /**
-     * @dev Destroys `amount` tokens from `account`, without deducting from the caller's
+     * Destroys `amount` tokens from `account`, without deducting from the caller's
      * allowance. Dangerous.
      *
      * See {ERC20-_burn} and {ERC20-allowance}.
+     *
+     * @param account Address that will have their tokens burned
+     * @param amount Amount of token to be burned
      */
     function burnFrom(address account, uint256 amount) public virtual onlyOwner {
         _burn(account, amount);
@@ -135,6 +154,8 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
      * the saved target, so we don't do that.
      *
      * @dev It reverts if the total supply of tokens is 0.
+     *
+     * @param amount Amount of rewards to distribute amongst holders
      */
     function distributeRewards(uint amount) external virtual onlyOwner {
         require(totalSupply() != 0, "RewardDist: 0 supply");
@@ -151,6 +172,8 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
      * Withdraws the target distributed to the sender.
      *
      * @dev It emits a `RewardWithdrawn` event if the amount of withdrawn target is greater than 0.
+     *
+     * @param user User to withdraw rewards to
      */
     function withdrawReward(address user) external {
         uint256 _withdrawableReward = withdrawableRewardOf(user);
@@ -169,9 +192,9 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     /**
      * View the amount of dividend in wei that an address can withdraw.
      *
-     * @param _owner The address of a token holder.
+     * @param _owner The address of a token holder
      *
-     * @return The amount of dividend in wei that `_owner` can withdraw.
+     * @return The amount of dividend in wei that `_owner` can withdraw
      */
     function dividendOf(address _owner) public view returns(uint256) {
         return withdrawableRewardOf(_owner);
@@ -180,35 +203,45 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     /**
      * View the amount of dividend in wei that an address can withdraw.
      *
-     * @param _owner The address of a token holder.
+     * @param _owner The address of a token holder
      *
-     * @return The amount of dividend in wei that `_owner` can withdraw.
+     * @return The amount of dividend in wei that `_owner` can withdraw
      */
     function withdrawableRewardOf(address _owner) internal view returns(uint256) {
         return accumulativeRewardOf(_owner).sub(withdrawnRewards[_owner]);
     }
 
-    /// @notice View the amount of dividend in wei that an address has withdrawn.
-    /// @param _owner The address of a token holder.
-    /// @return The amount of dividend in wei that `_owner` has withdrawn.
+    /**
+     * View the amount of dividend in wei that an address has withdrawn.
+     *
+     * @param _owner The address of a token holder
+     *
+     * @return The amount of dividend in wei that `_owner` has withdrawn
+     */
     function withdrawnRewardOf(address _owner) public view returns(uint256) {
         return withdrawnRewards[_owner];
     }
 
-    /// @notice View the amount of dividend in wei that an address has earned in total.
-    /// @dev accumulativeRewardOf(_owner) = withdrawableRewardOf(_owner) + withdrawnRewardOf(_owner)
-    /// = (magnifiedRewardPerShare * balanceOf(_owner) + magnifiedRewardCorrections[_owner]) / magnitude
-    /// @param _owner The address of a token holder.
-    /// @return The amount of dividend in wei that `_owner` has earned in total.
+    /**
+     * View the amount of dividend in wei that an address has earned in total.
+     *
+     * @param _owner The address of a token holder
+     *
+     * @return The amount of dividend in wei that `_owner` has earned in total
+     */
     function accumulativeRewardOf(address _owner) public view returns(uint256) {
         return magnifiedRewardPerShare.mul(balanceOf(_owner)).toInt256().add(magnifiedRewardCorrections[_owner]).toUint256Safe() / magnitude;
     }
 
-    /// @dev Internal function that transfer tokens from one address to another.
-    /// Update magnifiedRewardCorrections to keep dividends unchanged.
-    /// @param from The address to transfer from.
-    /// @param to The address to transfer to.
-    /// @param value The amount to be transferred.
+    /**
+     * Internal function that transfer tokens from one address to another.
+     *
+     * Update magnifiedRewardCorrections to keep dividends unchanged.
+     *
+     * @param from The address to transfer from
+     * @param to The address to transfer to
+     * @param value The amount to be transferred
+     */
     function _transfer(address from, address to, uint256 value) internal override {
         super._transfer(from, to, value);
 
@@ -218,19 +251,27 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
         magnifiedRewardCorrections[to] = magnifiedRewardCorrections[to].sub(_magCorrection);
     }
 
-    /// @dev Internal function that mints tokens to an account.
-    /// Update magnifiedRewardCorrections to keep dividends unchanged.
-    /// @param account The account that will receive the created tokens.
-    /// @param value The amount that will be created.
+    /**
+     * Internal function that mints tokens to an account.
+     *
+     * Update magnifiedRewardCorrections to keep dividends unchanged.
+     *
+     * @param account The account that will receive the created tokens.
+     * @param value The amount that will be created.
+     */
     function _mint(address account, uint256 value) internal override {
         super._mint(account, value);
         magnifiedRewardCorrections[account] = magnifiedRewardCorrections[account].sub((magnifiedRewardPerShare.mul(value)).toInt256());
     }
 
-    /// @dev Internal function that burns an amount of the token of a given account.
-    /// Update magnifiedRewardCorrections to keep dividends unchanged.
-    /// @param account The account whose tokens will be burnt.
-    /// @param value The amount that will be burnt.
+    /**
+     * Internal function that burns an amount of the token of a given account.
+     *
+     * Update magnifiedRewardCorrections to keep dividends unchanged.
+     *
+     * @param account The account whose tokens will be burnt.
+     * @param value The amount that will be burnt.
+     */
     function _burn(address account, uint256 value) internal override {
         super._burn(account, value);
 

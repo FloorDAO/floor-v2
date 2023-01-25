@@ -2,22 +2,24 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '../tokens/Floor.sol';
-import '../../interfaces/migrations/MigrateFloorToken.sol';
+import {FLOOR} from '../tokens/Floor.sol';
+
+import {IMigrateFloorToken} from '../../interfaces/migrations/MigrateFloorToken.sol';
 
 /**
  * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
  * V1 tokens in our test suites that should be accept. These include a, g and
  * s floor variants.
  *
- * This should provide a 1:1 V1 burn > V2 mint of tokens.
+ * This should provide a 1:1 V1 burn -> V2 mint of tokens.
  *
  * The balance of all tokens will be attempted to be migrated, so 4 full approvals
  * should be made prior to calling this contract function.
  */
 contract MigrateFloorToken is IMigrateFloorToken {
+    /// List of FLOOR V1 token contract addresses on mainnet
     address[] private MIGRATED_TOKENS = [
         0xf59257E961883636290411c11ec5Ae622d19455e, // Floor
         0x0C3983165E9BcE0a9Bb43184CC4eEBb26dce48fA, // aFloor
@@ -25,18 +27,27 @@ contract MigrateFloorToken is IMigrateFloorToken {
         0x164AFe96912099543BC2c48bb9358a095Db8e784 // sFloor
     ];
 
-    event FloorMigrated(address caller, uint amount);
-
+    /// Contract address of new FLOOR V2 token
     address public immutable newFloor;
 
+    /// Emitted when tokens have been migrated to a user
+    event FloorMigrated(address caller, uint amount);
+
+    /**
+     * Stores the deployed V2 FLOOR token contract address.
+     *
+     * @param _newFloor Address of our deployed FLOOR V2 token
+     */
     constructor(address _newFloor) {
         newFloor = _newFloor;
     }
 
-    function mintTokens(uint _amount) external override {
-        FLOOR(newFloor).mint(address(this), _amount);
-    }
-
+    /**
+     * Iterates through existing V1 FLOOR tokens and mints them into FLOOR V2 tokens. The existing
+     * V1 tokens aren't burnt, but are just left in the existing wallet.
+     *
+     * @dev For the gFloor token, we need to update the decimal accuracy from 9 to 18.
+     */
     function upgradeFloorToken() external override {
         // Keep a running total of allocated tokens
         uint floorAllocation;
@@ -59,6 +70,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
                     tokenBalance *= (10 ** 9);
                 }
 
+                // Increment our `floorAllocation` based on the token balance of the user
                 floorAllocation += tokenBalance;
             }
 
@@ -67,7 +79,8 @@ contract MigrateFloorToken is IMigrateFloorToken {
             }
         }
 
-        require(floorAllocation > 0, 'No tokens available to migrate');
+        // Assert that we have tokens to mint, otherwise we revert the tx
+        require(floorAllocation != 0, 'No tokens available to migrate');
 
         // Mint our FLOOR tokens to the sender
         FLOOR(newFloor).mint(msg.sender, floorAllocation);

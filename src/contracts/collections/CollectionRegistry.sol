@@ -2,10 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import '../authorities/AuthorityControl.sol';
-import '../../interfaces/collections/CollectionRegistry.sol';
+import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 
 /**
  * Allows collection contracts to be approved and revoked by addresses holding the

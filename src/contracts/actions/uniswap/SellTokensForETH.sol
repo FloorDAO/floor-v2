@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
-import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
+import {ISwapRouter} from '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '../../../interfaces/actions/Action.sol';
+import {IAction} from '../../../interfaces/actions/Action.sol';
 
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.

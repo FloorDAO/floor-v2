@@ -2,10 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import '../authorities/AuthorityControl.sol';
-import '../../interfaces/strategies/StrategyRegistry.sol';
+import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
 
 /**
  * Allows strategy contracts to be approved and revoked by addresses holding the
@@ -15,16 +14,22 @@ import '../../interfaces/strategies/StrategyRegistry.sol';
  * These strategies will be heavily defined in the {IStrategy} interface, but this
  * Factory focusses solely on managing the list of available vault strategies.
  */
-
 contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
     /// Store a mapping of our approved strategies
     mapping(address => bool) internal strategies;
 
+    /**
+     * Set up our {AuthorityControl}.
+     */
     constructor(address _authority) AuthorityControl(_authority) {}
 
     /**
      * Returns `true` if the contract address is an approved strategy, otherwise
      * returns `false`.
+     *
+     * @param contractAddr Address of the contract to check
+     *
+     * @return If the contract has been approved
      */
     function isApproved(address contractAddr) external view returns (bool) {
         return strategies[contractAddr];
@@ -33,6 +38,10 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
     /**
      * Approves a strategy contract to be used for vaults. The strategy must hold a defined
      * implementation and conform to the {IStrategy} interface.
+     *
+     * If the strategy is already approved, then no action will be taken.
+     *
+     * @param Strategy to be approved
      */
     function approveStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
         require(contractAddr != address(0), 'Cannot approve NULL strategy');
@@ -46,6 +55,10 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
     /**
      * Revokes a strategy from being eligible for a vault. This will not affect vaults that
      * are already instantiated with the strategy.
+     *
+     * If the strategy is already approved, then the transaction will be reverted.
+     *
+    * @param Strategy to be revoked
      */
     function revokeStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
         require(strategies[contractAddr], 'Strategy is not approved');
