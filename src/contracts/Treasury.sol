@@ -9,12 +9,12 @@ import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 
 import {AuthorityControl} from './authorities/AuthorityControl.sol';
 import {FLOOR} from './tokens/Floor.sol';
-import {VaultXToken} from './tokens/VaultXToken.sol';
 
 import {IAction} from '../interfaces/actions/Action.sol';
 import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
 import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
+import {IVaultXToken} from './tokens/VaultXToken.sol';
 import {IVault} from '../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
@@ -189,8 +189,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Confirm we are not retaining all {Treasury} yield
         if (!floorMintingPaused && retainedTreasuryYieldPercentage != 10000) {
             // Claim our tokens from the {Treasury} xToken allocation
-            // TODO: Remove {RewardsLedger} and use Zap
-            uint claimAmount = 1;
+            uint claimAmount = _claimTreasuryFloor();
             if (claimAmount != 0) {
                 // Determine the total amount of snapshot tokens. This should be calculated as all
                 // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
@@ -416,6 +415,25 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         }
 
         IAction(action).execute(data);
+    }
+
+    /**
+     * Claims all floor owed to the {Treasury} from {VaultXToken}s.
+     *
+     * @return The amount of {FLOOR} claimed and transferred to the user
+     */
+    function _claimTreasuryFloor() public returns (uint) {
+        // Get start balance
+        uint startBalance = floor.balanceOf(address(this));
+
+        // Iterate the vaults and claim until we have reached our limit
+        address[] memory vaults = vaultFactory.vaults();
+        for (uint i; i < vaults.length;) {
+            IVaultXToken(IVault(vaults[i]).xToken()).withdrawReward(address(this));
+            unchecked { ++i; }
+        }
+
+        return floor.balanceOf(address(this)) - startBalance;
     }
 
     /**

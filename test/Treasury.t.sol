@@ -835,13 +835,11 @@ contract TreasuryTest is FloorTest {
         floor.mint(address(treasury), 1000 ether);
 
         // TODO: Update rewards call
-        /*
         vm.mockCall(
-            address(rewards),
-            abi.encodeWithSelector(RewardsLedger.claimFloor.selector),
+            address(treasury),
+            abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector),
             abi.encode(100 ether)
         );
-        */
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(
