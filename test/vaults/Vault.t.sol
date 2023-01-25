@@ -73,6 +73,9 @@ contract VaultTest is FloorTest {
             address(floor)
         );
 
+        // Naughty bypass to remove staking contract requirement
+        vaultFactory.setStakingContract(address(1));
+
         // Set up our Vault with authority
         (, address vaultAddress) = vaultFactory.createVault(
             'Test Vault',

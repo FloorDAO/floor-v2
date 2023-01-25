@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
+import '../../src/contracts/tokens/Floor.sol';
 import '../../src/contracts/tokens/VaultXToken.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
@@ -64,6 +65,9 @@ contract VaultFactoryTest is FloorTest {
         // Deploy our vault implementation
         vaultXTokenImplementation = new VaultXToken();
 
+        // Deploy our FLOOR token
+        FLOOR floor = new FLOOR(address(authorityRegistry));
+
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
@@ -71,8 +75,11 @@ contract VaultFactoryTest is FloorTest {
             address(strategyRegistry),
             address(vaultImplementation),
             address(vaultXTokenImplementation),
-            address(0) // _floor
+            address(floor) // _floor
         );
+
+        // Naughty bypass to remove staking contract requirement
+        vaultFactory.setStakingContract(address(1));
     }
 
     /**

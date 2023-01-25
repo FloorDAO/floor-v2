@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
+import '../../src/contracts/tokens/Floor.sol';
 import {veFLOOR} from '../../src/contracts/tokens/VeFloor.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
@@ -17,6 +18,7 @@ import '../utilities/Environments.sol';
 contract GaugeWeightVoteTest is FloorTest {
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
+    FLOOR floor;
     GaugeWeightVote gaugeWeightVote;
     StrategyRegistry strategyRegistry;
     Vault vaultImplementation;
@@ -62,14 +64,20 @@ contract GaugeWeightVoteTest is FloorTest {
         // Deploy our vault implementation
         vaultImplementation = new Vault();
 
+        // Deploy our vault implementation
+        address vaultXTokenImplementation = address(new VaultXToken());
+
+        // Deploy our FLOOR token
+        floor = new FLOOR(address(authorityRegistry));
+
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
             address(strategyRegistry),
             address(vaultImplementation),
-            address(0),
-            address(0)
+            vaultXTokenImplementation,
+            address(floor)
         );
 
         // Set up our veFloor token
