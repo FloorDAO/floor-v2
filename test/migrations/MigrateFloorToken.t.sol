@@ -37,9 +37,6 @@ contract MigrateFloorTokenTest is FloorTest {
         // Give our Floor token migration contract the role to mint floor
         // tokens directly.
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(migrateFloorToken));
-
-        // Mint our tokens into our contract
-        migrateFloorToken.mintTokens(10000 * (10 ** 18));
     }
 
     /**

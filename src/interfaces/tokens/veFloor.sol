@@ -41,4 +41,12 @@ interface IVeFLOOR {
      * @param _amount The amount to be minted
      */
     function mint(address _to, uint _amount) external;
+
+    /**
+     * Destroys `_amount` tokens from `_from`. Callable only by the owner (VeJoeStaking).
+     *
+     * @param _from The address that will burn tokens
+     * @param _amount The amount to be burned
+     */
+    function burnFrom(address _from, uint _amount) external;
 }

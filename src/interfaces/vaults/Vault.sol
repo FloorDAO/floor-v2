@@ -12,7 +12,14 @@ interface IVault {
     event VaultWithdrawal(address withdrawer, address token, uint amount);
 
     /**
-     * ...
+     * Set up our vault information.
+     *
+     * @param _name Human-readable name of the vault
+     * @param _vaultId The vault index ID assigned during creation
+     * @param _collection The address of the collection attached to the vault
+     * @param _strategy The strategy implemented by the vault
+     * @param _vaultFactory The address of the {VaultFactory} that created the vault
+     * @param _vaultXToken The address of the paired xToken
      */
     function initialize(
         string memory _name,

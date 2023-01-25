@@ -30,6 +30,11 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
     string public name;
 
     /**
+     * The numerical ID of the vault that acts as an index for the {VaultFactory}
+     */
+    uint public vaultId;
+
+    /**
      * Gets the contract address for the vault collection. Only assets from this contract
      * will be able to be deposited into the contract.
      */
@@ -80,6 +85,7 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
      */
     function initialize(
         string memory _name,
+        uint _vaultId,
         address _collection,
         address _strategy,
         address _vaultFactory,
@@ -89,6 +95,7 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
 
         collection = _collection;
         name = _name;
+        vaultId = _vaultId;
         strategy = IBaseStrategy(_strategy);
         vaultFactory = _vaultFactory;
         vaultXToken = _vaultXToken;

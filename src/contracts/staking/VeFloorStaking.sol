@@ -63,7 +63,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
     /// Internal contract references, set in constructor
     IERC20 public immutable floor;
     IVeFLOOR public immutable veFloor;
-    IVaultXToken public immutable xVeFloor;
+    IVaultXToken public xVeFloor;
     IGaugeWeightVote public immutable gaugeWeightVote;
 
     /// The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
