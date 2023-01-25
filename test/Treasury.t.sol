@@ -18,7 +18,6 @@ import '../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../src/contracts/vaults/Vault.sol';
 import {VaultFactory} from '../src/contracts/vaults/VaultFactory.sol';
 import {GaugeWeightVote} from '../src/contracts/voting/GaugeWeightVote.sol';
-import '../src/contracts/RewardsLedger.sol';
 import '../src/contracts/Treasury.sol';
 
 import '../src/interfaces/vaults/Vault.sol';
@@ -43,7 +42,6 @@ contract TreasuryTest is FloorTest {
     ERC721Mock erc721;
     ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
-    RewardsLedger rewards;
     StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
@@ -124,15 +122,6 @@ contract TreasuryTest is FloorTest {
             20000
         );
 
-        // Set up our {RewardsLedger}
-        rewards = new RewardsLedger(
-            address(authorityRegistry),
-            address(floor),
-            address(treasury),
-            address(veFloorStaking),
-            address(vaultFactory)
-        );
-
         vaultFactory.setStakingContract(address(veFloorStaking));
 
         // Create our test users
@@ -145,10 +134,6 @@ contract TreasuryTest is FloorTest {
 
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
-
-        // Grant our {RewardsLedger} the required roles
-        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(rewards));
-        authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(rewards));
 
         // Grant our {veFloorStaking} contract the authority to manage veFloor
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(veFloorStaking));
@@ -543,37 +528,6 @@ contract TreasuryTest is FloorTest {
     }
 
     /**
-     * We want to ensure that we can update the address of the {RewardsLedger}
-     * contract.
-     */
-    function test_CanSetRewardsLedgerContract() public {
-        assertEq(address(treasury.rewardsLedger()), address(0));
-
-        treasury.setRewardsLedgerContract(address(1));
-        assertEq(address(treasury.rewardsLedger()), address(1));
-    }
-
-    /**
-     * We will need to validate the {RewardsLedger} address to ensure that we
-     * don't pass a `NULL` address value. We expect a revert.
-     */
-    function test_CannotSetRewardsLedgerContractNullValue() public {
-        vm.expectRevert('Cannot set to null address');
-        treasury.setRewardsLedgerContract(address(0));
-    }
-
-    /**
-     * Only a `TreasuryManager` should be able to update our {RewardsLedger}
-     * address. If another user role calls this function then we expect it to
-     * be reverted.
-     */
-    function test_CannotSetRewardsLedgerContractWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
-        vm.prank(alice);
-        treasury.setRewardsLedgerContract(address(1));
-    }
-
-    /**
      * Gauge Weight Vote get/set.
      */
     function test_CanSetGaugeWeightVoteContract() public {
@@ -696,7 +650,6 @@ contract TreasuryTest is FloorTest {
      */
     function test_CanEndEpoch() public {
         // Set our required internal contracts
-        treasury.setRewardsLedgerContract(address(rewards));
         treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
@@ -833,9 +786,9 @@ contract TreasuryTest is FloorTest {
         assertEq(vaultXTokens[3].dividendOf(users[7]), 19799999999999999999);
         assertEq(vaultXTokens[4].dividendOf(users[7]), 43999999999999999999);
 
-        // The rewards ledger will not hold the tokens, they will be in the individual
+        // The {Treasury} will not hold the tokens, they will be in the individual
         // vaults.
-        assertEq(floor.balanceOf(address(rewards)), 0);
+        assertEq(floor.balanceOf(address(treasury)), 0);
     }
 
     /**
@@ -868,7 +821,6 @@ contract TreasuryTest is FloorTest {
         uint stakerCount = 50;
 
         // Set our required internal contracts
-        treasury.setRewardsLedgerContract(address(rewards));
         treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
@@ -881,11 +833,15 @@ contract TreasuryTest is FloorTest {
         // need to mint the same amount of FLOOR into the {Treasury} that will be
         // transferred to the {RewardsLedger} when snapshot-ed.
         floor.mint(address(treasury), 1000 ether);
+
+        // TODO: Update rewards call
+        /*
         vm.mockCall(
             address(rewards),
             abi.encodeWithSelector(RewardsLedger.claimFloor.selector),
             abi.encode(100 ether)
         );
+        */
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(

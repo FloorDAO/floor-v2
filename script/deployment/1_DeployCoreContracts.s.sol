@@ -18,7 +18,6 @@ import '../../src/contracts/strategies/StrategyRegistry.sol';
 import '../../src/contracts/tokens/Floor.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
-import '../../src/contracts/RewardsLedger.sol';
 
 /**
  * Deploys our contracts and validates them on Etherscan.

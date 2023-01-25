@@ -152,13 +152,6 @@ interface ITreasury {
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
-     * Allows the RewardsLedger contract address to be set.
-     *
-     * @dev Should we allow this to be updated or should be immutable?
-     */
-    function setRewardsLedgerContract(address contractAddr) external;
-
-    /**
      * Allows the GWV contract address to be set.
      *
      * @dev Should we allow this to be updated or should be immutable?

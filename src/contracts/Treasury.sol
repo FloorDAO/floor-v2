@@ -18,7 +18,6 @@ import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
 import {IVault} from '../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
-import {IRewardsLedger} from '../interfaces/RewardsLedger.sol';
 import {ITreasury} from '../interfaces/Treasury.sol';
 
 
@@ -42,9 +41,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /// Holds our {FLOOR} contract reference
     FLOOR public floor;
-
-    /// Holds our {RewardsLedger} contract reference
-    IRewardsLedger public rewardsLedger;
 
     /// The current pricing executor contract
     IBasePricingExecutor public pricingExecutor;
@@ -186,28 +182,26 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             unchecked { ++i; }
         }
 
-        // We mint our floor token yield to our {RewardsLedger}, which will be redeemed by
-        // the user by burning their XToken against the vault.
-
         // Withdraw our dividend reward tokens from the {Treasury} xToken
         // positions. We can then use these amount withdrawn to power the voting
         // snapshot.
 
         // Confirm we are not retaining all {Treasury} yield
-        if (!floorMintingPaused && retainedTreasuryYieldPercentage != 10000 && address(rewardsLedger) != address(0)) {
+        if (!floorMintingPaused && retainedTreasuryYieldPercentage != 10000) {
             // Claim our tokens from the {Treasury} xToken allocation
-            uint claimAmount = rewardsLedger.claimFloor();
+            // TODO: Remove {RewardsLedger} and use Zap
+            uint claimAmount = 1;
             if (claimAmount != 0) {
                 // Determine the total amount of snapshot tokens. This should be calculated as all
                 // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
                 // of the treasuryFloorYield.
                 uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
 
-                // Transfer tokens to our rewards ledger and burn any tokens not transferred
-                floor.transfer(address(rewardsLedger), yieldRewards);
+                // Burn any tokens not transferred as we don't want to hold them in the {Treasury}
                 floor.burn(claimAmount - yieldRewards);
 
                 // Process the snapshot, which will reward xTokens holders directly
+                floor.approve(address(voteContract), yieldRewards);
                 voteContract.snapshot(yieldRewards);
             }
         }
@@ -328,16 +322,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     {
         IERC1155(token).safeTransferFrom(address(this), recipient, tokenId, amount, '');
         emit WithdrawERC1155(token, tokenId, amount, recipient);
-    }
-
-    /**
-     * Allows the RewardsLedger contract address to be set.
-     *
-     * @param contractAddr Address of new {RewardsLedger} contract
-     */
-    function setRewardsLedgerContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        require(contractAddr != address(0), 'Cannot set to null address');
-        rewardsLedger = IRewardsLedger(contractAddr);
     }
 
     /**
