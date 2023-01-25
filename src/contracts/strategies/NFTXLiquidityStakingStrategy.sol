@@ -118,9 +118,9 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *     initialise the pool
      * - We receive xSLP back to the strategy
      *
-     * @param Amount of underlying token to deposit
+     * @param amount Amount of underlying token to deposit
      *
-     * @return Amount of yield token returned from NFTX
+     * @return xTokensReceived Amount of yield token returned from NFTX
      */
     function deposit(uint amount) external onlyVault returns (uint xTokensReceived) {
         require(amount != 0, 'Cannot deposit 0');
@@ -146,7 +146,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * @param amount Amount of yield token to withdraw
      *
-     * @return Amount of the underlying token returned
+     * @return amount_ Amount of the underlying token returned
      */
     function withdraw(uint amount) external onlyVault returns (uint amount_) {
         require(amount != 0, 'Cannot claim 0');
@@ -207,7 +207,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * This value is stored in terms of the `yieldToken`.
      *
-     * @return Amount of unminted rewards held in the contract
+     * @return amount_ Amount of unminted rewards held in the contract
      */
     function unmintedRewards() external view returns (uint amount_) {
         return IERC20(pool).balanceOf(address(this));
@@ -218,7 +218,7 @@ contract NFTXLiquidityStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      *
-     * @param Amount of token to be registered as minted
+     * @param amount Amount of token to be registered as minted
      */
     function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
 

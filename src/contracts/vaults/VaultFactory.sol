@@ -26,7 +26,6 @@ import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
  *
  * Question: Can anyone create a vault?
  */
-
 contract VaultFactory is AuthorityControl, IVaultFactory {
     /// Maintains an array of all vaults created
     address[] private _vaults;
@@ -49,6 +48,13 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
     /**
      * Store our registries, mapped to their interfaces.
+     *
+     * @param _authority {AuthorityRegistry} contract address
+     * @param _collectionRegistry Address of our {CollectionRegistry}
+     * @param _strategyRegistry Address of our {StrategyRegistry}
+     * @param _vaultImplementation Address of our deployed {Vault} to clone
+     * @param _vaultXTokenImplementation Address of our deployed {VaultXToken} to clone
+     * @param _floor Address of our {FLOOR}
      */
     constructor(
         address _authority,
@@ -58,28 +64,39 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _vaultXTokenImplementation,
         address _floor
     ) AuthorityControl(_authority) {
+        // Sense check that our contracts don't have NULL addresses
         require(_collectionRegistry != address(0), '_collectionRegistry cannot be NULL');
         require(_strategyRegistry != address(0), '_strategyRegistry cannot be NULL');
         require(_floor != address(0), 'FLOOR token cannot be NULL');
 
+        // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
 
+        // Store our implementation addresses
         vaultImplementation = _vaultImplementation;
         vaultXTokenImplementation = _vaultXTokenImplementation;
 
+        // Store our FLOOR token address
         floor = _floor;
     }
 
     /**
      * Provides a list of all vaults created.
+     *
+     * @return Array of all vaults created by the {VaultFactory}
      */
     function vaults() external view returns (address[] memory) {
         return _vaults;
     }
 
     /**
-     * Provides a vault against the provided `vaultId` (index).
+     * Provides a vault against the provided `vaultId` (index). If the index does not exist,
+     * then address(0) will be returned.
+     *
+     * @param _vaultId ID of the vault to cross check
+     *
+     * @return Address of the vault
      */
     function vault(uint _vaultId) external view returns (address) {
         return vaultIds[_vaultId];
@@ -88,20 +105,32 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * Provides a list of all vault addresses that have been set up for a
      * collection address.
+     *
+     * @param _collection Address of the collection to look up
+     *
+     * @return Array of vaults that reference the collection
      */
     function vaultsForCollection(address _collection) external view returns (address[] memory) {
         return collectionVaults[_collection];
     }
 
     /**
-     * Creates a vault with an approved strategy and collection.
+     * Creates a vault with an approved strategy, collection and corresponding {VaultXToken}.
+     *
+     * @param _name Human-readable name of the vault
+     * @param _strategy The strategy implemented by the vault
+     * @param _strategyInitData Bytes data required by the {Strategy} for initialization
+     * @param _collection The address of the collection attached to the vault
+     *
+     * @return vaultId_ ID of the newly created vault
+     * @return vaultAddr_ Address of the newly created vault
      */
     function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
         external
         onlyRole(VAULT_MANAGER)
         returns (uint vaultId_, address vaultAddr_)
     {
-        // ..
+        // Ensure our {VeFloorStaking} contract address has been set
         require(staking != address(0), 'Staking contract cannot be NULL');
 
         // No empty names, that's just silly
@@ -147,18 +176,46 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         emit VaultCreated(vaultId_, vaultAddr_, vaultXTokenAddr_, _collection);
     }
 
+    /**
+     * Allows individual vaults to be paused, meaning that assets can no longer be deposited,
+     * although staked assets can always be withdrawn.
+     *
+     * @dev Events are fired within the vault to allow listeners to update.
+     *
+     * @param _vaultId Vault ID to be updated
+     * @param _paused If the vault should be paused or unpaused
+     */
     function pause(uint _vaultId, bool _paused) public onlyRole(VAULT_MANAGER) {
         IVault(vaultIds[_vaultId]).pause(_paused);
     }
 
+    /**
+     * Updates pending stakers into active stakers, entitling them to a share of the
+     * vault rewards yield.
+     *
+     * @dev This should be called when an epoch is ended.
+     *
+     * @param _vaultId Vault ID to be updated
+     */
     function migratePendingDeposits(uint _vaultId) public onlyRole(VAULT_MANAGER) {
         IVault(vaultIds[_vaultId]).migratePendingDeposits();
     }
 
+    /**
+     * Distributes rewards into the {VaultXToken} via the {Vault}.
+     *
+     * @param _vaultId Vault ID to be updated
+     * @param _amount Amount of reward tokens to be distributed
+     */
     function distributeRewards(uint _vaultId, uint _amount) public onlyRole(REWARDS_MANAGER) {
         IVault(vaultIds[_vaultId]).distributeRewards(_amount);
     }
 
+    /**
+     * Allows the staking contract to be updated.
+     *
+     * @param _staking Contract address of the staking contract to be set
+     */
     function setStakingContract(address _staking) public onlyRole(VAULT_MANAGER) {
         staking = _staking;
     }

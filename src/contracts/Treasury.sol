@@ -1,76 +1,76 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
+import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
-import '@openzeppelin/contracts/interfaces/IERC20.sol';
-import '@openzeppelin/contracts/interfaces/IERC721.sol';
-import '@openzeppelin/contracts/interfaces/IERC1155.sol';
+import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
 
-import '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import {AuthorityControl} from './authorities/AuthorityControl.sol';
+import {FLOOR} from './tokens/Floor.sol';
+import {VaultXToken} from './tokens/VaultXToken.sol';
 
-import './authorities/AuthorityControl.sol';
-import './tokens/Floor.sol';
-import './tokens/VaultXToken.sol';
+import {IAction} from '../interfaces/actions/Action.sol';
+import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
+import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
+import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
+import {IVault} from '../interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
+import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
+import {IRewardsLedger} from '../interfaces/RewardsLedger.sol';
+import {ITreasury} from '../interfaces/Treasury.sol';
 
-import '../interfaces/actions/Action.sol';
-import '../interfaces/collections/CollectionRegistry.sol';
-import '../interfaces/pricing/BasePricingExecutor.sol';
-import '../interfaces/strategies/StrategyRegistry.sol';
-import '../interfaces/vaults/Vault.sol';
-import '../interfaces/vaults/VaultFactory.sol';
-import '../interfaces/voting/GaugeWeightVote.sol';
-import '../interfaces/RewardsLedger.sol';
-import '../interfaces/Treasury.sol';
 
 /**
- * @dev The Treasury will hold all assets.
+ * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
-    // Store when last epoch was run
+
+    /// Store when last epoch was run
     uint public lastEpoch;
     uint public EPOCH_LENGTH = 7 days;
 
-    // ..
+    /// Holds our {StrategyRegistry} contract reference
     IStrategyRegistry public strategyRegistry;
 
-    // ..
+    /// Holds our {CollectionRegistry} contract reference
     ICollectionRegistry public collectionRegistry;
 
-    // ..
+    /// Holds our {VaultFactory} contract reference
     IVaultFactory public vaultFactory;
 
-    // Track our internal tokens
+    /// Holds our {FLOOR} contract reference
     FLOOR public floor;
 
-    // Track our rewards ledger
+    /// Holds our {RewardsLedger} contract reference
     IRewardsLedger public rewardsLedger;
 
-    // The current pricing executor contract.
+    /// The current pricing executor contract
     IBasePricingExecutor public pricingExecutor;
 
-    // Track if floor minting is paused
+    /// Track if floor minting is paused
     bool public floorMintingPaused;
 
-    // ..
+    /// The amount of our {Treasury} reward yield that is retained. Any remaining percentage
+    /// amount will be distributed to the top voted collections via our {GaugeWeightVote} contract.
     uint public retainedTreasuryYieldPercentage;
 
-    // Our Gauge Weight Voting contract
+    /// Our Gauge Weight Voting contract
     IGaugeWeightVote public voteContract;
 
-    // Store our token floor price
+    /// Store our token floor price, set by our `pricingExecutor`
     mapping(address => uint) public tokenFloorPrice;
-
-    // Keep a list of allocations so that we can send as a batch
-    address[] internal allocationUser;
-    address[] internal allocationToken;
-    uint[] internal allocationAmount;
-
-    bytes[] internal allocationArray;
 
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
+     *
+     * @param _authority {AuthorityRegistry} contract address
+     * @param _collectionRegistry Address of our {CollectionRegistry}
+     * @param _strategyRegistry Address of our {StrategyRegistry}
+     * @param _vaultFactory Address of our {VaultFactory}
+     * @param _floor Address of our {FLOOR}
      */
     constructor(
         address _authority,
@@ -86,18 +86,20 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Distributes reward tokens to the {RewardsLedger}, sending either the FLOOR token
-     * or the base reward token depending on {toggleFloorMinting}. This function will
-     * need to iterate over the pending deposits and:
-     *  - If the reward is from treasury yield, then the recipient is based on GWV.
-     *  - If the reward is from staker yield, then it will be allocated to user in {RewardsLedger}.
+     * Distributes reward tokens to the {VaultXToken}, sending the FLOOR token to each instance
+     * based on the amount of reward yield that has been generated.
+     *
+     *  - If the reward is from treasury yield, then the recipient is based on GWV
+     *  - If the reward is from staker yield, then it will be allocated to user in the {VaultXToken}
      *
      * When a token deposit from strategy reward yield comes in, we can find the matching vault and
      * find the holdings of all users. The treasury user is a special case, but the others will have
      * a holding percentage determined for their reward share. Only users that are eligible (see note
      * below on rewards cycle) will have their holdings percentage calculated. This holdings
      * percentage will get them FLOOR rewards of all non-treasury yield, plus non-retained treasury
-     * yield based on {setRetainedTreasuryYieldPercentage}. So in this example:
+     * yield based on {setRetainedTreasuryYieldPercentage}.
+     *
+     * As an example, consider the following scenario:
      *
      * +----------------+-----------------+-------------------+
      * | Staker         | Amount          | Percent           |
@@ -107,14 +109,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * | Treasury       | 60              | 60%               |
      * +----------------+-----------------+-------------------+
      *
-     * The strategy collects 10 tokens in reward in this cycle, and all staked parties are eligible
-     * to receive their reward allocation. The Treasury does not mint FLOOR against their reward token,
-     * but instead just holds it inside of the Treasury.
-     *
-     * The GWV in this example is attributing 40% to the example vault and we assume a FLOOR to token
-     * ratio of 5:1 (5 FLOOR is minted for each reward token in treasury). We are also assuming that
-     * we are retaining 50% of treasury rewards, that floor minting is enabled and that we don't have
-     * a premium FLOOR mint amount being applied.
+     * Say the strategy collects 10 tokens in reward in this cycle, and all staked parties are
+     * eligible to receive their reward allocation. The GWV in this example is attributing 40% to
+     * the example vault and we assume a FLOOR to token ratio of 5:1 (5 FLOOR is minted for each
+     * reward token in treasury). We are also assuming that we are retaining 50% of treasury rewards.
      *
      * The Treasury in this instance would be allocated 6 reward tokens (as they hold 60% of the vault
      * share) and would convert 50% of this reward yield to FLOOR (due to 50% retention). This means
@@ -138,13 +136,14 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * | Reward Token   | 10                 |
      * +----------------+--------------------+
      *
-     * A user will only be eligible if they have been staked for a complete
-     * rewards epoch. This needs to be validated to ensure that the epoch timelock
-     * has been surpassed.
+     * A user will only be eligible if they have been staked for a complete rewards epoch.
      */
     function endEpoch() external {
         // Ensure enough time has past since the last epoch ended
         require(lastEpoch == 0 || block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
+
+        // TODO: Maybe: If floor minting is paused, prevent the epoch from ending
+        // require(!floorMintingPaused, 'Floor minting is currently paused');
 
         // Get our vaults
         address[] memory vaults = vaultFactory.vaults();
@@ -168,7 +167,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             // If our floor minting is paused, then we just want to directly allocate
             // the generated token to the user, rather than converting it to FLOOR.
             if (floorMintingPaused) {
-                // TODO: Distribute tokens directly into the rewards ledger for the user. This will
+                // TODO: Maybe: Distribute tokens directly into the rewards ledger for the user. This will
                 // add more gas, but this is (in theory) a smaller use case.
                 continue;
             }
@@ -222,8 +221,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * internally, but a public method will allow a {TreasuryManager} to bypass this
      * and create additional FLOOR tokens if needed.
      *
-     * @dev We only want to do this on creation and for inflation. Have a think on how
-     * we can implement this!
+     * @param amount The amount of {FLOOR} tokens to be minted
      */
     function mint(uint amount) external onlyRole(TREASURY_MANAGER) {
         require(amount != 0, 'Cannot mint zero Floor');
@@ -231,7 +229,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
+     * Internal call to handle minting and event firing.
      *
+     * @param recipient The recipient of the {FLOOR} tokens
+     * @param amount The number of tokens to be minted
      */
     function _mint(address recipient, uint amount) internal {
         floor.mint(recipient, amount);
@@ -241,6 +242,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
+     *
+     * @param token ERC20 token address to be deposited
+     * @param amount The amount of the token to be deposited
      */
     function depositERC20(address token, uint amount) external {
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
@@ -251,6 +255,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows an ERC721 token to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
+     *
+     * @param token ERC721 token address to be deposited
+     * @param tokenId The ID of the ERC721 being deposited
      */
     function depositERC721(address token, uint tokenId) external {
         IERC721(token).transferFrom(msg.sender, address(this), tokenId);
@@ -260,6 +267,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows an ERC1155 token(s) to be deposited and generates FLOOR tokens based on
      * the current determined value of FLOOR and the token.
+     *
+     * @param token ERC1155 token address to be deposited
+     * @param tokenId The ID of the ERC1155 being deposited
+     * @param amount The amount of the token to be deposited
      */
     function depositERC1155(address token, uint tokenId, uint amount) external {
         IERC1155(token).safeTransferFrom(msg.sender, address(this), tokenId, amount, '');
@@ -268,6 +279,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Allows an approved user to withdraw native token.
+     *
+     * @param recipient The user that will receive the native token
+     * @param amount The number of native tokens to withdraw
      */
     function withdraw(address recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
         (bool success,) = recipient.call{value: amount}('');
@@ -277,6 +291,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Allows an approved user to withdraw an ERC20 token from the vault.
+     *
+     * @param recipient The user that will receive the ERC20 tokens
+     * @param token ERC20 token address to be withdrawn
+     * @param amount The number of tokens to withdraw
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
         bool success = IERC20(token).transfer(recipient, amount);
@@ -286,6 +304,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Allows an approved user to withdraw an ERC721 token from the vault.
+     *
+     * @param recipient The user that will receive the ERC721 tokens
+     * @param token ERC721 token address to be withdrawn
+     * @param tokenId The ID of the ERC721 being withdrawn
      */
     function withdrawERC721(address recipient, address token, uint tokenId) external onlyRole(TREASURY_MANAGER) {
         IERC721(token).transferFrom(address(this), recipient, tokenId);
@@ -294,6 +316,11 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     *
+     * @param recipient The user that will receive the ERC1155 tokens
+     * @param token ERC1155 token address to be withdrawn
+     * @param tokenId The ID of the ERC1155 being withdrawn
+     * @param amount The number of tokens to withdraw
      */
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount)
         external
@@ -306,7 +333,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows the RewardsLedger contract address to be set.
      *
-     * @dev Should we allow this to be updated or should be immutable?
+     * @param contractAddr Address of new {RewardsLedger} contract
      */
     function setRewardsLedgerContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
         require(contractAddr != address(0), 'Cannot set to null address');
@@ -316,7 +343,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Allows the GWV contract address to be set.
      *
-     * @dev Should we allow this to be updated or should be immutable?
+     * @param contractAddr Address of new {GaugeWeightVote} contract
      */
     function setGaugeWeightVoteContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
         require(contractAddr != address(0), 'Cannot set to null address');
@@ -326,6 +353,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Sets the percentage of treasury rewards yield to be retained by the treasury, with
      * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
+     *
+     * @param percent New treasury yield percentage value
      */
     function setRetainedTreasuryYieldPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
         require(percent <= 10000, 'Percentage too high');
@@ -337,7 +366,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * tokens will be distributed directly, otherwise they will be converted to FLOOR token
      * first and then distributed.
      *
-     * @dev This will only be actionable by {TreasuryManager}
+     * @param paused If floor minting should be paused
      */
     function pauseFloorMinting(bool paused) external onlyRole(TREASURY_MANAGER) {
         floorMintingPaused = paused;
@@ -376,6 +405,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
+     *
+     * @param contractAddr Address of new {IBasePricingExecutor} contract
      */
     function setPricingExecutor(address contractAddr) external onlyRole(TREASURY_MANAGER) {
         require(contractAddr != address(0), 'Cannot set to null address');
@@ -384,6 +415,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /**
      * Apply an action against the vault.
+     *
+     * @param action Address of the action to apply
+     * @param approvals Any tokens that need to be approved before actioning
+     * @param data Any bytes data that should be passed to the {IAction} execution function
      */
     function processAction(address action, address[] memory approvals, bytes memory data)
         external
@@ -400,7 +435,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * ..
+     * Allow our contract to receive native tokens.
      */
     receive() external payable {
         emit Deposit(msg.value);

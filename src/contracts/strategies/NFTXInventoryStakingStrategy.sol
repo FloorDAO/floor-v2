@@ -111,9 +111,9 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      *
-     * @param Amount of underlying token to deposit
+     * @param amount Amount of underlying token to deposit
      *
-     * @return Amount of yield token returned from NFTX
+     * @return amount_ Amount of yield token returned from NFTX
      */
     function deposit(uint amount) external onlyVault returns (uint amount_) {
         // Prevent users from trying to deposit nothing
@@ -144,7 +144,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      *
      * @param amount Amount of yield token to withdraw
      *
-     * @return Amount of the underlying token returned
+     * @return amount_ Amount of the underlying token returned
      */
     function withdraw(uint amount) external onlyVault returns (uint amount_) {
         // Prevent users from trying to claim nothing
@@ -227,7 +227,7 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      *
-     * @param Amount of token to be registered as minted
+     * @param amount Amount of token to be registered as minted
      */
     function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
 

@@ -122,7 +122,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
     constructor(
         address _authority,
         IERC20 _floor,
-        veFLOOR _veFloor,
+        IVeFLOOR _veFloor,
         IGaugeWeightVote _gaugeWeightVote,
         uint _veFloorPerSharePerSec,
         uint _speedUpVeFloorPerSharePerSec,
@@ -174,7 +174,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
     /**
      * Sets our veFloor xToken address.
      *
-     * @param Address of xVeFloor token
+     * @param _xVeFloor Address of xVeFloor token
      */
     function setVeFloorXToken(address _xVeFloor) external onlyRole(STAKING_MANAGER) {
         xVeFloor = IVaultXToken(_xVeFloor);

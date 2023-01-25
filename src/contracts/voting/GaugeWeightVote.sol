@@ -2,16 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from  '../authorities/AuthorityControl.sol';
 
-import '../tokens/VaultXToken.sol';
-
-import '../../interfaces/collections/CollectionRegistry.sol';
-import '../../interfaces/strategies/BaseStrategy.sol';
-import '../../interfaces/tokens/veFloor.sol';
-import '../../interfaces/vaults/Vault.sol';
-import '../../interfaces/vaults/VaultFactory.sol';
-import '../../interfaces/voting/GaugeWeightVote.sol';
+import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
+import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
+import {IVeFLOOR} from '../../interfaces/tokens/veFloor.sol';
+import {IVault} from '../../interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
+import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
 
 /**
  * The GWV will allow users to assign their veFloor position to a vault, or
@@ -50,21 +49,26 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     mapping(address => mapping(address => uint)) private userVotes;
     mapping(address => uint) private totalUserVotes;
 
-    // Mapping collection address -> total amount.
+    /// Mapping collection address -> total amount.
     mapping(address => uint) public votes;
 
-    // Store a list of collections each user has voted on to reduce the
-    // number of iterations.
+    /// Store a list of collections each user has voted on to reduce the
+    /// number of iterations.
     mapping(address => address[]) public userVoteCollections;
 
-    // Storage for yield calculations
+    /// Storage for yield calculations
     mapping(address => uint) internal yieldStorage;
 
-    // Track the previous snapshot that was made
+    /// Track the previous snapshot that was made
     uint public lastSnapshot;
 
     /**
+     * Sets up our contract parameters.
      *
+     * @param _collectionRegistry Address of our {CollectionRegistry}
+     * @param _vaultFactory Address of our {VaultFactory}
+     * @param _veFloor Address of our {veFLOOR}
+     * @param _authority {AuthorityRegistry} contract address
      */
     constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority)
         AuthorityControl(_authority)
@@ -77,19 +81,21 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /**
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
+     *
+     * @param _user User address being checked
      */
     function userVotingPower(address _user) external view returns (uint) {
         return veFloor.balanceOf(_user);
     }
 
     /**
-     * The total number of votes that a user has available, calculated by:
+     * The total number of votes that a user has available.
      *
-     * ```
-     * votesAvailable_ = balanceOf(_user) - SUM(userVotes.votes_)
-     * ```
+     * @param _user User address being checked
+     *
+     * @return uint Number of votes available to the user
      */
-    function userVotesAvailable(address _user) external view returns (uint votesAvailable_) {
+    function userVotesAvailable(address _user) external view returns (uint) {
         return this.userVotingPower(_user) - totalUserVotes[_user];
     }
 
@@ -108,8 +114,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
+     *
+     * @param _collection The collection address being voted for
+     * @param _amount The number of votes the caller is casting
+     *
+     * @return uint The total number of votes now placed for the collection
      */
-    function vote(address _collection, uint _amount) external returns (uint totalVotes_) {
+    function vote(address _collection, uint _amount) external returns (uint) {
         require(_amount != 0, 'Cannot vote with zero amount');
 
         // Ensure the user has enough votes available to cast
@@ -135,13 +146,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         votes[_collection] += _amount;
 
         emit VoteCast(_collection, _amount);
-
         return votes[_collection];
     }
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
+     *
+     * @param _collection[] The collection address(es) being voted for
+     * @param _amount[] The number of votes the caller is casting across the collections
      */
     function revokeVotes(address[] memory _collection, uint[] memory _amount) external {
         uint length = _collection.length;
@@ -180,6 +193,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /**
      * Allows an authorised contract or wallet to revoke all user votes. This
      * can be called when the veFLOOR balance is reduced.
+     *
+     * @param _account The user having their votes revoked
      */
     function revokeAllUserVotes(address _account) external onlyRole(VOTE_MANAGER) {
         // Iterate over our collections to revoke the user's vote amounts
@@ -215,66 +230,22 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * vault's percentage share within each collection, in relation to others.
      *
      * This percentage share will instruct the {Treasury} on how much additional
-     * FLOOR to allocate to the users staked in the vaults. These rewards will
-     * become available in the {RewardLedger}.
+     * FLOOR to allocate to the users staked in the vaults. These rewards will be
+     * distributed via the {VaultXToken} attached to each {Vault} that implements
+     * the collection that is voted for.
      *
-     * +----------------+-----------------+-------------------+-------------------+
-     * | Voter          | veFloor         | Vote Weight       | Vault             |
-     * +----------------+-----------------+-------------------+-------------------+
-     * | Alice          | 30              | 40                | 1                 |
-     * | Bob            | 20              | 30                | 2                 |
-     * | Carol          | 40              | 55                | 3                 |
-     * | Dave           | 20              | 40                | 2                 |
-     * | Emily          | 25              | 35                | 0                 |
-     * +----------------+-----------------+-------------------+-------------------+
-     *
-     * We then check against the `sampleSize` that has been set to only select the
-     * first _x_ collections. We then find the vaults that align to the collection
+     * We check against the `sampleSize` that has been set to only select the first
+     * _x_ top voted collections. We find the vaults that align to the collection
      * and give them a sub-percentage of the collection's allocation based on the
-     * total number of rewards generated.
-     *
-     * With the above information, and assuming that the {Treasury} has allocated
-     * 1000 FLOOR tokens to be additionally distributed in this snapshot, we would
-     * have the following allocations going to the vaults.
-     *
-     * +----------------+-----------------+-------------------+-------------------+
-     * | Vault          | Votes Total     | Vote Percent      | veFloor Rewards   |
-     * +----------------+-----------------+-------------------+-------------------+
-     * | 0 (veFloor)    | 35              | 17.5%             | 175               |
-     * | 1              | 40              | 20%               | 200               |
-     * | 2              | 70              | 35%               | 350               |
-     * | 3              | 55              | 27.5%             | 275               |
-     * | 4              | 0               | 0%                | 0                 |
-     * +----------------+-----------------+-------------------+-------------------+
+     * total number of rewards generated within that collection.
      *
      * This would distribute the vaults allocated rewards against the staked
      * percentage in the vault. Any Treasury holdings that would be given in rewards
-     * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
+     * are just deposited into the {Treasury} as FLOOR tokens.
      *
-     * In the following scenario:
-     * PUNK A - 8 floor tokens in lifetime, 1 floor in last week
-     * PUNK B - 2 floor tokens in lifetime, 2 floor in last week
+     * @param tokens The number of tokens rewards in the snapshot
      *
-     * 100 FLOOR tokens being distributed to PUNK collection
-     *
-     * We have three options:
-     *  1) We use lifetime rewards:
-     *      A - 80 FLOOR
-     *      B - 20 FLOOR
-     *
-     *  2) We use last week rewards:
-     *      A - 33 FLOOR
-     *      B - 66 FLOOR
-     *
-     *  3) We use exit velocity to give greater rewards to high yielding vaults,
-     *     but to also reward consistently yielding vaults:
-     *     ```
-     *     share = (lifetime% + last week%) / vaultCount
-     *     share = ( 100 / (lifetime% + last week%) ) / vaultCount
-     *     ```
-     *
-     *      A - 42 FLOOR
-     *      B - 58 FLOOR
+     * @return address[] The vaults that were granted rewards
      */
     function snapshot(uint tokens) external returns (address[] memory) {
         // Keep track of remaining tokens to avoid dust
@@ -319,7 +290,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             // xToken reward distributor.
             if (collections[i] == FLOOR_TOKEN_VOTE && FLOOR_TOKEN_VOTE_XTOKEN != address(0)) {
                 // We will have a specific veFloor xToken at this point to distribute to.
-                VaultXToken(FLOOR_TOKEN_VOTE_XTOKEN).distributeRewards(collectionRewards);
+                IVaultXToken(FLOOR_TOKEN_VOTE_XTOKEN).distributeRewards(collectionRewards);
 
                 // We don't need to process the rest of our loop
                 unchecked { ++i; }
@@ -346,7 +317,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
                 // We assume that the snapshot tokens have already been transferred to the rewards
                 // ledger at this point
-                VaultXToken(IVault(collectionVaults[j]).xToken()).distributeRewards(vaultRewards);
+                IVaultXToken(IVault(collectionVaults[j]).xToken()).distributeRewards(vaultRewards);
 
                 unchecked { ++j; }
             }
@@ -361,6 +332,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         return collections;
     }
 
+    /**
+     * Finds the top voted collections based on the number of votes cast. This is quite
+     * an intensive process for how simple it is, but essentially just orders creates an
+     * ordered subset of the top _x_ voted collection addresses.
+     *
+     * @return Array of collections
+     */
     function _topCollections() internal view returns (address[] memory) {
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections = new address[](sampleSize);
@@ -410,7 +388,11 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     }
 
     /**
-     * ..
+     * Allows an authenticated caller to update the `sampleSize`.
+     *
+     * @dev This should be kept lower where possible for reduced gas spend
+     *
+     * @param size The new `sampleSize`
      */
     function setSampleSize(uint size) external onlyRole(VOTE_MANAGER) {
         require(size != 0, 'Sample size must be above 0');
@@ -418,7 +400,11 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     }
 
     /**
-     * Provides a list of collection addresses that can be voted on.
+     * Provides a list of collection addresses that can be voted on. This will pull in
+     * all approved collections as well as appending the {FLOOR} vote on the end, which
+     * is a hardcoded address.
+     *
+     * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
      */
     function voteOptions() external view returns (address[] memory collections_) {
         // Get all of our approved collections
@@ -440,12 +426,26 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         collections_[i] = FLOOR_TOKEN_VOTE;
     }
 
+    /**
+     * Returns a reward weighting for the vault, allowing us to segment the collection rewards
+     * yield to holders based on this value. A vault with a higher indicator value will receive
+     * a higher percentage of rewards allocated to the collection it implements.
+     *
+     * @param vault Address of the vault
+     *
+     * @return Reward weighting
+     */
     function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint) {
         return IBaseStrategy(IVault(vault).strategy()).totalRewardsGenerated();
     }
 
     /**
-     * ..
+     * Removes a user's votes from a collection and refunds gas where possible.
+     *
+     * @param account Account having their votes revoked
+     * @param collection The collection the votes are being revoked from
+     *
+     * @return If votes were revoked successfully
      */
     function _deleteUserCollectionVote(address account, address collection) internal returns (bool) {
         for (uint i; i < userVoteCollections[account].length;) {
@@ -462,7 +462,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         return false;
     }
 
-    function setFloorXToken(address x) public onlyRole(VOTE_MANAGER) {
-        FLOOR_TOKEN_VOTE_XTOKEN = x;
+    /**
+     * Allows an authenticated called to update our {VaultXToken} address that is used
+     * for {FLOOR} vote reward distributions.
+     *
+     * @param _xToken Address of our deployed {VaultXToken} contract
+     */
+    function setFloorXToken(address _xToken) public onlyRole(VOTE_MANAGER) {
+        FLOOR_TOKEN_VOTE_XTOKEN = _xToken;
     }
 }

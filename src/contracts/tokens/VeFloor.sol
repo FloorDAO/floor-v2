@@ -2,11 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import '../../interfaces/tokens/VeFloor.sol';
+import {IVeFLOOR} from '../../interfaces/tokens/VeFloor.sol';
 
 /**
+ * When a user stakes their FLOOR token in the {VeFloorStaking} contract, they will
+ * receive a 1:1 {veFLOOR} token in return.
+ *
  * The veFloor token is heavily influenced by the {VeJoeToken} token:
  * https://snowtrace.io/address/0x3cabf341943Bc8466245e4d6F1ae0f8D071a1456#code
  */
@@ -42,14 +45,14 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     }
 
     /**
-     * @dev Returns the name of the token.
+     * Returns the name of the token.
      */
     function name() public view virtual returns (string memory) {
         return _name;
     }
 
     /**
-     * @dev Returns the symbol of the token, usually a shorter version of the
+     * Returns the symbol of the token, usually a shorter version of the
      * name.
      */
     function symbol() public view virtual returns (string memory) {
@@ -57,7 +60,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     }
 
     /**
-     * @dev Returns the number of decimals used to get its user representation.
+     * Returns the number of decimals used to get its user representation.
      * For example, if `decimals` equals `2`, a balance of `505` tokens should
      * be displayed to a user as `5.05` (`505 / 10 ** 2`).
      *
@@ -74,14 +77,14 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     }
 
     /**
-     * @dev Returns the amount of tokens in existence.
+     * Returns the amount of tokens in existence.
      */
     function totalSupply() public view virtual override returns (uint) {
         return _totalSupply;
     }
 
     /**
-     * @dev Returns the amount of tokens owned by `account`.
+     * Returns the amount of tokens owned by `account`.
      */
     function balanceOf(address account) public view virtual override returns (uint) {
         return _balances[account];
@@ -131,7 +134,7 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
     }
 
     /**
-     * @dev Destroys `amount` tokens from `account`, reducing the
+     * Destroys `amount` tokens from `account`, reducing the
      * total supply.
      *
      * Emits a {Transfer} event with `to` set to the zero address.

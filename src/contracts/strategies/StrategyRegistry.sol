@@ -41,7 +41,7 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      *
      * If the strategy is already approved, then no action will be taken.
      *
-     * @param Strategy to be approved
+     * @param contractAddr Strategy to be approved
      */
     function approveStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
         require(contractAddr != address(0), 'Cannot approve NULL strategy');
@@ -58,7 +58,7 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      *
      * If the strategy is already approved, then the transaction will be reverted.
      *
-    * @param Strategy to be revoked
+    * @param contractAddr Strategy to be revoked
      */
     function revokeStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
         require(strategies[contractAddr], 'Strategy is not approved');

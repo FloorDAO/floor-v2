@@ -104,11 +104,11 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Gets our live prices of multiple tokens to ETH.
      *
-     * @param token Tokens to find price of
+     * @param tokens[] Tokens to find price of
      *
      * @return uint[] The ETH values of a singular token, mapping to passed token index
      */
-    function getETHPrices(address[] memory tokens) external returns (uint[] memory output) {
+    function getETHPrices(address[] memory tokens) external returns (uint[] memory) {
         return _getPrices(tokens);
     }
 
@@ -138,9 +138,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Gets a live mapped price of multiple tokens to FLOOR.
      *
-     * @param token Tokens to find price of
+     * @param tokens[] Tokens to find price of
      *
-     * @return uint The FLOOR values of tokens passed
+     * @return uint[] The FLOOR values of tokens passed
      */
     function getFloorPrices(address[] memory tokens) external returns (uint[] memory) {
         // We first need to get our Floor price, as well as our token prices
