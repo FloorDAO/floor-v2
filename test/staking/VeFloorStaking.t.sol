@@ -170,8 +170,7 @@ contract VeFloorStakingTest is FloorTest {
 
     function test_ShouldHaveCorrectUpdatedUserInfoAfterFirstTimeDeposit() public {
         // Get Alice's information before any deposit has been made
-        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) =
-            veFloorStaking.userInfos(alice);
+        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
 
         assertEq(balance, 0);
         assertEq(rewardDebt, 0);
@@ -279,9 +278,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_ShouldHaveSpeedUpPeriodExtendedAfterDepositingSpeedUpThresholdAndCurrentlyReceivingSpeedUpBenefits()
-        public
-    {
+    function test_ShouldHaveSpeedUpPeriodExtendedAfterDepositingSpeedUpThresholdAndCurrentlyReceivingSpeedUpBenefits() public {
         vm.startPrank(alice);
         veFloorStaking.deposit(100 ether);
 
@@ -359,8 +356,7 @@ contract VeFloorStakingTest is FloorTest {
 
         assertGt(veFloor.balanceOf(alice), 0);
 
-        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) =
-            veFloorStaking.userInfos(alice);
+        (uint balance, uint rewardDebt, uint lastClaimTimestamp, uint speedUpEndTimestamp) = veFloorStaking.userInfos(alice);
         assertEq(balance, 100 ether);
         assertEq(rewardDebt, veFloor.balanceOf(alice) / 2); // Divide by 2 since half of it is from the speed up
         assertEq(lastClaimTimestamp, claimBlock);

@@ -58,7 +58,7 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      *
      * If the strategy is already approved, then the transaction will be reverted.
      *
-    * @param contractAddr Strategy to be revoked
+     * @param contractAddr Strategy to be revoked
      */
     function revokeStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
         require(strategies[contractAddr], 'Strategy is not approved');

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-
 interface IBoostStaking {
-
     /// Emitted when an NFT is staked
     event Staked(uint tokenId);
 
@@ -43,5 +41,4 @@ interface IBoostStaking {
      * the relevant metadata on the NFT.
      */
     function unstake(uint _tokenId) external;
-
 }

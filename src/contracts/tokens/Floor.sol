@@ -14,14 +14,10 @@ import {IFLOOR} from '../../interfaces/tokens/Floor.sol';
  * Sets up our FLOOR ERC20 token.
  */
 contract FLOOR is AuthorityControl, ERC20, ERC20Burnable, ERC20Permit, IFLOOR {
-
     /**
      * Sets up our ERC20 token.
      */
-    constructor(address _authority)
-        ERC20('Floor', 'FLOOR')
-        ERC20Permit('Floor')
-        AuthorityControl(_authority) {}
+    constructor(address _authority) ERC20('Floor', 'FLOOR') ERC20Permit('Floor') AuthorityControl(_authority) {}
 
     /**
      * Allows a `FLOOR_MANAGER` to mint additional FLOOR tokens.

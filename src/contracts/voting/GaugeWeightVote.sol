@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {AuthorityControl} from  '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
@@ -70,9 +70,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @param _veFloor Address of our {veFLOOR}
      * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority)
-        AuthorityControl(_authority)
-    {
+    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         veFloor = IVeFLOOR(_veFloor);
@@ -293,7 +291,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 IVaultXToken(FLOOR_TOKEN_VOTE_XTOKEN).distributeRewards(collectionRewards);
 
                 // We don't need to process the rest of our loop
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -319,7 +319,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 // ledger at this point
                 IVaultXToken(IVault(collectionVaults[j]).xToken()).distributeRewards(vaultRewards);
 
-                unchecked { ++j; }
+                unchecked {
+                    ++j;
+                }
             }
 
             unchecked {

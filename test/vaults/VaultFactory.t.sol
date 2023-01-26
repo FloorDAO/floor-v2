@@ -42,8 +42,7 @@ contract VaultFactoryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy =
-            address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
         strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy'), address(authorityRegistry)));
 
         // Approve our test strategy implementation
@@ -118,8 +117,7 @@ contract VaultFactoryTest is FloorTest {
      */
     function test_CanGetVault() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) =
-            vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         // Confirm that the vault address stored in our vault factory matches the
         // one that was just cloned.
@@ -141,8 +139,7 @@ contract VaultFactoryTest is FloorTest {
      */
     function test_CanCreateVault() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) =
-            vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultId, 0);
         require(vault != address(0), 'Invalid vault address');

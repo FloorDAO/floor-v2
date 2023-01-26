@@ -14,7 +14,6 @@ import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 import {IVeFLOOR} from '../../interfaces/tokens/VeFloor.sol';
 import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
 
-
 /**
  * Vote Escrow Floor Staking
  *
@@ -24,7 +23,6 @@ import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
  * Heavily influenced from TraderJoe veJOE staking contract.
  */
 contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
-
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -136,27 +134,18 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         require(address(_gaugeWeightVote) != address(0), 'VeFloorStaking: unexpected zero address for _gaugeWeightVote');
 
         upperLimitVeFloorPerSharePerSec = 1e36;
-        require(
-            _veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
-            'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36'
-        );
+        require(_veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec, 'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36');
         require(
             _speedUpVeFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
             'VeFloorStaking: expected _speedUpVeFloorPerSharePerSec to be <= 1e36'
         );
 
-        require(
-            _speedUpThreshold != 0 && _speedUpThreshold <= 100,
-            'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100'
-        );
+        require(_speedUpThreshold != 0 && _speedUpThreshold <= 100, 'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
 
         require(_speedUpDuration <= 365 days, 'VeFloorStaking: expected _speedUpDuration to be <= 365 days');
 
         upperLimitMaxCapPct = 10000000;
-        require(
-            _maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct,
-            'VeFloorStaking: expected _maxCapPct to be non-zero and <= 10000000'
-        );
+        require(_maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct, 'VeFloorStaking: expected _maxCapPct to be non-zero and <= 10000000');
 
         maxCapPct = _maxCapPct;
         speedUpThreshold = _speedUpThreshold;
@@ -188,8 +177,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
     function setMaxCapPct(uint _maxCapPct) external onlyRole(STAKING_MANAGER) {
         require(_maxCapPct > maxCapPct, 'VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct');
         require(
-            _maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct,
-            'VeFloorStaking: expected new _maxCapPct to be non-zero and <= 10000000'
+            _maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct, 'VeFloorStaking: expected new _maxCapPct to be non-zero and <= 10000000'
         );
         maxCapPct = _maxCapPct;
         emit UpdateMaxCapPct(_msgSender(), _maxCapPct);
@@ -201,10 +189,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
      * @param _veFloorPerSharePerSec The new veFloorPerSharePerSec
      */
     function setVeFloorPerSharePerSec(uint _veFloorPerSharePerSec) external onlyRole(STAKING_MANAGER) {
-        require(
-            _veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
-            'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36'
-        );
+        require(_veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec, 'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36');
         updateRewardVars();
         veFloorPerSharePerSec = _veFloorPerSharePerSec;
         emit UpdateVeFloorPerSharePerSec(_msgSender(), _veFloorPerSharePerSec);
@@ -216,10 +201,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
      * @param _speedUpThreshold The new speedUpThreshold
      */
     function setSpeedUpThreshold(uint _speedUpThreshold) external onlyRole(STAKING_MANAGER) {
-        require(
-            _speedUpThreshold != 0 && _speedUpThreshold <= 100,
-            'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100'
-        );
+        require(_speedUpThreshold != 0 && _speedUpThreshold <= 100, 'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
         speedUpThreshold = _speedUpThreshold;
         emit UpdateSpeedUpThreshold(_msgSender(), _speedUpThreshold);
     }
@@ -305,9 +287,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
 
         UserInfo storage userInfo = userInfos[_msgSender()];
 
-        require(
-            userInfo.balance >= _amount, 'VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked'
-        );
+        require(userInfo.balance >= _amount, 'VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked');
         updateRewardVars();
 
         // Note that we don't need to claim as the user's veFLOOR balance will be reset to 0
@@ -362,19 +342,15 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
         uint secondsElapsed = block.timestamp.sub(lastRewardTimestamp);
         if (secondsElapsed > 0) {
             _accVeFloorPerShare = _accVeFloorPerShare.add(
-                secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(
-                    VEFLOOR_PER_SHARE_PER_SEC_PRECISION
-                )
+                secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION)
             );
         }
-        uint pendingBaseVeFloor =
-            _accVeFloorPerShare.mul(user.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION).sub(user.rewardDebt);
+        uint pendingBaseVeFloor = _accVeFloorPerShare.mul(user.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION).sub(user.rewardDebt);
 
         // Calculate amount of pending speed up veFLOOR
         uint pendingSpeedUpVeFloor;
         if (user.speedUpEndTimestamp != 0) {
-            uint speedUpCeilingTimestamp =
-                block.timestamp > user.speedUpEndTimestamp ? user.speedUpEndTimestamp : block.timestamp;
+            uint speedUpCeilingTimestamp = block.timestamp > user.speedUpEndTimestamp ? user.speedUpEndTimestamp : block.timestamp;
             uint speedUpSecondsElapsed = speedUpCeilingTimestamp.sub(user.lastClaimTimestamp);
             uint speedUpAccVeFloorPerShare = speedUpSecondsElapsed.mul(speedUpVeFloorPerSharePerSec);
             pendingSpeedUpVeFloor = speedUpAccVeFloorPerShare.mul(user.balance).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION);
@@ -413,9 +389,7 @@ contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
 
         uint secondsElapsed = block.timestamp.sub(lastRewardTimestamp);
         accVeFloorPerShare = accVeFloorPerShare.add(
-            secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(
-                VEFLOOR_PER_SHARE_PER_SEC_PRECISION
-            )
+            secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION)
         );
         lastRewardTimestamp = block.timestamp;
 

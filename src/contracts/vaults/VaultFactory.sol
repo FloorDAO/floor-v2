@@ -219,5 +219,4 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     function setStakingContract(address _staking) public onlyRole(VAULT_MANAGER) {
         staking = _staking;
     }
-
 }

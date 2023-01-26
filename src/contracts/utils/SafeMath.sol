@@ -17,9 +17,9 @@ library SafeMathAlt {
      *
      * _Available since v3.4._
      */
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    function tryAdd(uint a, uint b) internal pure returns (bool, uint) {
         unchecked {
-            uint256 c = a + b;
+            uint c = a + b;
             if (c < a) return (false, 0);
             return (true, c);
         }
@@ -30,7 +30,7 @@ library SafeMathAlt {
      *
      * _Available since v3.4._
      */
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    function trySub(uint a, uint b) internal pure returns (bool, uint) {
         unchecked {
             if (b > a) return (false, 0);
             return (true, a - b);
@@ -42,13 +42,13 @@ library SafeMathAlt {
      *
      * _Available since v3.4._
      */
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    function tryMul(uint a, uint b) internal pure returns (bool, uint) {
         unchecked {
             // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
             // benefit is lost if 'b' is also tested.
             // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
             if (a == 0) return (true, 0);
-            uint256 c = a * b;
+            uint c = a * b;
             if (c / a != b) return (false, 0);
             return (true, c);
         }
@@ -59,7 +59,7 @@ library SafeMathAlt {
      *
      * _Available since v3.4._
      */
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    function tryDiv(uint a, uint b) internal pure returns (bool, uint) {
         unchecked {
             if (b == 0) return (false, 0);
             return (true, a / b);
@@ -71,7 +71,7 @@ library SafeMathAlt {
      *
      * _Available since v3.4._
      */
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+    function tryMod(uint a, uint b) internal pure returns (bool, uint) {
         unchecked {
             if (b == 0) return (false, 0);
             return (true, a % b);
@@ -88,7 +88,7 @@ library SafeMathAlt {
      *
      * - Addition cannot overflow.
      */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    function add(uint a, uint b) internal pure returns (uint) {
         return a + b;
     }
 
@@ -102,7 +102,7 @@ library SafeMathAlt {
      *
      * - Subtraction cannot overflow.
      */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    function sub(uint a, uint b) internal pure returns (uint) {
         return a - b;
     }
 
@@ -116,7 +116,7 @@ library SafeMathAlt {
      *
      * - Multiplication cannot overflow.
      */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+    function mul(uint a, uint b) internal pure returns (uint) {
         return a * b;
     }
 
@@ -130,7 +130,7 @@ library SafeMathAlt {
      *
      * - The divisor cannot be zero.
      */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    function div(uint a, uint b) internal pure returns (uint) {
         return a / b;
     }
 
@@ -146,7 +146,7 @@ library SafeMathAlt {
      *
      * - The divisor cannot be zero.
      */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+    function mod(uint a, uint b) internal pure returns (uint) {
         return a % b;
     }
 
@@ -163,7 +163,7 @@ library SafeMathAlt {
      *
      * - Subtraction cannot overflow.
      */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function sub(uint a, uint b, string memory errorMessage) internal pure returns (uint) {
         unchecked {
             require(b <= a, errorMessage);
             return a - b;
@@ -182,7 +182,7 @@ library SafeMathAlt {
      *
      * - The divisor cannot be zero.
      */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function div(uint a, uint b, string memory errorMessage) internal pure returns (uint) {
         unchecked {
             require(b > 0, errorMessage);
             return a / b;
@@ -204,7 +204,7 @@ library SafeMathAlt {
      *
      * - The divisor cannot be zero.
      */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function mod(uint a, uint b, string memory errorMessage) internal pure returns (uint) {
         unchecked {
             require(b > 0, errorMessage);
             return a % b;
@@ -218,8 +218,8 @@ library SafeMathAlt {
      *
      * - input must be less than or equal to maxInt256.
      */
-    function toInt256(uint256 value) internal pure returns (int256) {
-        require(value < 2**255, "SafeCast: value doesn't fit in an int256");
-        return int256(value);
+    function toInt256(uint value) internal pure returns (int) {
+        require(value < 2 ** 255, "SafeCast: value doesn't fit in an int256");
+        return int(value);
     }
 }

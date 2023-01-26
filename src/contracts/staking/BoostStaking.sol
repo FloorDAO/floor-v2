@@ -8,14 +8,12 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {IBoostStaking} from '../../interfaces/staking/BoostStaking.sol';
 
-
 /**
  * Partial interface for the Sweeper NFT data store.
  */
 interface ISweeperMetadataStore {
     function boostValue(uint) external returns (uint8);
 }
-
 
 /**
  * This contract allows a specified NFT to be depoited into it to generate additional
@@ -36,18 +34,17 @@ interface ISweeperMetadataStore {
  */
 
 contract BoostStaking is IBoostStaking, Pausable {
-
     /// Representation of rarity boost values to 1 decimal accuracy
-    uint8[4] internal RARITIES = [/* COMMON */ 10, /* UNCOMMON */ 25, /* RARE */ 50, /* LEGENDARY */ 100 ];
+    uint8[4] internal RARITIES = [ /* COMMON */ 10, /* UNCOMMON */ 25, /* RARE */ 50, /* LEGENDARY */ 100];
 
     /// Returns the address of the user that has staked the specified `tokenId`.
-    mapping (uint => address) public tokenStaked;
+    mapping(uint => address) public tokenStaked;
 
     /// Gets the number tokens that a user has staked at each boost value.
-    mapping (address => mapping(uint8 => uint16)) public userTokens;
+    mapping(address => mapping(uint8 => uint16)) public userTokens;
 
     /// The boost value applied to the user.
-    mapping (address => uint) public boosts;
+    mapping(address => uint) public boosts;
 
     /// NFT contract address.
     address public immutable nft;
@@ -58,7 +55,7 @@ contract BoostStaking is IBoostStaking, Pausable {
     /**
      * Sets up our immutable contract addresses.
      */
-    constructor (address _nft, address _tokenStore) {
+    constructor(address _nft, address _tokenStore) {
         nft = _nft;
         tokenStore = ISweeperMetadataStore(_tokenStore);
     }
@@ -121,13 +118,17 @@ contract BoostStaking is IBoostStaking, Pausable {
             // mass holdings providing massive reward increase.
             for (uint j = userTokens[msg.sender][RARITIES[i]]; j != 0;) {
                 newBoost += (RARITIES[i] / Math.sqrt(count));
-                unchecked { --j; ++count; }
+                unchecked {
+                    --j;
+                    ++count;
+                }
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Set our user's boost
         boosts[msg.sender] = newBoost;
     }
-
 }

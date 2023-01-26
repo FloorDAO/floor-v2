@@ -31,10 +31,7 @@ contract Utilities is DSTest {
      * Creates a set number of users, giving them an initial fund. We can
      * additionally add user labels if wanted for easier referencing.
      */
-    function createUsers(uint userNum, uint initialFunds, string[] memory userLabels)
-        public
-        returns (address payable[] memory)
-    {
+    function createUsers(uint userNum, uint initialFunds, string[] memory userLabels) public returns (address payable[] memory) {
         address payable[] memory users = new address payable[](userNum);
         address payable user;
 

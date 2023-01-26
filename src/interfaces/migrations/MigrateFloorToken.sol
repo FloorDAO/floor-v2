@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 interface IMigrateFloorToken {
-
     /**
      * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
      * V1 tokens in our test suites that should be accept. These include a, g and

@@ -113,10 +113,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
      *
      * Should emit the {OptionPoolCreated} event.
      */
-    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires)
-        external
-        returns (uint poolId)
-    {
+    function createPool(address token, uint amount, uint16 maxDiscount, uint64 expires) external returns (uint poolId) {
         // Sense check our provided data
         require(expires > block.timestamp, 'Pool already expired');
         require(amount != 0, 'No amount specified');
@@ -251,10 +248,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
             _options.push(
                 bytes32(
                     abi.encodePacked(
-                        uint8(share),
-                        uint8(discount),
-                        rarityScore(share, discount, pool.maxDiscount),
-                        uint8(s_requests[_requestId].poolId)
+                        uint8(share), uint8(discount), rarityScore(share, discount, pool.maxDiscount), uint8(s_requests[_requestId].poolId)
                     )
                 )
             );
@@ -467,11 +461,7 @@ contract OptionExchange is ConfirmedOwner, IOptionExchange, VRFV2WrapperConsumer
     /**
      *
      */
-    function getRequestStatus(uint _requestId)
-        external
-        view
-        returns (uint paid, bool fulfilled, uint[] memory randomWord)
-    {
+    function getRequestStatus(uint _requestId) external view returns (uint paid, bool fulfilled, uint[] memory randomWord) {
         require(s_requests[_requestId].paid > 0, 'Request not found');
         RequestStatus memory request = s_requests[_requestId];
         return (request.paid, request.fulfilled, request.randomWords);

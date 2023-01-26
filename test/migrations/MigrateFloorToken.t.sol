@@ -55,34 +55,22 @@ contract MigrateFloorTokenTest is FloorTest {
     function test_CanMigrateAllAcceptedV1TokensToV2() public {
         // Test FLOOR
         assertTokenTransfer(
-            0xf59257E961883636290411c11ec5Ae622d19455e,
-            0xC401d60e25490c14A614c89166b0742e5C677a2d,
-            1000000000000000000000,
-            true
+            0xf59257E961883636290411c11ec5Ae622d19455e, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 1000000000000000000000, true
         );
 
         // Test aFLOOR
         assertTokenTransfer(
-            0x0C3983165E9BcE0a9Bb43184CC4eEBb26dce48fA,
-            0xd7Ddf70125342f44E65ccbafAe5135F2bB6526bB,
-            200000000000000000000,
-            true
+            0x0C3983165E9BcE0a9Bb43184CC4eEBb26dce48fA, 0xd7Ddf70125342f44E65ccbafAe5135F2bB6526bB, 200000000000000000000, true
         );
 
         // Test gFLOOR
         assertTokenTransfer(
-            0xb1Cc59Fc717b8D4783D41F952725177298B5619d,
-            0x544C7D7f4F407b1B55D581CcD563c7Ca8aCfC686,
-            500000000000000000000,
-            true
+            0xb1Cc59Fc717b8D4783D41F952725177298B5619d, 0x544C7D7f4F407b1B55D581CcD563c7Ca8aCfC686, 500000000000000000000, true
         );
 
         // Test sFLOOR
         assertTokenTransfer(
-            0x164AFe96912099543BC2c48bb9358a095Db8e784,
-            0xc58bDf3d06073987983989eBFA1aC8187161fA71,
-            829614084791000000000,
-            true
+            0x164AFe96912099543BC2c48bb9358a095Db8e784, 0xc58bDf3d06073987983989eBFA1aC8187161fA71, 829614084791000000000, true
         );
     }
 
@@ -92,9 +80,7 @@ contract MigrateFloorTokenTest is FloorTest {
      */
     function testFail_CannotUpgradeWithInsufficientBalance() public {
         // Test against user with no holdings
-        assertTokenTransfer(
-            0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 0, true
-        );
+        assertTokenTransfer(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 0, true);
     }
 
     /**
@@ -103,15 +89,10 @@ contract MigrateFloorTokenTest is FloorTest {
      */
     function test_CannotUpgradeIfNotApproved() public {
         // Test FLOOR
-        assertTokenTransfer(
-            0xf59257E961883636290411c11ec5Ae622d19455e, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 0, false
-        );
+        assertTokenTransfer(0xf59257E961883636290411c11ec5Ae622d19455e, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 0, false);
     }
 
-    function assertTokenTransfer(address _token, address _account, uint _output, bool _approved)
-        private
-        returns (uint)
-    {
+    function assertTokenTransfer(address _token, address _account, uint _output, bool _approved) private returns (uint) {
         IERC20 token = IERC20(_token);
 
         // We want to capture our user's initial balances

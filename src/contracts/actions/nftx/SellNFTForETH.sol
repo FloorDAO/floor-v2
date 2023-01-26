@@ -71,8 +71,7 @@ contract NFTXSellNFTForETH is IAction {
             abi.decode(_request, (address, uint, uint[], uint, address[]));
 
         // Now we can map our extracted data into our ActionRequest
-        ActionRequest memory request =
-            ActionRequest({asset: asset, vaultId: vaultId, tokenIds: tokenIds, minEthOut: minEthOut, path: path});
+        ActionRequest memory request = ActionRequest({asset: asset, vaultId: vaultId, tokenIds: tokenIds, minEthOut: minEthOut, path: path});
 
         // Ensure that we have tokenIds sent
         uint length = request.tokenIds.length;

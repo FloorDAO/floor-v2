@@ -264,16 +264,14 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // If we cannot find an observation for our desired time, then we attempt to fallback
         // on the latest observation available to us
-        (bool success, bytes memory data) =
-            pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+        (bool success, bytes memory data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
         if (!success) {
             if (keccak256(data) != keccak256(abi.encodeWithSignature('Error(string)', 'OLD'))) revertBytes(data);
 
             // The oldest available observation in the ring buffer is the index following the current (accounting for wrapping),
             // since this is the one that will be overwritten next.
             (,, uint16 index, uint16 cardinality,,,) = IUniswapV3Pool(pool).slot0();
-            (uint32 oldestAvailableAge,,, bool initialized) =
-                IUniswapV3Pool(pool).observations((index + 1) % cardinality);
+            (uint32 oldestAvailableAge,,, bool initialized) = IUniswapV3Pool(pool).observations((index + 1) % cardinality);
 
             // If the following observation in a ring buffer of our current cardinality is uninitialized, then all the
             // observations at higher indices are also uninitialized, so we wrap back to index 0, which we now know
@@ -300,11 +298,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         return decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96);
     }
 
-    function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96)
-        private
-        pure
-        returns (uint price)
-    {
+    function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
         if (uint160(underlying) < uint160(WETH)) {
             price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2 ** (96 * 2)) / 1e18) / underlyingDecimalsScaler;
         } else {

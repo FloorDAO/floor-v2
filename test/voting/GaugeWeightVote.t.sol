@@ -47,8 +47,7 @@ contract GaugeWeightVoteTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy =
-            address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
 
         // Approve our test strategy implementation
         strategyRegistry.approveStrategy(approvedStrategy);
@@ -493,10 +492,7 @@ contract GaugeWeightVoteTest is FloorTest {
     /**
      * ...
      */
-    function _createCollectionVault(address collection, string memory vaultName)
-        internal
-        returns (address vaultAddr_)
-    {
+    function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
         // Approvals aren't needed and may throw issues with our mocked setups
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
 
@@ -527,5 +523,4 @@ contract GaugeWeightVoteTest is FloorTest {
             abi.encode(amount)
         );
     }
-
 }

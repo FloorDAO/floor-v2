@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {OwnableUpgradeable} from "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import {OwnableUpgradeable} from '@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol';
 
 import {VaultXToken} from '../tokens/VaultXToken.sol';
 
@@ -23,7 +23,6 @@ import {IVault} from '../../interfaces/vaults/Vault.sol';
  * claiming a substantial share of the rewards that others generated, and the exiting.
  */
 contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
-
     /**
      * The human-readable name of the vault.
      */
@@ -227,7 +226,9 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
             // Move our staker's pending position to be an actual position
             pendingPositions[pendingStakers[i]] = 0;
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Clear some gas

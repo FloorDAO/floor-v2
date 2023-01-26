@@ -8,15 +8,13 @@ import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 
-
 /**
  * Allows users to easily collect their FLOOR rewards from across all vaults and
  * their distributed VaultXToken rewards.
  */
 contract ClaimFloorRewardsZap is Pausable {
-
     /// Internal xToken cache
-    mapping (address => IVaultXToken) internal xTokenCache;
+    mapping(address => IVaultXToken) internal xTokenCache;
 
     /// Internal FLOOR contracts
     IFLOOR public immutable floor;
@@ -28,7 +26,7 @@ contract ClaimFloorRewardsZap is Pausable {
      * @param _floor {FLOOR} contract address
      * @param _vaultFactory {VaultFactory} contract address
      */
-    constructor (address _floor, address _vaultFactory) {
+    constructor(address _floor, address _vaultFactory) {
         floor = IFLOOR(_floor);
         vaultFactory = IVaultFactory(_vaultFactory);
     }
@@ -47,7 +45,9 @@ contract ClaimFloorRewardsZap is Pausable {
         address[] memory vaults = vaultFactory.vaults();
         for (uint i; i < vaults.length;) {
             _cachedXToken(vaults[i]).withdrawReward(msg.sender);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return floor.balanceOf(msg.sender) - startBalance;
@@ -67,7 +67,9 @@ contract ClaimFloorRewardsZap is Pausable {
         // Iterate the vaults and sum the total dividend amounts
         for (uint i; i < vaults.length;) {
             available_ += _cachedXToken(vaults[i]).dividendOf(_user);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -86,5 +88,4 @@ contract ClaimFloorRewardsZap is Pausable {
 
         return xTokenCache[_vault];
     }
-
 }

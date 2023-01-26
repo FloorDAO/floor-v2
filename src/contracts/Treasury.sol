@@ -20,12 +20,10 @@ import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
 import {ITreasury} from '../interfaces/Treasury.sol';
 
-
 /**
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
-
     /// Store when last epoch was run
     uint public lastEpoch;
     uint public EPOCH_LENGTH = 7 days;
@@ -68,13 +66,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param _vaultFactory Address of our {VaultFactory}
      * @param _floor Address of our {FLOOR}
      */
-    constructor(
-        address _authority,
-        address _collectionRegistry,
-        address _strategyRegistry,
-        address _vaultFactory,
-        address _floor
-    ) AuthorityControl(_authority) {
+    constructor(address _authority, address _collectionRegistry, address _strategyRegistry, address _vaultFactory, address _floor)
+        AuthorityControl(_authority)
+    {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
@@ -179,7 +173,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             // Update our vault share an apply pending positions
             vaultFactory.migratePendingDeposits(vault.vaultId());
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Withdraw our dividend reward tokens from the {Treasury} xToken
@@ -315,10 +311,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param tokenId The ID of the ERC1155 being withdrawn
      * @param amount The number of tokens to withdraw
      */
-    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount)
-        external
-        onlyRole(TREASURY_MANAGER)
-    {
+    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
         IERC1155(token).safeTransferFrom(address(this), recipient, tokenId, amount, '');
         emit WithdrawERC1155(token, tokenId, amount, recipient);
     }
@@ -403,10 +396,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address action, address[] memory approvals, bytes memory data)
-        external
-        onlyRole(TREASURY_MANAGER)
-    {
+    function processAction(address action, address[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
         for (uint i; i < approvals.length;) {
             IERC20(approvals[i]).approve(action, type(uint).max);
             unchecked {
@@ -430,7 +420,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         address[] memory vaults = vaultFactory.vaults();
         for (uint i; i < vaults.length;) {
             IVaultXToken(IVault(vaults[i]).xToken()).withdrawReward(address(this));
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         return floor.balanceOf(address(this)) - startBalance;

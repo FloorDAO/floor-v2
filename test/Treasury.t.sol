@@ -26,7 +26,6 @@ import '../src/interfaces/voting/GaugeWeightVote.sol';
 import './utilities/Environments.sol';
 
 contract TreasuryTest is FloorTest {
-
     // We want to store a small number of specific users for testing
     address alice;
     address bob;
@@ -69,9 +68,7 @@ contract TreasuryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Approve a strategy
-        approvedStrategy = address(
-            new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry))
-        );
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
         strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve a collection
@@ -662,11 +659,11 @@ contract TreasuryTest is FloorTest {
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](5);
-        (,vaults[0]) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), address(1));
-        (,vaults[1]) = vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), address(2));
-        (,vaults[2]) = vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), address(2));
-        (,vaults[3]) = vaultFactory.createVault('Test Vault 4', approvedStrategy, _strategyInitBytes(), address(3));
-        (,vaults[4]) = vaultFactory.createVault('Test Vault 5', approvedStrategy, _strategyInitBytes(), address(4));
+        (, vaults[0]) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), address(1));
+        (, vaults[1]) = vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), address(2));
+        (, vaults[2]) = vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), address(2));
+        (, vaults[3]) = vaultFactory.createVault('Test Vault 4', approvedStrategy, _strategyInitBytes(), address(3));
+        (, vaults[4]) = vaultFactory.createVault('Test Vault 5', approvedStrategy, _strategyInitBytes(), address(4));
 
         // Create a unique set of test users
         users = utilities.createUsers(8, 0);
@@ -835,17 +832,11 @@ contract TreasuryTest is FloorTest {
         floor.mint(address(treasury), 1000 ether);
 
         // TODO: Update rewards call
-        vm.mockCall(
-            address(treasury),
-            abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector),
-            abi.encode(100 ether)
-        );
+        vm.mockCall(address(treasury), abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector), abi.encode(100 ether));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(
-            address(gaugeWeightVote),
-            abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector),
-            abi.encode(type(uint).max)
+            address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max)
         );
 
         // Mock pending deposits migration (ignore)
@@ -898,5 +889,4 @@ contract TreasuryTest is FloorTest {
             0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
         );
     }
-
 }

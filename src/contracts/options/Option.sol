@@ -93,11 +93,7 @@ contract Option is ERC721URIStorage {
      */
     function baseURI() public pure returns (string memory) {}
 
-    function _beforeTokenTransfer(address from, address to, uint firstTokenId, uint batchSize)
-        internal
-        virtual
-        override
-    {
+    function _beforeTokenTransfer(address from, address to, uint firstTokenId, uint batchSize) internal virtual override {
         super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
     }
 }

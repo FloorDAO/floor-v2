@@ -46,13 +46,7 @@ contract VisualiseOptionWeighting is Script {
                 share = 100 - allocatedAmount;
             }
 
-            console.log(
-                string(
-                    abi.encodePacked(
-                        'Share: ', Strings.toString(share), '% :: Discount: ', Strings.toString(discount), '%'
-                    )
-                )
-            );
+            console.log(string(abi.encodePacked('Share: ', Strings.toString(share), '% :: Discount: ', Strings.toString(discount), '%')));
 
             // Add our share to the allocated amount
             allocatedAmount += share;
