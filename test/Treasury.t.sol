@@ -68,7 +68,7 @@ contract TreasuryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Approve a strategy
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
         strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve a collection
@@ -127,6 +127,7 @@ contract TreasuryTest is FloorTest {
         // Give our {Treasury} contract roles to manage (mint) Floor tokens
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(treasury));
         authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(treasury));
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(treasury));
         authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(treasury));
 
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
@@ -656,6 +657,9 @@ contract TreasuryTest is FloorTest {
         collectionRegistry.approveCollection(address(3));
         collectionRegistry.approveCollection(address(4));
 
+        // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
+        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
+
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](5);
@@ -825,13 +829,16 @@ contract TreasuryTest is FloorTest {
         gaugeWeightVote.setSampleSize(5);
         treasury.setRetainedTreasuryYieldPercentage(10000);
 
+        // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
+        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
+
         // Set a specific amount of rewards that our {Treasury} has generated to ensure
         // that we generate sufficient yield for the GWV snapshot. For this to work, we
         // need to mint the same amount of FLOOR into the {Treasury} that will be
         // transferred to the {RewardsLedger} when snapshot-ed.
         floor.mint(address(treasury), 1000 ether);
 
-        // TODO: Update rewards call
+        // Set the {Treasury} to claim 100 {FLOOR} tokens
         vm.mockCall(address(treasury), abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector), abi.encode(100 ether));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
@@ -882,11 +889,9 @@ contract TreasuryTest is FloorTest {
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {
         return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
             0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
         );
     }
 }

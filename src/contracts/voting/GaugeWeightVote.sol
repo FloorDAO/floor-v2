@@ -438,7 +438,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @return Reward weighting
      */
     function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint) {
-        return IBaseStrategy(IVault(vault).strategy()).totalRewardsGenerated();
+        return IVault(vault).lastEpochRewards();
     }
 
     /**

@@ -5,8 +5,6 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
-import {AuthorityControl} from '../authorities/AuthorityControl.sol';
-
 import {INFTXInventoryStaking} from '../../interfaces/nftx/NFTXInventoryStaking.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
 
@@ -20,7 +18,7 @@ import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initializable {
+contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
     /// The human-readable name of the inventory strategy
     bytes32 public immutable name;
 
@@ -30,9 +28,6 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
     /// The address of the vault the strategy is attached to
     address public vaultAddr;
 
-    /// TODO: Needed?
-    address public pool;
-
     /// The underlying token will be the same as the address of the NFTX vault.
     address public underlyingToken;
 
@@ -41,9 +36,6 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
 
     /// Address of the NFTX Inventory Staking contract
     address public inventoryStaking;
-
-    /// Address of the Floor {Treasury}
-    address public treasury;
 
     /**
      * This will return the internally tracked value of tokens that have been minted into
@@ -69,12 +61,11 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
     uint public deposits;
 
     /**
-     * Sets our strategy name and initializes our {AuthorityControl}.
+     * Sets our strategy name.
      *
      * @param _name Human-readable name of the strategy
-     * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(bytes32 _name, address _authority) AuthorityControl(_authority) {
+    constructor(bytes32 _name) {
         name = _name;
     }
 
@@ -86,17 +77,18 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * @param initData Encoded data to be decoded
      */
     function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
-        (address _pool, address _underlyingToken, address _yieldToken, address _inventoryStaking, address _treasury) =
-            abi.decode(initData, (address, address, address, address, address));
+        (
+            address _underlyingToken,
+            address _yieldToken,
+            address _inventoryStaking
+        ) = abi.decode(initData, (address, address, address));
 
-        pool = _pool;
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;
         vaultId = _vaultId;
         vaultAddr = _vaultAddr;
 
         inventoryStaking = _inventoryStaking;
-        treasury = _treasury;
     }
 
     /**
@@ -227,9 +219,14 @@ contract NFTXInventoryStakingStrategy is AuthorityControl, IBaseStrategy, Initia
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      *
+     * @dev Only to be called by the {Treasury}
+     *
      * @param amount Amount of token to be registered as minted
      */
-    function registerMint(uint amount) external onlyRole(TREASURY_MANAGER) {}
+    function registerMint(address recipient, uint amount) external onlyVault {
+        bool success = IERC20(yieldToken).transfer(recipient, amount);
+        require(success == true, 'Unable to register mint');
+    }
 
     /**
      * Allows us to restrict calls to only be made by the connected vaultId.

@@ -43,7 +43,7 @@ contract VaultTest is FloorTest {
         StrategyRegistry strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Set up an inventory staking strategy
-        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK'), address(authorityRegistry));
+        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK'));
 
         // Approve our test strategy implementation
         strategyRegistry.approveStrategy(address(strategy));
@@ -95,6 +95,8 @@ contract VaultTest is FloorTest {
 
         vm.label(vaultAddress, 'Test Vault');
         vm.label(vault.xToken(), 'Test Vault xToken');
+        vm.label(address(vault.strategy()), 'Test Vault Strategy');
+        vm.label(vault.collection(), 'Test Vault Collection');
     }
 
     /**

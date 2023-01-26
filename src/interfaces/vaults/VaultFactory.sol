@@ -47,4 +47,8 @@ interface IVaultFactory {
     function migratePendingDeposits(uint _vaultId) external;
 
     function distributeRewards(uint _vaultId, uint _amount) external;
+
+    function claimRewards(uint _vaultId) external returns (uint);
+
+    function registerMint(uint _vaultId, uint _amount) external;
 }

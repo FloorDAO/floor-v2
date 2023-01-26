@@ -21,16 +21,14 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
     function setUp() public {
         // Set up our pricing executor
-        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'), address(authorityRegistry));
+        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
         strategy.initialize(
             0, // Vault ID
             testUser, // Vault Address (set to our testUser so that it can call strategy methods direct)
             abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
                 0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
             )
         );
     }
@@ -62,13 +60,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      */
     function test_CanGetUnderlyingToken() public {
         assertEq(strategy.underlyingToken(), 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
-    }
-
-    /**
-     *
-     */
-    function test_CanGetPool() public {
-        assertEq(strategy.pool(), 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
     }
 
     /**

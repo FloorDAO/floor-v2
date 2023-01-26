@@ -42,8 +42,8 @@ contract VaultFactoryTest is FloorTest {
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy'), address(authorityRegistry)));
-        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy'), address(authorityRegistry)));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy')));
 
         // Approve our test strategy implementation
         strategyRegistry.approveStrategy(approvedStrategy);
@@ -183,11 +183,9 @@ contract VaultFactoryTest is FloorTest {
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {
         return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
             0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
         );
     }
 }

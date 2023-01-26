@@ -73,7 +73,7 @@ interface IBaseStrategy {
      * has minted FLOOR and that the internally stored `mintedRewards` integer should be
      * updated accordingly.
      */
-    function registerMint(uint amount) external;
+    function registerMint(address recipient, uint amount) external;
 
     /**
      * TODO: ..

@@ -74,6 +74,11 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
     address internal vaultXToken;
 
     /**
+     * The amount of rewards claimed in the last claim call.
+     */
+    uint public lastEpochRewards;
+
+    /**
      * Set up our vault information.
      *
      * @param _name Human-readable name of the vault
@@ -200,19 +205,24 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
     }
 
     /**
-     * Allows the {Treasury} to claim rewards from the vault's strategy
+     * Allows the {Treasury} to claim rewards from the vault's strategy.
      *
-     * @return The amount of rewards claimed
-     *
-     * TODO: Restrict access to {Treasury}
+     * @return The amount of rewards waiting to be minted into {FLOOR}
      */
-    function claimRewards() external returns (uint) {
+    function claimRewards() external onlyOwner returns (uint) {
         // Claim any unharvested rewards from the strategy
-        strategy.claimRewards();
-        uint amount = strategy.unmintedRewards();
-        // TODO: Transfer to treasury?
-        strategy.registerMint(amount);
-        return amount;
+        lastEpochRewards = strategy.claimRewards();
+
+        // After claiming the rewards we can get a count of how many reward tokens
+        // are unminted in the strategy.
+        return strategy.unmintedRewards();
+    }
+
+    /**
+     * ..
+     */
+    function registerMint(address recipient, uint _amount) external onlyOwner {
+        strategy.registerMint(recipient, _amount);
     }
 
     /**

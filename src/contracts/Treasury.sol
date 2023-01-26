@@ -13,6 +13,7 @@ import {FLOOR} from './tokens/Floor.sol';
 import {IAction} from '../interfaces/actions/Action.sol';
 import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
+import {IBaseStrategy} from '../interfaces/strategies/BaseStrategy.sol';
 import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
 import {IVaultXToken} from './tokens/VaultXToken.sol';
 import {IVault} from '../interfaces/vaults/Vault.sol';
@@ -132,8 +133,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Ensure enough time has past since the last epoch ended
         require(lastEpoch == 0 || block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
 
-        // TODO: Maybe: If floor minting is paused, prevent the epoch from ending
-        // require(!floorMintingPaused, 'Floor minting is currently paused');
+        // If floor minting is paused, prevent the epoch from ending
+        require(!floorMintingPaused, 'Floor minting is currently paused');
 
         // Get our vaults
         address[] memory vaults = vaultFactory.vaults();
@@ -149,29 +150,27 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             IVault vault = IVault(vaults[i]);
 
             // Pull out rewards and transfer into the {Treasury}
-            uint vaultYield = vault.claimRewards();
+            uint vaultId = vault.vaultId();
+            uint vaultYield = vaultFactory.claimRewards(vaultId);
 
             // Get our vault collection address
             address vaultCollection = vault.collection();
-
-            // If our floor minting is paused, then we just want to directly allocate
-            // the generated token to the user, rather than converting it to FLOOR.
-            if (floorMintingPaused) {
-                // TODO: Maybe: Distribute tokens directly into the rewards ledger for the user. This will
-                // add more gas, but this is (in theory) a smaller use case.
-                continue;
-            }
 
             // Calculate the reward yield in FLOOR token terms
             uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
             if (floorTokenRewardAmount != 0) {
                 // Distribute the reward yield to our reward token
                 floor.mint(vault.xToken(), floorTokenRewardAmount);
-                vaultFactory.distributeRewards(vault.vaultId(), floorTokenRewardAmount);
+                vaultFactory.distributeRewards(vaultId, floorTokenRewardAmount);
+
+                // Now that the {Treasury} has knowledge of the reward tokens and has minted
+                // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
+                // the {Treasury}.
+                vaultFactory.registerMint(vaultId, vaultYield);
             }
 
             // Update our vault share an apply pending positions
-            vaultFactory.migratePendingDeposits(vault.vaultId());
+            vaultFactory.migratePendingDeposits(vaultId);
 
             unchecked {
                 ++i;

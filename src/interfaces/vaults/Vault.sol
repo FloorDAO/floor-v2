@@ -52,9 +52,14 @@ interface IVault {
     function vaultId() external view returns (uint);
 
     /**
-     * TODO: ..
+     * Allows the {Treasury} to claim rewards from the vault's strategy.
      */
     function claimRewards() external returns (uint);
+
+    /**
+     * The amount of yield token generated in the last epoch by the vault.
+     */
+    function lastEpochRewards() external returns (uint);
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
@@ -88,4 +93,6 @@ interface IVault {
     function xToken() external returns (address);
 
     function distributeRewards(uint amount) external;
+
+    function registerMint(address recipient, uint amount) external;
 }

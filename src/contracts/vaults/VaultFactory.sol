@@ -201,6 +201,10 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         IVault(vaultIds[_vaultId]).migratePendingDeposits();
     }
 
+    function claimRewards(uint _vaultId) public onlyRole(TREASURY_MANAGER) returns (uint) {
+        return IVault(vaultIds[_vaultId]).claimRewards();
+    }
+
     /**
      * Distributes rewards into the {VaultXToken} via the {Vault}.
      *
@@ -209,6 +213,13 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      */
     function distributeRewards(uint _vaultId, uint _amount) public onlyRole(REWARDS_MANAGER) {
         IVault(vaultIds[_vaultId]).distributeRewards(_amount);
+    }
+
+    /**
+     * ..
+     */
+    function registerMint(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) {
+        IVault(vaultIds[_vaultId]).registerMint(msg.sender, _amount);
     }
 
     /**
