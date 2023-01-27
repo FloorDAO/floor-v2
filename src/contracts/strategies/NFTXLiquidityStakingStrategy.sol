@@ -5,9 +5,20 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount} from '../utils/Errors.sol';
+
 import {INFTXLiquidityStaking} from '../../interfaces/nftx/NFTXLiquidityStaking.sol';
 import {ITimelockRewardDistributionToken} from '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+
+/// If the contract was unable to transfer tokens when registering the mint
+/// @param recipient The recipient of the token transfer
+/// @param amount The amount requested to be transferred
+error UnableToTransferTokens(address recipient, uint amount);
+
+/// If a caller of a protected function is not the parent vault
+/// @param sender The address making the call
+error SenderIsNotVault(address sender);
 
 /**
  * Supports an Liquidity Staking position against a single NFTX vault. This strategy
@@ -120,7 +131,10 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * @return xTokensReceived Amount of yield token returned from NFTX
      */
     function deposit(uint amount) external onlyVault returns (uint xTokensReceived) {
-        require(amount != 0, 'Cannot deposit 0');
+        // Prevent users from trying to deposit nothing
+        if (amount == 0) {
+            revert CannotDepositZeroAmount();
+        }
 
         // Get the SLP token from the user
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
@@ -146,7 +160,10 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * @return amount_ Amount of the underlying token returned
      */
     function withdraw(uint amount) external onlyVault returns (uint amount_) {
-        require(amount != 0, 'Cannot claim 0');
+        // Prevent users from trying to claim nothing
+        if (amount == 0) {
+            revert CannotWithdrawZeroAmount();
+        }
 
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
         INFTXLiquidityStaking(liquidityStaking).withdraw(vaultId, amount);
@@ -219,14 +236,18 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      */
     function registerMint(address recipient, uint amount) external onlyVault {
         bool success = IERC20(pool).transfer(recipient, amount);
-        require(success == true, 'Unable to register mint');
+        if (!success) {
+            revert UnableToTransferTokens(recipient, amount);
+        }
     }
 
     /**
      * Allows us to restrict calls to only be made by the connected vaultId.
      */
     modifier onlyVault() {
-        require(msg.sender == vaultAddr);
+        if (msg.sender != vaultAddr) {
+            revert SenderIsNotVault(msg.sender);
+        }
         _;
     }
 }

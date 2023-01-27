@@ -7,6 +7,8 @@ import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {IAction} from '../../../interfaces/actions/Action.sol';
 import {INFTXMarketplaceZap} from '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
 
+error NoTokensProvided();
+
 /**
  * This action allows us to batch sell ERC721 NFT tokens from the {Treasury}
  * into a specific NFTX vault.
@@ -75,7 +77,9 @@ contract NFTXSellNFTForETH is IAction {
 
         // Ensure that we have tokenIds sent
         uint length = request.tokenIds.length;
-        require(length != 0, 'No tokens provided');
+        if (length == 0) {
+            revert NoTokensProvided();
+        }
 
         // Loop through our tokens to transfer
         for (uint i; i < length;) {

@@ -9,6 +9,9 @@ import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import {IBasePricingExecutor} from '../../interfaces/pricing/BasePricingExecutor.sol';
 
+/// require(pool != address(0), 'Unknown pool');
+error UnknownUniswapPool();
+
 /**
  * Partial interface for the {IUniswapV3Factory} contract. The full interface can be found here:
  * https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
@@ -235,7 +238,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         }
 
         // Ensure we don't have a NULL pool
-        require(pool != address(0), 'Unknown pool');
+        if (pool == address(0)) {
+            revert UnknownUniswapPool();
+        }
 
         // Store the optimal token pool into an internal cache. This prevents of pools
         // from being referenced in the future, but saves substantial gas over time.

@@ -7,6 +7,15 @@ import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 import {IAuthorityControl} from '../../interfaces/authorities/AuthorityControl.sol';
 import {IAuthorityRegistry} from '../../interfaces/authorities/AuthorityRegistry.sol';
 
+/// If the account does not have the required role for the call.
+/// @param caller The address making the call
+/// @param role The role that is required for the call
+error AccountDoesNotHaveRole(address caller, bytes32 role);
+
+/// If the account does not have the required admin role for the call.
+/// @param caller The address making the call
+error AccountDoesNotHaveAdminRole(address caller);
+
 /**
  * This contract is heavily based on the standardised OpenZeppelin `AccessControl` library.
  * This allows for the creation of role based access levels that can be assigned to 1-n
@@ -65,7 +74,9 @@ contract AuthorityControl is Context, IAuthorityControl {
      * @param role The keccak256 encoded role string
      */
     modifier onlyRole(bytes32 role) {
-        require(registry.hasRole(role, _msgSender()), 'Account does not have role');
+        if (!registry.hasRole(role, _msgSender())) {
+            revert AccountDoesNotHaveRole(_msgSender(), role);
+        }
         _;
     }
 
@@ -74,7 +85,9 @@ contract AuthorityControl is Context, IAuthorityControl {
      * Reverts with a standardized message if sender does not have an admin role.
      */
     modifier onlyAdminRole() {
-        require(registry.hasAdminRole(_msgSender()), 'Account does not have admin role');
+        if (!registry.hasAdminRole(_msgSender())) {
+            revert AccountDoesNotHaveAdminRole(_msgSender());
+        }
         _;
     }
 

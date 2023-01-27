@@ -6,6 +6,17 @@ import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
 import {IVeFLOOR} from '../../interfaces/tokens/VeFloor.sol';
 
+/// If the caller attempts to mint tokens to a zero address
+error CannotMintToZeroAddress();
+
+/// If the caller attempts to burn from a zero address
+error CannotBurnFromZeroAddress();
+
+/// If a user requests to burn more than their available token balance
+/// @param amount The amount requested to be burnt
+/// @param available The amount available to be burnt
+error BurnAmountExceedsBalance(uint amount, uint available);
+
 /**
  * When a user stakes their FLOOR token in the {VeFloorStaking} contract, they will
  * receive a 1:1 {veFLOOR} token in return.
@@ -109,7 +120,9 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * - `account` cannot be the zero address.
      */
     function _mint(address account, uint amount) internal virtual {
-        require(account != address(0), 'ERC20: mint to the zero address');
+        if (account == address(0)) {
+            revert CannotMintToZeroAddress();
+        }
 
         _beforeTokenOperation(address(0), account, amount);
 
@@ -145,12 +158,17 @@ contract veFLOOR is AuthorityControl, IVeFLOOR {
      * - `account` must have at least `amount` tokens.
      */
     function _burn(address account, uint amount) internal virtual {
-        require(account != address(0), 'ERC20: burn from the zero address');
+        if (account == address(0)) {
+            revert CannotBurnFromZeroAddress();
+        }
 
         _beforeTokenOperation(account, address(0), amount);
 
         uint accountBalance = _balances[account];
-        require(accountBalance >= amount, 'ERC20: burn amount exceeds balance');
+        if (amount > accountBalance) {
+            revert BurnAmountExceedsBalance(amount, accountBalance);
+        }
+
         unchecked {
             _balances[account] = accountBalance - amount;
             // Overflow not possible: amount <= accountBalance <= totalSupply.

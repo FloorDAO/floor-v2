@@ -6,6 +6,13 @@ import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
 import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
 
+/// If a zero address strategy tries to be approved
+error CannotApproveNullStrategy();
+
+/// If a strategy that is not already approved attempts to be revoked
+/// @param contractAddr Address of the contract trying to be revoked
+error CannotRevokeUnapprovedStrategy(address contractAddr);
+
 /**
  * Allows strategy contracts to be approved and revoked by addresses holding the
  * {StrategyManager} role. Only once approved can these strategies be applied to
@@ -44,7 +51,9 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      * @param contractAddr Strategy to be approved
      */
     function approveStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
-        require(contractAddr != address(0), 'Cannot approve NULL strategy');
+        if (contractAddr == address(0)) {
+            revert CannotApproveNullStrategy();
+        }
 
         if (!strategies[contractAddr]) {
             strategies[contractAddr] = true;
@@ -61,7 +70,9 @@ contract StrategyRegistry is AuthorityControl, IStrategyRegistry {
      * @param contractAddr Strategy to be revoked
      */
     function revokeStrategy(address contractAddr) external onlyRole(STRATEGY_MANAGER) {
-        require(strategies[contractAddr], 'Strategy is not approved');
+        if (!strategies[contractAddr]) {
+            revert CannotRevokeUnapprovedStrategy(contractAddr);
+        }
 
         strategies[contractAddr] = false;
         emit StrategyRevoked(contractAddr);

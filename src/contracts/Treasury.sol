@@ -9,6 +9,7 @@ import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 
 import {AuthorityControl} from './authorities/AuthorityControl.sol';
 import {FLOOR} from './tokens/Floor.sol';
+import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from './utils/Errors.sol';
 
 import {IAction} from '../interfaces/actions/Action.sol';
 import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
@@ -20,6 +21,16 @@ import {IVault} from '../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
 import {ITreasury} from '../interfaces/Treasury.sol';
+
+/// If the epoch is currently timelocked and insufficient time has passed.
+/// @param timelockExpiry The timestamp at which the epoch can next be run
+error EpochTimelocked(uint timelockExpiry);
+
+/// If floor minting is paused, prevent the epoch from ending
+error FloorMintingIsPaused();
+
+/// If not pricing executor has been set before a call that requires it
+error NoPricingExecutorSet();
 
 /**
  * The Treasury will hold all assets.
@@ -131,18 +142,20 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      */
     function endEpoch() external {
         // Ensure enough time has past since the last epoch ended
-        require(lastEpoch == 0 || block.timestamp >= lastEpoch + EPOCH_LENGTH, 'Not enough time since last epoch');
+        if (lastEpoch != 0 && block.timestamp >= lastEpoch + EPOCH_LENGTH) {
+            revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
+        }
 
         // If floor minting is paused, prevent the epoch from ending
-        require(!floorMintingPaused, 'Floor minting is currently paused');
+        if (floorMintingPaused) {
+            revert FloorMintingIsPaused();
+        }
 
         // Get our vaults
         address[] memory vaults = vaultFactory.vaults();
 
         // Get the prices of our approved collections
-        if (!floorMintingPaused) {
-            this.getCollectionFloorPrices();
-        }
+        this.getCollectionFloorPrices();
 
         // Iterate over vaults
         for (uint i; i < vaults.length;) {
@@ -182,7 +195,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // snapshot.
 
         // Confirm we are not retaining all {Treasury} yield
-        if (!floorMintingPaused && retainedTreasuryYieldPercentage != 10000) {
+        if (retainedTreasuryYieldPercentage != 10000) {
             // Claim our tokens from the {Treasury} xToken allocation
             uint claimAmount = _claimTreasuryFloor();
             if (claimAmount != 0) {
@@ -212,7 +225,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param amount The amount of {FLOOR} tokens to be minted
      */
     function mint(uint amount) external onlyRole(TREASURY_MANAGER) {
-        require(amount != 0, 'Cannot mint zero Floor');
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
+
         _mint(address(this), amount);
     }
 
@@ -236,7 +252,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      */
     function depositERC20(address token, uint amount) external {
         bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
-        require(success, 'Unable to deposit');
+        if (!success) {
+            revert TransferFailed();
+        }
+
         emit DepositERC20(token, amount);
     }
 
@@ -273,7 +292,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      */
     function withdraw(address recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
         (bool success,) = recipient.call{value: amount}('');
-        require(success, 'Unable to withdraw');
+        if (!success) {
+            revert TransferFailed();
+        }
+
         emit Withdraw(amount, recipient);
     }
 
@@ -286,7 +308,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
         bool success = IERC20(token).transfer(recipient, amount);
-        require(success, 'Unable to withdraw');
+        if (!success) {
+            revert TransferFailed();
+        }
+
         emit WithdrawERC20(token, amount, recipient);
     }
 
@@ -321,7 +346,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param contractAddr Address of new {GaugeWeightVote} contract
      */
     function setGaugeWeightVoteContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        require(contractAddr != address(0), 'Cannot set to null address');
+        if (contractAddr == address(0)) {
+            revert CannotSetNullAddress();
+        }
+
         voteContract = IGaugeWeightVote(contractAddr);
     }
 
@@ -332,7 +360,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param percent New treasury yield percentage value
      */
     function setRetainedTreasuryYieldPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
-        require(percent <= 10000, 'Percentage too high');
+        if (percent > 10000) {
+            revert PercentageTooHigh(10000);
+        }
+
         retainedTreasuryYieldPercentage = percent;
     }
 
@@ -361,7 +392,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
      */
     function getCollectionFloorPrices() external {
-        require(address(pricingExecutor) != address(0), 'No pricing executor set');
+        if (address(pricingExecutor) == address(0)) {
+            revert NoPricingExecutorSet();
+        }
 
         // Get our approved collections
         address[] memory collections = collectionRegistry.approvedCollections();
@@ -384,7 +417,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param contractAddr Address of new {IBasePricingExecutor} contract
      */
     function setPricingExecutor(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        require(contractAddr != address(0), 'Cannot set to null address');
+        if (contractAddr == address(0)) {
+            revert CannotSetNullAddress();
+        }
+
         pricingExecutor = IBasePricingExecutor(contractAddr);
     }
 

@@ -8,9 +8,24 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {OwnableUpgradeable} from '@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol';
 
 import {VaultXToken} from '../tokens/VaultXToken.sol';
+import {InsufficientAmount} from '../utils/Errors.sol';
 
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
+
+/// If a protected function is called when the Vault contract is paused
+error VaultIsPaused();
+
+/// If a zero amount is sent to be deposited
+error ZeroAmountReceivedFromDeposit();
+
+/// If a zero amount is sent to be withdrawn
+error ZeroAmountReceivedFromWithdraw();
+
+/// If the caller has an insufficient position to withdraw from
+/// @param amount The amount requested to withdraw
+/// @param position The amount available to withdraw for the caller
+error InsufficientPosition(uint amount, uint position);
 
 /**
  * Vaults are responsible for handling end-user token transactions with regards
@@ -115,7 +130,9 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
      */
     function deposit(uint amount) external nonReentrant returns (uint) {
         // Ensure that our vault is not paused
-        require(!paused, 'Vault is currently paused');
+        if (paused) {
+            revert VaultIsPaused();
+        }
 
         // Transfer tokens from our user to the vault
         IERC20(collection).transferFrom(msg.sender, address(this), amount);
@@ -124,7 +141,10 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
         // moved into the position for the address.
         IERC20(collection).approve(address(strategy), amount);
         uint receivedAmount = strategy.deposit(amount);
-        require(receivedAmount != 0, 'Zero amount received');
+
+        if (receivedAmount == 0) {
+            revert ZeroAmountReceivedFromDeposit();
+        }
 
         // Fire events to stalkers
         emit VaultDeposit(msg.sender, collection, receivedAmount);
@@ -151,14 +171,21 @@ contract Vault is IVault, OwnableUpgradeable, ReentrancyGuard {
      */
     function withdraw(uint amount) external nonReentrant returns (uint) {
         // Ensure we are withdrawing something
-        require(amount > 0, 'Insufficient amount requested');
+        if (amount == 0) {
+            revert InsufficientAmount();
+        }
 
         // Ensure our user has sufficient position to withdraw from
-        require(amount <= VaultXToken(vaultXToken).balanceOf(msg.sender) + pendingPositions[msg.sender], 'Insufficient position');
+        uint userPosition = VaultXToken(vaultXToken).balanceOf(msg.sender) + pendingPositions[msg.sender];
+        if (amount > userPosition) {
+            revert InsufficientPosition(amount, userPosition);
+        }
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);
-        require(receivedAmount != 0, 'Zero amount received');
+        if (receivedAmount == 0) {
+            revert ZeroAmountReceivedFromWithdraw();
+        }
 
         // Transfer the tokens to the user
         IERC20(collection).transfer(msg.sender, receivedAmount);

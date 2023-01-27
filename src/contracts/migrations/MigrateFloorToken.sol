@@ -8,6 +8,9 @@ import {FLOOR} from '../tokens/Floor.sol';
 
 import {IMigrateFloorToken} from '../../interfaces/migrations/MigrateFloorToken.sol';
 
+/// If there are no tokens available for the recipient
+error NoTokensAvailableToMigrate();
+
 /**
  * Burns FLOOR v1 tokens for FLOOR v2 tokens. We have a list of the defined
  * V1 tokens in our test suites that should be accept. These include a, g and
@@ -80,7 +83,9 @@ contract MigrateFloorToken is IMigrateFloorToken {
         }
 
         // Assert that we have tokens to mint, otherwise we revert the tx
-        require(floorAllocation != 0, 'No tokens available to migrate');
+        if (floorAllocation == 0) {
+            revert NoTokensAvailableToMigrate();
+        }
 
         // Mint our FLOOR tokens to the sender
         FLOOR(newFloor).mint(msg.sender, floorAllocation);

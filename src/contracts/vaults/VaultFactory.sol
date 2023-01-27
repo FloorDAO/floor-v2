@@ -7,12 +7,19 @@ import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 import {VaultXToken} from '../tokens/VaultXToken.sol';
+import {CollectionNotApproved, StrategyNotApproved} from '../utils/Errors.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
 import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
+
+// Ensure our {VeFloorStaking} contract address has been set
+error StakingContractCannotBeNull();
+
+// No empty names, that's just silly
+error VaultNameCannotBeEmpty();
 
 /**
  * Allows for vaults to be created, pairing them with a {Strategy} and an approved
@@ -64,11 +71,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _vaultXTokenImplementation,
         address _floor
     ) AuthorityControl(_authority) {
-        // Sense check that our contracts don't have NULL addresses
-        require(_collectionRegistry != address(0), '_collectionRegistry cannot be NULL');
-        require(_strategyRegistry != address(0), '_strategyRegistry cannot be NULL');
-        require(_floor != address(0), 'FLOOR token cannot be NULL');
-
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
@@ -131,16 +133,24 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         returns (uint vaultId_, address vaultAddr_)
     {
         // Ensure our {VeFloorStaking} contract address has been set
-        require(staking != address(0), 'Staking contract cannot be NULL');
+        if (staking == address(0)) {
+            revert StakingContractCannotBeNull();
+        }
 
         // No empty names, that's just silly
-        require(bytes(_name).length != 0, 'Name cannot be empty');
+        if (bytes(_name).length == 0) {
+            revert VaultNameCannotBeEmpty();
+        }
 
         // Make sure strategy is approved
-        require(strategyRegistry.isApproved(_strategy), 'Strategy not approved');
+        if (!strategyRegistry.isApproved(_strategy)) {
+            revert StrategyNotApproved(_strategy);
+        }
 
         // Make sure the collection is approved
-        require(collectionRegistry.isApproved(_collection), 'Collection not approved');
+        if (!collectionRegistry.isApproved(_collection)) {
+            revert CollectionNotApproved(_collection);
+        }
 
         // Capture our vaultId, before we increment the array length
         vaultId_ = _vaults.length;

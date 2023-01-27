@@ -13,6 +13,13 @@ import {SafeMathInt} from '../utils/SafeMathInt.sol';
 import {IVeFloorStaking} from '../../interfaces/staking/VeFloorStaking.sol';
 import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 
+/// If there is a zero supply of the VaultXToken then there is no-one to distribute
+/// rewards to.
+error TotalSupplyIsZero();
+
+/// If a zero amount is sent to be distributed
+error CannotDistributeZeroRewards();
+
 /**
  * VaultXToken - (Based on Dividend Token)
  * @author Roger Wu (https://github.com/roger-wu)
@@ -148,8 +155,15 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
      * @param amount Amount of rewards to distribute amongst holders
      */
     function distributeRewards(uint amount) external virtual onlyOwner {
-        require(totalSupply() != 0, 'RewardDist: 0 supply');
-        require(amount != 0, 'RewardDist: 0 amount');
+        // RewardDist: 0 supply
+        if (totalSupply() == 0) {
+            revert TotalSupplyIsZero();
+        }
+
+        // RewardDist: 0 amount
+        if (amount == 0) {
+            revert CannotDistributeZeroRewards();
+        }
 
         // Because we receive the tokens from the staking contract, we assume the FLOOR tokens
         // have already been sent.

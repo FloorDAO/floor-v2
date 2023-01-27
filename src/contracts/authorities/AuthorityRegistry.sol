@@ -6,6 +6,18 @@ import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 
 import {IAuthorityRegistry} from '../../interfaces/authorities/AuthorityRegistry.sol';
 
+/// require(hasAdminRole(_msgSender()), 'Only admin roles can grant roles');
+error UserDoesNotAnAdminRole(address user);
+
+/// require(_roles[GOVERNOR][_msgSender()]);
+error UserDoesNotHaveGovernorRole(address user);
+
+/// require(account != _msgSender());
+error CannotGrantGovernorRoleToSelf();
+
+/// require(role != GOVERNOR, 'Governor role cannot be revoked');
+error CannotRevokeGovernorRole();
+
 /**
  * The {AuthorityRegistry} allows us to assign roles to wallet addresses that we can persist across
  * our various contracts. The roles will offer explicit permissions to perform actions within those
@@ -68,11 +80,18 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param account Address to grant the role to
      */
     function grantRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), 'Only admin roles can grant roles');
+        if (!hasAdminRole(_msgSender())) {
+            revert UserDoesNotAnAdminRole(_msgSender());
+        }
 
         if (role == GOVERNOR) {
-            require(_roles[GOVERNOR][_msgSender()]);
-            require(account != _msgSender());
+            if (!_roles[GOVERNOR][_msgSender()]) {
+                revert UserDoesNotHaveGovernorRole(_msgSender());
+            }
+
+            if (account == _msgSender()) {
+                revert CannotGrantGovernorRoleToSelf();
+            }
 
             _roles[role][_msgSender()] = false;
         }
@@ -106,8 +125,13 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param account Address to revoke role from
      */
     function revokeRole(bytes32 role, address account) public virtual override {
-        require(hasAdminRole(_msgSender()), 'Only admin roles can revoke roles');
-        require(role != GOVERNOR, 'Governor role cannot be revoked');
+        if (!hasAdminRole(_msgSender())) {
+            revert UserDoesNotAnAdminRole(_msgSender());
+        }
+
+        if (role == GOVERNOR) {
+            revert CannotRevokeGovernorRole();
+        }
 
         if (hasRole(role, account)) {
             _roles[role][account] = false;
@@ -132,7 +156,9 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
      * @param role The keccak256 encoded role string being revoked
      */
     function renounceRole(bytes32 role) public virtual override {
-        require(role != GOVERNOR, 'Governor role cannot be renounced');
+        if (role == GOVERNOR) {
+            revert CannotRevokeGovernorRole();
+        }
 
         if (hasRole(role, _msgSender())) {
             _roles[role][_msgSender()] = false;

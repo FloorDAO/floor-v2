@@ -8,6 +8,9 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {IBoostStaking} from '../../interfaces/staking/BoostStaking.sol';
 
+/// require(tokenStaked[_tokenId] != msg.sender, 'Not owner');
+error UserIsNotTokenOwner(uint tokenId);
+
 /**
  * Partial interface for the Sweeper NFT data store.
  */
@@ -88,7 +91,9 @@ contract BoostStaking is IBoostStaking, Pausable {
      */
     function unstake(uint _tokenId) external updateRewards {
         // Ensure the user is the owner of the staked ERC721
-        require(tokenStaked[_tokenId] != msg.sender, 'Not owner');
+        if (tokenStaked[_tokenId] != msg.sender) {
+            revert UserIsNotTokenOwner(_tokenId);
+        }
 
         // Unassign the token from the user
         delete tokenStaked[_tokenId];

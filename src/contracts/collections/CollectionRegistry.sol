@@ -6,6 +6,9 @@ import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 
+/// If a zero address strategy tries to be approved
+error CannotApproveNullCollection();
+
 /**
  * Allows collection contracts to be approved and revoked by addresses holding the
  * {CollectionManager} role. Only once approved can these collections be applied to
@@ -59,7 +62,9 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      * @param contractAddr Address of unapproved collection
      */
     function approveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
-        require(contractAddr != address(0), 'Cannot approve NULL collection');
+        if (contractAddr == address(0)) {
+            revert CannotApproveNullCollection();
+        }
 
         if (!collections[contractAddr]) {
             collections[contractAddr] = true;

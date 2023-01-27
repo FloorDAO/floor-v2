@@ -5,8 +5,19 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
+
 import {INFTXInventoryStaking} from '../../interfaces/nftx/NFTXInventoryStaking.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+
+/// If the contract was unable to transfer tokens when registering the mint
+/// @param recipient The recipient of the token transfer
+/// @param amount The amount requested to be transferred
+error UnableToTransferTokens(address recipient, uint amount);
+
+/// If a caller of a protected function is not the parent vault
+/// @param sender The address making the call
+error SenderIsNotVault(address sender);
 
 /**
  * Supports an Inventory Staking position against a single NFTX vault. This strategy
@@ -109,7 +120,9 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      */
     function deposit(uint amount) external onlyVault returns (uint amount_) {
         // Prevent users from trying to deposit nothing
-        require(amount != 0, 'Cannot deposit 0');
+        if (amount == 0) {
+            revert CannotDepositZeroAmount();
+        }
 
         // Capture our starting balance
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
@@ -140,7 +153,9 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      */
     function withdraw(uint amount) external onlyVault returns (uint amount_) {
         // Prevent users from trying to claim nothing
-        require(amount != 0, 'Cannot claim 0');
+        if (amount == 0) {
+            revert CannotWithdrawZeroAmount();
+        }
 
         // Capture our starting balance
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
@@ -167,7 +182,9 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
         amount_ = this.rewardsAvailable();
         if (amount_ != 0) {
             bool success = INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, amount_);
-            require(success, 'Unable to claim rewards');
+            if (!success) {
+                revert NoRewardsAvailableToClaim();
+            }
         }
 
         lifetimeRewards += amount_;
@@ -225,14 +242,18 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      */
     function registerMint(address recipient, uint amount) external onlyVault {
         bool success = IERC20(yieldToken).transfer(recipient, amount);
-        require(success == true, 'Unable to register mint');
+        if (!success) {
+            revert UnableToTransferTokens(recipient, amount);
+        }
     }
 
     /**
      * Allows us to restrict calls to only be made by the connected vaultId.
      */
     modifier onlyVault() {
-        require(msg.sender == vaultAddr);
+        if (msg.sender != vaultAddr) {
+            revert SenderIsNotVault(msg.sender);
+        }
         _;
     }
 }

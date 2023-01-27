@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
+import {CollectionNotApproved} from '../utils/Errors.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
@@ -11,6 +12,25 @@ import {IVeFLOOR} from '../../interfaces/tokens/veFloor.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
+
+/// If a vote with a zero amount is sent
+error CannotVoteWithZeroAmount();
+
+/// If the caller attempts to vote with more than their available voting power
+/// @param amount The amount of votes requested to cast
+/// @param available The amount of votes available for the caller to cast
+error InsufficientVotesAvailable(uint amount, uint available);
+
+/// If an invalid collection and/or amount array are passed when revoking votes
+error InvalidCollectionsAndAmounts();
+
+/// If the caller attempts to revoke more votes than votes cast
+/// @param amount The amount of votes requested to revoke
+/// @param available The amount of votes available to be revoked
+error InsufficientVotesToRevoke(uint amount, uint available);
+
+/// If a sample size is attempted to be set to zero
+error SampleSizeCannotBeZero();
 
 /**
  * The GWV will allow users to assign their veFloor position to a vault, or
@@ -119,15 +139,20 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @return uint The total number of votes now placed for the collection
      */
     function vote(address _collection, uint _amount) external returns (uint) {
-        require(_amount != 0, 'Cannot vote with zero amount');
+        if (_amount == 0) {
+            revert CannotVoteWithZeroAmount();
+        }
 
         // Ensure the user has enough votes available to cast
-        require(this.userVotesAvailable(msg.sender) >= _amount, 'Insufficient voting power');
+        uint votesAvailable = this.userVotesAvailable(msg.sender);
+        if (votesAvailable < _amount) {
+            revert InsufficientVotesAvailable(_amount, votesAvailable);
+        }
 
         // Confirm that the collection being voted for is approved and valid, if we
         // aren't voting for a zero address (which symbolises FLOOR).
-        if (_collection != FLOOR_TOKEN_VOTE) {
-            require(collectionRegistry.isApproved(_collection), 'Collection not approved');
+        if (_collection != FLOOR_TOKEN_VOTE && !collectionRegistry.isApproved(_collection)) {
+            revert CollectionNotApproved(_collection);
         }
 
         // If this is the first vote placed by a user, then we need to add it to
@@ -158,8 +183,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         uint length = _collection.length;
 
         // Validate our supplied array sizes
-        require(length != 0, 'No collections supplied');
-        require(length == _amount.length, 'Wrong amount count');
+        if (length == 0 || length == _amount.length) {
+            revert InvalidCollectionsAndAmounts();
+        }
 
         // Iterate over our collections to revoke the user's vote amounts
         for (uint i; i < length;) {
@@ -167,7 +193,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             uint amount = _amount[i];
 
             // Ensure that our user has sufficient votes against the collection to revoke
-            require(amount <= userVotes[msg.sender][collection], 'Insufficient votes to revoke');
+            if (amount > userVotes[msg.sender][collection]) {
+                revert InsufficientVotesToRevoke(amount, userVotes[msg.sender][collection]);
+            }
 
             // Revoke votes from the collection
             userVotes[msg.sender][collection] -= amount;
@@ -397,7 +425,10 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @param size The new `sampleSize`
      */
     function setSampleSize(uint size) external onlyRole(VOTE_MANAGER) {
-        require(size != 0, 'Sample size must be above 0');
+        if (size == 0) {
+            revert SampleSizeCannotBeZero();
+        }
+
         sampleSize = size;
     }
 
