@@ -7,32 +7,32 @@ pragma solidity ^0.8.0;
  * individual Solidity files.
  */
 
-/// ..
+/// If a NULL address tries to be stored which should not be accepted
 error CannotSetNullAddress();
 
-/// ..
+/// If the caller has entered an insufficient amount to process the action. This
+/// will likely be a zero amount.
 error InsufficientAmount();
 
-/// ..
+/// If the caller enters a percentage value that is too high for the requirements
 error PercentageTooHigh(uint amount);
 
-/// ..
+/// If a required ETH or token `transfer` call fails
 error TransferFailed();
 
-/// require(amount != 0, 'Cannot deposit 0');
-/// ..
+/// If a user calls a deposit related function with a zero amount
 error CannotDepositZeroAmount();
 
-/// require(amount != 0, 'Cannot claim 0');
-/// ..
+/// If a user calls a withdrawal related function with a zero amount
 error CannotWithdrawZeroAmount();
 
-/// require(success, 'Unable to claim rewards');
-/// ..
+/// If there are no rewards available to be claimed
 error NoRewardsAvailableToClaim();
 
 /// If the requested strategy is not approved
+/// @param strategy Address of the strategy requested
 error StrategyNotApproved(address strategy);
 
 // If the requested collection is not approved
+/// @param collection Address of the collection requested
 error CollectionNotApproved(address collection);
