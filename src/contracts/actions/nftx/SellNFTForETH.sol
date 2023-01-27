@@ -7,6 +7,7 @@ import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {IAction} from '../../../interfaces/actions/Action.sol';
 import {INFTXMarketplaceZap} from '../../../interfaces/nftx/NFTXMarketplaceZap.sol';
 
+/// If no tokens are claimable for the caller
 error NoTokensProvided();
 
 /**
