@@ -10,7 +10,6 @@ import {ERC20Upgradeable} from '@openzeppelin-upgradeable/contracts/token/ERC20/
 import {SafeMathAlt} from '../utils/SafeMath.sol';
 import {SafeMathInt} from '../utils/SafeMathInt.sol';
 
-import {IVeFloorStaking} from '../../interfaces/staking/VeFloorStaking.sol';
 import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 
 /// If there is a zero supply of the VaultXToken then there is no-one to distribute
@@ -61,23 +60,18 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     mapping(address => int) internal magnifiedRewardCorrections;
     mapping(address => uint) internal withdrawnRewards;
 
-    /// Staking contract
-    IVeFloorStaking public staking;
-
     /**
      * Set up our required parameters.
      *
      * @param _target ERC20 contract address used for reward distribution
-     * @param _staking Address of the {VeFloorStaking} contract
      * @param _name Name of our xToken
      * @param _symbol Symbol of our xToken
      */
-    function initialize(address _target, address _staking, string memory _name, string memory _symbol) public initializer {
+    function initialize(address _target, string memory _name, string memory _symbol) public initializer {
         __Ownable_init();
         __ERC20_init(_name, _symbol);
 
         target = IERC20(_target);
-        staking = IVeFloorStaking(_staking);
     }
 
     /**
@@ -165,8 +159,7 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
             revert CannotDistributeZeroRewards();
         }
 
-        // Because we receive the tokens from the staking contract, we assume the FLOOR tokens
-        // have already been sent.
+        // We assume the FLOOR tokens have already been sent
         magnifiedRewardPerShare = magnifiedRewardPerShare.add((amount).mul(magnitude) / totalSupply());
 
         emit RewardsDistributed(msg.sender, amount);
@@ -183,12 +176,7 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
         uint _withdrawableReward = withdrawableRewardOf(user);
         if (_withdrawableReward != 0) {
             withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
-
-            // Withdraw FLOOR tokens from the rewards ledger and then stake them on behalf of
-            // the user. This will give them veFloor tokens that they can choose to withdraw.
-            target.approve(address(staking), _withdrawableReward);
-            staking.depositFor(_withdrawableReward, user);
-
+            target.transfer(user, _withdrawableReward);
             emit RewardWithdrawn(user, _withdrawableReward);
         }
     }

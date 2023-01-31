@@ -5,10 +5,10 @@ pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import '../../src/contracts/collections/CollectionRegistry.sol';
+import {VeFloorStaking} from '../../src/contracts/staking/VeFloorStaking.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
 import '../../src/contracts/tokens/Floor.sol';
-import {veFLOOR} from '../../src/contracts/tokens/VeFloor.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
 import '../../src/contracts/voting/GaugeWeightVote.sol';
@@ -23,7 +23,7 @@ contract GaugeWeightVoteTest is FloorTest {
     StrategyRegistry strategyRegistry;
     Vault vaultImplementation;
     VaultFactory vaultFactory;
-    veFLOOR veFloor;
+    VeFloorStaking veFloor;
 
     // A set of collections to be referenced during testing
     address approvedCollection1 = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -80,7 +80,7 @@ contract GaugeWeightVoteTest is FloorTest {
         );
 
         // Set up our veFloor token
-        veFloor = new veFLOOR('veFloor', 'veFLOOR', address(authorityRegistry));
+        veFloor = new VeFloorStaking(floor, 1, address(0));
 
         // Now that we have all our dependencies, we can deploy our
         // {GaugeWeightVote} contract.
@@ -106,8 +106,8 @@ contract GaugeWeightVoteTest is FloorTest {
 
     function setUp() public {
         // Grant Alice and Bob plenty of veFLOOR tokens to play with
-        veFloor.mint(alice, 100 ether);
-        veFloor.mint(bob, 100 ether);
+        // veFloor.mint(alice, 100 ether);
+        // veFloor.mint(bob, 100 ether);
     }
 
     function test_canGetZeroVotingPower(address unknown) public {

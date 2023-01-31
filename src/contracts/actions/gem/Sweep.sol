@@ -38,27 +38,27 @@ contract SweepAndStake is IAction, Ownable, Pausable {
      */
     struct ActionRequest {
         address target;
-        bytes data;
+        bytes txData;
     }
 
     /**
      * ..
      */
-
-    function execute(bytes calldata _request) public payable {
+    function execute(bytes calldata _request) public payable returns (uint spent) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
-        (address target, bytes data) = abi.decode(_request, (address, bytes));
+        (address target, bytes memory txData) = abi.decode(_request, (address, bytes));
 
         // Ensure our address is whitelisted
         require(whitelisted[target], 'Call target is not whitelisted');
 
         // Sweeps from GemSwap. This scares me.
-        (bool success,) = target.call(data);
+        (bool success,) = target.call(txData);
         if (!success) revert UnableToSweepGem();
 
         // Emit the amount of ETH used to sweep
-        emit Sweep(msg.value - address(this).balance);
+        spent = msg.value - address(this).balance;
+        emit Sweep(spent);
 
         // Return any remaining ETH
         payable(msg.sender).transfer(address(this).balance);

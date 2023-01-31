@@ -15,9 +15,6 @@ import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.so
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 
-// Ensure our {VeFloorStaking} contract address has been set
-error StakingContractCannotBeNull();
-
 // No empty names, that's just silly
 error VaultNameCannotBeEmpty();
 
@@ -51,7 +48,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
     /// Internal contract references
     address public floor;
-    address public staking;
 
     /**
      * Store our registries, mapped to their interfaces.
@@ -132,11 +128,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         onlyRole(VAULT_MANAGER)
         returns (uint vaultId_, address vaultAddr_)
     {
-        // Ensure our {VeFloorStaking} contract address has been set
-        if (staking == address(0)) {
-            revert StakingContractCannotBeNull();
-        }
-
         // No empty names, that's just silly
         if (bytes(_name).length == 0) {
             revert VaultNameCannotBeEmpty();
@@ -166,7 +157,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenAddr_);
 
         // Create our {VaultXToken} for the vault
-        VaultXToken(vaultXTokenAddr_).initialize(floor, staking, _name, _name);
+        VaultXToken(vaultXTokenAddr_).initialize(floor, _name, _name);
 
         // Transfer our ownership of the the VaultXToken from the {VaultFactory} to the {Vault}
         // that we have created.
@@ -232,12 +223,4 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         IVault(vaultIds[_vaultId]).registerMint(msg.sender, _amount);
     }
 
-    /**
-     * Allows the staking contract to be updated.
-     *
-     * @param _staking Contract address of the staking contract to be set
-     */
-    function setStakingContract(address _staking) public onlyRole(VAULT_MANAGER) {
-        staking = _staking;
-    }
 }

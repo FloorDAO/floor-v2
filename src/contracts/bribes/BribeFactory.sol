@@ -32,6 +32,7 @@
  * - What fee amount would we want?
  */
 
+/*
 contract FeeManager is Owned {
     using SafeTransferLib for ERC20;
     uint256 public totalFee;
@@ -1178,3 +1179,4 @@ contract PlatformFactory is Owned, Factory {
         );
     }
 }
+*/

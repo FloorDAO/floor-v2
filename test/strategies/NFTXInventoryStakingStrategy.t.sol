@@ -108,7 +108,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * then we expect it to be reverted.
      */
     function test_CannotDepositZeroValue() public {
-        vm.expectRevert('Cannot deposit 0');
+        vm.expectRevert(CannotDepositZeroAmount.selector);
         vm.prank(testUser);
         strategy.deposit(0);
     }
@@ -153,7 +153,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * to make the request but we just expect a 0 value to be returned.
      */
     function test_CannotClaimZeroRewards() public {
-        vm.expectRevert('Cannot claim 0');
+        vm.expectRevert(CannotWithdrawZeroAmount.selector);
         vm.prank(testUser);
         strategy.withdraw(0);
     }

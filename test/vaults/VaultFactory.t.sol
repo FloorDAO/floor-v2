@@ -76,9 +76,6 @@ contract VaultFactoryTest is FloorTest {
             address(vaultXTokenImplementation),
             address(floor) // _floor
         );
-
-        // Naughty bypass to remove staking contract requirement
-        vaultFactory.setStakingContract(address(1));
     }
 
     /**

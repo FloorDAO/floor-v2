@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 import {CollectionNotApproved} from '../utils/Errors.sol';
+import {VeFloorStaking} from '../staking/VeFloorStaking.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
 import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
-import {IVeFLOOR} from '../../interfaces/tokens/veFloor.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
@@ -49,7 +49,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
     IVaultFactory immutable vaultFactory;
-    IVeFLOOR immutable veFloor;
+    VeFloorStaking immutable veFloor;
 
     /**
      * We will need to maintain an internal structure to map the voters against
@@ -93,7 +93,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
-        veFloor = IVeFLOOR(_veFloor);
+        veFloor = VeFloorStaking(_veFloor);
     }
 
     /**

@@ -11,7 +11,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {VotingPowerCalculator} from "../voting/VotingPowerCalculator.sol";
 
-import {IVotable} from "../../interfaces/tokens/Votable.sol";
+import {IERC20, IVotable} from "../../interfaces/tokens/Votable.sol";
 
 
 /**
@@ -24,7 +24,9 @@ import {IVotable} from "../../interfaces/tokens/Votable.sol";
  * - earlyWithdrawal
  * - penalty math
  */
-contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
+contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
+
+    using SafeERC20 for IERC20;
 
     event EmergencyExitSet(bool status);
     event MaxLossRatioSet(uint256 ratio);
@@ -63,7 +65,7 @@ contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
     uint256 private constant _ONE_E9 = 1e9;
 
     /// ..
-    SafeERC20 public immutable floor;
+    IERC20 public immutable floor;
 
     /// @notice The stucture to store stake information for a staker
     struct Depositor {
@@ -86,7 +88,7 @@ contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
      * @param expBase_ The rate for the voting power decrease over time
      * @param feeReceiver_ The default recipient of the early exit fees
      */
-    constructor(SafeERC20 floor_, uint256 expBase_, address feeReceiver_)
+    constructor(IERC20 floor_, uint256 expBase_, address feeReceiver_)
         ERC20("veFLOOR", "veFLOOR")
         VotingPowerCalculator(expBase_, block.timestamp)
     {
@@ -347,7 +349,7 @@ contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
      * @param token The token to retrieve
      * @param amount The amount of funds to transfer
      */
-    function rescueFunds(SafeERC20 token, uint256 amount) external onlyOwner {
+    function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
         if (address(token) == address(0)) {
             Address.sendValue(payable(msg.sender), amount);
         } else {
@@ -360,15 +362,15 @@ contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
 
     // ERC20 methods disablers
 
-    function approve(address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+    function approve(address, uint256) public pure override(IERC20, ERC20) returns (bool) {
         revert ApproveDisabled();
     }
 
-    function transfer(address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+    function transfer(address, uint256) public pure override(IERC20, ERC20) returns (bool) {
         revert TransferDisabled();
     }
 
-    function transferFrom(address, address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+    function transferFrom(address, address, uint256) public pure override(IERC20, ERC20) returns (bool) {
         revert TransferDisabled();
     }
 

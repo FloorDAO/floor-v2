@@ -468,8 +468,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         IAction(action).execute(data);
 
         // Remove ERC1155 global approval after execution
-        if (approvals[i]._type == ApprovalType.ERC1155) {
-            IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
+        for (uint i; i < approvals.length;) {
+            if (approvals[i]._type == ApprovalType.ERC1155) {
+                IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
+            }
         }
     }
 

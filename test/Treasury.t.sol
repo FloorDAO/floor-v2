@@ -9,10 +9,9 @@ import './mocks/erc/ERC1155Mock.sol';
 import './mocks/PricingExecutor.sol';
 
 import '../src/contracts/collections/CollectionRegistry.sol';
-import {veFLOOR} from '../src/contracts/tokens/VeFloor.sol';
 import '../src/contracts/tokens/Floor.sol';
 import '../src/contracts/tokens/VaultXToken.sol';
-import '../src/contracts/staking/VeFloorStaking.sol';
+import {VeFloorStaking} from '../src/contracts/staking/VeFloorStaking.sol';
 import '../src/contracts/strategies/StrategyRegistry.sol';
 import '../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../src/contracts/vaults/Vault.sol';
@@ -36,7 +35,7 @@ contract TreasuryTest is FloorTest {
 
     // Track our internal contract addresses
     FLOOR floor;
-    veFLOOR veFloor;
+    VeFloorStaking veFloor;
     ERC20Mock erc20;
     ERC721Mock erc721;
     ERC1155Mock erc1155;
@@ -46,7 +45,6 @@ contract TreasuryTest is FloorTest {
     PricingExecutorMock pricingExecutorMock;
     GaugeWeightVote gaugeWeightVote;
     VaultFactory vaultFactory;
-    VeFloorStaking veFloorStaking;
 
     constructor() {
         // Set up our mock pricing executor
@@ -54,7 +52,7 @@ contract TreasuryTest is FloorTest {
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
-        veFloor = new veFLOOR('veFloor', 'veFLOOR', address(authorityRegistry));
+        veFloor = new VeFloorStaking(floor, 1, address(0));
 
         // Set up a fake ERC20 token that we can test with. We use the {Floor} token
         // contract as a base as this already implements IERC20. We have no initial
@@ -101,25 +99,10 @@ contract TreasuryTest is FloorTest {
         // Create our Gauge Weight Vote contract
         gaugeWeightVote = new GaugeWeightVote(
             address(collectionRegistry),
-            address(this),  // Vault factory but not needed
+            address(vaultFactory),
             address(veFloor),
             address(authorityRegistry)
         );
-
-        // Create our veFloor Staking contract
-        veFloorStaking = new VeFloorStaking(
-            address(authorityRegistry),
-            floor,
-            veFloor,
-            gaugeWeightVote,
-            1 ether,
-            1 ether,
-            5,
-            50,
-            20000
-        );
-
-        vaultFactory.setStakingContract(address(veFloorStaking));
 
         // Create our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
@@ -132,10 +115,6 @@ contract TreasuryTest is FloorTest {
 
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
-
-        // Grant our {veFloorStaking} contract the authority to manage veFloor
-        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(veFloorStaking));
-        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloorStaking));
 
         authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(vaultXTokenImplementation));
     }
