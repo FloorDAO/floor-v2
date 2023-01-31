@@ -70,7 +70,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * for, then we will expect a revert.
      */
     function test_ETHPriceOfUnknownToken() public {
-        vm.expectRevert('Unknown pool');
+        vm.expectRevert(UnknownUniswapPool.selector);
         executor.getETHPrice(UNKNOWN);
     }
 
@@ -147,7 +147,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
         address[] memory tokens = new address[](1);
         tokens[0] = UNKNOWN;
 
-        vm.expectRevert('Unknown pool');
+        vm.expectRevert(UnknownUniswapPool.selector);
         executor.getETHPrices(tokens);
     }
 
@@ -163,7 +163,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * If we don't have a price for a token, then we expect a revert.
      */
     function test_FloorPriceOfUnknownToken() public {
-        vm.expectRevert('Unknown pool');
+        vm.expectRevert(UnknownUniswapPool.selector);
         executor.getFloorPrice(UNKNOWN);
     }
 

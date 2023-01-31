@@ -158,7 +158,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintFloorWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(alice);
         treasury.mint(100 ether);
 
@@ -321,7 +321,7 @@ contract TreasuryTest is FloorTest {
         (bool sent,) = address(treasury).call{value: 10 ether}('');
         assertTrue(sent);
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(carol);
         treasury.withdraw(carol, 5 ether);
     }
@@ -384,7 +384,7 @@ contract TreasuryTest is FloorTest {
         treasury.depositERC20(address(erc20), 4 ether);
         vm.stopPrank();
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(carol);
         treasury.withdrawERC20(bob, address(erc20), 3 ether);
     }
@@ -434,7 +434,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawERC721WithoutPermissions() public {
         // Withdraw the ERC721 to Carol's wallet
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(carol);
         treasury.withdrawERC721(bob, address(erc721), 123);
     }
@@ -520,7 +520,7 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
 
         // Withdraw the ERC1155 to Bob's wallet
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
@@ -541,7 +541,7 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetGaugeWeightVoteContractWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(alice);
         treasury.setGaugeWeightVoteContract(address(1));
     }
@@ -567,7 +567,7 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(alice);
         treasury.setRetainedTreasuryYieldPercentage(0);
     }
@@ -630,7 +630,7 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetPricingExecutorWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(alice);
         treasury.setPricingExecutor(address(1));
     }

@@ -373,7 +373,7 @@ contract GaugeWeightVoteTest is FloorTest {
     function test_cannotSetSampleSizeWithoutPermission() public {
         assertEq(gaugeWeightVote.sampleSize(), 5);
 
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         vm.prank(alice);
         gaugeWeightVote.setSampleSize(10);
 

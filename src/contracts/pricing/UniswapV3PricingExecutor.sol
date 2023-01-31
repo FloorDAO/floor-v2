@@ -9,7 +9,7 @@ import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import {IBasePricingExecutor} from '../../interfaces/pricing/BasePricingExecutor.sol';
 
-/// require(pool != address(0), 'Unknown pool');
+/// If we are unable to find a pool for the Uniswap token combination
 error UnknownUniswapPool();
 
 /**

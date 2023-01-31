@@ -2,431 +2,381 @@
 
 pragma solidity ^0.8.0;
 
-import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import {SafeERC20} from "@1inch/solidity-utils/contracts/libraries/SafeERC20.sol";
 
-import {AuthorityControl} from '../authorities/AuthorityControl.sol';
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {IVeFloorStaking} from '../../interfaces/staking/VeFloorStaking.sol';
-import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
-import {IVeFLOOR} from '../../interfaces/tokens/VeFloor.sol';
-import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
+import {VotingPowerCalculator} from "../voting/VotingPowerCalculator.sol";
+
+import {IVotable} from "../../interfaces/tokens/Votable.sol";
+
 
 /**
- * Vote Escrow Floor Staking
- *
- * Stake FLOOR to earn veFLOOR, which you can use to earn higher farm yields and gain
- * voting power. Note that unstaking any amount of FLOOR will burn all of your existing veFLOOR.
- *
- * Heavily influenced from TraderJoe veJOE staking contract.
+ * @title FLOOR Staking
+ * @notice The contract provides the following features: staking, delegation, farming
+ * How lock period works:
+ * - balances and voting power
+ * - Lock min and max
+ * - Add lock
+ * - earlyWithdrawal
+ * - penalty math
  */
-contract VeFloorStaking is AuthorityControl, IVeFloorStaking {
-    using SafeMath for uint;
-    using SafeERC20 for IERC20;
+contract VeFloorStaking is IVotable, Ownable, VotingPowerCalculator {
+
+    event EmergencyExitSet(bool status);
+    event MaxLossRatioSet(uint256 ratio);
+    event MinLockPeriodRatioSet(uint256 ratio);
+    event FeeReceiverSet(address receiver);
+
+    error ApproveDisabled();
+    error TransferDisabled();
+    error LockTimeMoreMaxLock();
+    error LockTimeLessMinLock();
+    error UnlockTimeHasNotCome();
+    error StakeUnlocked();
+    error MinLockPeriodRatioNotReached();
+    error MinReturnIsNotMet();
+    error MaxLossIsNotMet();
+    error MaxLossOverflow();
+    error LossIsTooBig();
+    error RescueAmountIsTooLarge();
+    error ExpBaseTooBig();
+    error ExpBaseTooSmall();
+    error DepositsDisabled();
+    error ZeroAddress();
+
+    /// @notice The minimum allowed staking period
+    uint256 public constant MIN_LOCK_PERIOD = 30 days;
+
+    /// @notice The maximum allowed staking period
+    /// @dev WARNING: It is not enough to change the constant only but voting power decrease curve should be revised also
+    uint256 public constant MAX_LOCK_PERIOD = 2 * 365 days;
+
+    /// @notice Voting power decreased to 1/_VOTING_POWER_DIVIDER after lock expires
+    /// @dev WARNING: It is not enough to change the constant only but voting power decrease curve should be revised also
+    uint256 private constant _VOTING_POWER_DIVIDER = 20;
+
+    /// ..
+    uint256 private constant _ONE_E9 = 1e9;
+
+    /// ..
+    SafeERC20 public immutable floor;
+
+    /// @notice The stucture to store stake information for a staker
+    struct Depositor {
+        uint40 lockTime;    // Unix time in seconds
+        uint40 unlockTime;  // Unix time in seconds
+        uint176 amount;     // Staked floor token amount
+    }
+
+    mapping(address => Depositor) public depositors;
+
+    uint256 public totalDeposits;
+    bool public emergencyExit;
+    uint256 public maxLossRatio;
+    uint256 public minLockPeriodRatio;
+    address public feeReceiver;
 
     /**
-     * Stores information about each user.
-     *
-     * `balance`: Amount of FLOOR currently staked by user
-     * `rewardDebt`: The reward debt of the user
-     * `lastClaimTimestamp`: The timestamp of user's last claim or withdraw
-     * `speedUpEndTimestamp`: The timestamp when user stops receiving speed up benefits, or
-     * zero if user is not currently receiving speed up benefits
+     * @notice Initializes the contract
+     * @param floor_ The token to be staked
+     * @param expBase_ The rate for the voting power decrease over time
+     * @param feeReceiver_ The default recipient of the early exit fees
      */
-    struct UserInfo {
-        uint balance;
-        uint rewardDebt;
-        uint lastClaimTimestamp;
-        uint speedUpEndTimestamp;
+    constructor(SafeERC20 floor_, uint256 expBase_, address feeReceiver_)
+        ERC20("veFLOOR", "veFLOOR")
+        VotingPowerCalculator(expBase_, block.timestamp)
+    {
+        // voting power after MAX_LOCK_PERIOD should be equal to staked amount divided by _VOTING_POWER_DIVIDER
+        if (_votingPowerAt(1e18, block.timestamp + MAX_LOCK_PERIOD) * _VOTING_POWER_DIVIDER < 1e18) revert ExpBaseTooBig();
+        if (_votingPowerAt(1e18, block.timestamp + MAX_LOCK_PERIOD + 1) * _VOTING_POWER_DIVIDER > 1e18) revert ExpBaseTooSmall();
+        setFeeReceiver(feeReceiver_);
+        floor = floor_;
     }
 
     /**
-     * We do some fancy math here. Basically, any point in time, the amount of veFLOOR
-     * entitled to a user but is pending to be distributed is:
-     *
-     *   pendingReward = pendingBaseReward + pendingSpeedUpReward
-     *
-     *   pendingBaseReward = (user.balance * accVeFloorPerShare) - user.rewardDebt
-     *
-     *   if user.speedUpEndTimestamp != 0:
-     *     speedUpCeilingTimestamp = min(block.timestamp, user.speedUpEndTimestamp)
-     *     speedUpSecondsElapsed = speedUpCeilingTimestamp - user.lastClaimTimestamp
-     *     pendingSpeedUpReward = speedUpSecondsElapsed * user.balance * speedUpVeFloorPerSharePerSec
-     *   else:
-     *     pendingSpeedUpReward = 0
+     * @notice Sets the new contract that would recieve early withdrawal fees
+     * @param feeReceiver_ The receiver contract address
      */
-
-    /// Internal contract references, set in constructor
-    IERC20 public immutable floor;
-    IVeFLOOR public immutable veFloor;
-    IVaultXToken public xVeFloor;
-    IGaugeWeightVote public immutable gaugeWeightVote;
-
-    /// The maximum limit of veFLOOR user can have as percentage points of staked FLOOR
-    /// For example, if user has `n` FLOOR staked, they can own a maximum of `n * maxCapPct / 100` veFLOOR.
-    uint public maxCapPct;
-
-    /// The upper limit of `maxCapPct`
-    uint public upperLimitMaxCapPct;
-
-    /// The accrued veFloor per share, scaled to `ACC_VEFLOOR_PER_SHARE_PRECISION`
-    uint public accVeFloorPerShare;
-
-    /// Precision of `accVeFloorPerShare`
-    uint public ACC_VEFLOOR_PER_SHARE_PRECISION;
-
-    /// The last time that the reward variables were updated
-    uint public lastRewardTimestamp;
-
-    /// veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
-    uint public veFloorPerSharePerSec;
-
-    /// Speed up veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
-    uint public speedUpVeFloorPerSharePerSec;
-
-    /// The upper limit of `veFloorPerSharePerSec` and `speedUpVeFloorPerSharePerSec`
-    uint public upperLimitVeFloorPerSharePerSec;
-
-    /// Precision of `veFloorPerSharePerSec`
-    uint public VEFLOOR_PER_SHARE_PER_SEC_PRECISION;
-
-    /// Percentage of user's current staked FLOOR user has to deposit in order to start
-    /// receiving speed up benefits, in parts per 100.
-    ///
-    /// @dev Specifically, user has to deposit at least `speedUpThreshold/100 * userStakedFloor` FLOOR.
-    /// The only exception is the user will also receive speed up benefits if they are depositing
-    /// with zero balance
-    uint public speedUpThreshold;
-
-    /// The length of time a user receives speed up benefits
-    uint public speedUpDuration;
-
-    /// Handle mapping of user information to their wallet address
-    mapping(address => UserInfo) public userInfos;
-
-    /**
-     * Initialize with needed parameters.
-     *
-     * @param _floor Address of the FLOOR token contract
-     * @param _veFloor Address of the veFLOOR token contract
-     * @param _veFloorPerSharePerSec veFLOOR per sec per FLOOR staked, scaled to `VEFLOOR_PER_SHARE_PER_SEC_PRECISION`
-     * @param _speedUpVeFloorPerSharePerSec Similar to `_veFloorPerSharePerSec` but for speed up
-     * @param _speedUpThreshold Percentage of total staked FLOOR user has to deposit receive speed up
-     * @param _speedUpDuration Length of time a user receives speed up benefits
-     * @param _maxCapPct Maximum limit of veFLOOR user can have as percentage points of staked FLOOR
-     */
-    constructor(
-        address _authority,
-        IERC20 _floor,
-        IVeFLOOR _veFloor,
-        IGaugeWeightVote _gaugeWeightVote,
-        uint _veFloorPerSharePerSec,
-        uint _speedUpVeFloorPerSharePerSec,
-        uint _speedUpThreshold,
-        uint _speedUpDuration,
-        uint _maxCapPct
-    ) AuthorityControl(_authority) {
-        // Ensure our contract addresses aren't sent as NULL
-        require(address(_floor) != address(0), 'VeFloorStaking: unexpected zero address for _floor');
-        require(address(_veFloor) != address(0), 'VeFloorStaking: unexpected zero address for _veFloor');
-        require(address(_gaugeWeightVote) != address(0), 'VeFloorStaking: unexpected zero address for _gaugeWeightVote');
-
-        upperLimitVeFloorPerSharePerSec = 1e36;
-        require(_veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec, 'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36');
-        require(
-            _speedUpVeFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec,
-            'VeFloorStaking: expected _speedUpVeFloorPerSharePerSec to be <= 1e36'
-        );
-
-        require(_speedUpThreshold != 0 && _speedUpThreshold <= 100, 'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
-
-        require(_speedUpDuration <= 365 days, 'VeFloorStaking: expected _speedUpDuration to be <= 365 days');
-
-        upperLimitMaxCapPct = 10000000;
-        require(_maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct, 'VeFloorStaking: expected _maxCapPct to be non-zero and <= 10000000');
-
-        maxCapPct = _maxCapPct;
-        speedUpThreshold = _speedUpThreshold;
-        speedUpDuration = _speedUpDuration;
-        floor = _floor;
-        gaugeWeightVote = _gaugeWeightVote;
-        veFloor = _veFloor;
-        veFloorPerSharePerSec = _veFloorPerSharePerSec;
-        speedUpVeFloorPerSharePerSec = _speedUpVeFloorPerSharePerSec;
-        lastRewardTimestamp = block.timestamp;
-        ACC_VEFLOOR_PER_SHARE_PRECISION = 1e18;
-        VEFLOOR_PER_SHARE_PER_SEC_PRECISION = 1e18;
+    function setFeeReceiver(address feeReceiver_) public onlyOwner {
+        if (feeReceiver_ == address(0)) revert ZeroAddress();
+        feeReceiver = feeReceiver_;
+        emit FeeReceiverSet(feeReceiver_);
     }
 
     /**
-     * Sets our veFloor xToken address.
-     *
-     * @param _xVeFloor Address of xVeFloor token
+     * @notice Sets the maximum allowed loss ratio for early withdrawal. If the ratio is not met, actual is more than allowed,
+     * then early withdrawal will revert.
+     * Example: maxLossRatio = 90% and 1000 staked 1inch tokens means that a user can execute early withdrawal only
+     * if his loss is less than or equals 90% of his stake, which is 900 tokens. Thus, if a user loses 900 tokens he is allowed
+     * to do early withdrawal and not if the loss is greater.
+     * @param maxLossRatio_ The maximum loss allowed (9 decimals).
      */
-    function setVeFloorXToken(address _xVeFloor) external onlyRole(STAKING_MANAGER) {
-        xVeFloor = IVaultXToken(_xVeFloor);
+    function setMaxLossRatio(uint256 maxLossRatio_) external onlyOwner {
+        if (maxLossRatio_ > _ONE_E9) revert MaxLossOverflow();
+        maxLossRatio = maxLossRatio_;
+        emit MaxLossRatioSet(maxLossRatio_);
     }
 
     /**
-     * Set maxCapPct.
-     *
-     * @param _maxCapPct The new maxCapPct
+     * @notice Sets the minimum allowed lock period ratio for early withdrawal. If the ratio is not met, actual is more than allowed,
+     * then early withdrawal will revert.
+     * @param minLockPeriodRatio_ The maximum loss allowed (9 decimals).
      */
-    function setMaxCapPct(uint _maxCapPct) external onlyRole(STAKING_MANAGER) {
-        require(_maxCapPct > maxCapPct, 'VeFloorStaking: expected new _maxCapPct to be greater than existing maxCapPct');
-        require(
-            _maxCapPct != 0 && _maxCapPct <= upperLimitMaxCapPct, 'VeFloorStaking: expected new _maxCapPct to be non-zero and <= 10000000'
-        );
-        maxCapPct = _maxCapPct;
-        emit UpdateMaxCapPct(_msgSender(), _maxCapPct);
+    function setMinLockPeriodRatio(uint256 minLockPeriodRatio_) external onlyOwner {
+        if (minLockPeriodRatio_ > _ONE_E9) revert MaxLossOverflow();
+        minLockPeriodRatio = minLockPeriodRatio_;
+        emit MinLockPeriodRatioSet(minLockPeriodRatio_);
     }
 
     /**
-     * Set veFloorPerSharePerSec.
-     *
-     * @param _veFloorPerSharePerSec The new veFloorPerSharePerSec
+     * @notice Sets the emergency exit mode. In emergency mode any stake may withdraw its stake regardless of lock.
+     * The mode is intended to use only for migration to a new version of staking contract.
+     * @param emergencyExit_ set `true` to enter emergency exit mode and `false` to return to normal operations
      */
-    function setVeFloorPerSharePerSec(uint _veFloorPerSharePerSec) external onlyRole(STAKING_MANAGER) {
-        require(_veFloorPerSharePerSec <= upperLimitVeFloorPerSharePerSec, 'VeFloorStaking: expected _veFloorPerSharePerSec to be <= 1e36');
-        updateRewardVars();
-        veFloorPerSharePerSec = _veFloorPerSharePerSec;
-        emit UpdateVeFloorPerSharePerSec(_msgSender(), _veFloorPerSharePerSec);
+    function setEmergencyExit(bool emergencyExit_) external onlyOwner {
+        emergencyExit = emergencyExit_;
+        emit EmergencyExitSet(emergencyExit_);
     }
 
     /**
-     * Set speedUpThreshold.
-     *
-     * @param _speedUpThreshold The new speedUpThreshold
+     * @notice Gets the voting power of the provided account
+     * @param account The address of an account to get voting power for
+     * @return votingPower The voting power available at the block timestamp
      */
-    function setSpeedUpThreshold(uint _speedUpThreshold) external onlyRole(STAKING_MANAGER) {
-        require(_speedUpThreshold != 0 && _speedUpThreshold <= 100, 'VeFloorStaking: expected _speedUpThreshold to be > 0 and <= 100');
-        speedUpThreshold = _speedUpThreshold;
-        emit UpdateSpeedUpThreshold(_msgSender(), _speedUpThreshold);
+    function votingPowerOf(address account) external view returns (uint256) {
+        return _votingPowerAt(balanceOf(account), block.timestamp);
     }
 
     /**
-     * Deposits FLOOR to start staking for veFLOOR. Note that any pending veFLOOR will also
-     * be claimed in the process.
-     *
-     * @param _amount The amount of FLOOR to deposit
+     * @notice Gets the voting power of the provided account at the given timestamp
+     * @dev To calculate voting power at any timestamp provided the contract stores each balance
+     * as it was staked for the maximum lock time. If a staker locks its stake for less than the maximum
+     * then at the moment of deposit its balance is recorded as it was staked for the maximum but time
+     * equal to `max lock period-lock time` has passed. It makes available voting power calculation
+     * available at any point in time within the maximum lock period.
+     * @param account The address of an account to get voting power for
+     * @param timestamp The timestamp to calculate voting power at
+     * @return votingPower The voting power available at the moment of `timestamp`
      */
-    function deposit(uint _amount) external {
-        _deposit(_amount, _msgSender());
+    function votingPowerOfAt(address account, uint256 timestamp) external view returns (uint256) {
+        return _votingPowerAt(balanceOf(account), timestamp);
     }
 
     /**
-     * Deposits FLOOR to start staking for veFLOOR on behalf of a recipient. This is
-     * a protected function that only specific roles may execute. Note that any pending veFLOOR
-     * will also be claimed in the process.
-     *
-     * @param _amount The amount of FLOOR to deposit
-     * @param _recipient Recipient of the veFLOOR
+     * @notice Gets the voting power for the provided balance at the current timestamp assuming that
+     * the balance is a balance at the moment of the maximum lock time
+     * @param balance The balance for the maximum lock time
+     * @return votingPower The voting power available at the block timestamp
      */
-    function depositFor(uint _amount, address _recipient) external {
-        _deposit(_amount, _recipient);
+    function votingPower(uint256 balance) external view returns (uint256) {
+        return _votingPowerAt(balance, block.timestamp);
     }
 
     /**
-     * Internal logic for handling a deposit.
-     *
-     * @param _amount The amount of FLOOR to deposit
-     * @param _recipient Recipient of the veFLOOR
+     * @notice Gets the voting power for the provided balance at the current timestamp assuming that
+     * the balance is a balance at the moment of the maximum lock time
+     * @param balance The balance for the maximum lock time
+     * @param timestamp The timestamp to calculate the voting power at
+     * @return votingPower The voting power available at the block timestamp
      */
-    function _deposit(uint _amount, address _recipient) internal {
-        require(_amount > 0, 'VeFloorStaking: expected deposit amount to be greater than zero');
+    function votingPowerAt(uint256 balance, uint256 timestamp) external view returns (uint256) {
+        return _votingPowerAt(balance, timestamp);
+    }
 
-        updateRewardVars();
+    /**
+     * @notice Stakes given amount and locks it for the given duration
+     * @param amount The amount of tokens to stake
+     * @param duration The lock period in seconds. If there is a stake locked then the lock period is extended by the duration.
+     * To keep the current lock period unchanged pass 0 for the duration.
+     */
+    function deposit(uint256 amount, uint256 duration) external {
+        _deposit(msg.sender, amount, duration);
+    }
 
-        UserInfo storage userInfo = userInfos[_recipient];
+    /**
+     * @notice Stakes given amount and locks it for the given duration with permit
+     * @param amount The amount of tokens to stake
+     * @param duration The lock period in seconds. If there is a stake locked then the lock period is extended by the duration.
+     * To keep the current lock period unchanged pass 0 for the duration
+     * @param permit Permit given by the staker
+     */
+    function depositWithPermit(uint256 amount, uint256 duration, bytes calldata permit) external {
+        floor.safePermit(permit);
+        _deposit(msg.sender, amount, duration);
+    }
 
-        if (_getUserHasNonZeroBalance(_recipient)) {
-            // Transfer to the user their pending veFLOOR before updating their UserInfo
-            _claim();
 
-            // We need to update user's `lastClaimTimestamp` to now to prevent
-            // passive veFLOOR accrual if user hit their max cap.
-            userInfo.lastClaimTimestamp = block.timestamp;
+    /**
+     * @notice Stakes given amount on behalf of provided account without locking or extending lock
+     * @param account The account to stake for
+     * @param amount The amount to stake
+     */
+    function depositFor(address account, uint256 amount) external {
+        _deposit(account, amount, 0);
+    }
 
-            uint userStakedFloor = userInfo.balance;
+    /**
+     * @notice Stakes given amount on behalf of provided account without locking or extending lock with permit
+     * @param account The account to stake for
+     * @param amount The amount to stake
+     * @param permit Permit given by the caller
+     */
+    function depositForWithPermit(address account, uint256 amount, bytes calldata permit) external {
+        floor.safePermit(permit);
+        _deposit(account, amount, 0);
+    }
 
-            // User is eligible for speed up benefits if `_amount` is at least
-            // `speedUpThreshold / 100 * userStakedFloor`
-            if (_amount.mul(100) >= speedUpThreshold.mul(userStakedFloor)) {
-                userInfo.speedUpEndTimestamp = block.timestamp.add(speedUpDuration);
+    function _deposit(address account, uint256 amount, uint256 duration) private {
+        if (emergencyExit) revert DepositsDisabled();
+        Depositor memory depositor = depositors[account]; // SLOAD
+
+        uint256 lockedTill = Math.max(depositor.unlockTime, block.timestamp) + duration;
+        uint256 lockLeft = lockedTill - block.timestamp;
+        if (lockLeft < MIN_LOCK_PERIOD) revert LockTimeLessMinLock();
+        if (lockLeft > MAX_LOCK_PERIOD) revert LockTimeMoreMaxLock();
+        uint256 balanceDiff = _balanceAt(depositor.amount + amount, lockedTill) / _VOTING_POWER_DIVIDER - balanceOf(account);
+
+        depositor.lockTime = uint40(duration == 0 ? depositor.lockTime : block.timestamp);
+        depositor.unlockTime = uint40(lockedTill);
+        depositor.amount += uint176(amount);
+        depositors[account] = depositor; // SSTORE
+        totalDeposits += amount;
+        _mint(account, balanceDiff);
+
+        if (amount > 0) {
+            floor.safeTransferFrom(msg.sender, address(this), amount);
+        }
+    }
+
+    /**
+     * @notice Withdraw stake before lock period expires at the cost of losing part of a stake.
+     * The stake loss is proportional to the time passed from the maximum lock period to the lock expiration and voting power.
+     * The more time is passed the less would be the loss.
+     * Formula to calculate return amount = (deposit - voting power)) / 0.95
+     * @param minReturn The minumum amount of stake acceptable for return. If actual amount is less then the transaction is reverted
+     * @param maxLoss The maximum amount of loss acceptable. If actual loss is bigger then the transaction is reverted
+     */
+    function earlyWithdraw(uint256 minReturn, uint256 maxLoss) external {
+        earlyWithdrawTo(msg.sender, minReturn, maxLoss);
+    }
+
+    /**
+     * @notice Withdraw stake before lock period expires at the cost of losing part of a stake to the specified account
+     * The stake loss is proportional to the time passed from the maximum lock period to the lock expiration and voting power.
+     * The more time is passed the less would be the loss.
+     * Formula to calculate return amount = (deposit - voting power)) / 0.95
+     * @param to The account to withdraw the stake to
+     * @param minReturn The minumum amount of stake acceptable for return. If actual amount is less then the transaction is reverted
+     * @param maxLoss The maximum amount of loss acceptable. If actual loss is bigger then the transaction is reverted
+     */
+    // ret(balance) = (deposit - vp(balance)) / 0.95
+    function earlyWithdrawTo(address to, uint256 minReturn, uint256 maxLoss) public {
+        Depositor memory depositor = depositors[msg.sender]; // SLOAD
+        if (emergencyExit || block.timestamp >= depositor.unlockTime) revert StakeUnlocked();
+        uint256 allowedExitTime = depositor.lockTime + (depositor.unlockTime - depositor.lockTime) * minLockPeriodRatio / _ONE_E9;
+        if (block.timestamp < allowedExitTime) revert MinLockPeriodRatioNotReached();
+
+        uint256 amount = depositor.amount;
+        if (amount > 0) {
+            uint256 balance = balanceOf(msg.sender);
+            (uint256 loss, uint256 ret) = _earlyWithdrawLoss(amount, balance);
+            if (ret < minReturn) revert MinReturnIsNotMet();
+            if (loss > maxLoss) revert MaxLossIsNotMet();
+            if (loss > amount * maxLossRatio / _ONE_E9) revert LossIsTooBig();
+
+            _withdraw(depositor, balance);
+            floor.safeTransfer(to, ret);
+            floor.safeTransfer(feeReceiver, loss);
+        }
+    }
+
+    /**
+     * @notice Gets the loss amount if the staker do early withdrawal at the current block
+     * @param account The account to calculate early withdrawal loss for
+     * @return loss The loss amount amount
+     * @return ret The return amount
+     * @return canWithdraw  True if the staker can withdraw without penalty, false otherwise
+     */
+    function earlyWithdrawLoss(address account) external view returns (uint256 loss, uint256 ret, bool canWithdraw) {
+        uint256 amount = depositors[account].amount;
+        (loss, ret) = _earlyWithdrawLoss(amount, balanceOf(account));
+        canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
+    }
+
+    function _earlyWithdrawLoss(uint256 depAmount, uint256 stBalance) private view returns (uint256 loss, uint256 ret) {
+        ret = (depAmount - _votingPowerAt(stBalance, block.timestamp)) * _VOTING_POWER_DIVIDER / (_VOTING_POWER_DIVIDER - 1);
+        loss = depAmount - ret;
+    }
+
+    /**
+     * @notice Withdraws stake if lock period expired
+     */
+    function withdraw() external {
+        withdrawTo(msg.sender);
+    }
+
+    /**
+     * @notice Withdraws stake if lock period expired to the given address
+     */
+    function withdrawTo(address to) public {
+        Depositor memory depositor = depositors[msg.sender]; // SLOAD
+        if (!emergencyExit && block.timestamp < depositor.unlockTime) revert UnlockTimeHasNotCome();
+
+        uint256 amount = depositor.amount;
+        if (amount > 0) {
+            _withdraw(depositor, balanceOf(msg.sender));
+            floor.safeTransfer(to, amount);
+        }
+    }
+
+    function _withdraw(Depositor memory depositor, uint256 balance) private {
+        totalDeposits -= depositor.amount;
+        depositor.amount = 0;
+        // keep unlockTime in storage for next tx optimization
+        depositor.unlockTime = uint40(block.timestamp);
+        depositors[msg.sender] = depositor; // SSTORE
+        _burn(msg.sender, balance);
+    }
+
+    /**
+     * @notice Retrieves funds from the contract in emergency situations
+     * @param token The token to retrieve
+     * @param amount The amount of funds to transfer
+     */
+    function rescueFunds(SafeERC20 token, uint256 amount) external onlyOwner {
+        if (address(token) == address(0)) {
+            Address.sendValue(payable(msg.sender), amount);
+        } else {
+            if (token == floor) {
+                if (amount > floor.balanceOf(address(this)) - totalDeposits) revert RescueAmountIsTooLarge();
             }
-        } else {
-            // If user is depositing with zero balance, they will automatically
-            // receive speed up benefits
-            userInfo.speedUpEndTimestamp = block.timestamp.add(speedUpDuration);
-            userInfo.lastClaimTimestamp = block.timestamp;
-        }
-
-        userInfo.balance = userInfo.balance.add(_amount);
-        userInfo.rewardDebt = accVeFloorPerShare.mul(userInfo.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION);
-
-        floor.safeTransferFrom(_msgSender(), address(this), _amount);
-
-        // Deposit into the xtoken as well
-        if (address(xVeFloor) != address(0)) {
-            xVeFloor.mint(_recipient, _amount);
-        }
-
-        emit Deposit(_recipient, _amount);
-    }
-
-    /**
-     * Withdraw staked FLOOR. Note that unstaking any amount of FLOOR means you will lose all
-     * of your current veFLOOR.
-     *
-     * @param _amount The amount of FLOOR to unstake
-     */
-    function withdraw(uint _amount) external {
-        require(_amount > 0, 'VeFloorStaking: expected withdraw amount to be greater than zero');
-
-        UserInfo storage userInfo = userInfos[_msgSender()];
-
-        require(userInfo.balance >= _amount, 'VeFloorStaking: cannot withdraw greater amount of FLOOR than currently staked');
-        updateRewardVars();
-
-        // Note that we don't need to claim as the user's veFLOOR balance will be reset to 0
-        userInfo.balance = userInfo.balance.sub(_amount);
-        userInfo.rewardDebt = accVeFloorPerShare.mul(userInfo.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION);
-        userInfo.lastClaimTimestamp = block.timestamp;
-        userInfo.speedUpEndTimestamp = 0;
-
-        // Burn the user's current veFLOOR balance
-        uint userVeFloorBalance = veFloor.balanceOf(_msgSender());
-        veFloor.burnFrom(_msgSender(), userVeFloorBalance);
-
-        // Burn xToken position as well
-        if (address(xVeFloor) != address(0)) {
-            xVeFloor.burnFrom(_msgSender(), _amount);
-        }
-
-        // Send user their requested amount of staked FLOOR
-        floor.safeTransfer(_msgSender(), _amount);
-
-        // Remove a user's votes from the Gauge Weight Vote
-        gaugeWeightVote.revokeAllUserVotes(_msgSender());
-
-        emit Withdraw(_msgSender(), _amount, userVeFloorBalance);
-    }
-
-    /**
-     * Claim any pending veFLOOR.
-     */
-    function claim() external {
-        require(_getUserHasNonZeroBalance(_msgSender()), 'VeFloorStaking: cannot claim veFLOOR when no FLOOR is staked');
-        updateRewardVars();
-        _claim();
-    }
-
-    /**
-     * Get the pending amount of veFLOOR for a given user.
-     *
-     * @param _user The user to lookup
-     *
-     * @return The number of pending veFLOOR tokens for `_user`
-     */
-    function getPendingVeFloor(address _user) public view returns (uint) {
-        if (!_getUserHasNonZeroBalance(_user)) {
-            return 0;
-        }
-
-        UserInfo memory user = userInfos[_user];
-
-        // Calculate amount of pending base veFLOOR
-        uint _accVeFloorPerShare = accVeFloorPerShare;
-        uint secondsElapsed = block.timestamp.sub(lastRewardTimestamp);
-        if (secondsElapsed > 0) {
-            _accVeFloorPerShare = _accVeFloorPerShare.add(
-                secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION)
-            );
-        }
-        uint pendingBaseVeFloor = _accVeFloorPerShare.mul(user.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION).sub(user.rewardDebt);
-
-        // Calculate amount of pending speed up veFLOOR
-        uint pendingSpeedUpVeFloor;
-        if (user.speedUpEndTimestamp != 0) {
-            uint speedUpCeilingTimestamp = block.timestamp > user.speedUpEndTimestamp ? user.speedUpEndTimestamp : block.timestamp;
-            uint speedUpSecondsElapsed = speedUpCeilingTimestamp.sub(user.lastClaimTimestamp);
-            uint speedUpAccVeFloorPerShare = speedUpSecondsElapsed.mul(speedUpVeFloorPerSharePerSec);
-            pendingSpeedUpVeFloor = speedUpAccVeFloorPerShare.mul(user.balance).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION);
-        }
-
-        uint pendingVeFloor = pendingBaseVeFloor.add(pendingSpeedUpVeFloor);
-
-        // Get the user's current veFLOOR balance
-        uint userVeFloorBalance = veFloor.balanceOf(_user);
-
-        // This is the user's max veFLOOR cap multiplied by 100
-        uint scaledUserMaxVeFloorCap = user.balance.mul(maxCapPct);
-
-        if (userVeFloorBalance.mul(100) >= scaledUserMaxVeFloorCap) {
-            // User already holds maximum amount of veFLOOR so there is no pending veFLOOR
-            return 0;
-        } else if (userVeFloorBalance.add(pendingVeFloor).mul(100) > scaledUserMaxVeFloorCap) {
-            return scaledUserMaxVeFloorCap.sub(userVeFloorBalance.mul(100)).div(100);
-        } else {
-            return pendingVeFloor;
+            token.safeTransfer(msg.sender, amount);
         }
     }
 
-    /**
-     * Update reward variables
-     */
-    function updateRewardVars() public {
-        if (block.timestamp <= lastRewardTimestamp) {
-            return;
-        }
+    // ERC20 methods disablers
 
-        if (floor.balanceOf(address(this)) == 0) {
-            lastRewardTimestamp = block.timestamp;
-            return;
-        }
-
-        uint secondsElapsed = block.timestamp.sub(lastRewardTimestamp);
-        accVeFloorPerShare = accVeFloorPerShare.add(
-            secondsElapsed.mul(veFloorPerSharePerSec).mul(ACC_VEFLOOR_PER_SHARE_PRECISION).div(VEFLOOR_PER_SHARE_PER_SEC_PRECISION)
-        );
-        lastRewardTimestamp = block.timestamp;
-
-        emit UpdateRewardVars(lastRewardTimestamp, accVeFloorPerShare);
+    function approve(address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+        revert ApproveDisabled();
     }
 
-    /**
-     * Checks to see if a given user currently has staked FLOOR.
-     *
-     * @param _user The user address to check
-     *
-     * @return Whether `_user` currently has staked FLOOR
-     */
-    function _getUserHasNonZeroBalance(address _user) private view returns (bool) {
-        return userInfos[_user].balance > 0;
+    function transfer(address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+        revert TransferDisabled();
     }
 
-    /**
-     * Helper to claim any pending veFLOOR.
-     */
-    function _claim() private {
-        uint veFloorToClaim = getPendingVeFloor(_msgSender());
+    function transferFrom(address, address, uint256) public pure override(SafeERC20, ERC20) returns (bool) {
+        revert TransferDisabled();
+    }
 
-        UserInfo storage userInfo = userInfos[_msgSender()];
+    function increaseAllowance(address, uint256) public pure override returns (bool) {
+        revert ApproveDisabled();
+    }
 
-        userInfo.rewardDebt = accVeFloorPerShare.mul(userInfo.balance).div(ACC_VEFLOOR_PER_SHARE_PRECISION);
-
-        // If user's speed up period has ended, reset `speedUpEndTimestamp` to 0
-        if (userInfo.speedUpEndTimestamp != 0 && block.timestamp >= userInfo.speedUpEndTimestamp) {
-            userInfo.speedUpEndTimestamp = 0;
-        }
-
-        if (veFloorToClaim > 0) {
-            userInfo.lastClaimTimestamp = block.timestamp;
-
-            veFloor.mint(_msgSender(), veFloorToClaim);
-            emit Claim(_msgSender(), veFloorToClaim);
-        }
+    function decreaseAllowance(address, uint256) public pure override returns (bool) {
+        revert ApproveDisabled();
     }
 }

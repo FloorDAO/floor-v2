@@ -29,7 +29,7 @@ contract FloorTokenTest is FloorTest {
     }
 
     function test_CannotMintWithoutPermissions() public {
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.FLOOR_MANAGER()));
         vm.prank(alice);
         floor.mint(alice, 100 ether);
     }

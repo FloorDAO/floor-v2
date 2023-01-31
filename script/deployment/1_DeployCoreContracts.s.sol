@@ -15,7 +15,6 @@ import {NFTXLiquidityStakingStrategy} from '../../src/contracts/strategies/NFTXL
 import {StrategyRegistry} from '../../src/contracts/strategies/StrategyRegistry.sol';
 import {FLOOR} from '../../src/contracts/tokens/Floor.sol';
 import {VaultXToken} from '../../src/contracts/tokens/VaultXToken.sol';
-import {veFLOOR} from '../../src/contracts/tokens/VeFloor.sol';
 import {Vault} from '../../src/contracts/vaults/Vault.sol';
 import {VaultFactory} from '../../src/contracts/vaults/VaultFactory.sol';
 import {GaugeWeightVote} from '../../src/contracts/voting/GaugeWeightVote.sol';
@@ -58,8 +57,9 @@ contract DeployCoreContracts is Script {
 
         // Deploy our tokens
         FLOOR floor = new FLOOR(address(authorityRegistry));
-        veFLOOR veFloor = new veFLOOR('veFLOOR', 'veFLOOR', address(authorityRegistry));
+        // VeFloorStaking veFloor = new VeFloorStaking();
 
+        /*
         // Deploy our NFTX staking strategies
         NFTXInventoryStakingStrategy inventoryStakingStrategy = new NFTXInventoryStakingStrategy('NFTX Inventory Staking');
         NFTXLiquidityStakingStrategy liquidityStakingStrategy = new NFTXLiquidityStakingStrategy('NFTX Liquitity Staking');
@@ -116,6 +116,7 @@ contract DeployCoreContracts is Script {
 
         // Deploy our zaps
         ClaimFloorRewardsZap claimFloorRewardsZap = new ClaimFloorRewardsZap(address(floor), address(vaultFactory));
+        */
 
         // Stop collecting onchain transactions
         vm.stopBroadcast();

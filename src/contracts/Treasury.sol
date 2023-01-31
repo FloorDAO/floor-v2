@@ -36,6 +36,20 @@ error NoPricingExecutorSet();
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
+
+    /// ..
+    enum ApprovalType { NATIVE, ERC20, ERC721, ERC1155 }
+
+    /**
+     * ..
+     */
+    struct ActionApproval {
+        ApprovalType _type;  // Token type
+        address assetContract;  // Used by 20, 721 and 1155
+        uint tokenId;  // Used by 721 tokens
+        uint amount;  // Used by native and 20 tokens
+    }
+
     /// Store when last epoch was run
     uint public lastEpoch;
     uint public EPOCH_LENGTH = 7 days;
@@ -431,15 +445,32 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address action, address[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
+    function processAction(address payable action, ActionApproval[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
+
         for (uint i; i < approvals.length;) {
-            IERC20(approvals[i]).approve(action, type(uint).max);
-            unchecked {
-                ++i;
+            if (approvals[i]._type == ApprovalType.NATIVE) {
+                (bool sent,) = payable(action).call{value: approvals[i].amount}('');
+                require(sent, 'Unable to fund action');
             }
+            else if (approvals[i]._type == ApprovalType.ERC20) {
+                IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
+            }
+            else if (approvals[i]._type == ApprovalType.ERC721) {
+                IERC721(approvals[i].assetContract).approve(action, approvals[i].tokenId);
+            }
+            else if (approvals[i]._type == ApprovalType.ERC1155) {
+                IERC1155(approvals[i].assetContract).setApprovalForAll(action, true);
+            }
+
+            unchecked { ++i; }
         }
 
         IAction(action).execute(data);
+
+        // Remove ERC1155 global approval after execution
+        if (approvals[i]._type == ApprovalType.ERC1155) {
+            IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
+        }
     }
 
     /**

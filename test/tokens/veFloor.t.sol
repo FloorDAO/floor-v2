@@ -29,7 +29,7 @@ contract VeFloorTokenTest is FloorTest {
      */
     function test_CanMintWithRole(uint amount) public {
         // Confirm we can't mint directly
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(bob), authorityControl.FLOOR_MANAGER()));
         vm.prank(bob);
         veFloor.mint(bob, amount);
 

@@ -674,9 +674,6 @@ contract VaultTest is FloorTest {
     }
 
     function test_CanPause() public {
-        // Give our test contract the role to manage vaults
-        // authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), utilities.deployer());
-
         assertEq(vault.paused(), false);
 
         vaultFactory.pause(vault.vaultId(), true);
@@ -693,7 +690,7 @@ contract VaultTest is FloorTest {
         vm.startPrank(PUNK_HOLDER);
         IERC20(vault.collection()).approve(address(vault), type(uint).max);
 
-        vm.expectRevert('Vault is currently paused');
+        vm.expectRevert(VaultIsPaused.selector);
         vault.deposit(100000);
 
         vm.stopPrank();
@@ -706,7 +703,9 @@ contract VaultTest is FloorTest {
         uint vaultId = vault.vaultId();
 
         vm.startPrank(PUNK_HOLDER);
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(
+            abi.encodeWithSelector(AccountDoesNotHaveRole.selector, PUNK_HOLDER, authorityControl.VAULT_MANAGER())
+        );
         vaultFactory.pause(vaultId, true);
         vm.stopPrank();
     }

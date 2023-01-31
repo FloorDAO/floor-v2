@@ -124,7 +124,7 @@ contract StrategyRegistryTest is FloorTest {
      */
     function test_CannotApproveStrategyWithoutPermissions() public {
         vm.prank(alice);
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         strategyRegistry.approveStrategy(USDC);
     }
 
@@ -166,7 +166,7 @@ contract StrategyRegistryTest is FloorTest {
      */
     function test_CannotRevokeStrategyWithoutPermissions() public {
         vm.prank(alice);
-        vm.expectRevert('Account does not have role');
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
         strategyRegistry.revokeStrategy(USDC);
     }
 }
