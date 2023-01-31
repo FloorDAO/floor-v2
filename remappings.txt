@@ -8,3 +8,4 @@ forge-std/=lib/forge-std/src/
 @murky/=lib/murky/src/
 @solidity-math-utils/=lib/solidity-math-utils/project/contracts/
 @solidity-trigonometry/=lib/solidity-trigonometry/src/
+@1inch/=lib/
