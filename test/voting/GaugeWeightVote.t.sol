@@ -42,6 +42,9 @@ contract GaugeWeightVoteTest is FloorTest {
     address alice;
     address bob;
 
+    // Store vote power from setUp
+    mapping (address => uint) votePower;
+
     constructor() {
         // Create our {StrategyRegistry}
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
@@ -80,7 +83,7 @@ contract GaugeWeightVoteTest is FloorTest {
         );
 
         // Set up our veFloor token
-        veFloor = new VeFloorStaking(floor, 1, address(0));
+        veFloor = new VeFloorStaking(floor, STAKING_EXP_BASE, address(2));
 
         // Now that we have all our dependencies, we can deploy our
         // {GaugeWeightVote} contract.
@@ -106,8 +109,21 @@ contract GaugeWeightVoteTest is FloorTest {
 
     function setUp() public {
         // Grant Alice and Bob plenty of veFLOOR tokens to play with
-        // veFloor.mint(alice, 100 ether);
-        // veFloor.mint(bob, 100 ether);
+        floor.mint(alice, 100 ether);
+        floor.mint(bob, 100 ether);
+
+        vm.startPrank(alice);
+        floor.approve(address(veFloor), 100 ether);
+        veFloor.deposit(100 ether, 2 * 365 days);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        floor.approve(address(veFloor), 100 ether);
+        veFloor.deposit(100 ether, 2 * 365 days);
+        vm.stopPrank();
+
+        votePower[alice] = veFloor.balanceOf(alice);
+        votePower[bob] = veFloor.balanceOf(bob);
     }
 
     function test_canGetZeroVotingPower(address unknown) public {
@@ -120,7 +136,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_canGetVotingPowerWithVeFloorBalance() public {
-        assertEq(gaugeWeightVote.userVotingPower(alice), 100 ether);
+        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
     }
 
     function test_canGetVotesAvailableWithNoBalanceOrVotes(address unknown) public {
@@ -133,23 +149,23 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_canGetVotesAvailableWithVeBalanceAndZeroVotes() public {
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), 100 ether);
+        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
     }
 
     function test_canGetVotesAvailableWithVeBalanceAndVotesCast(uint voteAmount) public {
         vm.assume(voteAmount > 0);
         vm.assume(voteAmount <= veFloor.balanceOf(alice));
 
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), 100 ether);
+        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
 
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, voteAmount);
 
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), 100 ether - voteAmount);
+        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice] - voteAmount);
     }
 
     function test_cannotVoteWithZeroBalance() public {
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 1 ether, 0));
         vm.prank(address(0));
         gaugeWeightVote.vote(approvedCollection1, 1 ether);
 
@@ -157,7 +173,7 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteWithMoreTokensThanBalance() public {
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 101 ether, votePower[alice]));
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 101 ether);
 
@@ -170,7 +186,7 @@ contract GaugeWeightVoteTest is FloorTest {
 
         assertEq(gaugeWeightVote.votes(approvedCollection1), 80 ether);
 
-        vm.expectRevert('Insufficient voting power');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 21 ether, votePower[alice] - 80 ether));
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 21 ether);
 
@@ -178,15 +194,15 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function test_cannotVoteOnUnapprovedCollection() public {
-        vm.expectRevert('Collection not approved');
+        vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, unapprovedCollection1));
         vm.prank(alice);
         gaugeWeightVote.vote(unapprovedCollection1, 1 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
+        assertEq(gaugeWeightVote.votes(unapprovedCollection1), 0);
     }
 
     function test_cannotVoteWithZeroAmount() public {
-        vm.expectRevert('Cannot vote with zero amount');
+        vm.expectRevert(CannotVoteWithZeroAmount.selector);
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 0);
     }
@@ -233,7 +249,7 @@ contract GaugeWeightVoteTest is FloorTest {
         uint[] memory amounts = new uint[](1);
         amounts[0] = 10 ether;
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesToRevoke.selector, 10 ether, 0));
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -244,7 +260,7 @@ contract GaugeWeightVoteTest is FloorTest {
 
         uint[] memory amounts = new uint[](0);
 
-        vm.expectRevert('Wrong amount count');
+        vm.expectRevert(InvalidCollectionsAndAmounts.selector);
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
 
@@ -252,7 +268,7 @@ contract GaugeWeightVoteTest is FloorTest {
         amounts[0] = 1 ether;
         amounts[1] = 2 ether;
 
-        vm.expectRevert('Wrong amount count');
+        vm.expectRevert(InvalidCollectionsAndAmounts.selector);
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -261,7 +277,7 @@ contract GaugeWeightVoteTest is FloorTest {
         address[] memory collections = new address[](0);
         uint[] memory amounts = new uint[](0);
 
-        vm.expectRevert('No collections supplied');
+        vm.expectRevert(InvalidCollectionsAndAmounts.selector);
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -273,7 +289,7 @@ contract GaugeWeightVoteTest is FloorTest {
         uint[] memory amounts = new uint[](1);
         amounts[0] = 5 ether;
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesToRevoke.selector, 5 ether, 0));
         vm.prank(alice);
         gaugeWeightVote.revokeVotes(collections, amounts);
     }
@@ -337,7 +353,7 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.startPrank(alice);
         gaugeWeightVote.vote(approvedCollection1, 10 ether);
 
-        vm.expectRevert('Insufficient votes to revoke');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientVotesToRevoke.selector, 20 ether, 10 ether));
         gaugeWeightVote.revokeVotes(collections, amounts);
         vm.stopPrank();
 
@@ -356,8 +372,8 @@ contract GaugeWeightVoteTest is FloorTest {
         gaugeWeightVote.vote(floorTokenCollection, 4 ether);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.userVotingPower(alice), 100 ether);
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), 90 ether);
+        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
+        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice] - 10 ether);
 
         gaugeWeightVote.revokeAllUserVotes(alice);
 
@@ -366,14 +382,14 @@ contract GaugeWeightVoteTest is FloorTest {
         assertEq(gaugeWeightVote.votes(approvedCollection3), 0);
         assertEq(gaugeWeightVote.votes(floorTokenCollection), 0);
 
-        assertEq(gaugeWeightVote.userVotingPower(alice), 100 ether);
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), 100 ether);
+        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
+        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
     }
 
     function test_cannotSetSampleSizeWithoutPermission() public {
         assertEq(gaugeWeightVote.sampleSize(), 5);
 
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.VOTE_MANAGER()));
         vm.prank(alice);
         gaugeWeightVote.setSampleSize(10);
 
@@ -383,7 +399,7 @@ contract GaugeWeightVoteTest is FloorTest {
     function test_cannotSetSampleSizeToZero() public {
         assertEq(gaugeWeightVote.sampleSize(), 5);
 
-        vm.expectRevert('Sample size must be above 0');
+        vm.expectRevert(SampleSizeCannotBeZero.selector);
         gaugeWeightVote.setSampleSize(0);
 
         assertEq(gaugeWeightVote.sampleSize(), 5);

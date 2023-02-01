@@ -20,6 +20,8 @@ contract FloorTest is Test {
 
     address constant DEPLOYER = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
+    uint STAKING_EXP_BASE = 999999952502977513;
+
     constructor() {
         // Set up our utilities class
         utilities = new Utilities();

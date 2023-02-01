@@ -156,7 +156,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      */
     function endEpoch() external {
         // Ensure enough time has past since the last epoch ended
-        if (lastEpoch != 0 && block.timestamp >= lastEpoch + EPOCH_LENGTH) {
+        if (lastEpoch != 0 && block.timestamp < lastEpoch + EPOCH_LENGTH) {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
@@ -219,10 +219,12 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
 
                 // Burn any tokens not transferred as we don't want to hold them in the {Treasury}
-                floor.burn(claimAmount - yieldRewards);
+                if (claimAmount != yieldRewards) {
+                    floor.burn(claimAmount - yieldRewards);
+                }
 
                 // Process the snapshot, which will reward xTokens holders directly
-                floor.approve(address(voteContract), yieldRewards);
+                floor.transfer(address(voteContract), yieldRewards);
                 voteContract.snapshot(yieldRewards);
             }
         }

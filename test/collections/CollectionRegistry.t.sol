@@ -84,7 +84,7 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveNullAddressCollection() public {
-        vm.expectRevert('Cannot approve NULL collection');
+        vm.expectRevert(CannotApproveNullCollection.selector);
         collectionRegistry.approveCollection(address(0));
     }
 

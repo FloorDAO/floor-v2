@@ -74,7 +74,7 @@ contract VaultFactoryTest is FloorTest {
             address(strategyRegistry),
             address(vaultImplementation),
             address(vaultXTokenImplementation),
-            address(floor) // _floor
+            address(floor)
         );
     }
 
@@ -149,7 +149,7 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithEmptyName() public {
-        vm.expectRevert('Name cannot be empty');
+        vm.expectRevert(VaultNameCannotBeEmpty.selector);
         vaultFactory.createVault('', approvedStrategy, _strategyInitBytes(), approvedCollection);
     }
 
@@ -160,7 +160,7 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithUnapprovedStrategy() public {
-        vm.expectRevert('Strategy not approved');
+        vm.expectRevert(abi.encodeWithSelector(StrategyNotApproved.selector, strategy));
         vaultFactory.createVault('Test Vault', strategy, _strategyInitBytes(), approvedCollection);
     }
 
@@ -171,7 +171,7 @@ contract VaultFactoryTest is FloorTest {
      * This should not emit {VaultCreated}.
      */
     function test_CannotCreateVaultWithUnapprovedCollection() public {
-        vm.expectRevert('Collection not approved');
+        vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, collection));
         vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
     }
 

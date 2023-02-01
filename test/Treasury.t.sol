@@ -52,7 +52,7 @@ contract TreasuryTest is FloorTest {
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
-        veFloor = new VeFloorStaking(floor, 1, address(0));
+        veFloor = new VeFloorStaking(floor, STAKING_EXP_BASE, address(this));
 
         // Set up a fake ERC20 token that we can test with. We use the {Floor} token
         // contract as a base as this already implements IERC20. We have no initial
@@ -104,6 +104,9 @@ contract TreasuryTest is FloorTest {
             address(authorityRegistry)
         );
 
+        // Update our veFloor staking receiver to be the {Treasury}
+        veFloor.setFeeReceiver(address(treasury));
+
         // Create our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
 
@@ -137,7 +140,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintFloorWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
         vm.prank(alice);
         treasury.mint(100 ether);
 
@@ -151,7 +154,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintZeroFloor() public {
-        vm.expectRevert('Cannot mint zero Floor');
+        vm.expectRevert(InsufficientAmount.selector);
         treasury.mint(0);
 
         assertEq(floor.balanceOf(address(treasury)), 0);
@@ -300,7 +303,7 @@ contract TreasuryTest is FloorTest {
         (bool sent,) = address(treasury).call{value: 10 ether}('');
         assertTrue(sent);
 
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdraw(carol, 5 ether);
     }
@@ -363,7 +366,7 @@ contract TreasuryTest is FloorTest {
         treasury.depositERC20(address(erc20), 4 ether);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdrawERC20(bob, address(erc20), 3 ether);
     }
@@ -413,7 +416,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotWithdrawERC721WithoutPermissions() public {
         // Withdraw the ERC721 to Carol's wallet
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdrawERC721(bob, address(erc721), 123);
     }
@@ -499,7 +502,7 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
 
         // Withdraw the ERC1155 to Bob's wallet
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
@@ -515,12 +518,12 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetGaugeWeightVoteContractNullValue() public {
-        vm.expectRevert('Cannot set to null address');
+        vm.expectRevert(CannotSetNullAddress.selector);
         treasury.setGaugeWeightVoteContract(address(0));
     }
 
     function test_CannotSetGaugeWeightVoteContractWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
         vm.prank(alice);
         treasury.setGaugeWeightVoteContract(address(1));
     }
@@ -541,12 +544,12 @@ contract TreasuryTest is FloorTest {
         // Ensure our test amount is over 100%
         vm.assume(percentage > 10000);
 
-        vm.expectRevert('Percentage too high');
+        vm.expectRevert(abi.encodeWithSelector(PercentageTooHigh.selector, 10000));
         treasury.setRetainedTreasuryYieldPercentage(percentage);
     }
 
     function test_CannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
         vm.prank(alice);
         treasury.setRetainedTreasuryYieldPercentage(0);
     }
@@ -589,7 +592,7 @@ contract TreasuryTest is FloorTest {
      * anything and we should have our call reverted.
      */
     function test_CannotGetFloorPricesWithoutPricingExecutor() public {
-        vm.expectRevert('No pricing executor set');
+        vm.expectRevert(NoPricingExecutorSet.selector);
         treasury.getCollectionFloorPrices();
     }
 
@@ -604,12 +607,12 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CannotSetPricingExecutorNullValue() public {
-        vm.expectRevert('Cannot set to null address');
+        vm.expectRevert(CannotSetNullAddress.selector);
         treasury.setPricingExecutor(address(0));
     }
 
     function test_CannotSetPricingExecutorWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
         vm.prank(alice);
         treasury.setPricingExecutor(address(1));
     }
@@ -767,7 +770,12 @@ contract TreasuryTest is FloorTest {
         assertEq(vaultXTokens[4].dividendOf(users[7]), 43999999999999999999);
 
         // The {Treasury} will not hold the tokens, they will be in the individual
-        // vaults.
+        // vaults. Tokens that would have been attributed to the {Treasury} will
+        // have been burnt.
+
+        // 154538775510204081628
+        // 154538775510204081628
+
         assertEq(floor.balanceOf(address(treasury)), 0);
     }
 
@@ -788,7 +796,7 @@ contract TreasuryTest is FloorTest {
 
         // Calling the epoch again should result in a reversion as we have not
         // respected the enforced timelock.
-        vm.expectRevert('Not enough time since last epoch');
+        vm.expectRevert(abi.encodeWithSelector(EpochTimelocked.selector, block.timestamp + 7 days));
         treasury.endEpoch();
 
         // After moving forwards 7 days, we can now successfully end another epoch

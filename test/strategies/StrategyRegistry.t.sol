@@ -82,7 +82,7 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyApproved}.
      */
     function test_ApproveNullAddressStrategy() public {
-        vm.expectRevert('Cannot approve NULL strategy');
+        vm.expectRevert(CannotApproveNullStrategy.selector);
         strategyRegistry.approveStrategy(address(0));
     }
 
@@ -123,9 +123,10 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyApproved}.
      */
     function test_CannotApproveStrategyWithoutPermissions() public {
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.STRATEGY_MANAGER()));
         strategyRegistry.approveStrategy(USDC);
+        vm.stopPrank();
     }
 
     /**
@@ -153,7 +154,7 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyRevoked}.
      */
     function test_RevokeUnapprovedStrategy() public {
-        vm.expectRevert('Strategy is not approved');
+        vm.expectRevert(abi.encodeWithSelector(CannotRevokeUnapprovedStrategy.selector, USDT));
         strategyRegistry.revokeStrategy(USDT);
     }
 
@@ -165,8 +166,9 @@ contract StrategyRegistryTest is FloorTest {
      * This should not emit {StrategyRevoked}.
      */
     function test_CannotRevokeStrategyWithoutPermissions() public {
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, msg.sender, ''));
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.STRATEGY_MANAGER()));
         strategyRegistry.revokeStrategy(USDC);
+        vm.stopPrank();
     }
 }

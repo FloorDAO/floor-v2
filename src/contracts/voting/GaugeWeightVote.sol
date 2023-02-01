@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 import {CollectionNotApproved} from '../utils/Errors.sol';
 import {VeFloorStaking} from '../staking/VeFloorStaking.sol';
@@ -183,7 +185,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         uint length = _collection.length;
 
         // Validate our supplied array sizes
-        if (length == 0 || length == _amount.length) {
+        if (length == 0 || length != _amount.length) {
             revert InvalidCollectionsAndAmounts();
         }
 
@@ -315,8 +317,10 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             // If we have the FLOOR token collection vote, we can distribute to the assigned
             // xToken reward distributor.
             if (collections[i] == FLOOR_TOKEN_VOTE && FLOOR_TOKEN_VOTE_XTOKEN != address(0)) {
-                // We will have a specific veFloor xToken at this point to distribute to.
-                IVaultXToken(FLOOR_TOKEN_VOTE_XTOKEN).distributeRewards(collectionRewards);
+                // We will have a specific veFloor xToken at this point to distribute to
+                IVaultXToken vaultXToken = IVaultXToken(FLOOR_TOKEN_VOTE_XTOKEN);
+                vaultXToken.target().transfer(address(vaultXToken), collectionRewards);
+                vaultXToken.distributeRewards(collectionRewards);
 
                 // We don't need to process the rest of our loop
                 unchecked {
@@ -339,13 +343,19 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             }
 
             for (uint j; j < collectionVaults.length;) {
-                // Get the rewards owed to the vault based on the yield share of the collection and
-                // assign the rewards to the vault xToken
-                uint vaultRewards = (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
+                // If a top collection yielded 0 rewards, they aren't eligible for any rewards, and we
+                // also need to avoid a 0 division in our code.
+                if (yieldStorage[collections[i]] != 0) {
+                    // Get the rewards owed to the vault based on the yield share of the collection and
+                    // assign the rewards to the vault xToken
+                    uint vaultRewards = (collectionRewards * yieldStorage[collectionVaults[j]]) / yieldStorage[collections[i]];
 
-                // We assume that the snapshot tokens have already been transferred to the rewards
-                // ledger at this point
-                IVaultXToken(IVault(collectionVaults[j]).xToken()).distributeRewards(vaultRewards);
+                    // We assume that the snapshot tokens have already been transferred to the rewards
+                    // ledger at this point
+                    IVaultXToken vaultXToken = IVaultXToken(IVault(collectionVaults[j]).xToken());
+                    vaultXToken.target().transfer(address(vaultXToken), vaultRewards);
+                    vaultXToken.distributeRewards(vaultRewards);
+                }
 
                 unchecked {
                     ++j;
