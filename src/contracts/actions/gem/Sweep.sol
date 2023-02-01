@@ -2,14 +2,17 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
+import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
 import {IAction} from '../../../interfaces/actions/Action.sol';
 
-
-/// ..
+/// If Gem prevents our sweep from being successful
 error UnableToSweepGem();
+
 
 /**
  * @notice Allows sweeping from Gem.xyz to facilitate the purchasing and immediate
@@ -17,43 +20,20 @@ error UnableToSweepGem();
  *
  * @author Twade
  */
+contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
 
-contract SweepAndStake is IAction, Ownable, Pausable {
-
-    /// Internal store of whitelisted addresses
-    mapping (address => bool) internal whitelisted;
+    /// Internal store of GemSwap contract
+    address GEM_SWAP;
 
     /// @notice Emitted when ..
     event Sweep(uint ethAmount);
 
     /**
-     * Store our required information to action a swap.
-     *
-     * @param asset Address of the token being liquidated
-     * @param vaultId NFTX vault ID
-     * @param tokenIds Array of token IDs owned by the {Treasury} to be liquidated
-     * @param minEthOut The minimum amount of ETH to receive, otherwise the transaction
-     * will be reverted to prevent front-running
-     * @param path The generated exchange path
-     */
-    struct ActionRequest {
-        address target;
-        bytes txData;
-    }
-
-    /**
      * ..
      */
     function execute(bytes calldata _request) public payable returns (uint spent) {
-        // Unpack the request bytes data into individual variables, as mapping it directly
-        // to the struct is buggy due to memory -> storage array mapping.
-        (address target, bytes memory txData) = abi.decode(_request, (address, bytes));
-
-        // Ensure our address is whitelisted
-        require(whitelisted[target], 'Call target is not whitelisted');
-
-        // Sweeps from GemSwap. This scares me.
-        (bool success,) = target.call(txData);
+        // Sweeps from GemSwap
+        (bool success, ) = payable(GEM_SWAP).call{value: msg.value}(_request);
         if (!success) revert UnableToSweepGem();
 
         // Emit the amount of ETH used to sweep
@@ -68,13 +48,13 @@ contract SweepAndStake is IAction, Ownable, Pausable {
      * Allows the owner to add a whitelisted address that can be passed as a
      * `target` in the `sweepAndStake` function. This can be either activated
      * or deactivated based on the `_value` passed.
-     *
-     * @param _whitelist Address to be updated
-     * @param _value Whether the address is to be whitelisted or blocked
      */
+    function setGemSwap(address _gemSwap) external onlyOwner {
+        GEM_SWAP = _gemSwap;
+    }
 
-    function whitelistAddress(address _whitelist, bool _value) external onlyOwner {
-        whitelisted[_whitelist] = _value;
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
 }

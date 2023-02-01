@@ -1,472 +1,376 @@
-/*
-const { expect, assertRoughlyEqualValues, timeIncreaseTo, time, getPermit, ether } = require('@1inch/solidity-utils');
-const { BigNumber: BN } = require('ethers');
-const { ethers } = require('hardhat');
-const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-const { getChainId } = require('./helpers/fixtures');
-const { expBase } = require('./helpers/utils');
-const { shouldBehaveLikeERC20Pods } = require('@1inch/erc20-pods/test/behaviors/ERC20Pods.behavior.js');
+// SPDX-License-Identifier: MIT
 
-describe('St1inch', function () {
-    let addr, addr1;
-    const votingPowerDivider = 20n;
-    const maxPods = 5;
-    let chainId;
+pragma solidity ^0.8.0;
 
-    const exp = (point, t) => {
-        let base = expBase;
-        while (t > 0n) {
-            if ((t & 1n) === 1n) {
-                point = point * base / ether('1');
-            }
-            base = base * base / ether('1');
-            t = t >> 1n;
-        }
-        return point;
-    };
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-    const expInv = (point, t) => {
-        let base = expBase;
-        while (t > 0n) {
-            if ((t & 1n) === 1n) {
-                point = point * ether('1') / base;
-            }
-            base = base * base / ether('1');
-            t = t >> 1n;
-        }
-        return point;
-    };
+import '../../src/contracts/tokens/Floor.sol';
+import '../../src/contracts/staking/VeFloorStaking.sol';
 
-    const checkBalances = async (account, balance, lockDuration, st1inch) => {
-        const origin = await st1inch.origin();
-        expect((await st1inch.depositors(account)).amount).to.equal(balance);
-        const t = BN.from(await time.latest()).add(lockDuration).sub(origin).toBigInt();
-        const originPower = expInv(balance, t) / votingPowerDivider;
-        expect(await st1inch.balanceOf(account)).to.equal(originPower);
-        expect(await st1inch.votingPowerOf(account)).to.equal(
-            exp(originPower, BN.from(await time.latest()).sub(origin).toBigInt()),
-        );
-        assertRoughlyEqualValues(
-            await st1inch.votingPowerOfAt(account, (await st1inch.depositors(account)).unlockTime),
-            balance / votingPowerDivider,
-            1e-10,
-        );
-    };
+import '../utilities/Environments.sol';
 
-    async function deployInch() {
-        const TokenPermitMock = await ethers.getContractFactory('ERC20PermitMock');
-        const oneInch = await TokenPermitMock.deploy('1inch', '1inch', addr.address, ether('200'));
-        await oneInch.deployed();
+contract VeFloorStakingTest is FloorTest {
 
-        return { oneInch };
+    // Test users
+    address alice;
+
+    // Internal contract references
+    FLOOR floor;
+    VeFloorStaking veFloor;
+
+    constructor () {
+        // Map our test user(s)
+        alice = users[0];
+
+        // Deploy our floor token
+        floor = new FLOOR(address(authorityRegistry));
+
+        // Deploy our staking contract with our test contract as the recipient of fees
+        veFloor = new VeFloorStaking(floor, STAKING_EXP_BASE, address(this));
+
+        floor.mint(address(this), 100 ether);
+        floor.approve(address(veFloor), 100 ether);
+
+        // Give Alice some FLOOR that will have permissions to go into the staking contract
+        floor.mint(address(alice), 100 ether);
+        vm.prank(alice);
+        floor.approve(address(veFloor), 100 ether);
+
+        // Set our max loss ratio as 10%
+        veFloor.setMaxLossRatio(100000000);
     }
 
-    async function initContracts() {
-        const { oneInch } = await deployInch();
+    function test_ShouldTakeUsersDeposit() external {
+        (, , uint amount) = veFloor.depositors(address(this));
+        assertEq(amount, 0);
+        assertEq(veFloor.balanceOf(address(this)), 0);
+        assertEq(veFloor.votingPowerOf(address(this)), 0);
 
-        const St1inch = await ethers.getContractFactory('St1inch');
-        const st1inch = await St1inch.deploy(oneInch.address, expBase, addr.address);
-        await st1inch.deployed();
+        veFloor.deposit(100 ether, 30 days);
 
-        await oneInch.transfer(addr1.address, ether('100'));
-        await oneInch.approve(st1inch.address, ether('100'));
-        await oneInch.connect(addr1).approve(st1inch.address, ether('100'));
-
-        await st1inch.setMaxLossRatio('100000000'); // 10%
-
-        return { oneInch, st1inch };
+        _assertBalances(address(this), 100 ether, 30 days);
     }
 
-    async function initContractsBehavior() {
-        const { oneInch } = await deployInch();
+    function test_ShouldTakeUsersDepositForOtherAccount() external {
+        (, , uint amount) = veFloor.depositors(alice);
+        assertEq(amount, 0);
+        assertEq(veFloor.balanceOf(alice), 0);
+        assertEq(veFloor.votingPowerOf(alice), 0);
 
-        const St1inch = await ethers.getContractFactory('St1inchMock');
-        const st1inch = await St1inch.deploy(oneInch.address, expBase, addr.address);
-        await st1inch.deployed();
+        uint balanceaddr = floor.balanceOf(address(this));
+        uint balanceAddr1 = floor.balanceOf(alice);
 
-        const PodMock = await ethers.getContractFactory('PodMock');
-        const pods = [];
-        for (let i = 0; i < maxPods; i++) {
-            pods[i] = await PodMock.deploy(`POD_TOKEN_${i}`, `PT${i}`, st1inch.address);
-            await pods[i].deployed();
-        }
-        const amount = ether('1');
-        const erc20Pods = st1inch;
-        return { erc20Pods, pods, amount };
+        vm.prank(alice);
+        veFloor.deposit(0, 30 days + 1);
+        veFloor.depositFor(alice, 100 ether);
+
+        assertEq(floor.balanceOf(address(this)), balanceaddr - 100 ether);
+        assertEq(floor.balanceOf(alice), balanceAddr1);
+
+        _assertBalances(alice, 100 ether, 30 days);
+
+        (, , amount) = veFloor.depositors(address(this));
+        assertEq(amount, 0);
+        assertEq(veFloor.balanceOf(address(this)), 0);
+        assertEq(veFloor.votingPowerOf(address(this)), 0);
     }
 
-    before(async function () {
-        [addr, addr1] = await ethers.getSigners();
-        chainId = await getChainId();
-    });
+    function test_ShouldIncreaseUnlockTimeForDeposit() external {
+        veFloor.deposit(100 ether, 30 days);
 
-    shouldBehaveLikeERC20Pods(initContractsBehavior);
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime);
 
-    it('should take users deposit', async function () {
-        const { st1inch } = await loadFixture(initContracts);
+        veFloor.deposit(0, 730 days);
+        _assertBalances(address(this), 100 ether, 730 days);
+    }
 
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
+    function test_ShouldDecreaseUnlockTimeWithEarlyWithdraw() external {
+        veFloor.setMaxLossRatio(1000000000); // 100%
+        veFloor.setFeeReceiver(address(this));
 
-        await st1inch.deposit(ether('100'), time.duration.days('30'));
+        veFloor.deposit(100 ether, 60 days);
+        skip(5 days);
 
-        await checkBalances(addr.address, ether('100'), time.duration.days('30'), st1inch);
-    });
+        veFloor.earlyWithdrawTo(address(this), 0 ether, 100 ether);
 
-    it('should take users deposit with permit', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        assertEq(unlockTime, block.timestamp);
+        floor.approve(address(veFloor), 100 ether);
 
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
-        await oneInch.approve(st1inch.address, '0');
-        const permit = await getPermit(addr, oneInch, '1', chainId, st1inch.address, ether('100'));
+        veFloor.deposit(100 ether, 30 days);
 
-        await st1inch.depositWithPermit(ether('100'), time.duration.days('30'), permit);
+        _assertBalances(address(this), 100 ether, 30 days);
+    }
 
-        await checkBalances(addr.address, ether('100'), time.duration.days('30'), st1inch);
-    });
+    function test_ShouldIncreaseUnlockTimeForDepositWithReducedDuration() external {
+        veFloor.deposit(70 ether, 30 days);
 
-    it('should take users deposit for other account', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime);
 
-        expect((await st1inch.depositors(addr1.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr1.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr1.address)).to.equal(0);
-        const balanceaddr = await oneInch.balanceOf(addr.address);
-        const balanceAddr1 = await oneInch.balanceOf(addr1.address);
+        veFloor.deposit(0, 40 days);
+        _assertBalances(address(this), 70 ether, 40 days);
+    }
 
-        await st1inch.connect(addr1).deposit(0, time.duration.days('30') + 1);
-        await st1inch.depositFor(addr1.address, ether('100'));
+    function test_ShouldIncreaseDepositAmount() external {
+        veFloor.deposit(20 ether, 50 days);
 
-        expect(await oneInch.balanceOf(addr.address)).to.equal(balanceaddr.sub(ether('100')));
-        expect(await oneInch.balanceOf(addr1.address)).to.equal(balanceAddr1);
-        await checkBalances(addr1.address, ether('100'), time.duration.days('30'), st1inch);
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
-    });
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime - 45 days);
 
-    it('should take users deposit with permit for other account', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
+        veFloor.deposit(30 ether, 0);
+        _assertBalances(address(this), 50 ether, unlockTime - (block.timestamp));
+    }
 
-        expect((await st1inch.depositors(addr1.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr1.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr1.address)).to.equal(0);
-        const balanceaddr = await oneInch.balanceOf(addr.address);
-        const balanceAddr1 = await oneInch.balanceOf(addr1.address);
-        await oneInch.approve(st1inch.address, '0');
-        const permit = await getPermit(addr, oneInch, '1', chainId, st1inch.address, ether('100'));
-
-        await st1inch.connect(addr1).deposit(0, time.duration.days('30') + 1);
-        await st1inch.depositForWithPermit(addr1.address, ether('100'), permit);
-
-        expect(await oneInch.balanceOf(addr.address)).to.equal(balanceaddr.sub(ether('100')));
-        expect(await oneInch.balanceOf(addr1.address)).to.equal(balanceAddr1);
-        await checkBalances(addr1.address, ether('100'), time.duration.days('30'), st1inch);
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
-    });
-
-    it('should increase unlock time for deposit (call deposit)', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('100'), time.duration.days('30'));
-        await timeIncreaseTo((await st1inch.depositors(addr.address)).unlockTime);
-
-        await st1inch.deposit(0, time.duration.years('2'));
-        await checkBalances(addr.address, ether('100'), time.duration.years('2'), st1inch);
-    });
-
-    it('should decrease unlock time with early withdraw', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
-        await st1inch.setMaxLossRatio('1000000000'); // 100%
-        await st1inch.setFeeReceiver(addr.address);
-
-        await st1inch.deposit(ether('100'), time.duration.days('60'));
-        await timeIncreaseTo(await time.latest() + time.duration.days('5'));
-
-        await st1inch.earlyWithdrawTo(addr.address, ether('0'), ether('100'));
-        expect((await st1inch.depositors(addr.address)).unlockTime).to.equal(await time.latest());
-        await oneInch.approve(st1inch.address, ether('100'));
-
-        await st1inch.deposit(ether('100'), time.duration.days('30'));
-
-        await checkBalances(addr.address, ether('100'), time.duration.days('30'), st1inch);
-    });
-
-    it('should increase unlock time for deposit (call deposit(0,*))', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('70'), time.duration.days('30'));
-        await timeIncreaseTo((await st1inch.depositors(addr.address)).unlockTime);
-
-        await st1inch.deposit(0, time.duration.days('40'));
-        await checkBalances(addr.address, ether('70'), time.duration.days('40'), st1inch);
-    });
-
-    it('should increase deposit amount (call deposit)', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('20'), time.duration.days('50'));
-
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        await timeIncreaseTo(unlockTime - time.duration.days('45'));
-
-        await st1inch.deposit(ether('30'), 0);
-        await checkBalances(addr.address, ether('50'), unlockTime - (await time.latest()), st1inch);
-    });
-
-    it('call deposit, 1 year lock, compare voting power against expected value', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        const origin = await st1inch.origin();
-        await st1inch.deposit(ether('1'), time.duration.days('365'));
-        assertRoughlyEqualValues(await st1inch.votingPowerOfAt(addr.address, origin), ether('0.22360'), 1e-4);
-    });
-
-    it('call deposit, 2 years lock, compare voting power against expected value', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        const origin = await st1inch.origin();
-        await st1inch.deposit(ether('1'), time.duration.days('730'));
-        assertRoughlyEqualValues(await st1inch.votingPowerOfAt(addr.address, origin), ether('1'), 1e-4);
-    });
-
-    it('call deposit, 1 year lock, compare voting power against expected value after the lock end', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('1'), time.duration.days('365'));
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        assertRoughlyEqualValues(await st1inch.votingPowerOfAt(addr.address, unlockTime), ether('0.05'), 1e-4);
-    });
-
-    it('call deposit, 2 years lock, compare voting power against expected value after the lock end', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('1'), time.duration.days('730'));
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        assertRoughlyEqualValues(await st1inch.votingPowerOfAt(addr.address, unlockTime), ether('0.05'), 1e-4);
-    });
-
-    it('should increase deposit amount (call deposit(*,0))', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('70'), time.duration.days('100'));
-
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        await timeIncreaseTo(unlockTime - time.duration.days('50'));
-
-        await st1inch.deposit(ether('20'), 0);
-        await checkBalances(addr.address, ether('90'), unlockTime - (await time.latest()), st1inch);
-    });
-
-    it('should withdraw users deposit', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('100'), time.duration.days('50'));
-
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        await timeIncreaseTo(unlockTime);
-        const balanceaddr = await oneInch.balanceOf(addr.address);
-
-        await st1inch.withdraw();
-
-        expect(await oneInch.balanceOf(addr.address)).to.equal(balanceaddr.add(ether('100')));
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
-    });
-
-    it('should store unlock time after withdraw', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('100'), time.duration.days('50'));
-
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        await timeIncreaseTo(unlockTime);
-
-        await st1inch.withdraw();
-
-        expect((await st1inch.depositors(addr.address)).unlockTime).to.equal(await time.latest());
-    });
-
-    it('should withdraw users deposit and send tokens to other address', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('100'), time.duration.days('50'));
-
-        const unlockTime = (await st1inch.depositors(addr.address)).unlockTime;
-        await timeIncreaseTo(unlockTime);
-        const balanceaddr = await oneInch.balanceOf(addr.address);
-        const balanceAddr1 = await oneInch.balanceOf(addr1.address);
-
-        await st1inch.withdrawTo(addr1.address);
-
-        expect(await oneInch.balanceOf(addr.address)).to.equal(balanceaddr);
-        expect(await oneInch.balanceOf(addr1.address)).to.equal(balanceAddr1.add(ether('100')));
-        expect((await st1inch.depositors(addr.address)).amount).to.equal(0);
-        expect(await st1inch.balanceOf(addr.address)).to.equal(0);
-        expect(await st1inch.votingPowerOf(addr.address)).to.equal(0);
-    });
-
-    it('should not take deposit with lock less then MIN_LOCK_PERIOD', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        const MIN_LOCK_PERIOD = await st1inch.MIN_LOCK_PERIOD();
-        await expect(st1inch.deposit(ether('50'), MIN_LOCK_PERIOD.sub(1))).to.be.revertedWithCustomError(
-            st1inch,
-            'LockTimeLessMinLock',
+    function test_CallDepositWithOneYearLockAndCompareVotingPowerAgainstExpectedValue() external {
+        uint origin = veFloor.origin();
+        veFloor.deposit(1 ether, 365 days);
+        assertAlmostEqual(
+            veFloor.votingPowerOfAt(address(this), origin),
+            0.22360 ether,
+            1e4
         );
-    });
+    }
 
-    it('should not take deposit with lock more then MAX_LOCK_PERIOD', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        const MAX_LOCK_PERIOD = await st1inch.MAX_LOCK_PERIOD();
-        await expect(st1inch.deposit(ether('50'), MAX_LOCK_PERIOD.add(1))).to.be.revertedWithCustomError(
-            st1inch,
-            'LockTimeMoreMaxLock',
+    function test_CallDepositWithTwoYearLockAndCompareVotingPowerAgainstExpectedValue() external {
+        uint origin = veFloor.origin();
+        veFloor.deposit(1 ether, 730 days);
+        assertAlmostEqual(
+            veFloor.votingPowerOfAt(address(this), origin),
+            1 ether,
+            1e4
         );
-    });
+    }
 
-    it('should withdraw before unlock time', async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('50'), time.duration.days('30'));
+    function test_CallDepositWithOneYearLockAndCompareVotingPowerAgainstExpectedValueAfterTheLockEnd() external {
+        veFloor.deposit(1 ether, 365 days);
 
-        await expect(st1inch.withdraw()).to.be.revertedWithCustomError(st1inch, 'UnlockTimeHasNotCome');
-    });
-
-    it('should emergency withdraw', async function () {
-        const { oneInch, st1inch } = await loadFixture(initContracts);
-        await st1inch.deposit(ether('50'), time.duration.days('30'));
-        const balanceaddr = await oneInch.balanceOf(addr.address);
-        expect(await st1inch.emergencyExit()).to.equal(false);
-
-        await st1inch.setEmergencyExit(true);
-        await st1inch.withdraw();
-
-        expect(await st1inch.emergencyExit()).to.equal(true);
-        expect(await oneInch.balanceOf(addr.address)).to.equal(balanceaddr.add(ether('50')));
-    });
-
-    it("shouldn't call setEmergencyExit if caller isn't the owner", async function () {
-        const { st1inch } = await loadFixture(initContracts);
-        await expect(st1inch.connect(addr1).setEmergencyExit(true)).to.be.revertedWith(
-            'Ownable: caller is not the owner',
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        assertAlmostEqual(
+            veFloor.votingPowerOfAt(address(this), unlockTime),
+            0.05 ether,
+            1e4
         );
-    });
+    }
 
-    describe('earlyWithdrawTo', async function () {
-        it('should not work after unlockTime', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            const lockTime = time.duration.years('1');
-            await st1inch.deposit(ether('1'), lockTime);
-            await timeIncreaseTo(BigInt(await time.latest()) + BigInt(lockTime));
-            await expect(st1inch.earlyWithdrawTo(addr.address, '1', '1')).to.be.revertedWithCustomError(
-                st1inch,
-                'StakeUnlocked',
-            );
-        });
+    function test_CallDepositWithTwoYearLockAndCompareVotingPowerAgainstExpectedValueAfterTheLockEnd() external {
+        veFloor.deposit(1 ether, 730 days);
 
-        it('should not work when emergencyExit is setted', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            await st1inch.deposit(ether('1'), time.duration.years('1'));
-            await st1inch.setEmergencyExit(true);
-            await expect(st1inch.earlyWithdrawTo(addr.address, '1', '1')).to.be.revertedWithCustomError(
-                st1inch,
-                'StakeUnlocked',
-            );
-        });
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        assertAlmostEqual(
+            veFloor.votingPowerOfAt(address(this), unlockTime),
+            0.05 ether,
+            1e4
+        );
+    }
 
-        it('should not work when minReturn is not met', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            await st1inch.deposit(ether('1'), time.duration.years('1'));
-            await expect(st1inch.earlyWithdrawTo(addr.address, ether('1'), '1')).to.be.revertedWithCustomError(
-                st1inch,
-                'MinReturnIsNotMet',
-            );
-        });
+    function test_ShouldIncreaseDepositAmountForReducedDuration() external {
+        veFloor.deposit(70 ether, 100 days);
 
-        it('should not work when maxLoss is not met', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            await st1inch.deposit(ether('1'), time.duration.years('1'));
-            await expect(st1inch.earlyWithdrawTo(addr.address, '1', '1')).to.be.revertedWithCustomError(
-                st1inch,
-                'MaxLossIsNotMet',
-            );
-        });
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime - 50 days);
 
-        it('should not work when loss is too big', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            await st1inch.deposit(ether('1'), time.duration.years('2'));
-            await expect(st1inch.earlyWithdrawTo(addr.address, '1', ether('1'))).to.be.revertedWithCustomError(
-                st1inch,
-                'LossIsTooBig',
-            );
-        });
+        veFloor.deposit(20 ether, 0);
+        _assertBalances(address(this), 90 ether, unlockTime - (block.timestamp));
+    }
 
-        it('should withdrawal with loss', async function () {
-            const { oneInch, st1inch } = await loadFixture(initContracts);
-            const lockTime = time.duration.years('1');
-            await st1inch.deposit(ether('1'), lockTime);
-            await timeIncreaseTo(BigInt(await time.latest()) + BigInt(lockTime) / 2n);
-            await st1inch.setFeeReceiver(addr1.address);
+    function test_ShouldWithdrawUsersDeposit() external {
+        veFloor.deposit(100 ether, 50 days);
 
-            const amount = BigInt((await st1inch.depositors(addr.address)).amount);
-            const vp = BigInt(await st1inch.votingPower(await st1inch.balanceOf(addr.address)));
-            const ret = (amount - vp) * 100n / 95n;
-            const loss = amount - ret;
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime);
+        uint balanceaddr = floor.balanceOf(address(this));
 
-            const balanceAddrBefore = BigInt(await oneInch.balanceOf(addr.address));
-            const balanceAddr1Before = BigInt(await oneInch.balanceOf(addr1.address));
-            await st1inch.earlyWithdrawTo(addr.address, '1', ether('0.2'));
-            expect(await oneInch.balanceOf(addr1.address)).to.lt(balanceAddr1Before + loss);
-            expect(await oneInch.balanceOf(addr.address)).to.gt(balanceAddrBefore + ether('1') - loss);
-        });
+        veFloor.withdraw();
 
-        it('should decrease loss with time', async function () {
-            const { st1inch } = await loadFixture(initContracts);
-            const lockTime = time.duration.years('2');
-            const tx = await st1inch.deposit(ether('1'), lockTime);
-            const stakedTime = BigInt((await ethers.provider.getBlock(tx.blockNumber)).timestamp);
+        assertEq(floor.balanceOf(address(this)), balanceaddr + 100 ether);
 
-            const rest2YearsLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const rest2YearsVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('rest2YearsLoss', rest2YearsLoss.toString());
-            console.log('rest2YearsVP', rest2YearsVotingPower.toString());
+        (, , uint amount) = veFloor.depositors(address(this));
+        assertEq(amount, 0);
+        assertEq(veFloor.balanceOf(address(this)), 0);
+        assertEq(veFloor.votingPowerOf(address(this)), 0);
+    }
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('0.5')));
-            const rest1HalfYearsLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const rest1HalfYearsVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('rest1.5YearsLoss', rest1HalfYearsLoss.toString());
-            console.log('rest1.5YearsVP', rest1HalfYearsVotingPower.toString());
+    function test_ShouldStoreUnlockTimeAfterWithdraw() external {
+        veFloor.deposit(100 ether, 50 days);
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('1')));
-            const rest1YearsLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const rest1YearsVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('rest1YearsLoss', rest1YearsLoss.toString());
-            console.log('rest1YearsVP', rest1YearsVotingPower.toString());
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime);
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('1.5')));
-            const restHalfYearsLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const restHalfYearsVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('restHalfYearsLoss', restHalfYearsLoss.toString());
-            console.log('restHalfYearsVP', restHalfYearsVotingPower.toString());
+        veFloor.withdraw();
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('1') + time.duration.weeks('48')));
-            const restMonthLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const restMonthVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('restMonthLoss', restMonthLoss.toString());
-            console.log('restMonthVP', restMonthVotingPower.toString());
+        (, unlockTime, ) = veFloor.depositors(address(this));
+        assertEq(unlockTime, block.timestamp);
+    }
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('1') + time.duration.weeks('51')));
-            const restWeekLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const restWeekVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('restWeekLoss', restWeekLoss.toString());
-            console.log('restWeekVP', restWeekVotingPower.toString());
+    function test_ShouldWithdrawUsersDepositAndSentTokensToOtherAddress() external {
+        veFloor.deposit(100 ether, 50 days);
 
-            await timeIncreaseTo(stakedTime + BigInt(time.duration.years('1') + time.duration.days('364')));
-            const restDayLoss = (await st1inch.earlyWithdrawLoss(addr.address)).loss;
-            const restDayVotingPower = await st1inch.votingPowerOf(addr.address);
-            console.log('restDayLoss', restDayLoss.toString());
-            console.log('restDayVP', restDayVotingPower.toString());
+        (, uint unlockTime, ) = veFloor.depositors(address(this));
+        vm.warp(unlockTime);
 
-            expect(rest2YearsLoss).to.gt(rest1YearsLoss);
-            expect(rest1YearsLoss).to.gt(restHalfYearsLoss);
-            expect(restHalfYearsLoss).to.gt(restMonthLoss);
-            expect(restMonthLoss).to.gt(restWeekLoss);
-            expect(restWeekLoss).to.gt(restDayLoss);
-        });
-    });
-});
-*/
+        uint balanceaddr = floor.balanceOf(address(this));
+        uint balanceAddr1 = floor.balanceOf(alice);
+
+        veFloor.withdrawTo(alice);
+
+        assertEq(floor.balanceOf(address(this)), balanceaddr);
+        assertEq(floor.balanceOf(alice), balanceAddr1 + 100 ether);
+
+        (, , uint amount) = veFloor.depositors(address(this));
+        assertEq(amount, 0);
+        assertEq(veFloor.balanceOf(address(this)), 0);
+        assertEq(veFloor.votingPowerOf(address(this)), 0);
+    }
+
+    function test_ShouldNotTakeDepositWithLockLessThatMinimum() external {
+        uint MIN_LOCK_PERIOD = veFloor.MIN_LOCK_PERIOD();
+
+        vm.expectRevert(VeFloorStaking.LockTimeLessMinLock.selector);
+        veFloor.deposit(50 ether, MIN_LOCK_PERIOD - 1);
+    }
+
+    function test_ShouldNotTakeDepositWithLockMoreThanMaximum() external {
+        uint MAX_LOCK_PERIOD = veFloor.MAX_LOCK_PERIOD();
+
+        vm.expectRevert(VeFloorStaking.LockTimeMoreMaxLock.selector);
+        veFloor.deposit(50 ether, MAX_LOCK_PERIOD + 1);
+    }
+
+    function test_ShouldWithdrawBeforeUnlockTime() external {
+        veFloor.deposit(50 ether, 30 days);
+
+        vm.expectRevert(VeFloorStaking.UnlockTimeHasNotCome.selector);
+        veFloor.withdraw();
+    }
+
+    function test_ShouldEmergencyWithdraw() external {
+        veFloor.deposit(50 ether, 30 days);
+        uint balanceaddr = floor.balanceOf(address(this));
+        assertEq(veFloor.emergencyExit(), false);
+
+        veFloor.setEmergencyExit(true);
+        veFloor.withdraw();
+
+        assertEq(veFloor.emergencyExit(), true);
+        assertEq(floor.balanceOf(address(this)), balanceaddr + 50 ether);
+    }
+
+    function test_ShouldNotSetEmergencyExitIfCallerIsNotTheOwner() external {
+        vm.expectRevert('Ownable: caller is not the owner');
+        vm.startPrank(alice);
+        veFloor.setEmergencyExit(true);
+        vm.stopPrank();
+    }
+
+
+    function test_EarlyWithdrawToShouldNotWorkAfterUnlockTime() external {
+        uint lockTime = 365 days;
+        veFloor.deposit(1 ether, lockTime);
+        skip(lockTime);
+
+        vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
+        veFloor.earlyWithdrawTo(address(this), 1, 1);
+    }
+
+    function test_EarlyWithdrawToShouldNotWorkWhenEmergencyExitIsSet() external {
+        veFloor.deposit(1 ether, 365 days);
+        veFloor.setEmergencyExit(true);
+
+        vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
+        veFloor.earlyWithdrawTo(address(this), 1, 1);
+    }
+
+    function test_EarlyWithdrawToShouldNotWorkWhenMinReturnIsNotMet() external {
+        veFloor.deposit(1 ether, 365 days);
+
+        vm.expectRevert(VeFloorStaking.MinReturnIsNotMet.selector);
+        veFloor.earlyWithdrawTo(address(this), 1 ether, 1);
+    }
+
+    function test_EarlyWithdrawToShouldNotWorkWhenMaxLossIsNotMet() external {
+        veFloor.deposit(1 ether, 365 days);
+
+        vm.expectRevert(VeFloorStaking.MaxLossIsNotMet.selector);
+        veFloor.earlyWithdrawTo(address(this), 1, 1);
+    }
+
+    function test_EarlyWithdrawToShouldNotWorkWhenLossIsTooBig() external {
+        veFloor.deposit(1 ether, 730 days);
+
+        vm.expectRevert(VeFloorStaking.LossIsTooBig.selector);
+        veFloor.earlyWithdrawTo(address(this), 1, 1 ether);
+    }
+
+    function test_EarlyWithdrawToShouldWithdrawWithLoss() external {
+        uint lockTime = 365 days;
+        veFloor.deposit(1 ether, lockTime);
+
+        skip(lockTime / 2);
+
+        veFloor.setFeeReceiver(alice);
+
+        (, , uint amount) = veFloor.depositors(address(this));
+        uint vp = veFloor.votingPower(veFloor.balanceOf(address(this)));
+        uint ret = (amount - vp) * 100 / 95;
+        uint loss = amount - ret;
+
+        uint balanceAddrBefore = floor.balanceOf(address(this));
+        uint balanceAddr1Before = floor.balanceOf(alice);
+
+        veFloor.earlyWithdrawTo(address(this), 1, 0.2 ether);
+        assertEq(floor.balanceOf(alice), balanceAddr1Before + loss);
+        assertEq(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether - loss);
+    }
+
+    function test_EarlyWithdrawToShouldDecreaseLossWithTime() external {
+        uint lockTime = 730 days;
+        veFloor.deposit(1 ether, lockTime);
+        uint stakedTime = block.timestamp;
+
+        (uint rest2YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 182 days);
+        (uint rest1HalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 365 days);
+        (uint rest1YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 547 days);
+        (uint restHalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 365 days + 48 weeks);
+        (uint restMonthLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 365 days + 51 weeks);
+        (uint restWeekLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        vm.warp(stakedTime + 365 days + 364 days);
+        (uint restDayLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+
+        assertGt(rest2YearsLoss, rest1HalfYearsLoss);
+        assertGt(rest1HalfYearsLoss, rest1YearsLoss);
+        assertGt(rest1YearsLoss, restHalfYearsLoss);
+        assertGt(restHalfYearsLoss, restMonthLoss);
+        assertGt(restMonthLoss, restWeekLoss);
+        assertGt(restWeekLoss, restDayLoss);
+    }
+
+    function _assertBalances(address account, uint balance, uint /* c */) internal {
+        (uint unlockTime,, uint amount) = veFloor.depositors(account);
+        assertEq(amount, balance);
+        assertAlmostEqual(
+            veFloor.votingPowerOfAt(account, unlockTime),
+            balance / 20,
+            1e10
+        );
+    }
+
+    function assertAlmostEqual(uint a, uint b, uint v) internal {
+        assertGt(a, v);
+        assertGt(b, v);
+        assertTrue(a - v < b || a + v > b);
+    }
+
+}
