@@ -78,11 +78,9 @@ contract VaultTest is FloorTest {
             'Test Vault',
             address(strategy),
             abi.encode(
-                0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
                 0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _treasury
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
             ),
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A
         );
@@ -521,7 +519,7 @@ contract VaultTest is FloorTest {
 
         // Expect our call to be reverted as we are trying to withdraw twice the amount
         // that we deposited.
-        vm.expectRevert('Insufficient position');
+        vm.expectRevert(abi.encodeWithSelector(InsufficientPosition.selector, 1000000, 483890));
         vault.withdraw(1000000);
 
         vm.stopPrank();
