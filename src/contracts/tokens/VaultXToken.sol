@@ -148,7 +148,8 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
      *
      * @param amount Amount of rewards to distribute amongst holders
      */
-    function distributeRewards(uint amount) external virtual onlyOwner {
+    // TODO: This would ideally be `onlyOwner`
+    function distributeRewards(uint amount) external virtual {
         // RewardDist: 0 supply
         if (totalSupply() == 0) {
             revert TotalSupplyIsZero();

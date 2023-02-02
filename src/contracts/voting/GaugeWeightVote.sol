@@ -72,11 +72,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     mapping(address => uint) private totalUserVotes;
 
     /// Mapping collection address -> total amount.
-    mapping(address => uint) public votes;
+    mapping(address => uint) internal voteStore;
 
     /// Store a list of collections each user has voted on to reduce the
     /// number of iterations.
     mapping(address => address[]) public userVoteCollections;
+
+    /// Store a list of users that have cast a vote on each collection to
+    /// reduce any required iterations.
+    mapping(address => address[]) public collectionUsers;
 
     /// Storage for yield calculations
     mapping(address => uint) internal yieldStorage;
@@ -137,10 +141,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @param _collection The collection address being voted for
      * @param _amount The number of votes the caller is casting
-     *
-     * @return uint The total number of votes now placed for the collection
      */
-    function vote(address _collection, uint _amount) external returns (uint) {
+    function vote(address _collection, uint _amount) external {
         if (_amount == 0) {
             revert CannotVoteWithZeroAmount();
         }
@@ -161,17 +163,45 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // our list of user vote collections.
         if (userVotes[msg.sender][_collection] == 0) {
             userVoteCollections[msg.sender].push(_collection);
+            collectionUsers[_collection].push(msg.sender);
         }
 
         // Store our user's vote
         userVotes[msg.sender][_collection] += _amount;
         totalUserVotes[msg.sender] += _amount;
 
-        // Increment the collection vote amount
-        votes[_collection] += _amount;
-
         emit VoteCast(_collection, _amount);
-        return votes[_collection];
+    }
+
+    /**
+     * TODO: ..
+     */
+    function votes(address _collection) public view returns (uint votes_) {
+        for (uint i; i < collectionUsers[_collection].length;) {
+            unchecked {
+                /**
+                 * We have access to the time funds were locked and when they will unlock.
+                 *
+                 * From this, we need to get the amount of time that has already passed and
+                 * them add this to the current block.timestamp. With this we can get an idea
+                 * of what the current voting power is.
+                 *
+                 *
+                 */
+
+                (uint40 lockTime, uint40 unlockTime,) = veFloor.depositors(collectionUsers[_collection][i]);
+                uint256 calcTime = block.timestamp + block.timestamp - lockTime;
+                if (calcTime > unlockTime) {
+                    calcTime = unlockTime;
+                }
+                votes_ += veFloor.votingPowerAt(
+                    userVotes[collectionUsers[_collection][i]][_collection],
+                    calcTime
+                );
+
+                ++i;
+            }
+        }
     }
 
     /**
@@ -202,7 +232,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             // Revoke votes from the collection
             userVotes[msg.sender][collection] -= amount;
             totalUserVotes[msg.sender] -= amount;
-            votes[collection] -= amount;
 
             // If the user no longer has a vote on the collection, then we can remove it
             // from the user's array.
@@ -210,7 +239,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 _deleteUserCollectionVote(msg.sender, collection);
             }
 
-            emit VoteCast(collection, votes[collection]);
+            // emit VoteCast(collection, votes[collection]);
 
             unchecked {
                 ++i;
@@ -240,13 +269,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             }
 
             // Revoke votes from the collection
-            votes[collection] -= amount;
             userVotes[_account][collection] = 0;
 
             // Delete the collection from our user's reference array
             _deleteUserCollectionVote(_account, collection);
 
-            emit VoteCast(collection, votes[collection]);
+            // emit VoteCast(collection, votes[collection]);
         }
 
         totalUserVotes[_account] = 0;
@@ -273,14 +301,22 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @param tokens The number of tokens rewards in the snapshot
      *
-     * @return address[] The vaults that were granted rewards
+     * @return address[] The collections that were granted rewards
      */
+    // TODO: Should this be locked down to only run by epoch
     function snapshot(uint tokens) external returns (address[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
+        // Create our vote store
+        address[] memory options = this.voteOptions();
+        for (uint i; i < options.length;) {
+            voteStore[options[i]] = this.votes(options[i]);
+            unchecked { ++i; }
+        }
+
         // Set up our temporary collections array that will maintain our top voted collections
-        address[] memory collections = _topCollections();
+        address[] memory collections = _topCollections(options);
         uint collectionsLength = collections.length;
 
         // Iterate through our sample size of collections to get the total number of
@@ -288,7 +324,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // collection share.
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
-            totalRelevantVotes += votes[collections[i]];
+            totalRelevantVotes += voteStore[collections[i]];
             unchecked {
                 ++i;
             }
@@ -307,7 +343,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             if (i == collectionsLength - 1) {
                 collectionRewards = remainingTokens;
             } else {
-                collectionRewards = (tokens * ((totalRelevantVotes * votes[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
+                collectionRewards = (tokens * ((totalRelevantVotes * voteStore[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
@@ -379,12 +415,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @return Array of collections
      */
-    function _topCollections() internal view returns (address[] memory) {
+    function _topCollections(address[] memory options) internal view returns (address[] memory) {
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections = new address[](sampleSize);
-
-        // Get all of our collections
-        address[] memory options = this.voteOptions();
 
         uint j;
         uint k;
@@ -397,7 +430,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             for (j = 0; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (votes[options[i]] > votes[collections[j]]) {
+                if (voteStore[options[i]] > voteStore[collections[j]]) {
                     break;
                 }
 
@@ -487,14 +520,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @param account Account having their votes revoked
      * @param collection The collection the votes are being revoked from
-     *
-     * @return If votes were revoked successfully
      */
-    function _deleteUserCollectionVote(address account, address collection) internal returns (bool) {
+    function _deleteUserCollectionVote(address account, address collection) internal {
         for (uint i; i < userVoteCollections[account].length;) {
             if (userVoteCollections[account][i] == collection) {
                 delete userVoteCollections[account][i];
-                return true;
+                break;
             }
 
             unchecked {
@@ -502,7 +533,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             }
         }
 
-        return false;
+        for (uint i; i < collectionUsers[collection].length;) {
+            if (collectionUsers[collection][i] == account) {
+                delete collectionUsers[collection][i];
+                break;
+            }
+        }
     }
 
     /**

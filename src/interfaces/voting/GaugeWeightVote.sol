@@ -59,7 +59,7 @@ interface IGaugeWeightVote {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(address _collection, uint _amount) external returns (uint totalVotes_);
+    function vote(address _collection, uint _amount) external;
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
