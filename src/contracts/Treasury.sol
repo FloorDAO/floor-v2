@@ -187,7 +187,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
             if (floorTokenRewardAmount != 0) {
                 // Distribute the reward yield to our reward token
-                floor.mint(vault.xToken(), floorTokenRewardAmount);
+                // floor.mint(vault.xToken(), floorTokenRewardAmount);
                 vaultFactory.distributeRewards(vaultId, floorTokenRewardAmount);
 
                 // Now that the {Treasury} has knowledge of the reward tokens and has minted
@@ -211,7 +211,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         // Confirm we are not retaining all {Treasury} yield
         if (retainedTreasuryYieldPercentage != 10000) {
             // Claim our tokens from the {Treasury} xToken allocation
-            uint claimAmount = _claimTreasuryFloor();
+            uint claimAmount = this._claimTreasuryFloor();
             if (claimAmount != 0) {
                 // Determine the total amount of snapshot tokens. This should be calculated as all
                 // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
@@ -219,12 +219,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
 
                 // Burn any tokens not transferred as we don't want to hold them in the {Treasury}
-                if (claimAmount != yieldRewards) {
-                    floor.burn(claimAmount - yieldRewards);
-                }
+                // floor.burn(claimAmount);
 
                 // Process the snapshot, which will reward xTokens holders directly
-                floor.transfer(address(voteContract), yieldRewards);
+                // floor.transfer(address(voteContract), yieldRewards);
                 voteContract.snapshot(yieldRewards);
             }
         }
@@ -480,22 +478,20 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * Claims all floor owed to the {Treasury} from {VaultXToken}s.
      *
-     * @return The amount of {FLOOR} claimed and transferred to the user
+     * @return amount_ The amount of {FLOOR} forfeited by the {Treasury}
      */
-    function _claimTreasuryFloor() public returns (uint) {
-        // Get start balance
-        uint startBalance = floor.balanceOf(address(this));
-
+    function _claimTreasuryFloor() public returns (uint amount_) {
         // Iterate the vaults and claim until we have reached our limit
         address[] memory vaults = vaultFactory.vaults();
         for (uint i; i < vaults.length;) {
-            IVaultXToken(IVault(vaults[i]).xToken()).withdrawReward(address(this));
+            IVaultXToken xToken = IVaultXToken(IVault(vaults[i]).xToken());
+            amount_ += xToken.dividendOf(address(this));
+            xToken.forfeitReward();
+
             unchecked {
                 ++i;
             }
         }
-
-        return floor.balanceOf(address(this)) - startBalance;
     }
 
     /**

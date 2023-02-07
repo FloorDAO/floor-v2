@@ -2,9 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
-
 interface IVaultXToken {
     /// @dev This event MUST emit when target is distributed to token holders.
     /// @param from The address which sends target to this contract.
@@ -16,7 +13,7 @@ interface IVaultXToken {
     /// @param weiAmount The amount of withdrawn target in wei.
     event RewardWithdrawn(address indexed to, uint weiAmount);
 
-    function target() external returns (IERC20);
+    function target() external returns (address);
 
     function mint(address account, uint amount) external;
 
@@ -25,6 +22,8 @@ interface IVaultXToken {
     function distributeRewards(uint amount) external;
 
     function withdrawReward(address user) external;
+
+    function forfeitReward() external;
 
     function dividendOf(address _owner) external view returns (uint);
 

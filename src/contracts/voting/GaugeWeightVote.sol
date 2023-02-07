@@ -88,6 +88,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     /// Track the previous snapshot that was made
     uint public lastSnapshot;
 
+    /// Store a storage array of collections
+    address[] internal approvedCollections;
+
     /**
      * Sets up our contract parameters.
      *
@@ -100,6 +103,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         veFloor = VeFloorStaking(_veFloor);
+
+        // Add our FLOOR token vote option
+        approvedCollections.push(FLOOR_TOKEN_VOTE);
     }
 
     /**
@@ -355,7 +361,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             if (collections[i] == FLOOR_TOKEN_VOTE && FLOOR_TOKEN_VOTE_XTOKEN != address(0)) {
                 // We will have a specific veFloor xToken at this point to distribute to
                 IVaultXToken vaultXToken = IVaultXToken(FLOOR_TOKEN_VOTE_XTOKEN);
-                vaultXToken.target().transfer(address(vaultXToken), collectionRewards);
+                // IERC20(vaultXToken.target()).transfer(address(vaultXToken), collectionRewards);
                 vaultXToken.distributeRewards(collectionRewards);
 
                 // We don't need to process the rest of our loop
@@ -389,7 +395,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                     // We assume that the snapshot tokens have already been transferred to the rewards
                     // ledger at this point
                     IVaultXToken vaultXToken = IVaultXToken(IVault(collectionVaults[j]).xToken());
-                    vaultXToken.target().transfer(address(vaultXToken), vaultRewards);
+                    // IERC20(vaultXToken.target()).transfer(address(vaultXToken), vaultRewards);
                     vaultXToken.distributeRewards(vaultRewards);
                 }
 
@@ -483,23 +489,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
      */
     function voteOptions() external view returns (address[] memory collections_) {
-        // Get all of our approved collections
-        address[] memory _approvedCollections = collectionRegistry.approvedCollections();
-
-        // Create a new array that will additionally accomodate zero address (FLOOR vote)
-        collections_ = new address[](_approvedCollections.length + 1);
-
-        // Add the approved collections to our new array
-        uint i;
-        for (i; i < _approvedCollections.length;) {
-            collections_[i] = _approvedCollections[i];
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Finally, add our FLOOR vote address
-        collections_[i] = FLOOR_TOKEN_VOTE;
+        return approvedCollections;
     }
 
     /**
@@ -550,4 +540,17 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     function setFloorXToken(address _xToken) public onlyRole(VOTE_MANAGER) {
         FLOOR_TOKEN_VOTE_XTOKEN = _xToken;
     }
+
+
+
+    /**
+     * Allows our {CollectionRegistry} to provide us with collections that will be stored
+     * internally to save having to pull this information each epoch.
+     */
+     function addCollection(address _collection) public {
+        require(msg.sender == address(collectionRegistry), 'Caller not CollectionRegistry');
+        approvedCollections.push(_collection);
+     }
+
+
 }

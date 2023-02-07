@@ -111,4 +111,6 @@ interface IGaugeWeightVote {
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
     function snapshot(uint tokens) external returns (address[] memory collections);
+
+    function addCollection(address _collection) external;
 }

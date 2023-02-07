@@ -1,15 +1,13 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-
 import {OwnableUpgradeable} from '@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol';
 import {ERC20Upgradeable} from '@openzeppelin-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol';
 
 import {SafeMathAlt} from '../utils/SafeMath.sol';
 import {SafeMathInt} from '../utils/SafeMathInt.sol';
 
+import {IFLOOR} from '../../interfaces/tokens/Floor.sol';
 import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 
 /// If there is a zero supply of the VaultXToken then there is no-one to distribute
@@ -29,10 +27,9 @@ error CannotDistributeZeroRewards();
 contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
     using SafeMathAlt for uint;
     using SafeMathInt for int;
-    using SafeERC20 for IERC20;
 
     /// The ERC20 token that will be distributed as rewards
-    IERC20 public target;
+    address public target;
 
     // With `magnitude`, we can properly distribute dividends even if the amount of received
     // target is small. For more discussion about choosing the value of `magnitude`:
@@ -71,7 +68,7 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
         __Ownable_init();
         __ERC20_init(_name, _symbol);
 
-        target = IERC20(_target);
+        target = _target;
     }
 
     /**
@@ -177,9 +174,16 @@ contract VaultXToken is ERC20Upgradeable, IVaultXToken, OwnableUpgradeable {
         uint _withdrawableReward = withdrawableRewardOf(user);
         if (_withdrawableReward != 0) {
             withdrawnRewards[user] = withdrawnRewards[user].add(_withdrawableReward);
-            target.transfer(user, _withdrawableReward);
+            IFLOOR(target).mint(user, _withdrawableReward);
             emit RewardWithdrawn(user, _withdrawableReward);
         }
+    }
+
+    /**
+     * ..
+     */
+    function forfeitReward() external {
+        withdrawnRewards[msg.sender] = withdrawnRewards[msg.sender].add(withdrawableRewardOf(msg.sender));
     }
 
     /**
