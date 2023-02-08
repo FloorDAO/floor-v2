@@ -178,7 +178,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Find our user's lock and unlock time to calculate their true voting power of their
         // arbritrary vote amount passed to this function.
-        (uint lockTime, uint unlockTime,) = veFloor.depositors(msg.sender);
+        (, uint unlockTime,) = veFloor.depositors(msg.sender);
 
         // Store our user's vote and recalculate the number of cotes available for
         // our collection. Get some information from our {Treasury} to avoid recalculations
