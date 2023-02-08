@@ -357,6 +357,27 @@ contract VeFloorStakingTest is FloorTest {
         assertGt(restWeekLoss, restDayLoss);
     }
 
+    function test_CanExemptCallerFromEarlyWithdrawFees() external {
+        uint lockTime = 365 days;
+        veFloor.deposit(1 ether, lockTime);
+
+        skip(lockTime / 2);
+
+        veFloor.setFeeReceiver(alice);
+        veFloor.addEarlyWithdrawFeeExemption(address(this), true);
+
+        uint balanceAddrBefore = floor.balanceOf(address(this));
+        uint balanceAddr1Before = floor.balanceOf(alice);
+
+        veFloor.earlyWithdrawTo(address(this), 1, 0.2 ether);
+
+        // Confirm that no fees were sent to our receiver
+        assertEq(floor.balanceOf(alice), balanceAddr1Before);
+
+        // Confirm that our recipient received the correct amount of token back
+        assertAlmostEqual(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether, 1e4);
+    }
+
     function _assertBalances(address account, uint balance, uint /* c */) internal {
         (uint unlockTime,, uint amount) = veFloor.depositors(account);
         assertEq(amount, balance);

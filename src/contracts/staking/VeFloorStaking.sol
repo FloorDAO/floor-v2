@@ -67,6 +67,9 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     /// ..
     IERC20 public immutable floor;
 
+    /// ..
+    mapping (address => bool) public earlyWithdrawFeeExemptions;
+
     /// @notice The stucture to store stake information for a staker
     struct Depositor {
         uint40 lockTime;    // Unix time in seconds
@@ -275,25 +278,36 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
      * @param minReturn The minumum amount of stake acceptable for return. If actual amount is less then the transaction is reverted
      * @param maxLoss The maximum amount of loss acceptable. If actual loss is bigger then the transaction is reverted
      */
-    // ret(balance) = (deposit - vp(balance)) / 0.95
     function earlyWithdrawTo(address to, uint256 minReturn, uint256 maxLoss) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
         if (emergencyExit || block.timestamp >= depositor.unlockTime) revert StakeUnlocked();
         uint256 allowedExitTime = depositor.lockTime + (depositor.unlockTime - depositor.lockTime) * minLockPeriodRatio / _ONE_E9;
         if (block.timestamp < allowedExitTime) revert MinLockPeriodRatioNotReached();
 
+        // Get the amount that has been deposited and ensure that there is an amount to
+        // be withdrawn at all.
         uint256 amount = depositor.amount;
-        if (amount > 0) {
-            uint256 balance = balanceOf(msg.sender);
-            (uint256 loss, uint256 ret) = _earlyWithdrawLoss(amount, balance);
-            if (ret < minReturn) revert MinReturnIsNotMet();
-            if (loss > maxLoss) revert MaxLossIsNotMet();
-            if (loss > amount * maxLossRatio / _ONE_E9) revert LossIsTooBig();
-
-            _withdraw(depositor, balance);
-            floor.safeTransfer(to, ret);
-            floor.safeTransfer(feeReceiver, loss);
+        if (amount == 0) {
+            return;
         }
+
+        uint256 balance = balanceOf(msg.sender);
+
+        // Check if the called is exempt from being required to pay early withdrawal fees
+        if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
+            _withdraw(depositor, balance);
+            floor.safeTransfer(to, balance);
+            return;
+        }
+
+        (uint256 loss, uint256 ret) = _earlyWithdrawLoss(amount, balance);
+        if (ret < minReturn) revert MinReturnIsNotMet();
+        if (loss > maxLoss) revert MaxLossIsNotMet();
+        if (loss > amount * maxLossRatio / _ONE_E9) revert LossIsTooBig();
+
+        _withdraw(depositor, balance);
+        floor.safeTransfer(to, ret);
+        floor.safeTransfer(feeReceiver, loss);
     }
 
     /**
@@ -358,6 +372,20 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
             }
             token.safeTransfer(msg.sender, amount);
         }
+    }
+
+    /**
+     * ..
+     */
+    function isExemptFromEarlyWithdrawFees(address account) external view returns (bool) {
+        return earlyWithdrawFeeExemptions[account];
+    }
+
+    /**
+     * ..
+     */
+    function addEarlyWithdrawFeeExemption(address account, bool exempt) external onlyOwner {
+        earlyWithdrawFeeExemptions[account] = exempt;
     }
 
     // ERC20 methods disablers
