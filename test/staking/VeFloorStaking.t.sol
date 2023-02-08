@@ -367,10 +367,4 @@ contract VeFloorStakingTest is FloorTest {
         );
     }
 
-    function assertAlmostEqual(uint a, uint b, uint v) internal {
-        assertGt(a, v);
-        assertGt(b, v);
-        assertTrue(a - v < b || a + v > b);
-    }
-
 }

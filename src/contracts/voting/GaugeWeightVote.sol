@@ -14,6 +14,7 @@ import {IVaultXToken} from '../../interfaces/tokens/VaultXToken.sol';
 import {IVault} from '../../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
+import {ITreasury} from '../../interfaces/Treasury.sol';
 
 /// If a vote with a zero amount is sent
 error CannotVoteWithZeroAmount();
@@ -41,6 +42,11 @@ error SampleSizeCannotBeZero();
  * address value.
  */
 contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
+
+    uint internal epochIteration;
+
+    mapping (address => mapping (uint => uint)) collectionPoints;
+
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
 
@@ -52,6 +58,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     ICollectionRegistry immutable collectionRegistry;
     IVaultFactory immutable vaultFactory;
     VeFloorStaking immutable veFloor;
+    ITreasury immutable treasury;
 
     /**
      * We will need to maintain an internal structure to map the voters against
@@ -71,22 +78,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     mapping(address => mapping(address => uint)) private userVotes;
     mapping(address => uint) private totalUserVotes;
 
-    /// Mapping collection address -> total amount.
-    mapping(address => uint) internal voteStore;
-
     /// Store a list of collections each user has voted on to reduce the
     /// number of iterations.
     mapping(address => address[]) public userVoteCollections;
 
-    /// Store a list of users that have cast a vote on each collection to
-    /// reduce any required iterations.
-    mapping(address => address[]) public collectionUsers;
-
     /// Storage for yield calculations
     mapping(address => uint) internal yieldStorage;
-
-    /// Track the previous snapshot that was made
-    uint public lastSnapshot;
 
     /// Store a storage array of collections
     address[] internal approvedCollections;
@@ -99,10 +96,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @param _veFloor Address of our {veFLOOR}
      * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority) AuthorityControl(_authority) {
+    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority, address _treasury) AuthorityControl(_authority) {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         veFloor = VeFloorStaking(_veFloor);
+
+        treasury = ITreasury(_treasury);
 
         // Add our FLOOR token vote option
         approvedCollections.push(FLOOR_TOKEN_VOTE);
@@ -169,45 +168,60 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // our list of user vote collections.
         if (userVotes[msg.sender][_collection] == 0) {
             userVoteCollections[msg.sender].push(_collection);
-            collectionUsers[_collection].push(msg.sender);
         }
 
-        // Store our user's vote
-        userVotes[msg.sender][_collection] += _amount;
-        totalUserVotes[msg.sender] += _amount;
+        unchecked {
+            // Increase our tracked user amounts
+            userVotes[msg.sender][_collection] += _amount;
+            totalUserVotes[msg.sender] += _amount;
+        }
 
-        emit VoteCast(_collection, _amount);
+        // Find our user's lock and unlock time to calculate their true voting power of their
+        // arbritrary vote amount passed to this function.
+        (uint lockTime, uint unlockTime,) = veFloor.depositors(msg.sender);
+
+        // Store our user's vote and recalculate the number of cotes available for
+        // our collection. Get some information from our {Treasury} to avoid recalculations
+        // in our loop.
+        uint _baseEpoch = treasury.epochIteration();
+        uint treasuryLastEpoch = treasury.epochIterationTimestamp(_baseEpoch);
+        uint treasuryEpochLength = treasury.EPOCH_LENGTH();
+
+        // Loop through the max stake time (2 years) in terms of weeks. For each iteration we
+        // calculate what the additional voting power would be based on the user's determined
+        // power against the amount of votes cast.
+        for (uint i = 1; i <= 104;) {
+            if (treasuryLastEpoch + (treasuryEpochLength * i) > unlockTime) {
+                break;
+            }
+
+            unchecked {
+                // Add the value of the new votes to the collection
+                uint votingPower = veFloor.votingPowerAt(_amount, treasuryLastEpoch + (treasuryEpochLength * i));
+                collectionPoints[_collection][_baseEpoch + i] += votingPower;
+
+                // If we have 0 voting power, then we don't compute further unless we need to continue
+                // and wipe out future legacy votes power
+                if (votingPower == 0) {
+                    break;
+                }
+            }
+
+            unchecked { ++i; }
+        }
+
+        // emit VoteCast(msg.sender, _collection, _amount);
+    }
+
+    function votes(address _collection) public view returns (uint) {
+        return votes(_collection, epochIteration + 1);
     }
 
     /**
      * TODO: ..
      */
-    function votes(address _collection) public view returns (uint votes_) {
-        for (uint i; i < collectionUsers[_collection].length;) {
-            unchecked {
-                /**
-                 * We have access to the time funds were locked and when they will unlock.
-                 *
-                 * From this, we need to get the amount of time that has already passed and
-                 * them add this to the current block.timestamp. With this we can get an idea
-                 * of what the current voting power is.
-                 *
-                 *
-                 */
-
-                (uint40 lockTime, uint40 unlockTime,) = veFloor.depositors(collectionUsers[_collection][i]);
-                uint256 calcTime = block.timestamp + block.timestamp - lockTime;
-                if (calcTime > unlockTime) {
-                    calcTime = unlockTime;
-                }
-                votes_ += veFloor.votingPowerAt(
-                    userVotes[collectionUsers[_collection][i]][_collection],
-                    calcTime
-                );
-
-                ++i;
-            }
-        }
+    function votes(address _collection, uint _baseEpoch) public view returns (uint) {
+        return collectionPoints[_collection][_baseEpoch];
     }
 
     /**
@@ -244,6 +258,8 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             if (userVotes[msg.sender][collection] == 0) {
                 _deleteUserCollectionVote(msg.sender, collection);
             }
+
+            // _checkpoint(msg.sender, collection);
 
             // emit VoteCast(collection, votes[collection]);
 
@@ -309,20 +325,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @return address[] The collections that were granted rewards
      */
-    // TODO: Should this be locked down to only run by epoch
-    function snapshot(uint tokens) external returns (address[] memory) {
+    function snapshot(uint tokens, uint epoch) external returns (address[] memory) {
+        // TODO: Should this be locked down to only run by epoch
+        // require(msg.sender == address(tresury));
+
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
-        // Create our vote store
-        address[] memory options = this.voteOptions();
-        for (uint i; i < options.length;) {
-            voteStore[options[i]] = this.votes(options[i]);
-            unchecked { ++i; }
-        }
-
         // Set up our temporary collections array that will maintain our top voted collections
-        address[] memory collections = _topCollections(options);
+        address[] memory collections = _topCollections(epoch);
         uint collectionsLength = collections.length;
 
         // Iterate through our sample size of collections to get the total number of
@@ -330,7 +341,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         // collection share.
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
-            totalRelevantVotes += voteStore[collections[i]];
+            totalRelevantVotes += collectionPoints[collections[i]][epoch];
             unchecked {
                 ++i;
             }
@@ -349,7 +360,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             if (i == collectionsLength - 1) {
                 collectionRewards = remainingTokens;
             } else {
-                collectionRewards = (tokens * ((totalRelevantVotes * voteStore[collections[i]]) / (100 * 1e18))) / (10 * 1e18);
+                collectionRewards = (tokens * ((totalRelevantVotes * collectionPoints[collections[i]][epoch]) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
@@ -410,7 +421,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         }
 
         // Update the snapshot time made
-        lastSnapshot = block.timestamp;
+        epochIteration = epoch;
         return collections;
     }
 
@@ -421,9 +432,10 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @return Array of collections
      */
-    function _topCollections(address[] memory options) internal view returns (address[] memory) {
+    function _topCollections(uint epoch) internal view returns (address[] memory) {
         // Set up our temporary collections array that will maintain our top voted collections
         address[] memory collections = new address[](sampleSize);
+        address[] memory options = this.voteOptions();
 
         uint j;
         uint k;
@@ -436,7 +448,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             for (j = 0; j < sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (voteStore[options[i]] > voteStore[collections[j]]) {
+                if (collectionPoints[options[i]][epoch] > collectionPoints[collections[j]][epoch]) {
                     break;
                 }
 
@@ -515,18 +527,12 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         for (uint i; i < userVoteCollections[account].length;) {
             if (userVoteCollections[account][i] == collection) {
                 delete userVoteCollections[account][i];
+                // _checkpoint(account, collection);
                 break;
             }
 
             unchecked {
                 ++i;
-            }
-        }
-
-        for (uint i; i < collectionUsers[collection].length;) {
-            if (collectionUsers[collection][i] == account) {
-                delete collectionUsers[collection][i];
-                break;
             }
         }
     }
@@ -541,16 +547,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         FLOOR_TOKEN_VOTE_XTOKEN = _xToken;
     }
 
-
-
     /**
      * Allows our {CollectionRegistry} to provide us with collections that will be stored
      * internally to save having to pull this information each epoch.
      */
-     function addCollection(address _collection) public {
+    function addCollection(address _collection) public {
         require(msg.sender == address(collectionRegistry), 'Caller not CollectionRegistry');
         approvedCollections.push(_collection);
-     }
-
+    }
 
 }

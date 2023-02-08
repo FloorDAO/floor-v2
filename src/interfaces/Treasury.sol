@@ -177,4 +177,9 @@ interface ITreasury {
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
     function setPricingExecutor(address contractAddr) external;
+
+    function epochIteration() external returns (uint);
+    function epochIterationTimestamp(uint) external returns (uint);
+
+    function EPOCH_LENGTH() external returns (uint);
 }

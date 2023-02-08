@@ -19,9 +19,10 @@ interface IGaugeWeightVote {
     event SnapshotCreated(address[] vault, uint[] tokens);
 
     /**
-     * Mapping collection address -> total amount.
+     * ..
      */
     function votes(address) external view returns (uint);
+    function votes(address, uint) external view returns (uint);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
@@ -110,7 +111,7 @@ interface IGaugeWeightVote {
      * percentage in the vault. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot(uint tokens) external returns (address[] memory collections);
+    function snapshot(uint tokens, uint epoch) external returns (address[] memory collections);
 
     function addCollection(address _collection) external;
 }

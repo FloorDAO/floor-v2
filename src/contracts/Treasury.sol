@@ -26,9 +26,6 @@ import {ITreasury} from '../interfaces/Treasury.sol';
 /// @param timelockExpiry The timestamp at which the epoch can next be run
 error EpochTimelocked(uint timelockExpiry);
 
-/// If floor minting is paused, prevent the epoch from ending
-error FloorMintingIsPaused();
-
 /// If not pricing executor has been set before a call that requires it
 error NoPricingExecutorSet();
 
@@ -50,9 +47,12 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         uint amount;  // Used by native and 20 tokens
     }
 
-    /// Store when last epoch was run
+    /// Store when last epoch was run so that we can timelock usage
     uint public lastEpoch;
     uint public EPOCH_LENGTH = 7 days;
+
+    /// Store our epoch iteration number
+    uint public epochIteration;
 
     /// Holds our {StrategyRegistry} contract reference
     IStrategyRegistry public strategyRegistry;
@@ -160,9 +160,16 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
+        unchecked {
+            epochIteration += 1;
+            lastEpoch = block.timestamp;
+        }
+
+        // emit EpochEnded(lastEpoch);
+
         // If floor minting is paused, prevent the epoch from ending
         if (floorMintingPaused) {
-            revert FloorMintingIsPaused();
+            return;
         }
 
         // Get our vaults
@@ -223,12 +230,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
                 // Process the snapshot, which will reward xTokens holders directly
                 // floor.transfer(address(voteContract), yieldRewards);
-                voteContract.snapshot(yieldRewards);
+                voteContract.snapshot(yieldRewards, epochIteration);
             }
         }
-
-        // emit EpochEnded(block.timestamp);
-        lastEpoch = block.timestamp;
     }
 
     /**
@@ -492,6 +496,18 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 ++i;
             }
         }
+    }
+
+    function epochIterationTimestamp(uint _epochIteration) public view returns (uint) {
+        if (epochIteration < _epochIteration) {
+            return lastEpoch + (_epochIteration * EPOCH_LENGTH);
+        }
+
+        if (epochIteration == _epochIteration) {
+            return lastEpoch;
+        }
+
+        return lastEpoch - (_epochIteration * EPOCH_LENGTH);
     }
 
     /**

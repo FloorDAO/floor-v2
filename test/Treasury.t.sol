@@ -10,7 +10,7 @@ import './mocks/PricingExecutor.sol';
 
 import '../src/contracts/collections/CollectionRegistry.sol';
 import '../src/contracts/tokens/Floor.sol';
-import '../src/contracts/tokens/VaultXToken.sol';
+import {VaultXToken} from '../src/contracts/tokens/VaultXToken.sol';
 import {VeFloorStaking} from '../src/contracts/staking/VeFloorStaking.sol';
 import '../src/contracts/strategies/StrategyRegistry.sol';
 import '../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
@@ -65,14 +65,6 @@ contract TreasuryTest is FloorTest {
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
-        // Approve a strategy
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-        strategyRegistry.approveStrategy(approvedStrategy);
-
-        // Approve a collection
-        approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        collectionRegistry.approveCollection(approvedCollection);
-
         // Deploy our vault implementations
         address vaultImplementation = address(new Vault());
         address vaultXTokenImplementation = address(new VaultXToken());
@@ -101,11 +93,21 @@ contract TreasuryTest is FloorTest {
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
-            address(authorityRegistry)
+            address(authorityRegistry),
+            address(treasury)
         );
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
+        collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
+
+        // Approve a strategy
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+        strategyRegistry.approveStrategy(approvedStrategy);
+
+        // Approve a collection
+        approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        collectionRegistry.approveCollection(approvedCollection);
 
         // Create our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
@@ -120,6 +122,10 @@ contract TreasuryTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
 
         authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(vaultXTokenImplementation));
+
+        // Wipe first token set up gas munch
+        floor.mint(address(this), 1 ether);
+        floor.transfer(address(1), 1 ether);
     }
 
     /**
@@ -805,8 +811,8 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 10;
-        uint stakerCount = 50;
+        uint vaultCount = 100;
+        uint stakerCount = 1000;
 
         // Set our required internal contracts
         treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
@@ -814,7 +820,7 @@ contract TreasuryTest is FloorTest {
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
         gaugeWeightVote.setSampleSize(5);
-        treasury.setRetainedTreasuryYieldPercentage(10000);
+        treasury.setRetainedTreasuryYieldPercentage(5000);
 
         // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
@@ -825,7 +831,8 @@ contract TreasuryTest is FloorTest {
         // transferred to the {RewardsLedger} when snapshot-ed.
         floor.mint(address(treasury), 1000 ether);
 
-        // Set the {Treasury} to claim 100 {FLOOR} tokens
+        // Set the {Treasury} to claim 100 {FLOOR} tokens so that the snapshot is processed
+        // with this token value.
         vm.mockCall(address(treasury), abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector), abi.encode(100 ether));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
@@ -854,7 +861,6 @@ contract TreasuryTest is FloorTest {
 
             // Set up a mock that will set rewards to be a static amount of ether
             vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
-            // vm.mockCall(vaults[i], abi.encodeWithSelector(NFTXInventoryStakingStrategy.totalRewardsGenerated.selector), abi.encode(uint(1 ether)));
 
             // Set a list of stakers against the vault by giving them xToken
             vm.startPrank(vaults[i]);

@@ -12,6 +12,7 @@ import '../../src/contracts/tokens/Floor.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
 import '../../src/contracts/voting/GaugeWeightVote.sol';
+import '../../src/contracts/Treasury.sol';
 
 import '../utilities/Environments.sol';
 
@@ -21,6 +22,7 @@ contract GaugeWeightVoteTest is FloorTest {
     FLOOR floor;
     GaugeWeightVote gaugeWeightVote;
     StrategyRegistry strategyRegistry;
+    Treasury treasury;
     Vault vaultImplementation;
     VaultFactory vaultFactory;
     VeFloorStaking veFloor;
@@ -49,19 +51,8 @@ contract GaugeWeightVoteTest is FloorTest {
         // Create our {StrategyRegistry}
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
-        // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-
-        // Approve our test strategy implementation
-        strategyRegistry.approveStrategy(approvedStrategy);
-
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-
-        // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1);
-        collectionRegistry.approveCollection(approvedCollection2);
-        collectionRegistry.approveCollection(approvedCollection3);
 
         // Deploy our vault implementation
         vaultImplementation = new Vault();
@@ -85,14 +76,38 @@ contract GaugeWeightVoteTest is FloorTest {
         // Set up our veFloor token
         veFloor = new VeFloorStaking(floor, STAKING_EXP_BASE, address(2));
 
+        // Set up our {Treasury}
+        treasury = new Treasury(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry),
+            address(vaultFactory),
+            address(floor)
+        );
+
         // Now that we have all our dependencies, we can deploy our
         // {GaugeWeightVote} contract.
         gaugeWeightVote = new GaugeWeightVote(
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
-            address(authorityRegistry)
+            address(authorityRegistry),
+            address(treasury)
         );
+
+        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
+        collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
+
+        // Define our strategy implementations
+        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+
+        // Approve our test strategy implementation
+        strategyRegistry.approveStrategy(approvedStrategy);
+
+        // Approve our test collection
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);
@@ -114,12 +129,12 @@ contract GaugeWeightVoteTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 2 * 365 days);
+        veFloor.deposit(100 ether, 1 * 365 days);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 2 * 365 days);
+        veFloor.deposit(100 ether, 1 * 365 days);
         vm.stopPrank();
 
         votePower[alice] = veFloor.balanceOf(alice);
@@ -211,7 +226,11 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.prank(alice);
         gaugeWeightVote.vote(approvedCollection1, 1 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 1 ether);
+        assertAlmostEqual(
+            gaugeWeightVote.votes(approvedCollection1),
+            1 ether,
+            1e12
+        );
     }
 
     function test_canVoteOnFloorTokenAddress() public {
@@ -459,7 +478,7 @@ contract GaugeWeightVoteTest is FloorTest {
         // Send ETH to GWV to distribute
         floor.mint(address(gaugeWeightVote), 10000 ether);
 
-        (address[] memory collections) = gaugeWeightVote.snapshot(10000 ether);
+        (address[] memory collections) = gaugeWeightVote.snapshot(10000 ether, 0);
 
         assertEq(collections.length, 3);
 

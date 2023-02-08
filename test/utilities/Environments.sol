@@ -57,4 +57,10 @@ contract FloorTest is Test {
         require(block.number == blockNumber);
         _;
     }
+
+    function assertAlmostEqual(uint a, uint b, uint v) internal {
+        assertGt(a, v);
+        assertGt(b, v);
+        assertTrue(a - v < b || a + v > b);
+    }
 }
