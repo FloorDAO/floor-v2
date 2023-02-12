@@ -156,11 +156,9 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
 
         // Calculate the number of epochs that have passed since started
         uint epochDifference = epoch - depositors[account].epochStart;
-        // 26
 
         // Calculate the full power attributed to the user based on the epoch count
         uint fullPower = (amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-        // 25 ether
 
         // If we only just staked, then they have their full power
         if (epochDifference == 0) {
@@ -232,7 +230,8 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
         totalDeposits += amount;
 
         // TODO: Update any votes that the user is currently a part of
-        // ..
+        // I don't think we need to, as if the user wants to update their voting power, they
+        // will need to make a call in the GWV. This can be done in a zap.
 
         // If we are staking additional tokens, then transfer the based FLOOR from the user
         // and mint veFloor tokens to the recipient `account`.

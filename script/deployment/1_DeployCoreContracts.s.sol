@@ -14,12 +14,10 @@ import {NFTXInventoryStakingStrategy} from '../../src/contracts/strategies/NFTXI
 import {NFTXLiquidityStakingStrategy} from '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
 import {StrategyRegistry} from '../../src/contracts/strategies/StrategyRegistry.sol';
 import {FLOOR} from '../../src/contracts/tokens/Floor.sol';
-import {VaultXToken} from '../../src/contracts/tokens/VaultXToken.sol';
 import {Vault} from '../../src/contracts/vaults/Vault.sol';
 import {VaultFactory} from '../../src/contracts/vaults/VaultFactory.sol';
 import {GaugeWeightVote} from '../../src/contracts/voting/GaugeWeightVote.sol';
 import {Treasury} from '../../src/contracts/Treasury.sol';
-import {ClaimFloorRewardsZap} from '../../src/contracts/zaps/ClaimFloorRewards.sol';
 
 /**
  * Deploys our contracts and validates them on Etherscan.
@@ -52,9 +50,6 @@ contract DeployCoreContracts is Script {
         // Deploy our {Vault} implementation
         Vault vaultImplementation = new Vault();
 
-        // Deploy our {VaultXToken} implementation
-        VaultXToken vaultXTokenImplementation = new VaultXToken();
-
         // Deploy our tokens
         FLOOR floor = new FLOOR(address(authorityRegistry));
         // VeFloorStaking veFloor = new VeFloorStaking();
@@ -73,7 +68,6 @@ contract DeployCoreContracts is Script {
             address(collectionRegistry),
             address(strategyRegistry),
             address(vaultImplementation),
-            address(vaultXTokenImplementation),
             address(floor)
         );
 
@@ -113,9 +107,6 @@ contract DeployCoreContracts is Script {
 
         // Deploy our migrations
         MigrateFloorToken migrateFloorToken = new MigrateFloorToken(address(floor));
-
-        // Deploy our zaps
-        ClaimFloorRewardsZap claimFloorRewardsZap = new ClaimFloorRewardsZap(address(floor), address(vaultFactory));
         */
 
         // Stop collecting onchain transactions

@@ -114,7 +114,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
 
         // TODO: Timelock our users and return veFloor
 
-
         // Increase the user's position and the total position for the vault
         unchecked {
             position[msg.sender] += receivedAmount;
