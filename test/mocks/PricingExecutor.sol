@@ -13,7 +13,8 @@ import '../../src/interfaces/pricing/BasePricingExecutor.sol';
  * The mock pricing executor will return prices for a set list of token addresses.
  */
 contract PricingExecutorMock is IBasePricingExecutor {
-    // Ensures floor is cast to address(11);
+    // Ensures floor is cast to address * 11 and the ETH price will just be a
+    // direct 1:1 relation of the address uint value.
     uint160 floor = 11;
 
     /**

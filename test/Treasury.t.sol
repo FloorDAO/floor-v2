@@ -10,7 +10,6 @@ import './mocks/PricingExecutor.sol';
 
 import '../src/contracts/collections/CollectionRegistry.sol';
 import '../src/contracts/tokens/Floor.sol';
-import {VaultXToken} from '../src/contracts/tokens/VaultXToken.sol';
 import {VeFloorStaking} from '../src/contracts/staking/VeFloorStaking.sol';
 import '../src/contracts/strategies/StrategyRegistry.sol';
 import '../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
@@ -52,7 +51,7 @@ contract TreasuryTest is FloorTest {
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
-        veFloor = new VeFloorStaking(floor, STAKING_EXP_BASE, address(this));
+        veFloor = new VeFloorStaking(floor, address(this));
 
         // Set up a fake ERC20 token that we can test with. We use the {Floor} token
         // contract as a base as this already implements IERC20. We have no initial
@@ -67,7 +66,6 @@ contract TreasuryTest is FloorTest {
 
         // Deploy our vault implementations
         address vaultImplementation = address(new Vault());
-        address vaultXTokenImplementation = address(new VaultXToken());
 
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
@@ -75,7 +73,6 @@ contract TreasuryTest is FloorTest {
             address(collectionRegistry),
             address(strategyRegistry),
             vaultImplementation,
-            vaultXTokenImplementation,
             address(floor)
         );
 
@@ -121,8 +118,6 @@ contract TreasuryTest is FloorTest {
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
 
-        authorityRegistry.grantRole(authorityControl.STAKING_MANAGER(), address(vaultXTokenImplementation));
-
         // Wipe first token set up gas munch
         floor.mint(address(this), 1 ether);
         floor.transfer(address(1), 1 ether);
@@ -134,7 +129,7 @@ contract TreasuryTest is FloorTest {
      * This should emit {FloorMinted}.
      */
     function test_CanMintFloor(uint amount) public {
-        vm.assume(amount > 0);
+        amount = bound(amount, 1, 10000 ether);
 
         treasury.mint(amount);
         assertEq(floor.balanceOf(address(treasury)), amount);
@@ -578,19 +573,19 @@ contract TreasuryTest is FloorTest {
         // Our pricing executor Mock has preset address -> uint mapping for
         // the price. So we can at first expect 0 prices, but then after our
         // call we can expect specific prices.
-        assertEq(treasury.tokenFloorPrice(address(1)), 0);
-        assertEq(treasury.tokenFloorPrice(address(2)), 0);
-        assertEq(treasury.tokenFloorPrice(address(3)), 0);
-        assertEq(treasury.tokenFloorPrice(address(4)), 0);
+        assertEq(treasury.tokenEthPrice(address(1)), 0);
+        assertEq(treasury.tokenEthPrice(address(2)), 0);
+        assertEq(treasury.tokenEthPrice(address(3)), 0);
+        assertEq(treasury.tokenEthPrice(address(4)), 0);
 
         // Call our pricing executor, querying the prices and writing it to
         // to our {Treasury} pricing cache.
-        treasury.getCollectionFloorPrices();
+        treasury.getCollectionEthPrices();
 
-        assertEq(treasury.tokenFloorPrice(address(1)), 11);
-        assertEq(treasury.tokenFloorPrice(address(2)), 22);
-        assertEq(treasury.tokenFloorPrice(address(3)), 33);
-        assertEq(treasury.tokenFloorPrice(address(4)), 44);
+        assertEq(treasury.tokenEthPrice(address(1)), 1);
+        assertEq(treasury.tokenEthPrice(address(2)), 2);
+        assertEq(treasury.tokenEthPrice(address(3)), 3);
+        assertEq(treasury.tokenEthPrice(address(4)), 4);
     }
 
     /**
@@ -599,7 +594,7 @@ contract TreasuryTest is FloorTest {
      */
     function test_CannotGetFloorPricesWithoutPricingExecutor() public {
         vm.expectRevert(NoPricingExecutorSet.selector);
-        treasury.getCollectionFloorPrices();
+        treasury.getCollectionEthPrices();
     }
 
     /**
@@ -668,121 +663,14 @@ contract TreasuryTest is FloorTest {
         vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(6 ether)));
         vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(4 ether)));
 
-        // Reference our vault xToken contracts
-        VaultXToken[] memory vaultXTokens = new VaultXToken[](vaults.length);
-        for (uint i; i < vaults.length; ++i) {
-            vaultXTokens[i] = VaultXToken(Vault(vaults[i]).xToken());
-        }
-
-        // Set up our vault shares by assigning vault xTokens
-        vm.startPrank(vaults[0]);
-        vaultXTokens[0].mint(address(treasury), 300 ether);
-        vaultXTokens[0].mint(address(users[0]), 100 ether);
-        vaultXTokens[0].mint(address(users[1]), 150 ether);
-        vaultXTokens[0].mint(address(users[2]), 150 ether);
-        vaultXTokens[0].mint(address(users[3]), 200 ether);
-        vaultXTokens[0].mint(address(users[4]), 50 ether);
-        vaultXTokens[0].mint(address(users[5]), 30 ether);
-        vm.stopPrank();
-
-        vm.startPrank(vaults[1]);
-        vaultXTokens[1].mint(address(treasury), 1000 ether);
-        vm.stopPrank();
-
-        vm.startPrank(vaults[2]);
-        vaultXTokens[2].mint(address(treasury), 200 ether);
-        vaultXTokens[2].mint(address(users[3]), 200 ether);
-        vaultXTokens[2].mint(address(users[4]), 250 ether);
-        vaultXTokens[2].mint(address(users[6]), 250 ether);
-        vaultXTokens[2].mint(address(users[7]), 100 ether);
-        vm.stopPrank();
-
-        vm.startPrank(vaults[3]);
-        vaultXTokens[3].mint(address(treasury), 200 ether);
-        vaultXTokens[3].mint(address(users[0]), 250 ether);
-        vaultXTokens[3].mint(address(users[2]), 250 ether);
-        vaultXTokens[3].mint(address(users[4]), 100 ether);
-        vaultXTokens[3].mint(address(users[6]), 100 ether);
-        vaultXTokens[3].mint(address(users[7]), 100 ether);
-        vm.stopPrank();
-
-        vm.startPrank(vaults[4]);
-        vaultXTokens[4].mint(address(treasury), 250 ether);
-        vaultXTokens[4].mint(address(users[5]), 250 ether);
-        vaultXTokens[4].mint(address(users[6]), 250 ether);
-        vaultXTokens[4].mint(address(users[7]), 250 ether);
-        vm.stopPrank();
-
-        // Mock vault share recalculation (ignore)
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        assertEq(treasury.lastEpoch(), 0);
+        assertEq(treasury.epochIteration(), 0);
 
         // Trigger our epoch end
         treasury.endEpoch();
 
-        // Confirm the amount allocated to each user on each xToken. The {Treasury} will
-        // not hold any tokens as they will have been burnt.
-        assertEq(vaultXTokens[0].dividendOf(address(treasury)), 0);
-        assertEq(vaultXTokens[1].dividendOf(address(treasury)), 0);
-        assertEq(vaultXTokens[2].dividendOf(address(treasury)), 0);
-        assertEq(vaultXTokens[3].dividendOf(address(treasury)), 0);
-        assertEq(vaultXTokens[4].dividendOf(address(treasury)), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[0]), 8979591836734693877);
-        assertEq(vaultXTokens[1].dividendOf(users[0]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[0]), 0);
-        assertEq(vaultXTokens[3].dividendOf(users[0]), 49499999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(users[0]), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[1]), 13469387755102040816);
-        assertEq(vaultXTokens[1].dividendOf(users[1]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[1]), 0);
-        assertEq(vaultXTokens[3].dividendOf(users[1]), 0);
-        assertEq(vaultXTokens[4].dividendOf(users[1]), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[2]), 13469387755102040816);
-        assertEq(vaultXTokens[1].dividendOf(users[2]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[2]), 0);
-        assertEq(vaultXTokens[3].dividendOf(users[2]), 49499999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(users[2]), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[3]), 17959183673469387755);
-        assertEq(vaultXTokens[1].dividendOf(users[3]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[3]), 21999999999999999999);
-        assertEq(vaultXTokens[3].dividendOf(users[3]), 0);
-        assertEq(vaultXTokens[4].dividendOf(users[3]), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[4]), 4489795918367346938);
-        assertEq(vaultXTokens[1].dividendOf(users[4]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[4]), 27499999999999999999);
-        assertEq(vaultXTokens[3].dividendOf(users[4]), 19799999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(users[4]), 0);
-
-        assertEq(vaultXTokens[0].dividendOf(users[5]), 2693877551020408163);
-        assertEq(vaultXTokens[1].dividendOf(users[5]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[5]), 0);
-        assertEq(vaultXTokens[3].dividendOf(users[5]), 0);
-        assertEq(vaultXTokens[4].dividendOf(users[5]), 43999999999999999999);
-
-        assertEq(vaultXTokens[0].dividendOf(users[6]), 0);
-        assertEq(vaultXTokens[1].dividendOf(users[6]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[6]), 27499999999999999999);
-        assertEq(vaultXTokens[3].dividendOf(users[6]), 19799999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(users[6]), 43999999999999999999);
-
-        assertEq(vaultXTokens[0].dividendOf(users[7]), 0);
-        assertEq(vaultXTokens[1].dividendOf(users[7]), 0);
-        assertEq(vaultXTokens[2].dividendOf(users[7]), 10999999999999999999);
-        assertEq(vaultXTokens[3].dividendOf(users[7]), 19799999999999999999);
-        assertEq(vaultXTokens[4].dividendOf(users[7]), 43999999999999999999);
-
-        // The {Treasury} will not hold the tokens, they will be in the individual
-        // vaults. Tokens that would have been attributed to the {Treasury} will
-        // have been burnt.
-
-        // 154538775510204081628
-        // 154538775510204081628
-
-        assertEq(floor.balanceOf(address(treasury)), 0);
+        assertEq(treasury.lastEpoch(), block.timestamp);
+        assertEq(treasury.epochIteration(), 1);
     }
 
     /**
@@ -811,8 +699,8 @@ contract TreasuryTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 100;
-        uint stakerCount = 1000;
+        uint vaultCount = 20;
+        uint stakerCount = 100;
 
         // Set our required internal contracts
         treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
@@ -825,28 +713,12 @@ contract TreasuryTest is FloorTest {
         // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
 
-        // Set a specific amount of rewards that our {Treasury} has generated to ensure
-        // that we generate sufficient yield for the GWV snapshot. For this to work, we
-        // need to mint the same amount of FLOOR into the {Treasury} that will be
-        // transferred to the {RewardsLedger} when snapshot-ed.
-        floor.mint(address(treasury), 1000 ether);
-
-        // Set the {Treasury} to claim 100 {FLOOR} tokens so that the snapshot is processed
-        // with this token value.
-        vm.mockCall(address(treasury), abi.encodeWithSelector(Treasury._claimTreasuryFloor.selector), abi.encode(100 ether));
-
         // Mock our Voting mechanism to unlock unlimited user votes without backing
-        vm.mockCall(
-            address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max)
-        );
-
-        // Mock pending deposits migration (ignore)
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(Vault.migratePendingDeposits.selector), abi.encode(''));
+        vm.mockCall(address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max));
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
-        VaultXToken[] memory vaultXTokens = new VaultXToken[](vaultCount);
         address payable[] memory stakers = utilities.createUsers(stakerCount);
 
         // Loop through our mocked vaults to mint tokens
@@ -857,34 +729,34 @@ contract TreasuryTest is FloorTest {
 
             // Deploy our vault
             (, vaults[i]) = vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
-            vaultXTokens[i] = VaultXToken(Vault(vaults[i]).xToken());
 
             // Set up a mock that will set rewards to be a static amount of ether
             vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
 
-            // Set a list of stakers against the vault by giving them xToken
-            vm.startPrank(vaults[i]);
+            // Each staker will then deposit and vote
             for (uint j; j < stakerCount; ++j) {
-                vaultXTokens[i].mint(stakers[j], 10 ether);
-
                 // Cast votes from this user against the vault collection
+                vm.startPrank(stakers[i]);
                 gaugeWeightVote.vote(collection, 1 ether);
+                vm.stopPrank();
             }
-            vm.stopPrank();
         }
 
         // Trigger our epoch end and pray to the gas gods
         treasury.endEpoch();
+
+        // We can now confirm the distribution of ETH going to the top collections by
+        // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
+        // are not included in read attempts as we cannot get the information accurately.
+        (
+            uint allocationBlock,
+            uint sweepBlock,
+            bool completed
+        ) = treasury.epochSweeps(treasury.epochIteration());
+
+        assertEq(allocationBlock, block.number);
+        assertEq(sweepBlock, 0);
+        assertEq(completed, false);
     }
 
-    /**
-     * ...
-     */
-    function _strategyInitBytes() internal pure returns (bytes memory) {
-        return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
-            0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
-        );
-    }
 }

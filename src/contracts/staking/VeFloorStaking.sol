@@ -9,9 +9,9 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {VotingPowerCalculator} from "../voting/VotingPowerCalculator.sol";
-
+import {IVeFloorStaking, Depositor} from "../../interfaces/staking/VeFloorStaking.sol";
 import {IERC20, IVotable} from "../../interfaces/tokens/Votable.sol";
+import {ITreasury} from "../../interfaces/Treasury.sol";
 
 
 /**
@@ -24,7 +24,7 @@ import {IERC20, IVotable} from "../../interfaces/tokens/Votable.sol";
  * - earlyWithdrawal
  * - penalty math
  */
-contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
+contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
 
     using SafeERC20 for IERC20;
 
@@ -35,8 +35,6 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
 
     error ApproveDisabled();
     error TransferDisabled();
-    error LockTimeMoreMaxLock();
-    error LockTimeLessMinLock();
     error UnlockTimeHasNotCome();
     error StakeUnlocked();
     error MinLockPeriodRatioNotReached();
@@ -50,34 +48,24 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     error DepositsDisabled();
     error ZeroAddress();
 
-    /// @notice The minimum allowed staking period
-    uint256 public constant MIN_LOCK_PERIOD = 30 days;
+    /// Set a list of locking periods that the user can lock for
+    uint8[] public LOCK_PERIODS = [uint8(0), 4, 13, 26, 52, 78, 104];
 
-    /// @notice The maximum allowed staking period
-    /// @dev WARNING: It is not enough to change the constant only but voting power decrease curve should be revised also
-    uint256 public constant MAX_LOCK_PERIOD = 2 * 365 days;
-
-    /// @notice Voting power decreased to 1/_VOTING_POWER_DIVIDER after lock expires
-    /// @dev WARNING: It is not enough to change the constant only but voting power decrease curve should be revised also
-    uint256 private constant _VOTING_POWER_DIVIDER = 20;
-
-    /// ..
-    uint256 private constant _ONE_E9 = 1e9;
-
-    /// ..
+    /// Our FLOOR token
     IERC20 public immutable floor;
 
-    /// ..
+    /// Our {Treasury}
+    ITreasury public immutable treasury;
+
+    uint internal currentEpoch;
+
+    /// Allow some addresses to be exempt from early withdraw fees
     mapping (address => bool) public earlyWithdrawFeeExemptions;
 
-    /// @notice The stucture to store stake information for a staker
-    struct Depositor {
-        uint40 lockTime;    // Unix time in seconds
-        uint40 unlockTime;  // Unix time in seconds
-        uint176 amount;     // Staked floor token amount
-    }
-
+    /// Map our Depositor index against a user
     mapping(address => Depositor) public depositors;
+
+    uint internal constant _ONE_E9 = 1e9;
 
     uint256 public totalDeposits;
     bool public emergencyExit;
@@ -88,18 +76,12 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     /**
      * @notice Initializes the contract
      * @param floor_ The token to be staked
-     * @param expBase_ The rate for the voting power decrease over time
-     * @param feeReceiver_ The default recipient of the early exit fees
+     * @param treasury_ The treasury contract address
      */
-    constructor(IERC20 floor_, uint256 expBase_, address feeReceiver_)
-        ERC20("veFLOOR", "veFLOOR")
-        VotingPowerCalculator(expBase_, block.timestamp)
-    {
-        // voting power after MAX_LOCK_PERIOD should be equal to staked amount divided by _VOTING_POWER_DIVIDER
-        if (_votingPowerAt(1e18, block.timestamp + MAX_LOCK_PERIOD) * _VOTING_POWER_DIVIDER < 1e18) revert ExpBaseTooBig();
-        if (_votingPowerAt(1e18, block.timestamp + MAX_LOCK_PERIOD + 1) * _VOTING_POWER_DIVIDER > 1e18) revert ExpBaseTooSmall();
-        setFeeReceiver(feeReceiver_);
+    constructor(IERC20 floor_, address treasury_) ERC20("veFLOOR", "veFLOOR") {
         floor = floor_;
+        treasury = ITreasury(treasury_);
+        setFeeReceiver(treasury_);
     }
 
     /**
@@ -152,66 +134,62 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
      * @param account The address of an account to get voting power for
      * @return votingPower The voting power available at the block timestamp
      */
-    function votingPowerOf(address account) external view returns (uint256) {
-        return _votingPowerAt(balanceOf(account), block.timestamp);
+    function votingPowerOf(address account) external view returns (uint) {
+        return this.votingPowerAt(account, currentEpoch);
     }
 
     /**
-     * @notice Gets the voting power of the provided account at the given timestamp
-     * @dev To calculate voting power at any timestamp provided the contract stores each balance
-     * as it was staked for the maximum lock time. If a staker locks its stake for less than the maximum
-     * then at the moment of deposit its balance is recorded as it was staked for the maximum but time
-     * equal to `max lock period-lock time` has passed. It makes available voting power calculation
-     * available at any point in time within the maximum lock period.
-     * @param account The address of an account to get voting power for
-     * @param timestamp The timestamp to calculate voting power at
-     * @return votingPower The voting power available at the moment of `timestamp`
+     * ..
      */
-    function votingPowerOfAt(address account, uint256 timestamp) external view returns (uint256) {
-        return _votingPowerAt(balanceOf(account), timestamp);
+    function votingPowerAt(address account, uint epoch) external view returns (uint) {
+        return this.votingPowerOfAt(account, depositors[account].amount, epoch);
     }
 
     /**
-     * @notice Gets the voting power for the provided balance at the current timestamp assuming that
-     * the balance is a balance at the moment of the maximum lock time
-     * @param balance The balance for the maximum lock time
-     * @return votingPower The voting power available at the block timestamp
+     * ..
      */
-    function votingPower(uint256 balance) external view returns (uint256) {
-        return _votingPowerAt(balance, block.timestamp);
-    }
+    function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint) {
+        // If the epoch had not started at this point, then we return 0 power
+        if (depositors[account].epochStart > epoch) {
+            return 0;
+        }
 
-    /**
-     * @notice Gets the voting power for the provided balance at the current timestamp assuming that
-     * the balance is a balance at the moment of the maximum lock time
-     * @param balance The balance for the maximum lock time
-     * @param timestamp The timestamp to calculate the voting power at
-     * @return votingPower The voting power available at the block timestamp
-     */
-    function votingPowerAt(uint256 balance, uint256 timestamp) external view returns (uint256) {
-        return _votingPowerAt(balance, timestamp);
+        // Calculate the number of epochs that have passed since started
+        uint epochDifference = epoch - depositors[account].epochStart;
+        // 26
+
+        // Calculate the full power attributed to the user based on the epoch count
+        uint fullPower = (amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+        // 25 ether
+
+        // If we only just staked, then they have their full power
+        if (epochDifference == 0) {
+            return fullPower;
+        }
+
+        // If the staking period has expired, then we have 0 power
+        if (epochDifference > depositors[account].epochCount) {
+            return 0;
+        }
+
+        // Otherwise, we can calculate the remaining power, based on the number of epochs
+        // that have passed against their full power.
+        return (fullPower * (depositors[account].epochCount - epoch)) / depositors[account].epochCount;
     }
 
     /**
      * @notice Stakes given amount and locks it for the given duration
-     * @param amount The amount of tokens to stake
-     * @param duration The lock period in seconds. If there is a stake locked then the lock period is extended by the duration.
-     * To keep the current lock period unchanged pass 0 for the duration.
      */
-    function deposit(uint256 amount, uint256 duration) external {
-        _deposit(msg.sender, amount, duration);
+    function deposit(uint256 amount, uint epochs) external {
+        _deposit(msg.sender, amount, epochs);
     }
 
     /**
      * @notice Stakes given amount and locks it for the given duration with permit
-     * @param amount The amount of tokens to stake
-     * @param duration The lock period in seconds. If there is a stake locked then the lock period is extended by the duration.
-     * To keep the current lock period unchanged pass 0 for the duration
-     * @param permit Permit given by the staker
      */
-    function depositWithPermit(uint256 amount, uint256 duration, bytes calldata permit) external {
+    function depositWithPermit(uint256 amount, uint epochs, bytes calldata permit) external {
         floor.safePermit(permit);
-        _deposit(msg.sender, amount, duration);
+        _deposit(msg.sender, amount, epochs);
     }
 
 
@@ -225,7 +203,8 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     }
 
     /**
-     * @notice Stakes given amount on behalf of provided account without locking or extending lock with permit
+     * @notice Stakes given amount on behalf of provided account without locking or extending
+     * lock with permit.
      * @param account The account to stake for
      * @param amount The amount to stake
      * @param permit Permit given by the caller
@@ -235,25 +214,31 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
         _deposit(account, amount, 0);
     }
 
-    function _deposit(address account, uint256 amount, uint256 duration) private {
+    function _deposit(address account, uint256 amount, uint epochs) private {
         if (emergencyExit) revert DepositsDisabled();
         Depositor memory depositor = depositors[account]; // SLOAD
+        require(epochs < LOCK_PERIODS.length, 'Invalid epoch index');
 
-        uint256 lockedTill = Math.max(depositor.unlockTime, block.timestamp) + duration;
-        uint256 lockLeft = lockedTill - block.timestamp;
-        if (lockLeft < MIN_LOCK_PERIOD) revert LockTimeLessMinLock();
-        if (lockLeft > MAX_LOCK_PERIOD) revert LockTimeMoreMaxLock();
-        uint256 balanceDiff = _balanceAt(depositor.amount + amount, lockedTill) / _VOTING_POWER_DIVIDER - balanceOf(account);
+        // Update the user's lock
+        if (epochs != 0) {
+            depositor.epochStart = uint160(currentEpoch);
+            depositor.epochCount = LOCK_PERIODS[epochs];
+        }
 
-        depositor.lockTime = uint40(duration == 0 ? depositor.lockTime : block.timestamp);
-        depositor.unlockTime = uint40(lockedTill);
-        depositor.amount += uint176(amount);
+        depositor.amount += uint88(amount);
         depositors[account] = depositor; // SSTORE
-        totalDeposits += amount;
-        _mint(account, balanceDiff);
 
+        // Increase our total deposits
+        totalDeposits += amount;
+
+        // TODO: Update any votes that the user is currently a part of
+        // ..
+
+        // If we are staking additional tokens, then transfer the based FLOOR from the user
+        // and mint veFloor tokens to the recipient `account`.
         if (amount > 0) {
             floor.safeTransferFrom(msg.sender, address(this), amount);
+            _mint(account, amount);
         }
     }
 
@@ -280,9 +265,9 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
      */
     function earlyWithdrawTo(address to, uint256 minReturn, uint256 maxLoss) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
-        if (emergencyExit || block.timestamp >= depositor.unlockTime) revert StakeUnlocked();
-        uint256 allowedExitTime = depositor.lockTime + (depositor.unlockTime - depositor.lockTime) * minLockPeriodRatio / _ONE_E9;
-        if (block.timestamp < allowedExitTime) revert MinLockPeriodRatioNotReached();
+        if (emergencyExit || currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
+        uint256 allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
+        if (currentEpoch < allowedExitTime) revert MinLockPeriodRatioNotReached();
 
         // Get the amount that has been deposited and ensure that there is an amount to
         // be withdrawn at all.
@@ -291,21 +276,20 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
             return;
         }
 
-        uint256 balance = balanceOf(msg.sender);
-
         // Check if the called is exempt from being required to pay early withdrawal fees
         if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
-            _withdraw(depositor, balance);
-            floor.safeTransfer(to, balance);
+            _withdraw(depositor, amount);
+            floor.safeTransfer(to, amount);
             return;
         }
 
-        (uint256 loss, uint256 ret) = _earlyWithdrawLoss(amount, balance);
+        (uint256 loss, uint256 ret) = _earlyWithdrawLoss(msg.sender, amount, this.votingPowerOf(msg.sender));
+
         if (ret < minReturn) revert MinReturnIsNotMet();
         if (loss > maxLoss) revert MaxLossIsNotMet();
         if (loss > amount * maxLossRatio / _ONE_E9) revert LossIsTooBig();
 
-        _withdraw(depositor, balance);
+        _withdraw(depositor, amount);
         floor.safeTransfer(to, ret);
         floor.safeTransfer(feeReceiver, loss);
     }
@@ -313,18 +297,18 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     /**
      * @notice Gets the loss amount if the staker do early withdrawal at the current block
      * @param account The account to calculate early withdrawal loss for
-     * @return loss The loss amount amount
+     * @return loss The loss amount
      * @return ret The return amount
-     * @return canWithdraw  True if the staker can withdraw without penalty, false otherwise
+     * @return canWithdraw True if the staker can withdraw without penalty, false otherwise
      */
     function earlyWithdrawLoss(address account) external view returns (uint256 loss, uint256 ret, bool canWithdraw) {
         uint256 amount = depositors[account].amount;
-        (loss, ret) = _earlyWithdrawLoss(amount, balanceOf(account));
+        (loss, ret) = _earlyWithdrawLoss(account, amount, this.votingPowerOf(account));
         canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
     }
 
-    function _earlyWithdrawLoss(uint256 depAmount, uint256 stBalance) private view returns (uint256 loss, uint256 ret) {
-        ret = (depAmount - _votingPowerAt(stBalance, block.timestamp)) * _VOTING_POWER_DIVIDER / (_VOTING_POWER_DIVIDER - 1);
+    function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint256 loss, uint256 ret) {
+        ret = depAmount - this.votingPowerOfAt(account, uint88(stBalance), currentEpoch);
         loss = depAmount - ret;
     }
 
@@ -340,7 +324,7 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
      */
     function withdrawTo(address to) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
-        if (!emergencyExit && block.timestamp < depositor.unlockTime) revert UnlockTimeHasNotCome();
+        if (!emergencyExit && currentEpoch < depositor.epochStart + depositor.epochCount) revert UnlockTimeHasNotCome();
 
         uint256 amount = depositor.amount;
         if (amount > 0) {
@@ -352,8 +336,6 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
     function _withdraw(Depositor memory depositor, uint256 balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
-        // keep unlockTime in storage for next tx optimization
-        depositor.unlockTime = uint40(block.timestamp);
         depositors[msg.sender] = depositor; // SSTORE
         _burn(msg.sender, balance);
     }
@@ -386,6 +368,12 @@ contract VeFloorStaking is ERC20, IVotable, Ownable, VotingPowerCalculator {
      */
     function addEarlyWithdrawFeeExemption(address account, bool exempt) external onlyOwner {
         earlyWithdrawFeeExemptions[account] = exempt;
+    }
+
+    function setCurrentEpoch(uint _currentEpoch) external {
+        // TODO: Needs lockdown
+        // require(msg.sender == address(treasury), 'Treasury only');
+        currentEpoch = _currentEpoch;
     }
 
     // ERC20 methods disablers

@@ -16,7 +16,6 @@ import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.
 import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '../interfaces/strategies/BaseStrategy.sol';
 import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
-import {IVaultXToken} from './tokens/VaultXToken.sol';
 import {IVault} from '../interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
@@ -36,6 +35,20 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
     /// ..
     enum ApprovalType { NATIVE, ERC20, ERC721, ERC1155 }
+
+    /**
+     * ..
+     */
+    struct Sweep {
+        address[] collections;
+        uint[] amounts;
+        uint allocationBlock;
+        uint sweepBlock;
+        bool completed;
+    }
+
+    /// An array of sweeps that map against the epoch iteration
+    mapping (uint => Sweep) public epochSweeps;
 
     /**
      * ..
@@ -69,9 +82,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /// The current pricing executor contract
     IBasePricingExecutor public pricingExecutor;
 
-    /// Track if floor minting is paused
-    bool public floorMintingPaused;
-
     /// The amount of our {Treasury} reward yield that is retained. Any remaining percentage
     /// amount will be distributed to the top voted collections via our {GaugeWeightVote} contract.
     uint public retainedTreasuryYieldPercentage;
@@ -79,8 +89,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /// Our Gauge Weight Voting contract
     IGaugeWeightVote public voteContract;
 
-    /// Store our token floor price, set by our `pricingExecutor`
-    mapping(address => uint) public tokenFloorPrice;
+    /// Store our token prices, set by our `pricingExecutor`
+    mapping(address => uint) public tokenEthPrice;
 
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
@@ -160,42 +170,34 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
-        unchecked {
-            epochIteration += 1;
-            lastEpoch = block.timestamp;
-        }
-
-        // emit EpochEnded(lastEpoch);
-
-        // If floor minting is paused, prevent the epoch from ending
-        if (floorMintingPaused) {
-            return;
-        }
-
         // Get our vaults
         address[] memory vaults = vaultFactory.vaults();
 
         // Get the prices of our approved collections
-        this.getCollectionFloorPrices();
+        getCollectionEthPrices();
+
+        // Store the amount of rewards generated in ETH
+        uint ethRewards;
+
+        // Create our variables that we will reallocate during our loop to save gas
+        IVault vault;
+        uint vaultId;
+        uint vaultYield;
 
         // Iterate over vaults
         for (uint i; i < vaults.length;) {
             // Parse our vault address into the Vault interface
-            IVault vault = IVault(vaults[i]);
+            vault = IVault(vaults[i]);
 
             // Pull out rewards and transfer into the {Treasury}
-            uint vaultId = vault.vaultId();
-            uint vaultYield = vaultFactory.claimRewards(vaultId);
+            vaultId = vault.vaultId();
+            vaultYield = vaultFactory.claimRewards(vaultId);
 
-            // Get our vault collection address
-            address vaultCollection = vault.collection();
-
-            // Calculate the reward yield in FLOOR token terms
-            uint floorTokenRewardAmount = tokenFloorPrice[vaultCollection] * vaultYield;
-            if (floorTokenRewardAmount != 0) {
-                // Distribute the reward yield to our reward token
-                // floor.mint(vault.xToken(), floorTokenRewardAmount);
-                vaultFactory.distributeRewards(vaultId, floorTokenRewardAmount);
+            if (vaultYield != 0) {
+                // Calculate the reward yield in FLOOR token terms
+                unchecked {
+                    ethRewards += tokenEthPrice[vault.collection()] * vaultYield;
+                }
 
                 // Now that the {Treasury} has knowledge of the reward tokens and has minted
                 // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
@@ -203,36 +205,40 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 vaultFactory.registerMint(vaultId, vaultYield);
             }
 
-            // Update our vault share an apply pending positions
-            vaultFactory.migratePendingDeposits(vaultId);
-
             unchecked {
                 ++i;
             }
         }
 
-        // Withdraw our dividend reward tokens from the {Treasury} xToken
-        // positions. We can then use these amount withdrawn to power the voting
-        // snapshot.
-
-        // Confirm we are not retaining all {Treasury} yield
-        if (retainedTreasuryYieldPercentage != 10000) {
-            // Claim our tokens from the {Treasury} xToken allocation
-            uint claimAmount = this._claimTreasuryFloor();
-            if (claimAmount != 0) {
-                // Determine the total amount of snapshot tokens. This should be calculated as all
-                // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-                // of the treasuryFloorYield.
-                uint yieldRewards = (claimAmount * (10000 - retainedTreasuryYieldPercentage)) / 10000;
-
-                // Burn any tokens not transferred as we don't want to hold them in the {Treasury}
-                // floor.burn(claimAmount);
-
-                // Process the snapshot, which will reward xTokens holders directly
-                // floor.transfer(address(voteContract), yieldRewards);
-                voteContract.snapshot(yieldRewards, epochIteration);
-            }
+        unchecked {
+            epochIteration += 1;
+            lastEpoch = block.timestamp;
         }
+
+        // Confirm we are not retaining all yield
+        if (ethRewards != 0 && retainedTreasuryYieldPercentage != 10000) {
+            // Determine the total amount of snapshot tokens. This should be calculated as all
+            // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
+            // of the treasuryFloorYield.
+            //
+            // Process the snapshot, which will reward xTokens holders directly
+            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(
+                (ethRewards * (10000 - retainedTreasuryYieldPercentage)) / 10000,
+                epochIteration
+            );
+
+            // Now that we have the results of the snapshot we can register them against our
+            // pending sweeps
+            epochSweeps[epochIteration] = Sweep({
+                collections: collections,
+                amounts: amounts,
+                allocationBlock: block.number,
+                sweepBlock: 0,
+                completed: false
+            });
+        }
+
+        // emit EpochEnded(lastEpoch);
     }
 
     /**
@@ -386,17 +392,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward
-     * tokens will be distributed directly, otherwise they will be converted to FLOOR token
-     * first and then distributed.
-     *
-     * @param paused If floor minting should be paused
-     */
-    function pauseFloorMinting(bool paused) external onlyRole(TREASURY_MANAGER) {
-        floorMintingPaused = paused;
-    }
-
-    /**
      * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
      * as user rewards.
      *
@@ -409,7 +404,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * Our token ETH price is determined by (e.g. PUNK):
      * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
      */
-    function getCollectionFloorPrices() external {
+    function getCollectionEthPrices() public {
         if (address(pricingExecutor) == address(0)) {
             revert NoPricingExecutorSet();
         }
@@ -418,11 +413,11 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         address[] memory collections = collectionRegistry.approvedCollections();
 
         // Query our pricing executor to get our floor price equivalent
-        uint[] memory tokenFloorPrices = pricingExecutor.getFloorPrices(collections);
+        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(collections);
 
         // Iterate through our list and store it to our internal mapping
-        for (uint i; i < tokenFloorPrices.length;) {
-            tokenFloorPrice[collections[i]] = tokenFloorPrices[i];
+        for (uint i; i < tokenEthPrices.length;) {
+            tokenEthPrice[collections[i]] = tokenEthPrices[i];
             unchecked {
                 ++i;
             }
@@ -450,7 +445,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
     function processAction(address payable action, ActionApproval[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
-
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == ApprovalType.NATIVE) {
                 (bool sent,) = payable(action).call{value: approvals[i].amount}('');
@@ -480,24 +474,37 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Claims all floor owed to the {Treasury} from {VaultXToken}s.
-     *
-     * @return amount_ The amount of {FLOOR} forfeited by the {Treasury}
+     * ..
      */
-    function _claimTreasuryFloor() public returns (uint amount_) {
-        // Iterate the vaults and claim until we have reached our limit
-        address[] memory vaults = vaultFactory.vaults();
-        for (uint i; i < vaults.length;) {
-            IVaultXToken xToken = IVaultXToken(IVault(vaults[i]).xToken());
-            amount_ += xToken.dividendOf(address(this));
-            xToken.forfeitReward();
+    function sweepEpoch(uint epochIndex, address sweeper) public onlyRole(TREASURY_MANAGER) {
+        Sweep storage epochSweep = epochSweeps[epochIndex];
 
+        // Ensure we have a valid sweep index
+        require(!epochSweep.completed, 'Epoch sweep already completed');
+        require(epochSweep.collections.length != 0, 'No collections to sweep');
+
+        // Find the total amount to send to the sweeper and transfer it before the call
+        uint msgValue;
+        for (uint i; i < epochSweep.collections.length;) {
             unchecked {
+                msgValue += epochSweep.amounts[i];
                 ++i;
             }
         }
+
+        // Action our sweep
+        // ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts);
+
+        // Mark our sweep as completed
+        epochSweeps[epochIndex].completed = true;
+        epochSweeps[epochIndex].sweepBlock = block.number;
+
+        // emit EpochSwept(epochIndex);
     }
 
+    /**
+     * ..
+     */
     function epochIterationTimestamp(uint _epochIteration) public view returns (uint) {
         if (epochIteration < _epochIteration) {
             return lastEpoch + (_epochIteration * EPOCH_LENGTH);

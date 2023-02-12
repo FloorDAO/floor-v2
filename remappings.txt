@@ -9,3 +9,5 @@ forge-std/=lib/forge-std/src/
 @solidity-math-utils/=lib/solidity-math-utils/project/contracts/
 @solidity-trigonometry/=lib/solidity-trigonometry/src/
 @1inch/=lib/
+@floor/=src/contracts/
+@floor-interfaces/=src/interfaces/

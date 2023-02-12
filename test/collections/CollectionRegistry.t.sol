@@ -4,9 +4,11 @@ pragma solidity ^0.8.0;
 
 import '../../src/contracts/collections/CollectionRegistry.sol';
 
+import '../mocks/GaugeWeightVote.sol';
 import '../utilities/Environments.sol';
 
 contract CollectionRegistryTest is FloorTest {
+
     /// Emitted when a collection is successfully approved
     event CollectionApproved(address contractAddr);
 
@@ -36,6 +38,9 @@ contract CollectionRegistryTest is FloorTest {
     function setUp() public {
         alice = users[0];
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+
+        // Set an arbritrary GWV contract to prevent errors
+        collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
     }
 
     /**

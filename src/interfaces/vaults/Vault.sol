@@ -19,15 +19,13 @@ interface IVault {
      * @param _collection The address of the collection attached to the vault
      * @param _strategy The strategy implemented by the vault
      * @param _vaultFactory The address of the {VaultFactory} that created the vault
-     * @param _vaultXToken The address of the paired xToken
      */
     function initialize(
         string memory _name,
         uint _vaultId,
         address _collection,
         address _strategy,
-        address _vaultFactory,
-        address _vaultXToken
+        address _vaultFactory
     ) external;
 
     /**
@@ -79,20 +77,7 @@ interface IVault {
     function pause(bool pause) external;
 
     /**
-     * Recalculates the share ownership of each address with a position. This precursory
-     * calculation allows us to save gas during epoch calculation.
-     *
-     * This assumes that when a user enters or exits a position, that their address is
-     * maintained correctly in the `stakers` array.
-     */
-    function migratePendingDeposits() external;
-
-    /**
      * ..
      */
-    function xToken() external returns (address);
-
-    function distributeRewards(uint amount) external;
-
     function registerMint(address recipient, uint amount) external;
 }

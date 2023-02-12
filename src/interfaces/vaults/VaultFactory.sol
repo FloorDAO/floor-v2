@@ -15,7 +15,7 @@ pragma solidity ^0.8.0;
 
 interface IVaultFactory {
     /// @dev Sent when a vault is created successfully
-    event VaultCreated(uint indexed vaultId, address vaultAddress, address vaultXTokenAddress, address assetAddress);
+    event VaultCreated(uint indexed vaultId, address vaultAddress, address assetAddress);
 
     /// @dev Sent when a vault is paused or unpaused
     event VaultCreationPaused(bool paused);
@@ -43,10 +43,6 @@ interface IVaultFactory {
         returns (uint vaultId_, address vaultAddr_);
 
     function pause(uint _vaultId, bool _paused) external;
-
-    function migratePendingDeposits(uint _vaultId) external;
-
-    function distributeRewards(uint _vaultId, uint _amount) external;
 
     function claimRewards(uint _vaultId) external returns (uint);
 

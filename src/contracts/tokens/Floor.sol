@@ -25,8 +25,7 @@ contract FLOOR is AuthorityControl, ERC20, ERC20Burnable, ERC20Permit, IFLOOR {
      * @param to Recipient of the tokens
      * @param amount Amount of tokens to be minted
      */
-    // TODO: Lock this down to FLOOR_MANAGER. This will need to be called by xTokens
-    function mint(address to, uint amount) public /* onlyRole(FLOOR_MANAGER) */ {
+    function mint(address to, uint amount) public onlyRole(FLOOR_MANAGER) {
         _mint(to, amount);
     }
 }

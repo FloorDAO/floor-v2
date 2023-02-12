@@ -20,8 +20,6 @@ contract FloorTest is Test {
 
     address constant DEPLOYER = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
 
-    uint STAKING_EXP_BASE = 999999952502977513;
-
     constructor() {
         // Set up our utilities class
         utilities = new Utilities();
@@ -58,9 +56,24 @@ contract FloorTest is Test {
         _;
     }
 
+    /**
+     * ...
+     */
     function assertAlmostEqual(uint a, uint b, uint v) internal {
         assertGt(a, v);
         assertGt(b, v);
         assertTrue(a - v < b || a + v > b);
     }
+
+    /**
+     * ...
+     */
+    function _strategyInitBytes() internal pure returns (bytes memory) {
+        return abi.encode(
+            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
+            0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
+        );
+    }
+
 }

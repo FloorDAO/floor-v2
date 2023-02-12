@@ -165,21 +165,22 @@ interface ITreasury {
     function setRetainedTreasuryYieldPercentage(uint percent) external;
 
     /**
-     * Allows the FLOOR minting to be enabled or disabled. If this is disabled, then reward
-     * tokens will be distributed directly, otherwise they will be converted to FLOOR token
-     * first and then distributed.
-     *
-     * @dev This will only be actionable by {TreasuryManager}
-     */
-    function pauseFloorMinting(bool enabled) external;
-
-    /**
      * Sets an updated pricing executor (needs to confirm an implementation function).
      */
     function setPricingExecutor(address contractAddr) external;
 
+    /**
+     * ..
+     */
     function epochIteration() external returns (uint);
+
+    /**
+     * ..
+     */
     function epochIterationTimestamp(uint) external returns (uint);
 
+    /**
+     * ..
+     */
     function EPOCH_LENGTH() external returns (uint);
 }

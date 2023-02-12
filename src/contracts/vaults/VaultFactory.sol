@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
-import {VaultXToken} from '../tokens/VaultXToken.sol';
 import {CollectionNotApproved, StrategyNotApproved} from '../utils/Errors.sol';
 
 import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
@@ -26,8 +25,6 @@ error VaultNameCannotBeEmpty();
  * This factory will keep an index of created vaults and secondary information to ensure
  * that external applications can display and maintain a list of available vaults.
  *
- * The contract can be paused to prevent the creation of new vaults.
- *
  * Question: Can anyone create a vault?
  */
 contract VaultFactory is AuthorityControl, IVaultFactory {
@@ -40,7 +37,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
     /// Implementation addresses that will be cloned
     address public immutable vaultImplementation;
-    address public immutable vaultXTokenImplementation;
 
     /// Mappings to aide is discoverability
     mapping(uint => address) private vaultIds;
@@ -56,7 +52,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      * @param _collectionRegistry Address of our {CollectionRegistry}
      * @param _strategyRegistry Address of our {StrategyRegistry}
      * @param _vaultImplementation Address of our deployed {Vault} to clone
-     * @param _vaultXTokenImplementation Address of our deployed {VaultXToken} to clone
      * @param _floor Address of our {FLOOR}
      */
     constructor(
@@ -64,7 +59,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address _collectionRegistry,
         address _strategyRegistry,
         address _vaultImplementation,
-        address _vaultXTokenImplementation,
         address _floor
     ) AuthorityControl(_authority) {
         // Type-cast our interfaces and store our registry contracts
@@ -73,7 +67,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
         // Store our implementation addresses
         vaultImplementation = _vaultImplementation;
-        vaultXTokenImplementation = _vaultXTokenImplementation;
 
         // Store our FLOOR token address
         floor = _floor;
@@ -113,7 +106,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     }
 
     /**
-     * Creates a vault with an approved strategy, collection and corresponding {VaultXToken}.
+     * Creates a vault with an approved strategy and collection.
      *
      * @param _name Human-readable name of the vault
      * @param _strategy The strategy implemented by the vault
@@ -151,17 +144,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
         // Determine our deployed addresses
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
-        address vaultXTokenAddr_ = Clones.cloneDeterministic(vaultXTokenImplementation, bytes32(vaultId_));
 
         // Create our {Vault} with provided information
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this), vaultXTokenAddr_);
-
-        // Create our {VaultXToken} for the vault
-        VaultXToken(vaultXTokenAddr_).initialize(floor, _name, _name);
-
-        // Transfer our ownership of the the VaultXToken from the {VaultFactory} to the {Vault}
-        // that we have created.
-        VaultXToken(vaultXTokenAddr_).transferOwnership(vaultAddr_);
+        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
@@ -174,7 +159,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         collectionVaults[_collection].push(vaultAddr_);
 
         // Finally we can emit our event to notify watchers of a new vault
-        emit VaultCreated(vaultId_, vaultAddr_, vaultXTokenAddr_, _collection);
+        emit VaultCreated(vaultId_, vaultAddr_, _collection);
     }
 
     /**
@@ -191,29 +176,10 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     }
 
     /**
-     * Updates pending stakers into active stakers, entitling them to a share of the
-     * vault rewards yield.
-     *
-     * @dev This should be called when an epoch is ended.
-     *
-     * @param _vaultId Vault ID to be updated
+     * ..
      */
-    function migratePendingDeposits(uint _vaultId) public onlyRole(VAULT_MANAGER) {
-        IVault(vaultIds[_vaultId]).migratePendingDeposits();
-    }
-
-    function claimRewards(uint _vaultId) public onlyRole(TREASURY_MANAGER) returns (uint) {
+    function claimRewards(uint _vaultId) public returns (uint) {
         return IVault(vaultIds[_vaultId]).claimRewards();
-    }
-
-    /**
-     * Distributes rewards into the {VaultXToken} via the {Vault}.
-     *
-     * @param _vaultId Vault ID to be updated
-     * @param _amount Amount of reward tokens to be distributed
-     */
-    function distributeRewards(uint _vaultId, uint _amount) public onlyRole(REWARDS_MANAGER) {
-        IVault(vaultIds[_vaultId]).distributeRewards(_amount);
     }
 
     /**

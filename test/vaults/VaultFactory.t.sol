@@ -6,10 +6,10 @@ import '../../src/contracts/collections/CollectionRegistry.sol';
 import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import '../../src/contracts/strategies/StrategyRegistry.sol';
 import '../../src/contracts/tokens/Floor.sol';
-import '../../src/contracts/tokens/VaultXToken.sol';
 import '../../src/contracts/vaults/Vault.sol';
 import '../../src/contracts/vaults/VaultFactory.sol';
 
+import '../mocks/GaugeWeightVote.sol';
 import '../utilities/Environments.sol';
 
 contract VaultFactoryTest is FloorTest {
@@ -17,7 +17,6 @@ contract VaultFactoryTest is FloorTest {
     StrategyRegistry strategyRegistry;
     VaultFactory vaultFactory;
     Vault vaultImplementation;
-    VaultXToken vaultXTokenImplementation;
 
     address approvedCollection;
     address approvedStrategy;
@@ -51,6 +50,9 @@ contract VaultFactoryTest is FloorTest {
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
+        // Set an arbritrary GWV contract to prevent errors
+        collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
+
         // Define our collections (DAI and USDC)
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         collection = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -61,9 +63,6 @@ contract VaultFactoryTest is FloorTest {
         // Deploy our vault implementation
         vaultImplementation = new Vault();
 
-        // Deploy our vault implementation
-        vaultXTokenImplementation = new VaultXToken();
-
         // Deploy our FLOOR token
         FLOOR floor = new FLOOR(address(authorityRegistry));
 
@@ -73,7 +72,6 @@ contract VaultFactoryTest is FloorTest {
             address(collectionRegistry),
             address(strategyRegistry),
             address(vaultImplementation),
-            address(vaultXTokenImplementation),
             address(floor)
         );
     }
@@ -175,14 +173,4 @@ contract VaultFactoryTest is FloorTest {
         vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
     }
 
-    /**
-     * ...
-     */
-    function _strategyInitBytes() internal pure returns (bytes memory) {
-        return abi.encode(
-            0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
-            0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
-        );
-    }
 }

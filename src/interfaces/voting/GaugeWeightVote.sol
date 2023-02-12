@@ -66,7 +66,7 @@ interface IGaugeWeightVote {
      * Allows a user to revoke their votes from vaults. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
-    function revokeVotes(address[] memory _collection, uint[] memory _amount) external;
+    function revokeVotes(address[] memory _collection) external;
 
     /**
      * Allows an authorised contract or wallet to revoke all user votes. This
@@ -111,7 +111,7 @@ interface IGaugeWeightVote {
      * percentage in the vault. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot(uint tokens, uint epoch) external returns (address[] memory collections);
+    function snapshot(uint tokens, uint epoch) external returns (address[] memory collections, uint[] memory amounts);
 
     function addCollection(address _collection) external;
 }
