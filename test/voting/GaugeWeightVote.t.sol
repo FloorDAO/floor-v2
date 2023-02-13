@@ -395,10 +395,17 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.stopPrank();
 
         assertEq(collections.length, 3);
+        assertEq(amounts.length, 3);
 
         assertEq(collections[0], floorTokenCollection);
         assertEq(collections[1], approvedCollection2);
         assertEq(collections[2], approvedCollection3);
+
+        assertEq(amounts[0], 4950 ether);
+        assertEq(amounts[1], 3300 ether);
+        assertEq(amounts[2], 1750 ether);
+
+        assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
     }
 
     /**

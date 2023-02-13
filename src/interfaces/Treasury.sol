@@ -183,4 +183,14 @@ interface ITreasury {
      * ..
      */
     function EPOCH_LENGTH() external returns (uint);
+
+    /**
+     * ..
+     */
+    function sweepEpoch(uint epochIndex, address sweeper) external;
+
+    /**
+     * ..
+     */
+    function resweepEpoch(uint epochIndex, address sweeper) external;
 }
