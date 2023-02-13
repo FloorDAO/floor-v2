@@ -12,6 +12,7 @@ import {FLOOR} from './tokens/Floor.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from './utils/Errors.sol';
 
 import {IAction} from '../interfaces/actions/Action.sol';
+import {ISweeper} from '../interfaces/actions/Sweeper.sol';
 import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '../interfaces/strategies/BaseStrategy.sol';
@@ -228,7 +229,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             );
 
             // Now that we have the results of the snapshot we can register them against our
-            // pending sweeps
+            // pending sweeps.
             epochSweeps[epochIteration] = Sweep({
                 collections: collections,
                 amounts: amounts,
@@ -477,12 +478,33 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * ..
      */
     function sweepEpoch(uint epochIndex, address sweeper) public onlyRole(TREASURY_MANAGER) {
-        Sweep storage epochSweep = epochSweeps[epochIndex];
+        // Load the stored sweep at our epoch index
+        Sweep memory epochSweep = epochSweeps[epochIndex];
 
         // Ensure we have a valid sweep index
         require(!epochSweep.completed, 'Epoch sweep already completed');
         require(epochSweep.collections.length != 0, 'No collections to sweep');
 
+        return _sweepEpoch(epochIndex, sweeper, epochSweep);
+    }
+
+    /**
+     * ..
+     */
+    function resweepEpoch(uint epochIndex, address sweeper) public onlyRole(TREASURY_MANAGER) {
+        // Load the stored sweep at our epoch index
+        Sweep memory epochSweep = epochSweeps[epochIndex];
+
+        // Ensure we have a valid sweep index
+        require(epochSweep.collections.length != 0, 'No collections to sweep');
+
+        return _sweepEpoch(epochIndex, sweeper, epochSweep);
+    }
+
+    /**
+     * ..
+     */
+    function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep) internal {
         // Find the total amount to send to the sweeper and transfer it before the call
         uint msgValue;
         for (uint i; i < epochSweep.collections.length;) {
@@ -492,12 +514,15 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             }
         }
 
-        // Action our sweep
-        // ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts);
+        // Action our sweep. If we don't hold enough ETH to supply the message value then
+        // we expect this call to revert.
+        ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts);
 
         // Mark our sweep as completed
-        epochSweeps[epochIndex].completed = true;
-        epochSweeps[epochIndex].sweepBlock = block.number;
+        epochSweep.completed = true;
+        epochSweep.sweepBlock = block.number;
+
+        epochSweeps[epochIndex] = epochSweep;
 
         // emit EpochSwept(epochIndex);
     }

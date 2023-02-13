@@ -5,13 +5,14 @@ pragma solidity ^0.8.0;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
+import { ISweeper } from '../../../interfaces/actions/Sweeper.sol';
 import { ICoWSwapSettlement } from "../../../interfaces/cowswap/CoWSwapSettlement.sol";
 import { GPv2Order } from "../../../interfaces/cowswap/GPv2Order.sol";
 import { ICoWSwapOnchainOrders } from "../../../interfaces/cowswap/CoWSwapOnchainOrders.sol";
 import { IWETH } from '../../../interfaces/tokens/WETH.sol';
 
 /// https://github.com/nlordell/dappcon-2022-smart-orders
-contract CowSwapSweeper is ICoWSwapOnchainOrders {
+contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
 
     using GPv2Order for *;
 
@@ -43,7 +44,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders {
         weth = IWETH(weth_);
     }
 
-    function execute(address[] memory collections, uint[] memory amounts) public payable returns (bytes memory orderUid) {
+    function execute(address[] memory collections, uint[] memory amounts) external override payable returns (bytes memory orderUid) {
         // Wrap out msg.value into WETH
         weth.deposit{value: msg.value}();
 
