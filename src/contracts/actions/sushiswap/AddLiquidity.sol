@@ -82,17 +82,13 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
         // Send leftovers
         request.tokenA.withdrawTokens(msg.sender, request.amountADesired - amountA);
 
-        _returnEthDust();
-
-        return liquidity;
-    }
-
-    function _returnEthDust() internal {
         // Return any left over eth dust
         if (payable(address(this)).balance != 0) {
-            (bool sent, bytes memory data) = msg.sender.call{value: payable(address(this)).balance}("");
+            (bool sent, ) = msg.sender.call{value: payable(address(this)).balance}("");
             require(sent, "Failed to refund Ether dust");
         }
+
+        return liquidity;
     }
 
     function _addTokenLiquidity(ActionRequest memory request) internal returns (uint) {
@@ -125,5 +121,10 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
 
         return liquidity;
     }
+
+    /**
+     * ..
+     */
+    receive() external payable {}
 
 }

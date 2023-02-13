@@ -2,17 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '../../../src/contracts/actions/sushiswap/AddLiquidity.sol';
+import {SushiswapAddLiquidity} from '../../../src/contracts/actions/sushiswap/AddLiquidity.sol';
 import { IWETH } from '../../../src/interfaces/tokens/WETH.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract SushiswapAddLiquidityTest is FloorTest {
 
     /// ..
-    address internal constant UNISWAP_ROUTER = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address internal constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     /// ..
     address internal constant TOKEN_A   = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;  // X2Y2
@@ -44,7 +44,7 @@ contract SushiswapAddLiquidityTest is FloorTest {
      */
     function test_CanAddEthLiquidityAsTokenA() public {
         uint liquidity = _addLiquidity(TOKEN_A, ETH_TOKEN, 1 ether);
-        assertEq(liquidity, 999999999999999000);
+        assertEq(liquidity, 7824599337399158);
     }
 
     /**
@@ -81,6 +81,13 @@ contract SushiswapAddLiquidityTest is FloorTest {
                 block.timestamp + 3600  // uint deadline
             )
         );
+    }
+
+    /**
+     * ..
+     */
+    receive() external payable {
+        assertEq(msg.value, 999880756991001119);
     }
 
 }
