@@ -48,6 +48,10 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
     /// Oracle wallet that has permission to write merkles
     address public oracleWallet;
 
+    constructor (address _oracleWallet) {
+        oracleWallet = _oracleWallet;
+    }
+
     /**
      * Create a new bribe.
      *
@@ -213,7 +217,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         oracleWallet = _oracleWallet;
     }
 
-    function expireCollectionBribes(address[] calldata collection, uint[] calldata index) internal {
+    function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external {
         // Ensure that only our oracle wallet can call this function
         require(msg.sender == oracleWallet, 'Unauthorized caller');
 
