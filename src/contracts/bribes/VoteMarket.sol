@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
@@ -23,11 +25,14 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
     /// The recipient of any fees collected. This should be set to the {Treasury}, or
     /// to a specialist fee collection contract.
-    address public feeCollector;
+    address public immutable feeCollector;
 
     /// Store our claim merkles that define the available rewards for each user across
     /// all collections and bribes.
     mapping (uint => bytes32) epochMerkles;
+
+    /// Store the total number of votes cast against each collection at each epoch
+    mapping (bytes32 => uint) epochCollectionVotes;
 
     /// Stores a list of all bribes created, across past, live and future
     Bribe[] bribes;
@@ -48,8 +53,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
     /// Oracle wallet that has permission to write merkles
     address public oracleWallet;
 
-    constructor (address _oracleWallet) {
+    constructor (address _oracleWallet, address _feeCollector) {
         oracleWallet = _oracleWallet;
+        feeCollector = _feeCollector;
     }
 
     /**
@@ -77,7 +83,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
         // Ensure we are supplying a bribe for at least the minimum number
         // of epochs.
-        require(numberOfEpochs > MINIMUM_EPOCHS, 'Invalid number of epochs');
+        require(numberOfEpochs >= MINIMUM_EPOCHS, 'Invalid number of epochs');
 
         // Ensure that we have > 0 reward input
         require(totalRewardAmount != 0 && maxRewardPerVote != 0, 'Invalid amounts');
@@ -97,16 +103,18 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         uint256 currentEpoch = 0;
 
         // Create our Bribe object at the new ID index
-        bribes[newBribeID] = Bribe({
-            bribeId: newBribeID,
-            collection: collection,
-            rewardToken: rewardToken,
-            startEpoch: currentEpoch,
-            numberOfEpochs: numberOfEpochs,
-            maxRewardPerVote: maxRewardPerVote,
-            totalRewardAmount: totalRewardAmount,
-            blacklist: blacklist
-        });
+        bribes.push(
+            Bribe({
+                bribeId: newBribeID,
+                collection: collection,
+                rewardToken: rewardToken,
+                startEpoch: currentEpoch,
+                numberOfEpochs: numberOfEpochs,
+                maxRewardPerVote: maxRewardPerVote,
+                totalRewardAmount: totalRewardAmount,
+                blacklist: blacklist
+            })
+        );
 
         // Add the bribe to our collection mapping
         collectionBribes[collection].push(newBribeID);
@@ -129,25 +137,28 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
     }
 
+    function claimSingle(address account, uint epoch, address collection, uint votes, bytes32[] calldata merkleProof) external whenNotPaused {
+        // Check that the user has not already successfully claimed against this collection
+        // at the specified epoch.
+        bytes32 userClaimHash = claimHash(collection, epoch);
+        if (userClaimed[userClaimHash]) {
+            return;
+        }
+
+        // Loop through all bribes assigned to the collection
+        for (uint k; k < collectionBribes[collection].length;) {
+            _claim(collectionBribes[collection][k], account, epoch, collection, votes, merkleProof);
+            unchecked { ++k; }
+        }
+
+        // Mark our collection rewards for the epoch as claimed for the user
+        userClaimed[userClaimHash] = true;
+    }
+
     function claim(address account, uint[] calldata epoch, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
         // Loop through all collection claims that the user is making
         for (uint i; i < collection.length;) {
-            // Check that the user has not already successfully claimed against this collection
-            // at the specified epoch.
-            bytes32 userClaimHash = claimHash(collection[i], epoch[i]);
-            if (userClaimed[userClaimHash]) {
-                continue;
-            }
-
-            // Loop through all bribes assigned to the collection
-            for (uint k; k < collectionBribes[collection[i]].length;) {
-                _claim(collectionBribes[collection[i]][k], account, epoch[i], collection[i], votes[i], merkleProof[i]);
-                unchecked { ++k; }
-            }
-
-            // Mark our collection rewards for the epoch as claimed for the user
-            userClaimed[userClaimHash] = true;
-
+            this.claimSingle(account, epoch[i], collection[i], votes[i], merkleProof[i]);
             unchecked { ++i; }
         }
     }
@@ -168,22 +179,29 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         // Load our bribe into memory as we won't be updating any content
         Bribe memory bribe = bribes[bribeId];
 
+        // Calculate the reward amount per vote
+        uint voteReward = bribe.maxRewardPerVote;
+        if ((bribe.maxRewardPerVote * epochCollectionVotes[claimHash(collection, epoch)]) / (10 ** ERC20(bribe.rewardToken).decimals()) > bribe.totalRewardAmount / bribe.numberOfEpochs) {
+            voteReward = ((bribe.totalRewardAmount / bribe.numberOfEpochs) * (10 ** ERC20(bribe.rewardToken).decimals())) / epochCollectionVotes[claimHash(collection, epoch)];
+        }
+
         // Determine the reward amount for the user
-        // TODO: Need to consider less than max
-        uint amount = votes * bribe.maxRewardPerVote;
+        uint amount = (votes * voteReward) / (10 ** ERC20(bribe.rewardToken).decimals());
 
         // Determine the amount of fee, if applicable, to return to the DAO for
         // facilitating the vote market.
-        if (DAO_FEE != 0) {
-            uint feeAmount = amount * DAO_FEE / 100;
-            amount -= feeAmount;
+        if (amount != 0) {
+            if (DAO_FEE != 0) {
+                uint feeAmount = amount * DAO_FEE / 100;
+                amount -= feeAmount;
 
-            // Transfer fees to the DAO
-            ERC20(bribe.rewardToken).transfer(feeCollector, feeAmount);
+                // Transfer fees to the DAO
+                ERC20(bribe.rewardToken).transfer(feeCollector, feeAmount);
+            }
+
+            // Transfer to account claiming the reward
+            ERC20(bribe.rewardToken).transfer(account, amount);
         }
-
-        // Transfer to account claiming the reward
-        ERC20(bribe.rewardToken).transfer(account, amount);
 
         // Emit our event
         emit Claimed(account, bribe.rewardToken, bribeId, amount, epoch);
@@ -197,7 +215,12 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         return userClaimed[claimHash(collection, epoch)];
     }
 
-    function registerClaims(uint epoch, bytes32 merkleRoot) external {
+    function registerClaims(
+        uint epoch,
+        bytes32 merkleRoot,
+        address[] calldata collections,
+        uint[] calldata collectionVotes
+    ) external {
         // Ensure that only our oracle wallet can call this function
         require(msg.sender == oracleWallet, 'Unauthorized caller');
 
@@ -206,6 +229,12 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
         // Register the merkleRoot against our epoch
         epochMerkles[epoch] = merkleRoot;
+
+        // Set our total votes so that we can calculate the per vote rewards
+        for (uint i; i < collections.length;) {
+            epochCollectionVotes[claimHash(collections[i], epoch)] = collectionVotes[i];
+            unchecked { ++i; }
+        }
 
         // Emit our claim registration event
         emit ClaimRegistered(epoch, merkleRoot);

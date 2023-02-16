@@ -81,7 +81,7 @@ interface IVoteMarket {
 
     function hasUserClaimed(address collection, uint epoch) external view returns (bool);
 
-    function registerClaims(uint epoch, bytes32 merkleRoot) external;
+    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external;
 
     function setOracleWallet(address _oracleWallet) external;
 
