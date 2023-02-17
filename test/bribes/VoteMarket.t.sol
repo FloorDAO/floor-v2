@@ -166,7 +166,7 @@ contract VoteMarketTest is FloorTest {
         merkleProof[2] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a4';
 
         // Claim as Alice with a valid request
-        voteMarket.claimSingle(alice, 0, approvedCollection, 10 ether, merkleProof);
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
 
         // Ensure our recipient received the expected amount of WETH
         assertEq(WETH.balanceOf(alice), 490000000000000000);
@@ -214,7 +214,7 @@ contract VoteMarketTest is FloorTest {
         merkleProofStore.push(merkleProofB);
 
         // Claim as Alice with a valid request
-        voteMarket.claim(alice, epochs, collections, votes, merkleProofStore);
+        voteMarket.claimAll(alice, epochs, collections, votes, merkleProofStore);
 
         // Ensure our recipient received the expected amount of WETH
         assertEq(WETH.balanceOf(alice), 735000000000000000);
@@ -236,7 +236,7 @@ contract VoteMarketTest is FloorTest {
         bytes32 merkleRootB = hex'c144e62f4bcbaf0abf9dd8945098737eba109e519ee1ba081b30eb1bc38fe6aa';
 
         // Register our merkle roots
-        _registerClaimWithMultipleVotes(0, merkleRootA, approvedCollection, approvedCollection2, 100 ether, 50 ether);
+        _registerClaimWithTwoVotes(0, merkleRootA, approvedCollection, approvedCollection2, 100 ether, 50 ether);
         _registerClaimWithSingleVote(1, merkleRootB, approvedCollection2, 50 ether);
 
         // Set up our bribe
@@ -278,13 +278,71 @@ contract VoteMarketTest is FloorTest {
         merkleProofStore.push(merkleProofC);
 
         // Claim as Alice with a valid request
-        voteMarket.claim(alice, epochs, collections, votes, merkleProofStore);
+        voteMarket.claimAll(alice, epochs, collections, votes, merkleProofStore);
 
         // Ensure our recipient received the expected amount of WETH
         assertEq(WETH.balanceOf(alice), 1470000000000000000);
 
         // Our fee collector should have received 2%
         assertEq(WETH.balanceOf(feeCollector), 30000000000000000);
+    }
+
+    function test_CanClaimSpecificBribeRewardTokens() external {
+        // Create 3 bribes in one epoch that contains different
+        bytes32 merkleRoot = hex'2b52f18d66217640ead81dde7fa2e4f5fed97a3c4c437a43bb60434d326ba260';
+
+        // Register our merkle roots
+        _registerClaimWithThreeVotes(
+            0,  // epoch
+            merkleRoot,  // merkle root
+            approvedCollection,  // collection
+            approvedCollection2,  // collection
+            approvedCollection3,  // collection
+            10 ether,
+            10 ether,
+            10 ether
+        );
+
+        uint[] memory includedBribeIds = new uint[](2);
+
+        // Set up our bribe
+        includedBribeIds[0] = voteMarket.createBribe(approvedCollection,  address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection2, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        includedBribeIds[1] = voteMarket.createBribe(approvedCollection3, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+
+        bytes32[] memory merkleProofA = new bytes32[](4);
+        merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a0';
+        merkleProofA[1] = hex'74d7830ae74d8644cc49789cd9bb46fb575885a4a171c0097a73ac90ef601a3b';
+        merkleProofA[2] = hex'41500747f57a81a55fa547a74199f8f91ec0fccc40368c484ca4bfb139715b22';
+        merkleProofA[3] = hex'b48cad943802515fe99b8f5ac78faf1ee49dc968cb28a3b79a546ded61bf8892';
+
+        bytes32[] memory merkleProofB = new bytes32[](2);
+        merkleProofB[0] = hex'67b678dfa4e907dd0430c40acc353661e30804047ebe925d836840157ebcc6eb';
+        merkleProofB[1] = hex'a3eea3669f7417720e4fc640e3271c53871038e85cea2e7240dd05add9d839f7';
+
+        uint[] memory epochs = new uint[](2);
+        address[] memory collections = new address[](2);
+        uint[] memory votes = new uint[](2);
+
+        epochs[0] = 0;
+        collections[0] = approvedCollection;
+        votes[0] = 10 ether;
+        merkleProofStore.push(merkleProofA);
+
+        epochs[1] = 0;
+        collections[1] = approvedCollection2;
+        votes[1] = 10 ether;
+        merkleProofStore.push(merkleProofB);
+
+        // Specify the bribe IDs that we are collecting from in our call
+        voteMarket.claim(alice, epochs, includedBribeIds, collections, votes, merkleProofStore);
+
+        // Ensure our recipient received the expected amount of WETH, which should just include
+        // just two claims of the possible three.
+        assertEq(WETH.balanceOf(alice), 980000000000000000);
+
+        // Our fee collector should have received 2%
+        assertEq(WETH.balanceOf(feeCollector), 20000000000000000);
     }
 
     function test_CannotClaimTwiceOnSameCollectionEpoch() external {
@@ -296,7 +354,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -304,16 +362,16 @@ contract VoteMarketTest is FloorTest {
         merkleProof[2] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a4';
 
         // Our user has not yet claimed
-        assertFalse(voteMarket.hasUserClaimed(approvedCollection, 0));
+        assertFalse(voteMarket.hasUserClaimed(bribeId, 0));
 
         // Claim as Alice with a valid request
-        voteMarket.claimSingle(alice, 0, approvedCollection, 10 ether, merkleProof);
-        assertTrue(voteMarket.hasUserClaimed(approvedCollection, 0));
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
+        assertTrue(voteMarket.hasUserClaimed(bribeId, 0));
 
         // Attempt to claim as Alice again. The call won't fail, but will just not allow
         // an additional claim.
-        voteMarket.claimSingle(alice, 0, approvedCollection, 10 ether, merkleProof);
-        assertTrue(voteMarket.hasUserClaimed(approvedCollection, 0));
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
+        assertTrue(voteMarket.hasUserClaimed(bribeId, 0));
 
         // Ensure we still only have the single expected transfer
         assertEq(WETH.balanceOf(alice), 490000000000000000);
@@ -329,7 +387,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, aliceBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, aliceBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -337,12 +395,12 @@ contract VoteMarketTest is FloorTest {
         merkleProof[2] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a4';
 
         // Our user has not yet claimed
-        assertFalse(voteMarket.hasUserClaimed(approvedCollection, 0));
+        assertFalse(voteMarket.hasUserClaimed(bribeId, 0));
 
-        // Claim as Alice, which will set the user claimed to True, even though they will
-        // not have received any tokens.
-        voteMarket.claimSingle(alice, 0, approvedCollection, 10 ether, merkleProof);
-        assertTrue(voteMarket.hasUserClaimed(approvedCollection, 0));
+        // Claim as Alice, which will keep the user claim as false and will not have
+        // received any tokens.
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
+        assertFalse(voteMarket.hasUserClaimed(bribeId, 0));
 
         // Ensure we still only have the single expected transfer
         assertEq(WETH.balanceOf(alice), 0);
@@ -364,13 +422,13 @@ contract VoteMarketTest is FloorTest {
         // Set up our bribe so that we allocate 50 tokens to the bribe with a 1 token max reward
         // per vote. Since our user is providing 500 votes, this should reward the user with the
         // full 50 tokens, rather than 500 tokens which the max vote reward would calculate to.
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(1), 1 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(1), 1 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](1);
         merkleProof[0] = hex'9bce35978367d42a249f72fdf1c2d747b4e8ddf3c109d8021b5887ebf107ea9e';
 
-        voteMarket.claimSingle(alice, 0, approvedCollection, 500 ether, merkleProof);
-        assertTrue(voteMarket.hasUserClaimed(approvedCollection, 0));
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 500 ether, merkleProof);
+        assertTrue(voteMarket.hasUserClaimed(bribeId, 0));
 
         // Ensure we still only have the single expected transfer
         assertEq(WETH.balanceOf(alice), 49 ether);
@@ -404,10 +462,6 @@ contract VoteMarketTest is FloorTest {
         assertEq(voteMarket.oracleWallet(), oracle);
     }
 
-    function test_CanExpireCollectionBribes() external {
-        // TODO: ??
-    }
-
     function test_CannotExpireCollectionBribesWithoutPermissions() external {
         address[] memory collections = new address[](1);
         collections[0] = address(this);
@@ -427,7 +481,21 @@ contract VoteMarketTest is FloorTest {
         voteMarket.registerClaims(epoch, root, claimCollections, claimCollectionVotes);
     }
 
-    function _registerClaimWithMultipleVotes(
+    uint[] epochStore;
+    address[] collectionStore;
+    uint[] voteStore;
+    bytes32[][] merkleProofStoreAlt;
+
+    function _claimAllWithSingleValues(address account, uint epoch, address collection, uint votes, bytes32[] memory merkleProof) internal {
+        epochStore.push(epoch);
+        collectionStore.push(collection);
+        voteStore.push(votes);
+        merkleProofStoreAlt.push(merkleProof);
+
+        voteMarket.claimAll(account, epochStore, collectionStore, voteStore, merkleProofStoreAlt);
+    }
+
+    function _registerClaimWithTwoVotes(
         uint epoch,
         bytes32 root,
         address collection1,
@@ -439,6 +507,27 @@ contract VoteMarketTest is FloorTest {
         claimCollections.push(collection2);
         claimCollectionVotes.push(votes1);
         claimCollectionVotes.push(votes2);
+
+        vm.prank(oracle);
+        voteMarket.registerClaims(epoch, root, claimCollections, claimCollectionVotes);
+    }
+
+    function _registerClaimWithThreeVotes(
+        uint epoch,
+        bytes32 root,
+        address collection1,
+        address collection2,
+        address collection3,
+        uint votes1,
+        uint votes2,
+        uint votes3
+    ) internal {
+        claimCollections.push(collection1);
+        claimCollections.push(collection2);
+        claimCollections.push(collection3);
+        claimCollectionVotes.push(votes1);
+        claimCollectionVotes.push(votes2);
+        claimCollectionVotes.push(votes3);
 
         vm.prank(oracle);
         voteMarket.registerClaims(epoch, root, claimCollections, claimCollectionVotes);

@@ -41,7 +41,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
     mapping (address => uint[]) collectionBribes;
 
     /// Store a list of users that have claimed. Each encoded bytes represents a user that
-    /// has claimed against a specific epoch and collection.
+    /// has claimed against a specific epoch and bribe ID.
     mapping(bytes32 => bool) internal userClaimed;
 
     /// Blacklisted addresses per bribe that aren't counted for rewards arithmetics.
@@ -137,33 +137,38 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
     }
 
-    function claimSingle(address account, uint epoch, address collection, uint votes, bytes32[] calldata merkleProof) external whenNotPaused {
-        // Check that the user has not already successfully claimed against this collection
-        // at the specified epoch.
-        bytes32 userClaimHash = claimHash(collection, epoch);
-        if (userClaimed[userClaimHash]) {
-            return;
-        }
-
+    function claim(address account, uint[] calldata epoch, uint[] calldata bribeIds, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
         // Loop through all bribes assigned to the collection
-        for (uint k; k < collectionBribes[collection].length;) {
-            _claim(collectionBribes[collection][k], account, epoch, collection, votes, merkleProof);
-            unchecked { ++k; }
+        for (uint i; i < bribeIds.length;) {
+            for (uint k; k < epoch.length;) {
+                _claim(bribeIds[i], account, epoch[k], collection[k], votes[k], merkleProof[k]);
+                unchecked { ++k; }
+            }
+            unchecked { ++i; }
         }
-
-        // Mark our collection rewards for the epoch as claimed for the user
-        userClaimed[userClaimHash] = true;
     }
 
-    function claim(address account, uint[] calldata epoch, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
+    function claimAll(address account, uint[] calldata epoch, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
         // Loop through all collection claims that the user is making
         for (uint i; i < collection.length;) {
-            this.claimSingle(account, epoch[i], collection[i], votes[i], merkleProof[i]);
+            // Loop through all bribes assigned to the collection
+            for (uint k; k < collectionBribes[collection[i]].length;) {
+                _claim(collectionBribes[collection[i]][k], account, epoch[i], collection[i], votes[i], merkleProof[i]);
+                unchecked { ++k; }
+            }
+
             unchecked { ++i; }
         }
     }
 
     function _claim(uint bribeId, address account, uint epoch, address collection, uint votes, bytes32[] calldata merkleProof) internal {
+        // Check that the user has not already successfully claimed against this collection
+        // at the specified epoch.
+        bytes32 userClaimHash = _claimHash(bribeId, epoch);
+        if (userClaimed[userClaimHash]) {
+            return;
+        }
+
         // Verify our merkle proof
         require(MerkleProof.verify(
             merkleProof,
@@ -181,8 +186,10 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
         // Calculate the reward amount per vote
         uint voteReward = bribe.maxRewardPerVote;
-        if ((bribe.maxRewardPerVote * epochCollectionVotes[claimHash(collection, epoch)]) / (10 ** ERC20(bribe.rewardToken).decimals()) > bribe.totalRewardAmount / bribe.numberOfEpochs) {
-            voteReward = ((bribe.totalRewardAmount / bribe.numberOfEpochs) * (10 ** ERC20(bribe.rewardToken).decimals())) / epochCollectionVotes[claimHash(collection, epoch)];
+        bytes32 collectionHash = keccak256(abi.encode(collection, epoch));
+
+        if ((bribe.maxRewardPerVote * epochCollectionVotes[collectionHash]) / (10 ** ERC20(bribe.rewardToken).decimals()) > bribe.totalRewardAmount / bribe.numberOfEpochs) {
+            voteReward = ((bribe.totalRewardAmount / bribe.numberOfEpochs) * (10 ** ERC20(bribe.rewardToken).decimals())) / epochCollectionVotes[collectionHash];
         }
 
         // Determine the reward amount for the user
@@ -203,16 +210,19 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
             ERC20(bribe.rewardToken).transfer(account, amount);
         }
 
+        // Mark our collection rewards for the epoch as claimed for the user
+        userClaimed[userClaimHash] = true;
+
         // Emit our event
         emit Claimed(account, bribe.rewardToken, bribeId, amount, epoch);
     }
 
-    function claimHash(address collection, uint epoch) internal pure returns (bytes32) {
-        return keccak256(abi.encode(collection, epoch));
+    function hasUserClaimed(uint bribeId, uint epoch) external view returns (bool) {
+        return userClaimed[_claimHash(bribeId, epoch)];
     }
 
-    function hasUserClaimed(address collection, uint epoch) external view returns (bool) {
-        return userClaimed[claimHash(collection, epoch)];
+    function _claimHash(uint bribeId, uint epoch) internal pure returns (bytes32) {
+        return keccak256(abi.encode(bribeId, bytes('_'), epoch));
     }
 
     function registerClaims(
@@ -232,7 +242,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
         // Set our total votes so that we can calculate the per vote rewards
         for (uint i; i < collections.length;) {
-            epochCollectionVotes[claimHash(collections[i], epoch)] = collectionVotes[i];
+            epochCollectionVotes[keccak256(abi.encode(collections[i], epoch))] = collectionVotes[i];
             unchecked { ++i; }
         }
 

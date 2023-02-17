@@ -74,12 +74,21 @@ interface IVoteMarket {
     function claim(
         address account,
         uint[] calldata epoch,
+        uint[] calldata bribeIds,
         address[] calldata collection,
         uint[] calldata votes,
         bytes32[][] calldata merkleProof
     ) external;
 
-    function hasUserClaimed(address collection, uint epoch) external view returns (bool);
+    function claimAll(
+        address account,
+        uint[] calldata epoch,
+        address[] calldata collection,
+        uint[] calldata votes,
+        bytes32[][] calldata merkleProof
+    ) external;
+
+    function hasUserClaimed(uint bribeId, uint epoch) external view returns (bool);
 
     function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external;
 
