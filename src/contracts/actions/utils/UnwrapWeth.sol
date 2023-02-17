@@ -36,7 +36,7 @@ contract UnwrapWeth is IAction {
     }
 
     /**
-     * Uneraps a fixed amount of WETH into ETH.
+     * Unwraps a fixed amount of WETH into ETH.
      *
      * @param _request Packed bytes that will map to our `ActionRequest` struct
      *
@@ -53,7 +53,7 @@ contract UnwrapWeth is IAction {
         // Unwrap the WETH into ETH
         IWETH(WETH).withdraw(request.amount);
 
-        // Trasnfer ETH to the {Treasury}
+        // Transfer ETH to the {Treasury}
         (bool success, ) = treasury.call{value: request.amount}('');
         require(success, 'Eth send fail');
 
