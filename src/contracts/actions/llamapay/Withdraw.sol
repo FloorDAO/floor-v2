@@ -13,7 +13,7 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
 /**
  * ..
  */
-contract LlamapayDeposit is IAction, Pausable {
+contract LlamapayWithdraw is IAction, Pausable {
 
     /// ..
     LlamapayRouter public immutable llamapayRouter;
@@ -23,7 +23,7 @@ contract LlamapayDeposit is IAction, Pausable {
      */
     struct ActionRequest {
         address token;
-        uint amountToDeposit;
+        uint amount;
     }
 
     /**
@@ -40,7 +40,7 @@ contract LlamapayDeposit is IAction, Pausable {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return llamapayRouter.deposit(request.token, request.amountToDeposit);
+        return llamapayRouter.withdraw(request.token, request.amount);
     }
 
 }

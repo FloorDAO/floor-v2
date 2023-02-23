@@ -4,13 +4,14 @@ pragma solidity ^0.8.0;
 
 import {LlamapayDeposit} from '@floor/actions/llamapay/Deposit.sol';
 import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
+import {LlamapayWithdraw} from '@floor/actions/llamapay/Withdraw.sol';
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
 
-contract LlamaPayDepositTest is FloorTest {
+contract LlamaPayWithdrawTest is FloorTest {
 
     // Store the maximum amount of WETH available to the user
     uint weth_balance = 79228162514264337593543950335;
@@ -25,46 +26,47 @@ contract LlamaPayDepositTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     // Store our action contract
-    LlamapayDeposit action;
+    LlamapayDeposit depositAction;
     LlamapayRouter llamapayRouter;
+    LlamapayWithdraw action;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our LlamaPay Router
         llamapayRouter = new LlamapayRouter(LLAMAPAY_CONTRACT, address(this));
 
         // Set up our action, using the test suite's address as the {Treasury}
-        action = new LlamapayDeposit(llamapayRouter);
+        action = new LlamapayWithdraw(llamapayRouter);
+
+        // Set up our deposit action
+        depositAction = new LlamapayDeposit(llamapayRouter);
     }
 
     function setUp() external {
         // Wrap up some WETH that we can use as a deposit token
         IWETH(WETH).deposit{value: address(this).balance}();
+
+        // Make a deposit into the LlamaPay contract that we can withdraw from in
+        // subsequent tests.
+        IWETH(WETH).approve(address(llamapayRouter), 5 ether);
+        uint payerBalance = depositAction.execute(abi.encode(WETH, 5 ether));
+        assertEq(payerBalance, 5 ether);
     }
 
-    function test_CanDepositTokenIntoStream(uint amount) external {
-        // Set our amount assumptions to ensure that we have a non-zero amount, and
-        // also that we have sufficient WETH to supply the stream.
-        amount = bound(amount, 1, weth_balance);
-
-        // Approve the action to use our WETH balance
-        IWETH(WETH).approve(address(llamapayRouter), amount);
-
-        // Action our deposit
-        uint payerBalance = action.execute(abi.encode(WETH, amount));
-        assertEq(payerBalance, amount);
+    function test_CanWithdrawFromStream(uint amount) external {
+        amount = bound(amount, 1 ether, 5 ether);
+        action.execute(abi.encode(WETH, amount));
     }
 
-    function test_CannotDepositZeroValue() external {
-        // Approve the action to use our WETH balance
-        IWETH(WETH).approve(address(llamapayRouter), 1 ether);
+    function test_CannotWithdrawMoreThanAvailable(uint amount) external {
+        vm.assume(amount > 5 ether);
 
         vm.expectRevert();
-        action.execute(abi.encode(WETH, 0));
+        action.execute(abi.encode(WETH, amount));
     }
 
-    function test_CannotDepositIntoUnknownStream() external {
-        vm.expectRevert();
-        action.execute(abi.encode(address(this), 1 ether));
+    function test_CanWithdrawZeroAmountToGetAll() external {
+        uint payerBalance = action.execute(abi.encode(WETH, 0));
+        assertEq(payerBalance, 0);
     }
 
 }

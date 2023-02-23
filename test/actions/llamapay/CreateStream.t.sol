@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {LlamapayCreateStream} from '@floor/actions/llamapay/CreateStream.sol';
+import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
@@ -29,14 +30,18 @@ contract LlamaPayCreateStreamTest is FloorTest {
 
     // Store our action contract
     LlamapayCreateStream action;
+    LlamapayRouter llamapayRouter;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our recipient test user
         alice = users[1];
         bob = users[2];
 
+        // Set up our LlamaPay Router
+        llamapayRouter = new LlamapayRouter(LLAMAPAY_CONTRACT, address(this));
+
         // Set up our action, using the test suite's address as the {Treasury}
-        action = new LlamapayCreateStream(LLAMAPAY_CONTRACT, address(this));
+        action = new LlamapayCreateStream(llamapayRouter);
     }
 
     function setUp() external {
@@ -50,7 +55,7 @@ contract LlamaPayCreateStreamTest is FloorTest {
         amount = bound(amount, 3600, weth_balance);
 
         // Approve the action to use our WETH balance
-        IWETH(WETH).approve(address(action), amount);
+        IWETH(WETH).approve(address(llamapayRouter), amount);
 
         // Action our stream creation with deposit
         uint payerBalance = action.execute(
@@ -67,7 +72,7 @@ contract LlamaPayCreateStreamTest is FloorTest {
 
     function test_CanCreateStreamWithExistingFunds() external {
         // Approve the action to use our WETH balance
-        IWETH(WETH).approve(address(action), 1 ether);
+        IWETH(WETH).approve(address(llamapayRouter), 1 ether);
 
         // Set up our initial stream with a deposit. This logic is testing previously
         uint startPayerBalance = action.execute(abi.encode(alice, WETH, uint216(1), 1 ether));
