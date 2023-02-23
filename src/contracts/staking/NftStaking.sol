@@ -2,11 +2,15 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+
+import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
 
 import {INFTXUnstakingInventoryZap} from '@floor-interfaces/forks/NFTXUnstakingInventoryZap.sol';
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
@@ -20,7 +24,7 @@ import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecuto
  * additional vote reward boosting.
  */
 
-contract NFTStaking is Ownable, Pausable {
+contract NftStaking is Ownable, Pausable {
 
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
@@ -32,12 +36,9 @@ contract NFTStaking is Ownable, Pausable {
     /// Stores the boosted number of votes available to a user
     mapping(bytes32 => uint) public userTokensStaked;
 
-    /// Stores the boosted number of votes available to a user for each collection
-    mapping(bytes32 => uint) internal _userBoost;
-
     // Stores an array of collections the user has currently staked NFTs for
-    mapping(address => address[]) public userCollections;
-    mapping(bytes32 => uint) public userCollectionIndex;
+    mapping(address => address[]) public collectionStakers;
+    mapping(bytes32 => uint) public collectionStakerIndex;
 
     // Store a mapping of NFTX vault address to vault ID for gas savings
     mapping(address => uint) internal cachedNftxVaultId;
@@ -67,36 +68,79 @@ contract NFTStaking is Ownable, Pausable {
     }
 
     /**
-     * Gets the total boost value for the user, based on the amount of NFTs that they have
+     * Gets the total boost value for collection, based on the amount of NFTs that have been
      * staked, as well as the value and duration at which they staked at.
      *
-     * @param _account The address of the user we are checking the boost value of
+     * @param _collection The address of the collection we are checking the boost multiplier of
      *
-     * @return boost_ The boost value for the user
+     * @return boost_ The boost multiplier for the collection
      */
-    function userBoost(address _account) external view returns (uint boost_) {
-        // Loop over each user's collections
-        for (uint i; i < userCollections[_account].length;) {
-            // Increment our boost value against the amount of boost in each collection
-            boost_ += _userBoost[keccak256(abi.encode(_account, userCollections[_account][i]))];
-            unchecked { ++i; }
+    function collectionBoost(address _collection) external view returns (uint boost_) {
+        uint sweepPower;
+        uint sweepTotal;
+
+        // Get the latest cached price of a collection. We need to get the number of FLOOR
+        // tokens that this equates to, without the additional decimals.
+        uint cachedFloorPrice = 216; // pricingExecutor.getLatestFloorPrice();
+
+        // Get the total number minted of a collection
+        uint collectionTotal = 10000; // IERC721(_collection).totalSupply();
+
+        // Store our some variables for use throughout the loop for gas saves
+        uint stakePower;
+        bytes32 userCollectionHash;
+
+        // Loop through all stakes against a collection and summise the sweep power based on
+        // the number staked and remaining epoch duration.
+        for (uint i; i < collectionStakers[_collection].length;) {
+            userCollectionHash = keccak256(abi.encode(collectionStakers[_collection][i], _collection));
+
+            unchecked {
+                // Get the floor price of the number staked at 40%
+                stakePower = (userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000;
+
+                // Get the remaining power of the stake based on remaining epochs
+                // TODO: Epoch calculation
+                sweepPower += stakePower;
+
+                // Tally up our quantity total
+                sweepTotal += userTokensStaked[userCollectionHash];
+
+                ++i;
+            }
         }
 
-        return (boost_ / 10000) * voteDiscount;
-    }
+        console.log('111');
 
-    /**
-     * Gets the total boost value for the user, for a specific collection, based on the
-     * amount of NFTs that they have staked, as well as the value and duration at which
-     * they staked at.
-     *
-     * @param _account The address of the user we are checking the boost value of
-     * @param _collection The collection we are finding the boost value of
-     *
-     * @return boost_ The boost value for the user, for the collection
-     */
-    function userBoost(address _account, address _collection) external view returns (uint) {
-        return (_userBoost[keccak256(abi.encode(_account, _collection))] / 10000) * voteDiscount;
+        // If we don't have any power, then our multiplier will just be 1
+        if (sweepPower == 0) {
+            return 100000;
+        }
+
+        console.log('222');
+
+        console.log(sweepPower);
+        console.log(sweepTotal);
+
+        uint z = ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e13);
+        if (z == 0) {
+            z = 1e13;
+        }
+
+        // Calculate our log base
+        uint x = (
+            ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e18) /
+            z
+        );
+
+        console.log('333');
+
+        // Calculate our square root
+        uint y = ABDKMath64x64.toUInt(ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt((sweepTotal * 10000) / collectionTotal)) * 1e5);
+
+        console.log(y);
+
+        return x * (y - 100000) / 300000;
     }
 
     /**
@@ -120,15 +164,32 @@ contract NFTStaking is Ownable, Pausable {
         // as opposed to an otherwise 2d address mapping.
         bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
 
-        // Track the number of tokens stored by the sender
-        unchecked { userTokensStaked[userCollectionHash] += 1; }
-
         // Get the number of tokens we will be transferring
         uint tokensLength = _tokenId.length;
 
-        // Transfer the token into the contract
+        // Transfer the token into the contract and approve the staking zap to use them
         for (uint i; i < tokensLength;) {
-            IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
+            // Punk specific logic
+            if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+                IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
+                IERC721(_collection).approve(address(stakingZap), _tokenId[i]);
+            } else {
+                // Confirm that the PUNK belongs to the caller
+                bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
+                (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
+                require(success && abi.decode(result, (address)) == msg.sender, "Not the NFT owner");
+
+                // Buy our PUNK for zero value
+                bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
+                (success, result) = address(_collection).call(data);
+                require(success, string(result));
+
+                // Approve the staking zap to buy for zero value
+                data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", _tokenId[i], 0, address(stakingZap));
+                (success, result) = address(_collection).call(data);
+                require(success, string(result));
+            }
+
             unchecked { ++i; }
         }
 
@@ -139,18 +200,13 @@ contract NFTStaking is Ownable, Pausable {
         // If we don't currently have any tokens stored for the collection, then we need to push
         // the collection address onto our list of user's collections.
         if (userTokensStaked[userCollectionHash] == 0) {
-            userCollectionIndex[userCollectionHash] = userCollections[msg.sender].length;
-            userCollections[msg.sender].push(_collection);
+            collectionStakerIndex[userCollectionHash] = collectionStakers[_collection].length;
+            collectionStakers[_collection].push(msg.sender);
         }
 
         // Update the number of tokens that our user has staked
-        userTokensStaked[userCollectionHash] += tokensLength;
-
-        // Grant the user a vote boost based on the value of the token. We replace their existing
-        // boosted value with an equivalent of a restaked value based on the new token value and
-        // the new total number of staked NFTs.
         unchecked {
-            _userBoost[userCollectionHash] = tokenValue * userTokensStaked[userCollectionHash];
+            userTokensStaked[userCollectionHash] += tokensLength;
         }
 
         // Stake the token into NFTX vault
@@ -201,7 +257,7 @@ contract NFTStaking is Ownable, Pausable {
         userTokensStaked[userCollectionHash] = 0;
 
         // Delete the collection from our user's collection array
-        delete userCollections[msg.sender][userCollectionIndex[userCollectionHash]];
+        delete collectionStakers[_collection][collectionStakerIndex[userCollectionHash]];
 
         // Delete epoch information for the user collection hash
         delete stakingEpochStart[userCollectionHash];
@@ -233,6 +289,10 @@ contract NFTStaking is Ownable, Pausable {
     function setStakingZaps(address _stakingZap, address _unstakingZap) external onlyOwner {
         stakingZap = INFTXStakingZap(_stakingZap);
         unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
+    }
+
+    function setUnderlyingToken(address _collection, address _token) external onlyOwner {
+        underlyingTokenMapping[_collection] = _token;
     }
 
     /**
@@ -277,4 +337,12 @@ contract NFTStaking is Ownable, Pausable {
         }
     }
 
+    /**
+     * Allows the contract to receive ERC721 tokens from our {Treasury}.
+     */
+    function onERC721Received(address, address, uint, bytes memory) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
 }
+
