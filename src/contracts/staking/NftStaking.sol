@@ -126,7 +126,7 @@ contract NftStaking is Ownable, Pausable {
         }
 
         // Apply our modifiers to our calculations to determine our final multiplier
-        return (
+        boost_ = (
             (
                 (
                     ABDKMath64x64.toUInt(
@@ -147,6 +147,10 @@ contract NftStaking is Ownable, Pausable {
                 ) - 1e9
             )
         ) / _voteModifier;
+
+        if (boost_ < 1e9) {
+            boost_ = 1e9;
+        }
     }
 
     /**
