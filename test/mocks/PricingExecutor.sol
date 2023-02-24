@@ -82,6 +82,10 @@ contract PricingExecutorMock is IBasePricingExecutor {
         return output;
     }
 
+    function getLatestFloorPrice(address token) external view returns (uint) {
+        return _getPrice(token);
+    }
+
     /**
      * This helper function allows us to return the amount of tokens a user would receive
      * for 1 FLOOR token, returned in the decimal accuracy of the base token.

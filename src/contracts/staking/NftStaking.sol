@@ -45,6 +45,7 @@ contract NftStaking is Ownable, Pausable {
 
     /// Store the amount of discount applied to voting power of staked NFT
     uint public voteDiscount;
+    uint public sweepModifier;
 
     // Store the current epoch, which will be updated by our internal calls to sync
     uint public currentEpoch;
@@ -73,22 +74,19 @@ contract NftStaking is Ownable, Pausable {
      *
      * @param _collection The address of the collection we are checking the boost multiplier of
      *
-     * @return boost_ The boost multiplier for the collection
+     * @return boost_ The boost multiplier for the collection to 9 decimal places
      */
     function collectionBoost(address _collection) external view returns (uint boost_) {
-        uint sweepPower;
-        uint sweepTotal;
-
         // Get the latest cached price of a collection. We need to get the number of FLOOR
         // tokens that this equates to, without the additional decimals.
-        uint cachedFloorPrice = 216; // pricingExecutor.getLatestFloorPrice();
-
-        // Get the total number minted of a collection
-        uint collectionTotal = 10000; // IERC721(_collection).totalSupply();
+        uint cachedFloorPrice = pricingExecutor.getLatestFloorPrice(underlyingTokenMapping[_collection]);
 
         // Store our some variables for use throughout the loop for gas saves
-        uint stakePower;
         bytes32 userCollectionHash;
+        uint sweepPower;
+        uint sweepTotal;
+        uint stakedSweepPower;
+        uint epochModifier;
 
         // Loop through all stakes against a collection and summise the sweep power based on
         // the number staked and remaining epoch duration.
@@ -96,51 +94,59 @@ contract NftStaking is Ownable, Pausable {
             userCollectionHash = keccak256(abi.encode(collectionStakers[_collection][i], _collection));
 
             unchecked {
-                // Get the floor price of the number staked at 40%
-                stakePower = (userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000;
-
                 // Get the remaining power of the stake based on remaining epochs
-                // TODO: Epoch calculation
-                sweepPower += stakePower;
+                if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+                    // Determine our staked sweep power by calculating our epoch discount
+                    stakedSweepPower = (((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000) * stakingEpochCount[userCollectionHash]) / 104;
+                    epochModifier = ((currentEpoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
 
-                // Tally up our quantity total
-                sweepTotal += userTokensStaked[userCollectionHash];
+                    // Add the staked sweep power to our collection total
+                    sweepPower += stakedSweepPower - ((stakedSweepPower * epochModifier) / 1e9);
+
+                    // Tally up our quantity total
+                    sweepTotal += userTokensStaked[userCollectionHash];
+                }
 
                 ++i;
             }
         }
 
-        console.log('111');
-
         // If we don't have any power, then our multiplier will just be 1
         if (sweepPower == 0) {
-            return 100000;
+            return 1e9;
         }
 
-        console.log('222');
-
-        console.log(sweepPower);
-        console.log(sweepTotal);
-
-        uint z = ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e13);
-        if (z == 0) {
-            z = 1e13;
+        // Determine our logarithm base. When we only have one token, we get a zero result which
+        // would lead to a zero division error. To avoid this, we ensure that we set a minimum
+        // value of 1.
+        uint _voteModifier = sweepModifier;
+        if (sweepTotal == 1) {
+            _voteModifier = (sweepModifier * 125) / 100;
+            sweepTotal = 2;
         }
 
-        // Calculate our log base
-        uint x = (
-            ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e18) /
-            z
-        );
-
-        console.log('333');
-
-        // Calculate our square root
-        uint y = ABDKMath64x64.toUInt(ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt((sweepTotal * 10000) / collectionTotal)) * 1e5);
-
-        console.log(y);
-
-        return x * (y - 100000) / 300000;
+        // Apply our modifiers to our calculations to determine our final multiplier
+        return (
+            (
+                (
+                    ABDKMath64x64.toUInt(
+                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6
+                    ) * 1e9
+                )
+                /
+                (
+                    ABDKMath64x64.toUInt(
+                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6
+                    )
+                )
+            ) * (
+                (
+                    ABDKMath64x64.toUInt(
+                        ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9
+                    )
+                ) - 1e9
+            )
+        ) / _voteModifier;
     }
 
     /**
@@ -169,7 +175,7 @@ contract NftStaking is Ownable, Pausable {
 
         // Transfer the token into the contract and approve the staking zap to use them
         for (uint i; i < tokensLength;) {
-            // Punk specific logic
+            // Handle Punk specific logic
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
                 IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
                 IERC721(_collection).approve(address(stakingZap), _tokenId[i]);
@@ -278,6 +284,13 @@ contract NftStaking is Ownable, Pausable {
     /**
      * ..
      */
+    function setSweepModifier(uint _sweepModifier) external onlyOwner {
+        sweepModifier = _sweepModifier;
+    }
+
+    /**
+     * ..
+     */
     function setPricingExecutor(address _pricingExecutor) external onlyOwner {
         require(_pricingExecutor != address(0), 'Address not zero');
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
@@ -293,6 +306,12 @@ contract NftStaking is Ownable, Pausable {
 
     function setUnderlyingToken(address _collection, address _token) external onlyOwner {
         underlyingTokenMapping[_collection] = _token;
+    }
+
+    function setCurrentEpoch(uint _currentEpoch) external {
+        // TODO: Needs lockdown
+        // require(msg.sender == address(treasury), 'Treasury only');
+        currentEpoch = _currentEpoch;
     }
 
     /**

@@ -74,6 +74,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// Keep a cache of our pool addresses for gas optimisation
     mapping(address => address) internal poolAddresses;
 
+    /// Keep a cache of our latest price mappings
+    mapping(address => uint) internal floorPriceCache;
+
     /**
      * Set our immutable contract addresses.
      *
@@ -135,7 +138,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // Get our token prices and find the converted value into FLOOR
         uint[] memory prices = _getPrices(tokens);
-        return _calculateFloorPrice(token, prices[0], prices[1]);
+        return floorPriceCache[token] = _calculateFloorPrice(prices[0], prices[1]);
     }
 
     /**
@@ -160,7 +163,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         // Each iteration requires us to calculate the floor price based on the token
         // so that we can return the token amount in the correct decimal accuracy.
         for (uint i; i < tokensLength;) {
-            output[i] = _calculateFloorPrice(tokens[i], prices[i], floorPrice);
+            output[i] = _calculateFloorPrice(prices[i], floorPrice);
+            floorPriceCache[tokens[i]] = output[i];
             unchecked {
                 ++i;
             }
@@ -170,17 +174,27 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * This helper function allows us to return the amount of tokens a user would receive
-     * for 1 FLOOR token, returned in the decimal accuracy of the base token.
+     * ..
+     */
+    function getLatestFloorPrice(address token) external view returns (uint) {
+        return floorPriceCache[token];
+    }
+
+    /**
+     * This helper function allows us to return the amount of FLOOR a user would receive
+     * for 1 token, returned in the decimal accuracy of the FLOOR token.
      *
-     * @param token Contract token to get FLOOR price of
      * @param tokenPrice Spot price of passed token contract for 1 token
      * @param floorPrice Spot price of FLOOR for 1 token
      *
      * @return The amount of FLOOR returned if one token sold
      */
-    function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
-        return (floorPrice * 10 ** ERC20(token).decimals()) / tokenPrice;
+    function _calculateFloorPrice(uint tokenPrice, uint floorPrice) internal pure returns (uint) {
+        if (floorPrice > tokenPrice) {
+            return ((tokenPrice * 1e18) / floorPrice);
+        }
+
+        return ((tokenPrice * 1e18) / floorPrice) / 1e18;
     }
 
     /**
@@ -201,51 +215,16 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
             return poolAddresses[token];
         }
 
-        // The uniswap pool (fee-level) with the highest in-range liquidity is used by default.
-        // This is a heuristic and can easily be manipulated by the activator, so users should
-        // verify the selection is suitable before using the pool. Otherwise, governance will
-        // need to change the pricing config for the market.
+        // Load our candidate pool
+        address candidatePool = uniswapV3PoolFactory.getPool(token, WETH, 10000);
 
-        // Define our fee ladder
-        uint24[4] memory fees = [10000, uint24(3000), 500, 100];
-
-        // Store variables that will be updated as we browse our liquidity offerings to find
-        // the best pool to attribute.
-        address pool;
-        uint128 bestLiquidity;
-
-        // We iterate over our fee ladder
-        for (uint i = 0; i < fees.length;) {
-            // Load our candidate pool
-            address candidatePool = uniswapV3PoolFactory.getPool(token, WETH, fees[i]);
-
-            // If we can't find a pool, then we can't compare liquidity so skip over it
-            if (candidatePool != address(0)) {
-                // Reference our pool and get the liquidity offering
-                uint128 liquidity = IUniswapV3Pool(candidatePool).liquidity();
-
-                // If we don't yet have a valid pool, or we offer better liquidity in this
-                // pool that our previously stored pool, then we reference this instead.
-                if (pool == address(0) || liquidity > bestLiquidity) {
-                    pool = candidatePool;
-                    bestLiquidity = liquidity;
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Ensure we don't have a NULL pool
-        if (pool == address(0)) {
+        // If we can't find a pool, then we need to raise an error
+        if (candidatePool == address(0)) {
             revert UnknownUniswapPool();
         }
 
-        // Store the optimal token pool into an internal cache. This prevents of pools
-        // from being referenced in the future, but saves substantial gas over time.
-        poolAddresses[token] = pool;
-        return poolAddresses[token];
+        // Store the token pool into our internal cache and return the address
+        return poolAddresses[token] = candidatePool;
     }
 
     /**
@@ -300,7 +279,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // Get our token price
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
-        return decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96);
+
+        // Remove our fee from this amount by our 1% fee (1000 = 1%)
+        return (decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96) * 99000) / 100000;
     }
 
     function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {

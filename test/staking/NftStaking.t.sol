@@ -54,6 +54,8 @@ contract NftStakingTest is FloorTest {
         // TODO: This should be done when we approve a collection
         staking.setUnderlyingToken(LOW_VALUE_NFT,  0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9);
         staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
+
+        staking.setSweepModifier(4e9);
     }
 
     function test_CannotDeployContractWithInvalidParameters() external {
@@ -69,7 +71,6 @@ contract NftStakingTest is FloorTest {
     }
 
     function test_CanGetVoteBoostWithSingleCollection() external {
-        /*
         uint[] memory lowTokens1  = new uint[](5);
         lowTokens1[0] = 16543;
         lowTokens1[1] = 1672;
@@ -90,12 +91,10 @@ contract NftStakingTest is FloorTest {
         lowTokens3[5] = 19134;
         lowTokens3[6] = 20386;
         lowTokens3[7] = 20315;
-        */
 
         uint[] memory highTokens1 = new uint[](1);
         highTokens1[0] = 6827;
 
-        /*
         // User 1 stakes 5 NFT for 104 epochs
         vm.startPrank(LOW_HOLDER_1);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
@@ -114,9 +113,8 @@ contract NftStakingTest is FloorTest {
         staking.stake(LOW_VALUE_NFT, lowTokens3, 26);
         vm.stopPrank();
 
-        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 253423);
-        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 100000);
-        */
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1610730439);
+        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1000000000);
 
         // User 4 stakes 1 high value NFT for 104 epochs
         vm.startPrank(HIGH_HOLDER_1);
@@ -125,20 +123,15 @@ contract NftStakingTest is FloorTest {
         staking.stake(HIGH_VALUE_NFT, highTokens1, 104);
         vm.stopPrank();
 
-        // assertEq(staking.collectionBoost(LOW_VALUE_NFT), 253423);
-        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 2);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1610730439);
+        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1106073976);
 
         // Skip forward 52 epochs
-
-        /**
-         * PUNK token value: 38268117612119   (is this just the price impact???)
-         * LIL token value:  7349255016106426 (is this just the price impact???)
-         *
-         */
+        staking.setCurrentEpoch(staking.currentEpoch() + 26);
 
         // Get the total sweep power against gauge 1
-        //assertEq(staking.collectionBoost(LOW_VALUE_NFT), 4);
-        //assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 5);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1150729596);
+        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1071691143);
     }
 
     function test_CannotStakeUnownedNft() external {}

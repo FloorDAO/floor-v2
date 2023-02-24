@@ -38,4 +38,11 @@ interface IBasePricingExecutor {
      * Gets our current mapped price of multiple tokens to FLOOR.
      */
     function getFloorPrices(address[] memory token) external returns (uint[] memory);
+
+    /**
+     * Gets the latest stored FLOOR token price equivalent to a token. If the price has
+     * not been queried before, then we cache and return a new price.
+     */
+    function getLatestFloorPrice(address token) external view returns (uint);
+
 }
