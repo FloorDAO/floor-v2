@@ -126,12 +126,19 @@ contract NftStakingTest is FloorTest {
         assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1610730439);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1106073976);
 
-        // Skip forward 52 epochs
+        // Skip forward 26 epochs
         staking.setCurrentEpoch(staking.currentEpoch() + 26);
 
         // Get the total sweep power against gauge 1
         assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1150729596);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1071691143);
+
+        // Skip forward to our penultimate epoch
+        staking.setCurrentEpoch(staking.currentEpoch() + 104 - 26 - 1);
+
+        // Get the total sweep power against gauge 1
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1000000000);
+        assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1000000000);
     }
 
     function test_CannotStakeUnownedNft() external {}
