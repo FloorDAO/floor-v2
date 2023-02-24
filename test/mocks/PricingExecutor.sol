@@ -82,7 +82,7 @@ contract PricingExecutorMock is IBasePricingExecutor {
         return output;
     }
 
-    function getLatestFloorPrice(address token) external view returns (uint) {
+    function getLatestFloorPrice(address token) external pure returns (uint) {
         return _getPrice(token);
     }
 

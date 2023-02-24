@@ -17,6 +17,7 @@ import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking
 import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 
 
 /**
@@ -24,7 +25,7 @@ import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecuto
  * additional vote reward boosting.
  */
 
-contract NftStaking is Ownable, Pausable {
+contract NftStaking is INftStaking, Ownable, Pausable {
 
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
@@ -37,7 +38,7 @@ contract NftStaking is Ownable, Pausable {
     mapping(bytes32 => uint) public userTokensStaked;
 
     // Stores an array of collections the user has currently staked NFTs for
-    mapping(address => address[]) public collectionStakers;
+    mapping(address => address[]) internal collectionStakers;
     mapping(bytes32 => uint) public collectionStakerIndex;
 
     // Store a mapping of NFTX vault address to vault ID for gas savings

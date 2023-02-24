@@ -51,7 +51,6 @@ contract NftStakingTest is FloorTest {
         );
 
         // Add our underlying token mappings
-        // TODO: This should be done when we approve a collection
         staking.setUnderlyingToken(LOW_VALUE_NFT,  0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9);
         staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
 
