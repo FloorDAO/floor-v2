@@ -77,6 +77,10 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         voteDiscount = _voteDiscount;
     }
 
+    function collectionBoost(address _collection) external view returns (uint) {
+        return this.collectionBoost(_collection, currentEpoch);
+    }
+
     /**
      * Gets the total boost value for collection, based on the amount of NFTs that have been
      * staked, as well as the value and duration at which they staked at.
@@ -85,7 +89,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      *
      * @return uint The boost multiplier for the collection to 9 decimal places
      */
-    function collectionBoost(address _collection) external view returns (uint) {
+    function collectionBoost(address _collection, uint _epoch) external view returns (uint) {
         // Get the latest cached price of a collection. We need to get the number of FLOOR
         // tokens that this equates to, without the additional decimals.
         uint cachedFloorPrice = pricingExecutor.getLatestFloorPrice(underlyingTokenMapping[_collection]);
@@ -107,7 +111,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
                 if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
                     // Determine our staked sweep power by calculating our epoch discount
                     stakedSweepPower = (((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000) * stakingEpochCount[userCollectionHash]) / 104;
-                    epochModifier = ((currentEpoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
+                    epochModifier = ((_epoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
 
                     // Add the staked sweep power to our collection total
                     sweepPower += stakedSweepPower - ((stakedSweepPower * epochModifier) / 1e9);

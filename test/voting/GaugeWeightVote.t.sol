@@ -4,15 +4,17 @@ pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
-import {VeFloorStaking} from '../../src/contracts/staking/VeFloorStaking.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/strategies/StrategyRegistry.sol';
-import '../../src/contracts/tokens/Floor.sol';
-import '../../src/contracts/vaults/Vault.sol';
-import '../../src/contracts/vaults/VaultFactory.sol';
-import '../../src/contracts/voting/GaugeWeightVote.sol';
-import '../../src/contracts/Treasury.sol';
+import '@floor/collections/CollectionRegistry.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import '@floor/strategies/StrategyRegistry.sol';
+import '@floor/tokens/Floor.sol';
+import '@floor/vaults/Vault.sol';
+import '@floor/vaults/VaultFactory.sol';
+import '@floor/voting/GaugeWeightVote.sol';
+import '@floor/Treasury.sol';
+
+import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 
 import '../utilities/Environments.sol';
 
@@ -406,6 +408,40 @@ contract GaugeWeightVoteTest is FloorTest {
         assertEq(amounts[2], 1750 ether);
 
         assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
+    }
+
+    function test_CanImplementNftStakingBoost() external {
+        // Set an arbritrary NFT Staking contract address that we will mock
+        address nftStaking = address(2);
+        gaugeWeightVote.setNftStaking(nftStaking);
+
+        // Create a vault for our collections
+        address vault = _createCollectionVault(approvedCollection2, 'Vault');
+
+        // Cast votes
+        vm.prank(alice);
+        gaugeWeightVote.vote(approvedCollection1, 10 ether);
+        vm.prank(bob);
+        gaugeWeightVote.vote(approvedCollection1, 5 ether);
+
+        // We need to calculate our selector manually as it uses an overloaded function
+        bytes4 _selector = bytes4(keccak256('collectionBoost(address,uint256)'));
+
+        // Mock modifier calculation to return 1.00 and confirm multiplier has been applied
+        vm.mockCall(
+            nftStaking,
+            abi.encodeWithSelector(_selector, approvedCollection1, 0),
+            abi.encode(1e9)
+        );
+        assertEq(gaugeWeightVote.votes(approvedCollection1), 15 ether);
+
+        // Mock modifier calculation to return 1.50 and confirm effect
+        vm.mockCall(
+            nftStaking,
+            abi.encodeWithSelector(_selector, approvedCollection1, 0),
+            abi.encode(1500000000)
+        );
+        assertEq(gaugeWeightVote.votes(approvedCollection1), 22.5 ether);
     }
 
     /**
