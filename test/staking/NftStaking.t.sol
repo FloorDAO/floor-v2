@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
 import {NftStaking} from '@floor/staking/NftStaking.sol';
+import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
@@ -25,6 +26,8 @@ contract NftStakingTest is FloorTest {
     address alice;
 
     uint constant VOTE_DISCOUNT = 4000;  // 40%
+
+    uint constant NFTX_LOCK_LENGTH = 2592001;
 
     // Internal contract references
     NftStaking staking;
@@ -51,10 +54,24 @@ contract NftStakingTest is FloorTest {
         );
 
         // Add our underlying token mappings
-        staking.setUnderlyingToken(LOW_VALUE_NFT,  0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9);
-        staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
+        staking.setUnderlyingToken(LOW_VALUE_NFT,  0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
+        staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
 
+        // Set our sweep modifier
         staking.setSweepModifier(4e9);
+
+        // Set our default boost calculator
+        staking.setBoostCalculator(
+            address(new NftStakingBoostCalculator())
+        );
+
+        // Label some addresses for nice debugging
+        vm.label(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 'NFTX Staking Zap');
+        vm.label(0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3, 'NFTX Unstaking Zap');
+        vm.label(0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 'xLIL');
+        vm.label(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 'xPUNK');
+
+        vm.label(0x8c0d2B62F133Db265EC8554282eE60EcA0Fd5a9E, 'Low Holder 2');
     }
 
     function test_CannotDeployContractWithInvalidParameters() external {
@@ -65,11 +82,16 @@ contract NftStakingTest is FloorTest {
         new NftStaking(address(pricingExecutor), 10000);
     }
 
+    /**
+     * When we have no staked NFTs, we still receive a multiplier amount of 100% as this
+     * means that we aren't increase the base value by any amount. A returned value of 0
+     * would result in all votes being nullified.
+     */
     function test_CanGetCollectionBoostWhenZero() external {
-        assertEq(staking.collectionBoost(alice), 0);
+        assertEq(staking.collectionBoost(alice), 1000000000);
     }
 
-    function test_CanGetVoteBoostWithSingleCollection() external {
+    function test_CanGetVoteBoost() external {
         uint[] memory lowTokens1  = new uint[](5);
         lowTokens1[0] = 16543;
         lowTokens1[1] = 1672;
@@ -140,24 +162,193 @@ contract NftStakingTest is FloorTest {
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1000000000);
     }
 
-    function test_CannotStakeUnownedNft() external {}
-    function test_CannotStakeInvalidCollectionNft() external {}
-    function test_CannotStakeNftForInvalidEpochCount() external {}
+    function test_CannotStakeUnownedNft() external {
+        uint[] memory tokens = new uint[](1);
+        tokens[0] = 1;
 
-    function test_CanUnstakeSingleToken() external {}
-    function test_CanUnstakeMultipleTokens() external {}
-    function test_CannotUnstakeFromUnknownCollection() external {}
-    function test_CannotUnstakeFromCollectionWithInsufficientPosition() external {}
+        vm.expectRevert('ERC721: transfer caller is not owner nor approved');
+        staking.stake(LOW_VALUE_NFT, tokens, 104);
+    }
 
-    function test_CanSetVoteDiscount() external {}
-    function test_CannotSetInvalidVoteDiscount() external {}
+    function test_CannotStakeInvalidCollectionNft() external {
+        uint[] memory tokens = new uint[](1);
+        tokens[0] = 992;
 
-    function test_CanSetPricingExecutor() external {}
-    function test_CannotSetInvalidPricingExecutor() external {}
+        vm.expectRevert('Underlying token not found');
+        vm.prank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
+        staking.stake(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a, tokens, 104);
+    }
 
-    function test_CanSetStakingZaps() external {}
-    function test_CannotSetInvalidStakingZaps() external {}
+    function test_CannotStakeNftForInvalidEpochCount() external {
+        uint[] memory tokens = new uint[](2);
+        tokens[0] = 242;
+        tokens[1] = 5710;
 
-    function test_CanClaimRewards() external {}
+        vm.startPrank(LOW_HOLDER_2);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        staking.stake(LOW_VALUE_NFT, tokens, 104 + 1);
+        vm.stopPrank();
+    }
+
+    function test_CanUnstake() external {
+        uint[] memory tokens = new uint[](2);
+        tokens[0] = 242;
+        tokens[1] = 5710;
+
+        vm.startPrank(LOW_HOLDER_2);
+        // Stake 2 tokens
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        staking.stake(LOW_VALUE_NFT, tokens, 104);
+
+        // Skip some time to unlock our user, moving our epoch to the full stake period
+        staking.setCurrentEpoch(104);
+        skip(NFTX_LOCK_LENGTH);
+
+        // Unstake our NFTs
+        staking.unstake(LOW_VALUE_NFT);
+
+        // The NFTs would normally be random, but since we are locked at a specific time, the
+        // pseudo-randomness that NFTX applies will give us a consistent return.
+        assertEq(IERC721(LOW_VALUE_NFT).ownerOf(5174), LOW_HOLDER_2);
+        assertEq(IERC721(LOW_VALUE_NFT).ownerOf(7439), LOW_HOLDER_2);
+        assertEq(IERC20(staking.underlyingTokenMapping(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 0);
+
+        vm.stopPrank();
+    }
+
+    function test_CanUnstakeEarlyWithAPenalty() external {
+        uint[] memory tokens = new uint[](2);
+        tokens[0] = 242;
+        tokens[1] = 5710;
+
+        vm.startPrank(LOW_HOLDER_2);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        staking.stake(LOW_VALUE_NFT, tokens, 104);
+
+        // Skip some time to unlock our user, moving our epoch only partially through stake
+        staking.setCurrentEpoch(78);
+        skip(NFTX_LOCK_LENGTH);
+
+        // Unstake our NFTs which should give us one full NFT and some ERC dust
+        staking.unstake(LOW_VALUE_NFT);
+
+        // The NFTs would normally be random, but since we are locked at a specific time, the
+        // pseudo-randomness that NFTX applies will give us a consistent return.
+        assertEq(IERC721(LOW_VALUE_NFT).ownerOf(5174), LOW_HOLDER_2);
+        assertEq(IERC20(staking.underlyingTokenMapping(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 499999999999999999);
+
+        vm.stopPrank();
+    }
+
+    function test_CannotUnstakeFromUnknownCollection() external {
+        vm.expectRevert('No tokens staked');
+        vm.prank(LOW_HOLDER_2);
+        staking.unstake(address(0));
+    }
+
+    function test_CannotUnstakeFromCollectionWithInsufficientPosition() external {
+        vm.expectRevert('No tokens staked');
+        vm.prank(LOW_HOLDER_2);
+        staking.unstake(LOW_VALUE_NFT);
+    }
+
+    function test_CanSetVoteDiscount(uint amount) external {
+        vm.assume(amount >= 0);
+        vm.assume(amount < 10000);
+
+        staking.setVoteDiscount(amount);
+        assertEq(staking.voteDiscount(), amount);
+    }
+
+    function test_CannotSetInvalidVoteDiscount(uint amount) external {
+        vm.assume(amount >= 10000);
+
+        vm.expectRevert();
+        staking.setVoteDiscount(amount);
+
+        assertEq(staking.voteDiscount(), VOTE_DISCOUNT);
+    }
+
+    function test_CannotSetVoteDiscountWithoutPermission() external {
+        vm.expectRevert();
+        vm.prank(alice);
+        staking.setVoteDiscount(VOTE_DISCOUNT);
+    }
+
+    function test_CanSetPricingExecutor() external {
+        staking.setPricingExecutor(address(1));
+        assertEq(address(staking.pricingExecutor()), address(1));
+    }
+
+    function test_CannotSetInvalidPricingExecutor() external {
+        vm.expectRevert();
+        staking.setPricingExecutor(address(0));
+    }
+
+    function test_CannotSetPricingExecutorWithoutPermission() external {
+        vm.expectRevert();
+        vm.prank(alice);
+        staking.setPricingExecutor(address(pricingExecutor));
+    }
+
+    function test_CanSetStakingZaps() external {
+        staking.setStakingZaps(address(1), address(2));
+
+        assertEq(address(staking.stakingZap()), address(1));
+        assertEq(address(staking.unstakingZap()), address(2));
+    }
+
+    function test_CannotSetInvalidStakingZaps() external {
+        vm.expectRevert();
+        staking.setStakingZaps(address(1), address(0));
+
+        vm.expectRevert();
+        staking.setStakingZaps(address(0), address(1));
+
+        vm.expectRevert();
+        staking.setStakingZaps(address(0), address(0));
+    }
+
+    function test_CannotSetStakingZapsWithoutPermission() external {
+        vm.expectRevert();
+        vm.prank(alice);
+        staking.setStakingZaps(address(1), address(2));
+    }
+
+    function test_CanSetCurrentEpoch() external {
+        staking.setCurrentEpoch(3);
+        assertEq(staking.currentEpoch(), 3);
+    }
+
+    function test_CannotSetCurrentEpochWithoutPermission() external {
+        // TODO: Not currently locked
+        // vm.expectRevert();
+        vm.prank(alice);
+        staking.setCurrentEpoch(3);
+    }
+
+    function test_CanSetBoostCalculator() external {
+        staking.setBoostCalculator(address(1));
+    }
+
+    function test_CannotSetInvalidBoostCalculator() external {
+        vm.expectRevert();
+        staking.setBoostCalculator(address(0));
+    }
+
+    function test_CannotSetBoostCalculatorWithoutPermissions() external {
+        vm.startPrank(alice);
+
+        address newStakingCalculator = address(new NftStakingBoostCalculator());
+
+        vm.expectRevert();
+        staking.setBoostCalculator(newStakingCalculator);
+
+        vm.stopPrank();
+    }
+
+    function test_CanClaimRewards() external {
+        // TODO: ..
+    }
 
 }

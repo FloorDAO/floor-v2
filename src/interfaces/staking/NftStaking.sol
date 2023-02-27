@@ -33,9 +33,11 @@ interface INftStaking {
 
     function setStakingZaps(address _stakingZap, address _unstakingZap) external;
 
-    function setUnderlyingToken(address _collection, address _token) external;
+    function setUnderlyingToken(address _collection, address _token, address _xToken) external;
 
     function setCurrentEpoch(uint _currentEpoch) external;
+
+    function setBoostCalculator(address _boostCalculator) external;
 
     function claimRewards(address _collection) external;
 

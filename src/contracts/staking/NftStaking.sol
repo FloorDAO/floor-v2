@@ -12,23 +12,25 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
 
-import {INFTXUnstakingInventoryZap} from '@floor-interfaces/forks/NFTXUnstakingInventoryZap.sol';
+import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
 import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
+import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
 
 
 /**
  * This contract allows approved collection NFTs to be depoited into it to generate
- * additional vote reward boosting.
+ * additional vote reward boosting through the calculation of a multiplier.
  */
 
 contract NftStaking is INftStaking, Ownable, Pausable {
 
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
+    mapping(address => address) public underlyingXTokenMapping;
 
     /// Stores the epoch start time of staking, and the duration of the staking
     mapping(bytes32 => uint) public stakingEpochStart;
@@ -37,26 +39,32 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     /// Stores the boosted number of votes available to a user
     mapping(bytes32 => uint) public userTokensStaked;
 
-    // Stores an array of collections the user has currently staked NFTs for
+    /// Stores an array of collections the user has currently staked NFTs for
     mapping(address => address[]) internal collectionStakers;
     mapping(bytes32 => uint) public collectionStakerIndex;
 
-    // Store a mapping of NFTX vault address to vault ID for gas savings
+    /// Store a mapping of NFTX vault address to vault ID for gas savings
     mapping(address => uint) internal cachedNftxVaultId;
 
     /// Store the amount of discount applied to voting power of staked NFT
     uint public voteDiscount;
     uint public sweepModifier;
 
-    // Store the current epoch, which will be updated by our internal calls to sync
+    /// Store the current epoch, which will be updated by our internal calls to sync
     uint public currentEpoch;
 
-    // Store our pricing executor that will determine the vote power of our NFT
+    /// Store our pricing executor that will determine the vote power of our NFT
     IBasePricingExecutor public pricingExecutor;
 
-    // Store our NFTX staking zaps
+    /// Store our boost calculator contract that will calculate our modifier
+    INftStakingBoostCalculator public boostCalculator;
+
+    /// Store our NFTX staking zaps
     INFTXStakingZap public stakingZap;
     INFTXUnstakingInventoryZap public unstakingZap;
+
+    /// Temp. user store for ERC721 receipt
+    address private _nftReceiver;
 
     /**
      * Sets up our immutable contract addresses.
@@ -75,9 +83,9 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      *
      * @param _collection The address of the collection we are checking the boost multiplier of
      *
-     * @return boost_ The boost multiplier for the collection to 9 decimal places
+     * @return uint The boost multiplier for the collection to 9 decimal places
      */
-    function collectionBoost(address _collection) external view returns (uint boost_) {
+    function collectionBoost(address _collection) external view returns (uint) {
         // Get the latest cached price of a collection. We need to get the number of FLOOR
         // tokens that this equates to, without the additional decimals.
         uint cachedFloorPrice = pricingExecutor.getLatestFloorPrice(underlyingTokenMapping[_collection]);
@@ -112,46 +120,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
             }
         }
 
-        // If we don't have any power, then our multiplier will just be 1
-        if (sweepPower == 0) {
-            return 1e9;
-        }
-
-        // Determine our logarithm base. When we only have one token, we get a zero result which
-        // would lead to a zero division error. To avoid this, we ensure that we set a minimum
-        // value of 1.
-        uint _voteModifier = sweepModifier;
-        if (sweepTotal == 1) {
-            _voteModifier = (sweepModifier * 125) / 100;
-            sweepTotal = 2;
-        }
-
-        // Apply our modifiers to our calculations to determine our final multiplier
-        boost_ = (
-            (
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6
-                    ) * 1e9
-                )
-                /
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6
-                    )
-                )
-            ) * (
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9
-                    )
-                ) - 1e9
-            )
-        ) / _voteModifier;
-
-        if (boost_ < 1e9) {
-            boost_ = 1e9;
-        }
+        return boostCalculator.calculate(sweepPower, sweepTotal, sweepModifier);
     }
 
     /**
@@ -241,28 +210,51 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // Get our user collection hash
         bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
 
+        // Ensure that our user has staked tokens
+        require(userTokensStaked[userCollectionHash] != 0, 'No tokens staked');
+
         // Determine the number of full NFTs that we can receive when unstaking, as well as any
         // dust remaining afterwards. These amounts will vary depending on the remaining period
         // when unstaking.
         uint numNfts;
-        uint remainingPortionToUnstake;
 
         // To do this, we build up our `remainingPortionToUnstake` variable to account for all of
         // our returned value. We can then divide this by `1 ether` to find the number of whole
         // tokens that can be withdrawn. This will leave the `remainingPortionToUnstake` with just
         // the dust allocation.
-        remainingPortionToUnstake = ((userTokensStaked[userCollectionHash] * 1 ether) * 104) / (stakingEpochCount[userCollectionHash] / (currentEpoch - stakingEpochStart[userCollectionHash]));
-        while (remainingPortionToUnstake > 1 ether) {
+        uint remainingPortionToUnstake = userTokensStaked[userCollectionHash] * 1 ether;
+        if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+            remainingPortionToUnstake = (remainingPortionToUnstake * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash];
+        }
+
+        while (remainingPortionToUnstake >= 1 ether) {
             unchecked {
                 remainingPortionToUnstake -= 1 ether;
                 numNfts += 1;
             }
         }
 
+        // Approve the max usage of the underlying token against the unstaking zap
+        IERC20(underlyingXTokenMapping[_collection]).approve(address(unstakingZap), type(uint).max);
+
+        // Set our NFT receiver so that our callback function can hook into the correct
+        // recipient. We have to do this as NFTX doesn't allow a recipient to be specified
+        // when calling the unstaking zap. This only needs to be done if we expect to
+        // receive an NFT.
+        if (numNfts != 0) {
+            _nftReceiver = msg.sender;
+        }
+
         // Unstake all inventory for the user for the collection. This forked version of the
         // NFTX unstaking zap allows us to specify the recipient, so we don't need to handle
         // any additional transfers.
-        unstakingZap.unstakeInventory(_getVaultId(_collection), numNfts, remainingPortionToUnstake, msg.sender);
+        unstakingZap.unstakeInventory(_getVaultId(_collection), numNfts, remainingPortionToUnstake);
+
+        // Transfer our remaining portion to the user
+        IERC20(underlyingTokenMapping[_collection]).transfer(_nftReceiver, IERC20(underlyingTokenMapping[_collection]).balanceOf(address(this)));
+
+        // After our NFTs have been unstaked, we want to make sure we delete the receiver
+        delete _nftReceiver;
 
         // Remove our number of staked tokens for the collection
         userTokensStaked[userCollectionHash] = 0;
@@ -279,7 +271,12 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Set our Vote Discount value to increase or decrease the amount of base value that
+     * an NFT has.
+     *
+     * @dev The value is passed to 2 decimal place accuracy
+     *
+     * @param _voteDiscount The amount of vote discount to apply
      */
     function setVoteDiscount(uint _voteDiscount) external onlyOwner {
         require(_voteDiscount < 10000, 'Must be less that 10000');
@@ -287,14 +284,21 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * In addition to the {setVoteDiscount} function, our sweep modifier allows us to
+     * modify our resulting modifier calculation. A higher value will reduced the output
+     * modifier, whilst reducing the value will increase it.
+     *
+     * @param _sweepModifier The amount to modify our multiplier
      */
     function setSweepModifier(uint _sweepModifier) external onlyOwner {
+        require(_sweepModifier != 0);
         sweepModifier = _sweepModifier;
     }
 
     /**
-     * ..
+     * Sets an updated pricing executor (needs to confirm an implementation function).
+     *
+     * @param _pricingExecutor Address of new {IBasePricingExecutor} contract
      */
     function setPricingExecutor(address _pricingExecutor) external onlyOwner {
         require(_pricingExecutor != address(0), 'Address not zero');
@@ -302,17 +306,41 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Sets the NFTX staking zaps that we will be interacting with.
+     *
+     * @param _stakingZap The {NFTXStakingZap} contract address
+     * @param _unstakingZap The {NFTXUnstakingInventoryZap} contract address
      */
     function setStakingZaps(address _stakingZap, address _unstakingZap) external onlyOwner {
+        require(_stakingZap != address(0));
+        require(_unstakingZap != address(0));
+
         stakingZap = INFTXStakingZap(_stakingZap);
         unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
     }
 
-    function setUnderlyingToken(address _collection, address _token) external onlyOwner {
+    /**
+     * Maps a collection address to an underlying NFTX token address. This will allow us to assign
+     * a corresponding NFTX vault against our collection.
+     *
+     * @param _collection Our approved collection address
+     * @param _token The underlying token (the NFTX vault contract address)
+     */
+    function setUnderlyingToken(address _collection, address _token, address _xToken) external onlyOwner {
+        require(_collection != address(0));
+        require(_token != address(0));
+
+        // Map our collection to the underlying token
         underlyingTokenMapping[_collection] = _token;
+        underlyingXTokenMapping[_collection] = _xToken;
     }
 
+    /**
+     * Allows our epoch to be set by the {Treasury}. This should be sent when our {Treasury} ends
+     * the current epoch and moves to a new one.
+     *
+     * @param _currentEpoch The new, current epoch
+     */
     function setCurrentEpoch(uint _currentEpoch) external {
         // TODO: Needs lockdown
         // require(msg.sender == address(treasury), 'Treasury only');
@@ -320,7 +348,22 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Allows a new boost calculator to be set.
+     *
+     * @param _boostCalculator The new boost calculator contract address
+     */
+    function setBoostCalculator(address _boostCalculator) external onlyOwner {
+        require(_boostCalculator != address(0));
+        boostCalculator = INftStakingBoostCalculator(_boostCalculator);
+    }
+
+    /**
+     * Calculates the NFTX vault ID of a collection address and then stores it to a local cache
+     * as this value will not change.
+     *
+     * @param _collection The address of the collection being checked
+     *
+     * @return Numeric NFTX vault ID
      */
     function _getVaultId(address _collection) internal returns (uint) {
         // As we need to check a 0 value in our mapping to determine if it is not set, I have
@@ -340,7 +383,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Allows rewards to be claimed from the staked NFT inventory positions.
      */
     function claimRewards(address _collection) external {
         // Get the corresponding vault ID of the collection
@@ -364,7 +407,10 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     /**
      * Allows the contract to receive ERC721 tokens from our {Treasury}.
      */
-    function onERC721Received(address, address, uint, bytes memory) public virtual returns (bytes4) {
+    function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
+        if (_nftReceiver != address(0)) {
+            IERC721(msg.sender).safeTransferFrom(address(this), _nftReceiver, tokenId);
+        }
         return this.onERC721Received.selector;
     }
 
