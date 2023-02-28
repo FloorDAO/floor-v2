@@ -345,7 +345,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
         // Update the snapshot time made
         epochIteration = epoch;
+
+        // Update our epochs across contracts
         veFloor.setCurrentEpoch(epoch);
+        if (address(nftStaking) != address(0)) {
+            nftStaking.setCurrentEpoch(epoch);
+        }
+
         return (collections, amounts);
     }
 

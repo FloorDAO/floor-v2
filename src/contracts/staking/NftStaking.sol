@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
@@ -65,6 +63,9 @@ contract NftStaking is INftStaking, Ownable, Pausable {
 
     /// Temp. user store for ERC721 receipt
     address private _nftReceiver;
+
+    // Allow us to waive early unstake fees
+    bool public waiveUnstakeFees;
 
     /**
      * Sets up our immutable contract addresses.
@@ -138,7 +139,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      * @param _epochCount The number of epochs to stake for
      */
     function stake(address _collection, uint[] calldata _tokenId, uint _epochCount) external whenNotPaused {
-        // Validate the number of epochs staked
+        // Todo: Validate the number of epochs staked
         // ..
 
         // Ensure we have a mapped underlying token
@@ -226,11 +227,10 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // our returned value. We can then divide this by `1 ether` to find the number of whole
         // tokens that can be withdrawn. This will leave the `remainingPortionToUnstake` with just
         // the dust allocation.
-        uint remainingPortionToUnstake = userTokensStaked[userCollectionHash] * 1 ether;
-        if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
-            remainingPortionToUnstake = (remainingPortionToUnstake * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash];
-        }
+        uint remainingPortionToUnstake = (userTokensStaked[userCollectionHash] * 1 ether) - this.unstakeFees(_collection);
 
+        // We can now iterate over our whole tokens to determine the number of full ERC721s we can
+        // withdraw, and how much will be left as ERC20.
         while (remainingPortionToUnstake >= 1 ether) {
             unchecked {
                 remainingPortionToUnstake -= 1 ether;
@@ -273,6 +273,32 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // Fire an event to show unstaked tokens
         // emit TokensUnStaked(msg.sender, _tokenId, tokenValue);
     }
+
+    /**
+     * ..
+     */
+    function unstakeFees(address _collection) external view returns (uint) {
+        // Get our user collection hash
+        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
+
+        // If we are waiving fees, then nothing to pay
+        if (waiveUnstakeFees) {
+            return 0;
+        }
+
+        // If the user has no tokens staked, then no fees
+        if (userTokensStaked[userCollectionHash] == 0) {
+            return 0;
+        }
+
+        // If we have passed the full duration of the epoch staking, then no fees
+        if (currentEpoch >= stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+            return 0;
+        }
+
+        return ((userTokensStaked[userCollectionHash] * 1 ether) * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash];
+    }
+
 
     /**
      * Set our Vote Discount value to increase or decrease the amount of base value that
