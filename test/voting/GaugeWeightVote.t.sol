@@ -416,7 +416,7 @@ contract GaugeWeightVoteTest is FloorTest {
         gaugeWeightVote.setNftStaking(nftStaking);
 
         // Create a vault for our collections
-        address vault = _createCollectionVault(approvedCollection2, 'Vault');
+        _createCollectionVault(approvedCollection2, 'Vault');
 
         // Cast votes
         vm.prank(alice);

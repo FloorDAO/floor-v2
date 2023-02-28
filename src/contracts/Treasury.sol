@@ -93,6 +93,10 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /// Store our token prices, set by our `pricingExecutor`
     mapping(address => uint) public tokenEthPrice;
 
+    /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
+    /// the DAO.
+    uint public minSweepAmount;
+
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
@@ -221,12 +225,16 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
             // Determine the total amount of snapshot tokens. This should be calculated as all
             // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
             // of the treasuryFloorYield.
-            //
+            uint sweepAmount = (ethRewards * (10000 - retainedTreasuryYieldPercentage)) / 10000;
+
+            // We want the ability to set a minimum sweep amount, so that when we are first
+            // starting out the sweeps aren't pathetic.
+            if (minSweepAmount != 0 && sweepAmount < minSweepAmount) {
+                sweepAmount = minSweepAmount;
+            }
+
             // Process the snapshot, which will reward xTokens holders directly
-            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(
-                (ethRewards * (10000 - retainedTreasuryYieldPercentage)) / 10000,
-                epochIteration
-            );
+            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(sweepAmount, epochIteration);
 
             // Now that we have the results of the snapshot we can register them against our
             // pending sweeps.
@@ -499,6 +507,13 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         require(epochSweep.collections.length != 0, 'No collections to sweep');
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep);
+    }
+
+    /**
+     * ..
+     */
+    function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
+        minSweepAmount = _minSweepAmount;
     }
 
     /**
