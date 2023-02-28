@@ -9,12 +9,10 @@ import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * ..
  */
 contract LlamapayCreateStream is IAction, Pausable {
-
     /// ..
     LlamapayRouter public immutable llamapayRouter;
 
@@ -44,5 +42,4 @@ contract LlamapayCreateStream is IAction, Pausable {
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
         return llamapayRouter.createStream(request.to, request.token, request.amountToDeposit, uint216(request.amountPerSec));
     }
-
 }

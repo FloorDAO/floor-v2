@@ -8,7 +8,6 @@ import {FloorTest} from '../utilities/Environments.sol';
 import {IWETH} from '../../src/interfaces/tokens/WETH.sol';
 
 contract VoteMarketTest is FloorTest {
-
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
@@ -22,7 +21,7 @@ contract VoteMarketTest is FloorTest {
 
     // Store some approved collections to test against. This isn't important that they
     // are legit approved collections, but they just need to be constant addresses
-    address approvedCollection  = address(2);
+    address approvedCollection = address(2);
     address approvedCollection2 = address(3);
     address approvedCollection3 = address(4);
 
@@ -73,80 +72,40 @@ contract VoteMarketTest is FloorTest {
         for (uint i; i < claimCollections.length;) {
             delete claimCollections[i];
             delete claimCollectionVotes[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
     function test_CanCreateBribe() external {
         // Create a bribe, putting 25 WETH into the bribe of 5 epochs
-        voteMarket.createBribe(
-            approvedCollection,
-            address(WETH),
-            uint8(5),
-            0.05 ether,
-            25 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithZeroAddressRewardToken() external {
         vm.expectRevert('Cannot be zero address');
-        voteMarket.createBribe(
-            approvedCollection,
-            address(0),
-            uint8(5),
-            0.05 ether,
-            25 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(0), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeUnderMinimumEpochs() external {
         vm.expectRevert('Invalid number of epochs');
-        voteMarket.createBribe(
-            approvedCollection,
-            address(WETH),
-            uint8(0),
-            0.05 ether,
-            25 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(WETH), uint8(0), 0.05 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithZeroTotalRewards() external {
         vm.expectRevert('Invalid amounts');
-        voteMarket.createBribe(
-            approvedCollection,
-            address(WETH),
-            uint8(5),
-            0.05 ether,
-            0 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 0 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithZeroMaxRewardPerVote() external {
         vm.expectRevert('Invalid amounts');
-        voteMarket.createBribe(
-            approvedCollection,
-            address(WETH),
-            uint8(5),
-            0 ether,
-            25 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithoutSufficientTokens() external {
         vm.expectRevert();
-        voteMarket.createBribe(
-            approvedCollection,
-            address(WETH),
-            uint8(5),
-            0.05 ether,
-            100000 ether,
-            emptyBlacklist
-        );
+        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 100000 ether, emptyBlacklist);
     }
 
     function test_CanClaimAgainstSingleCollectionOnOneEpoch() external {
@@ -293,11 +252,11 @@ contract VoteMarketTest is FloorTest {
 
         // Register our merkle roots
         _registerClaimWithThreeVotes(
-            0,  // epoch
-            merkleRoot,  // merkle root
-            approvedCollection,  // collection
-            approvedCollection2,  // collection
-            approvedCollection3,  // collection
+            0, // epoch
+            merkleRoot, // merkle root
+            approvedCollection, // collection
+            approvedCollection2, // collection
+            approvedCollection3, // collection
             10 ether,
             10 ether,
             10 ether
@@ -306,7 +265,7 @@ contract VoteMarketTest is FloorTest {
         uint[] memory includedBribeIds = new uint[](2);
 
         // Set up our bribe
-        includedBribeIds[0] = voteMarket.createBribe(approvedCollection,  address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        includedBribeIds[0] = voteMarket.createBribe(approvedCollection, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
         voteMarket.createBribe(approvedCollection2, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
         includedBribeIds[1] = voteMarket.createBribe(approvedCollection3, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
 
@@ -486,7 +445,9 @@ contract VoteMarketTest is FloorTest {
     uint[] voteStore;
     bytes32[][] merkleProofStoreAlt;
 
-    function _claimAllWithSingleValues(address account, uint epoch, address collection, uint votes, bytes32[] memory merkleProof) internal {
+    function _claimAllWithSingleValues(address account, uint epoch, address collection, uint votes, bytes32[] memory merkleProof)
+        internal
+    {
         epochStore.push(epoch);
         collectionStore.push(collection);
         voteStore.push(votes);
@@ -495,14 +456,9 @@ contract VoteMarketTest is FloorTest {
         voteMarket.claimAll(account, epochStore, collectionStore, voteStore, merkleProofStoreAlt);
     }
 
-    function _registerClaimWithTwoVotes(
-        uint epoch,
-        bytes32 root,
-        address collection1,
-        address collection2,
-        uint votes1,
-        uint votes2
-    ) internal {
+    function _registerClaimWithTwoVotes(uint epoch, bytes32 root, address collection1, address collection2, uint votes1, uint votes2)
+        internal
+    {
         claimCollections.push(collection1);
         claimCollections.push(collection2);
         claimCollectionVotes.push(votes1);
@@ -532,5 +488,4 @@ contract VoteMarketTest is FloorTest {
         vm.prank(oracle);
         voteMarket.registerClaims(epoch, root, claimCollections, claimCollectionVotes);
     }
-
 }

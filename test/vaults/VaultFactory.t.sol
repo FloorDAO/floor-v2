@@ -172,5 +172,4 @@ contract VaultFactoryTest is FloorTest {
         vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, collection));
         vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
     }
-
 }

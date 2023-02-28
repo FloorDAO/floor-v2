@@ -5,14 +5,12 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV3NonfungiblePositionManager} from "../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol";
+import {IUniswapV3NonfungiblePositionManager} from '../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
-import {TokenUtils} from "../../utils/TokenUtils.sol";
-
+import {TokenUtils} from '../../utils/TokenUtils.sol';
 
 /// @title Decreases liquidity from a position represented by tokenID, and collects tokensOwed from position to recipient
 contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
-
     using TokenUtils for address;
 
     /// @param tokenId - The ID of the token for which liquidity is being decreased
@@ -23,12 +21,12 @@ contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
     /// @param recipient - accounts to receive the tokens
     /// @param amount0Max - The maximum amount of token0 to collect
     /// @param amount1Max - The maximum amount of token1 to collect
-    struct ActionRequest{
-        uint256 tokenId;
+    struct ActionRequest {
+        uint tokenId;
         uint128 liquidity;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
+        uint amount0Min;
+        uint amount1Min;
+        uint deadline;
         address recipient;
         uint128 amount0Max;
         uint128 amount1Max;
@@ -40,7 +38,7 @@ contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    constructor (address _positionManager) {
+    constructor(address _positionManager) {
         positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
     }
 
@@ -75,5 +73,4 @@ contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
 
         return amount0;
     }
-
 }

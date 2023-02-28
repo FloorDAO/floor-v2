@@ -2,16 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV2Factory} from "../../../interfaces/uniswap/IUniswapV2Factory.sol";
-import {IUniswapV2Router01} from "../../../interfaces/uniswap/IUniswapV2Router01.sol";
+import {IUniswapV2Factory} from '../../../interfaces/uniswap/IUniswapV2Factory.sol';
+import {IUniswapV2Router01} from '../../../interfaces/uniswap/IUniswapV2Router01.sol';
 
-import {TokenUtils} from "../../utils/TokenUtils.sol";
+import {TokenUtils} from '../../utils/TokenUtils.sol';
 
 /**
  * ..
@@ -19,7 +19,6 @@ import {TokenUtils} from "../../utils/TokenUtils.sol";
  * @author Twade
  */
 contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
-
     using TokenUtils for address;
 
     struct ActionRequest {
@@ -44,7 +43,7 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    constructor (address _uniswapRouter) {
+    constructor(address _uniswapRouter) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
         uniswapFactory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     }
@@ -69,13 +68,7 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
         request.liquidity = pulledTokens;
 
         uniswapRouter.removeLiquidity(
-            request.tokenA,
-            request.tokenB,
-            request.liquidity,
-            request.amountAMin,
-            request.amountBMin,
-            request.to,
-            request.deadline
+            request.tokenA, request.tokenB, request.liquidity, request.amountAMin, request.amountBMin, request.to, request.deadline
         );
 
         return 0;
@@ -84,8 +77,5 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    receive() external payable {
-
-    }
-
+    receive() external payable {}
 }

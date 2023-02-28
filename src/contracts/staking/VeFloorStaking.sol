@@ -2,17 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {SafeERC20} from "@1inch/solidity-utils/contracts/libraries/SafeERC20.sol";
+import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {Address} from '@openzeppelin/contracts/utils/Address.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
-import {IVeFloorStaking, Depositor} from "@floor-interfaces/staking/VeFloorStaking.sol";
-import {IERC20, IVotable} from "@floor-interfaces/tokens/Votable.sol";
-import {ITreasury} from "@floor-interfaces/Treasury.sol";
-
+import {IVeFloorStaking, Depositor} from '@floor-interfaces/staking/VeFloorStaking.sol';
+import {IERC20, IVotable} from '@floor-interfaces/tokens/Votable.sol';
+import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /**
  * @title FLOOR Staking
@@ -25,12 +24,11 @@ import {ITreasury} from "@floor-interfaces/Treasury.sol";
  * - penalty math
  */
 contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
-
     using SafeERC20 for IERC20;
 
     event EmergencyExitSet(bool status);
-    event MaxLossRatioSet(uint256 ratio);
-    event MinLockPeriodRatioSet(uint256 ratio);
+    event MaxLossRatioSet(uint ratio);
+    event MinLockPeriodRatioSet(uint ratio);
     event FeeReceiverSet(address receiver);
 
     error ApproveDisabled();
@@ -60,17 +58,17 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
     uint internal currentEpoch;
 
     /// Allow some addresses to be exempt from early withdraw fees
-    mapping (address => bool) public earlyWithdrawFeeExemptions;
+    mapping(address => bool) public earlyWithdrawFeeExemptions;
 
     /// Map our Depositor index against a user
     mapping(address => Depositor) public depositors;
 
     uint internal constant _ONE_E9 = 1e9;
 
-    uint256 public totalDeposits;
+    uint public totalDeposits;
     bool public emergencyExit;
-    uint256 public maxLossRatio;
-    uint256 public minLockPeriodRatio;
+    uint public maxLossRatio;
+    uint public minLockPeriodRatio;
     address public feeReceiver;
 
     /**
@@ -78,7 +76,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @param floor_ The token to be staked
      * @param treasury_ The treasury contract address
      */
-    constructor(IERC20 floor_, address treasury_) ERC20("veFLOOR", "veFLOOR") {
+    constructor(IERC20 floor_, address treasury_) ERC20('veFLOOR', 'veFLOOR') {
         floor = floor_;
         treasury = ITreasury(treasury_);
         setFeeReceiver(treasury_);
@@ -102,7 +100,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * to do early withdrawal and not if the loss is greater.
      * @param maxLossRatio_ The maximum loss allowed (9 decimals).
      */
-    function setMaxLossRatio(uint256 maxLossRatio_) external onlyOwner {
+    function setMaxLossRatio(uint maxLossRatio_) external onlyOwner {
         if (maxLossRatio_ > _ONE_E9) revert MaxLossOverflow();
         maxLossRatio = maxLossRatio_;
         emit MaxLossRatioSet(maxLossRatio_);
@@ -113,7 +111,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * then early withdrawal will revert.
      * @param minLockPeriodRatio_ The maximum loss allowed (9 decimals).
      */
-    function setMinLockPeriodRatio(uint256 minLockPeriodRatio_) external onlyOwner {
+    function setMinLockPeriodRatio(uint minLockPeriodRatio_) external onlyOwner {
         if (minLockPeriodRatio_ > _ONE_E9) revert MaxLossOverflow();
         minLockPeriodRatio = minLockPeriodRatio_;
         emit MinLockPeriodRatioSet(minLockPeriodRatio_);
@@ -178,25 +176,24 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
     /**
      * @notice Stakes given amount and locks it for the given duration
      */
-    function deposit(uint256 amount, uint epochs) external {
+    function deposit(uint amount, uint epochs) external {
         _deposit(msg.sender, amount, epochs);
     }
 
     /**
      * @notice Stakes given amount and locks it for the given duration with permit
      */
-    function depositWithPermit(uint256 amount, uint epochs, bytes calldata permit) external {
+    function depositWithPermit(uint amount, uint epochs, bytes calldata permit) external {
         floor.safePermit(permit);
         _deposit(msg.sender, amount, epochs);
     }
-
 
     /**
      * @notice Stakes given amount on behalf of provided account without locking or extending lock
      * @param account The account to stake for
      * @param amount The amount to stake
      */
-    function depositFor(address account, uint256 amount) external {
+    function depositFor(address account, uint amount) external {
         _deposit(account, amount, 0);
     }
 
@@ -207,12 +204,12 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @param amount The amount to stake
      * @param permit Permit given by the caller
      */
-    function depositForWithPermit(address account, uint256 amount, bytes calldata permit) external {
+    function depositForWithPermit(address account, uint amount, bytes calldata permit) external {
         floor.safePermit(permit);
         _deposit(account, amount, 0);
     }
 
-    function _deposit(address account, uint256 amount, uint epochs) private {
+    function _deposit(address account, uint amount, uint epochs) private {
         if (emergencyExit) revert DepositsDisabled();
         Depositor memory depositor = depositors[account]; // SLOAD
         require(epochs < LOCK_PERIODS.length, 'Invalid epoch index');
@@ -249,7 +246,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @param minReturn The minumum amount of stake acceptable for return. If actual amount is less then the transaction is reverted
      * @param maxLoss The maximum amount of loss acceptable. If actual loss is bigger then the transaction is reverted
      */
-    function earlyWithdraw(uint256 minReturn, uint256 maxLoss) external {
+    function earlyWithdraw(uint minReturn, uint maxLoss) external {
         earlyWithdrawTo(msg.sender, minReturn, maxLoss);
     }
 
@@ -262,15 +259,15 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @param minReturn The minumum amount of stake acceptable for return. If actual amount is less then the transaction is reverted
      * @param maxLoss The maximum amount of loss acceptable. If actual loss is bigger then the transaction is reverted
      */
-    function earlyWithdrawTo(address to, uint256 minReturn, uint256 maxLoss) public {
+    function earlyWithdrawTo(address to, uint minReturn, uint maxLoss) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
         if (emergencyExit || currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
-        uint256 allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
+        uint allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
         if (currentEpoch < allowedExitTime) revert MinLockPeriodRatioNotReached();
 
         // Get the amount that has been deposited and ensure that there is an amount to
         // be withdrawn at all.
-        uint256 amount = depositor.amount;
+        uint amount = depositor.amount;
         if (amount == 0) {
             return;
         }
@@ -282,7 +279,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
             return;
         }
 
-        (uint256 loss, uint256 ret) = _earlyWithdrawLoss(msg.sender, amount, this.votingPowerOf(msg.sender));
+        (uint loss, uint ret) = _earlyWithdrawLoss(msg.sender, amount, this.votingPowerOf(msg.sender));
 
         if (ret < minReturn) revert MinReturnIsNotMet();
         if (loss > maxLoss) revert MaxLossIsNotMet();
@@ -300,13 +297,13 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @return ret The return amount
      * @return canWithdraw True if the staker can withdraw without penalty, false otherwise
      */
-    function earlyWithdrawLoss(address account) external view returns (uint256 loss, uint256 ret, bool canWithdraw) {
-        uint256 amount = depositors[account].amount;
+    function earlyWithdrawLoss(address account) external view returns (uint loss, uint ret, bool canWithdraw) {
+        uint amount = depositors[account].amount;
         (loss, ret) = _earlyWithdrawLoss(account, amount, this.votingPowerOf(account));
         canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
     }
 
-    function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint256 loss, uint256 ret) {
+    function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint loss, uint ret) {
         ret = depAmount - this.votingPowerOfAt(account, uint88(stBalance), currentEpoch);
         loss = depAmount - ret;
     }
@@ -325,14 +322,14 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
         if (!emergencyExit && currentEpoch < depositor.epochStart + depositor.epochCount) revert UnlockTimeHasNotCome();
 
-        uint256 amount = depositor.amount;
+        uint amount = depositor.amount;
         if (amount > 0) {
             _withdraw(depositor, balanceOf(msg.sender));
             floor.safeTransfer(to, amount);
         }
     }
 
-    function _withdraw(Depositor memory depositor, uint256 balance) private {
+    function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
         depositors[msg.sender] = depositor; // SSTORE
@@ -344,7 +341,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @param token The token to retrieve
      * @param amount The amount of funds to transfer
      */
-    function rescueFunds(IERC20 token, uint256 amount) external onlyOwner {
+    function rescueFunds(IERC20 token, uint amount) external onlyOwner {
         if (address(token) == address(0)) {
             Address.sendValue(payable(msg.sender), amount);
         } else {
@@ -377,23 +374,23 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
 
     // ERC20 methods disablers
 
-    function approve(address, uint256) public pure override(IERC20, ERC20) returns (bool) {
+    function approve(address, uint) public pure override (IERC20, ERC20) returns (bool) {
         revert ApproveDisabled();
     }
 
-    function transfer(address, uint256) public pure override(IERC20, ERC20) returns (bool) {
+    function transfer(address, uint) public pure override (IERC20, ERC20) returns (bool) {
         revert TransferDisabled();
     }
 
-    function transferFrom(address, address, uint256) public pure override(IERC20, ERC20) returns (bool) {
+    function transferFrom(address, address, uint) public pure override (IERC20, ERC20) returns (bool) {
         revert TransferDisabled();
     }
 
-    function increaseAllowance(address, uint256) public pure override returns (bool) {
+    function increaseAllowance(address, uint) public pure override returns (bool) {
         revert ApproveDisabled();
     }
 
-    function decreaseAllowance(address, uint256) public pure override returns (bool) {
+    function decreaseAllowance(address, uint) public pure override returns (bool) {
         revert ApproveDisabled();
     }
 }

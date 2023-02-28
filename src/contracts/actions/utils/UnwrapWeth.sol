@@ -54,7 +54,7 @@ contract UnwrapWeth is IAction {
         IWETH(WETH).withdraw(request.amount);
 
         // Transfer ETH to the {Treasury}
-        (bool success, ) = treasury.call{value: request.amount}('');
+        (bool success,) = treasury.call{value: request.amount}('');
         require(success, 'Eth send fail');
 
         // We return just the amount of WETH generated in the swap, which will have

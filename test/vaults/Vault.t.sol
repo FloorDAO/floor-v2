@@ -82,7 +82,7 @@ contract VaultTest is FloorTest {
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
                 0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
-                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893  // _inventoryStaking
+                0x3E135c3E981fAe3383A5aE0d323860a34CfAB893 // _inventoryStaking
             ),
             0x269616D549D7e8Eaa82DFb17028d0B212D11232A
         );
@@ -491,9 +491,7 @@ contract VaultTest is FloorTest {
         uint vaultId = vault.vaultId();
 
         vm.startPrank(PUNK_HOLDER);
-        vm.expectRevert(
-            abi.encodeWithSelector(AccountDoesNotHaveRole.selector, PUNK_HOLDER, authorityControl.VAULT_MANAGER())
-        );
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, PUNK_HOLDER, authorityControl.VAULT_MANAGER()));
         vaultFactory.pause(vaultId, true);
         vm.stopPrank();
     }

@@ -7,7 +7,6 @@ import {SendEth} from '../../../src/contracts/actions/utils/SendEth.sol';
 import '../../utilities/Environments.sol';
 
 contract SendEthTest is FloorTest {
-
     // Store our action contract
     SendEth action;
 
@@ -65,5 +64,4 @@ contract SendEthTest is FloorTest {
         // Assertion of our gas refund from `test_CanGetDustReturnedToSender`
         assertEq(msg.value, 5 ether);
     }
-
 }

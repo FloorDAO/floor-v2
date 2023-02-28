@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
@@ -11,8 +11,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * @notice Buy tokens on 0x using another token.
  */
 contract BuyTokensWithTokens is IAction {
-
-    address internal constant ETH  = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// Internal store of desired 0x contract
@@ -54,8 +53,7 @@ contract BuyTokensWithTokens is IAction {
             // Transfer our allowance of the `sellToken` from the {Treasury} so that
             // we can handle any amount request. We later transfer dust back if left.
             IERC20(_sellToken).transferFrom(treasury, address(this), IERC20(_sellToken).allowance(treasury, address(this)));
-        }
-        else {
+        } else {
             IWETH(WETH).deposit{value: msg.value}();
             _sellToken = WETH;
         }
@@ -67,7 +65,7 @@ contract BuyTokensWithTokens is IAction {
         IERC20 sellToken = IERC20(_sellToken);
 
         // Track our balance of the buyToken to determine how much we've bought.
-        uint256 startAmountBuy = buyToken.balanceOf(address(this));
+        uint startAmountBuy = buyToken.balanceOf(address(this));
 
         // Transfer our allowance of the `sellToken` from the {Treasury} so that
         // we can handle any amount request. We later transfer dust back if left.
@@ -94,5 +92,4 @@ contract BuyTokensWithTokens is IAction {
             sellToken.transfer(treasury, sellTokenDust);
         }
     }
-
 }

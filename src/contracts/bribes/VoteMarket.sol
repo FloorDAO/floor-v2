@@ -10,8 +10,9 @@ import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IVoteMarket} from '../../interfaces/bribes/VoteMarket.sol';
 
 contract VoteMarket is IVoteMarket, Ownable, Pausable {
-
-    event BribeCreated(uint bribeId, address rewardToken, uint numberOfEpochs, uint maxRewardPerVote, uint rewardPerEpoch, uint totalRewardAmount);
+    event BribeCreated(
+        uint bribeId, address rewardToken, uint numberOfEpochs, uint maxRewardPerVote, uint rewardPerEpoch, uint totalRewardAmount
+    );
     event Claimed(address account, address rewardToken, uint bribeId, uint amount, uint epoch);
     event ClaimRegistered(uint epoch, bytes32 merkleRoot);
 
@@ -27,23 +28,23 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
     /// Store our claim merkles that define the available rewards for each user across
     /// all collections and bribes.
-    mapping (uint => bytes32) epochMerkles;
+    mapping(uint => bytes32) epochMerkles;
 
     /// Store the total number of votes cast against each collection at each epoch
-    mapping (bytes32 => uint) epochCollectionVotes;
+    mapping(bytes32 => uint) epochCollectionVotes;
 
     /// Stores a list of all bribes created, across past, live and future
     Bribe[] bribes;
 
     /// A mapping of collection addresses to an array of bribe array indexes
-    mapping (address => uint[]) collectionBribes;
+    mapping(address => uint[]) collectionBribes;
 
     /// Store a list of users that have claimed. Each encoded bytes represents a user that
     /// has claimed against a specific epoch and bribe ID.
     mapping(bytes32 => bool) internal userClaimed;
 
     /// Blacklisted addresses per bribe that aren't counted for rewards arithmetics.
-    mapping(uint256 => mapping(address => bool)) public isBlacklisted;
+    mapping(uint => mapping(address => bool)) public isBlacklisted;
 
     /// Track our bribe index iteration
     uint internal nextID;
@@ -51,7 +52,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
     /// Oracle wallet that has permission to write merkles
     address public oracleWallet;
 
-    constructor (address _oracleWallet, address _feeCollector) {
+    constructor(address _oracleWallet, address _feeCollector) {
         oracleWallet = _oracleWallet;
         feeCollector = _feeCollector;
     }
@@ -72,10 +73,10 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         address collection,
         address rewardToken,
         uint8 numberOfEpochs,
-        uint256 maxRewardPerVote,
-        uint256 totalRewardAmount,
+        uint maxRewardPerVote,
+        uint totalRewardAmount,
         address[] calldata blacklist
-    ) external whenNotPaused returns (uint256 newBribeID) {
+    ) external whenNotPaused returns (uint newBribeID) {
         // Ensure that we aren't providing a NULL address
         require(rewardToken != address(0), 'Cannot be zero address');
 
@@ -97,8 +98,8 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
 
         // Calculate our reward amount per epoch by taking the total amount and dividing
         // it by the number of epochs requested.
-        uint256 rewardPerEpoch = totalRewardAmount / numberOfEpochs;
-        uint256 currentEpoch = 0;
+        uint rewardPerEpoch = totalRewardAmount / numberOfEpochs;
+        uint currentEpoch = 0;
 
         // Create our Bribe object at the new ID index
         bribes.push(
@@ -118,44 +119,60 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         collectionBribes[collection].push(newBribeID);
 
         // Emit our Bribe creation event
-        emit BribeCreated(
-            newBribeID,
-            rewardToken,
-            numberOfEpochs,
-            maxRewardPerVote,
-            rewardPerEpoch,
-            totalRewardAmount
-        );
+        emit BribeCreated(newBribeID, rewardToken, numberOfEpochs, maxRewardPerVote, rewardPerEpoch, totalRewardAmount);
 
         // Add the addresses to the blacklist.
-        uint256 length = blacklist.length;
-        for (uint256 i; i < length;) {
+        uint length = blacklist.length;
+        for (uint i; i < length;) {
             isBlacklisted[newBribeID][blacklist[i]] = true;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    function claim(address account, uint[] calldata epoch, uint[] calldata bribeIds, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
+    function claim(
+        address account,
+        uint[] calldata epoch,
+        uint[] calldata bribeIds,
+        address[] calldata collection,
+        uint[] calldata votes,
+        bytes32[][] calldata merkleProof
+    ) external whenNotPaused {
         // Loop through all bribes assigned to the collection
         for (uint i; i < bribeIds.length;) {
             for (uint k; k < epoch.length;) {
                 _claim(bribeIds[i], account, epoch[k], collection[k], votes[k], merkleProof[k]);
-                unchecked { ++k; }
+                unchecked {
+                    ++k;
+                }
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    function claimAll(address account, uint[] calldata epoch, address[] calldata collection, uint[] calldata votes, bytes32[][] calldata merkleProof) external whenNotPaused {
+    function claimAll(
+        address account,
+        uint[] calldata epoch,
+        address[] calldata collection,
+        uint[] calldata votes,
+        bytes32[][] calldata merkleProof
+    ) external whenNotPaused {
         // Loop through all collection claims that the user is making
         for (uint i; i < collection.length;) {
             // Loop through all bribes assigned to the collection
             for (uint k; k < collectionBribes[collection[i]].length;) {
                 _claim(collectionBribes[collection[i]][k], account, epoch[i], collection[i], votes[i], merkleProof[i]);
-                unchecked { ++k; }
+                unchecked {
+                    ++k;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -168,11 +185,10 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
 
         // Verify our merkle proof
-        require(MerkleProof.verify(
-            merkleProof,
-            epochMerkles[epoch],
-            keccak256(abi.encode(account, epoch, collection, votes))
-        ), 'Invalid Merkle Proof');
+        require(
+            MerkleProof.verify(merkleProof, epochMerkles[epoch], keccak256(abi.encode(account, epoch, collection, votes))),
+            'Invalid Merkle Proof'
+        );
 
         // If the user is blacklisted from the bribe, then don't offer any reward
         if (isBlacklisted[bribeId][account]) {
@@ -186,8 +202,12 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         uint voteReward = bribe.maxRewardPerVote;
         bytes32 collectionHash = keccak256(abi.encode(collection, epoch));
 
-        if ((bribe.maxRewardPerVote * epochCollectionVotes[collectionHash]) / (10 ** ERC20(bribe.rewardToken).decimals()) > bribe.totalRewardAmount / bribe.numberOfEpochs) {
-            voteReward = ((bribe.totalRewardAmount / bribe.numberOfEpochs) * (10 ** ERC20(bribe.rewardToken).decimals())) / epochCollectionVotes[collectionHash];
+        if (
+            (bribe.maxRewardPerVote * epochCollectionVotes[collectionHash]) / (10 ** ERC20(bribe.rewardToken).decimals())
+                > bribe.totalRewardAmount / bribe.numberOfEpochs
+        ) {
+            voteReward = ((bribe.totalRewardAmount / bribe.numberOfEpochs) * (10 ** ERC20(bribe.rewardToken).decimals()))
+                / epochCollectionVotes[collectionHash];
         }
 
         // Determine the reward amount for the user
@@ -223,12 +243,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         return keccak256(abi.encode(bribeId, bytes('_'), epoch));
     }
 
-    function registerClaims(
-        uint epoch,
-        bytes32 merkleRoot,
-        address[] calldata collections,
-        uint[] calldata collectionVotes
-    ) external {
+    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external {
         // Ensure that only our oracle wallet can call this function
         require(msg.sender == oracleWallet, 'Unauthorized caller');
 
@@ -241,7 +256,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         // Set our total votes so that we can calculate the per vote rewards
         for (uint i; i < collections.length;) {
             epochCollectionVotes[keccak256(abi.encode(collections[i], epoch))] = collectionVotes[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Emit our claim registration event
@@ -265,8 +282,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         // @dev Warning: This does not sense check the information.
         for (uint i; i < collection.length;) {
             delete collectionBribes[collection[i]][index[i]];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
-
 }

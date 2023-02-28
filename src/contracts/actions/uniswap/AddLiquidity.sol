@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV3NonfungiblePositionManager} from "../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol";
+import {IUniswapV3NonfungiblePositionManager} from '../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
-import {TokenUtils} from "../../utils/TokenUtils.sol";
+import {TokenUtils} from '../../utils/TokenUtils.sol';
 
 /**
  * ..
@@ -18,7 +18,6 @@ import {TokenUtils} from "../../utils/TokenUtils.sol";
  * @author Twade
  */
 contract UniswapAddLiquidity is IAction, Ownable, Pausable {
-
     using TokenUtils for address;
 
     /// @param tokenId - The ID of the token for which liquidity is being increased
@@ -31,12 +30,12 @@ contract UniswapAddLiquidity is IAction, Ownable, Pausable {
     /// @param token0 - address of the first token
     /// @param token1 - address of the second token
     struct ActionRequest {
-        uint256 tokenId;
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
+        uint tokenId;
+        uint amount0Desired;
+        uint amount1Desired;
+        uint amount0Min;
+        uint amount1Min;
+        uint deadline;
         address from;
         address token0;
         address token1;
@@ -48,7 +47,7 @@ contract UniswapAddLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    constructor (address _positionManager) {
+    constructor(address _positionManager) {
         positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
     }
 
@@ -86,7 +85,6 @@ contract UniswapAddLiquidity is IAction, Ownable, Pausable {
         request.token0.withdrawTokens(request.from, request.amount0Desired - amount0);
         request.token1.withdrawTokens(request.from, request.amount1Desired - amount1);
 
-        return uint256(liquidity);
+        return uint(liquidity);
     }
-
 }

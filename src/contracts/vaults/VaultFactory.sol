@@ -54,13 +54,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      * @param _vaultImplementation Address of our deployed {Vault} to clone
      * @param _floor Address of our {FLOOR}
      */
-    constructor(
-        address _authority,
-        address _collectionRegistry,
-        address _strategyRegistry,
-        address _vaultImplementation,
-        address _floor
-    ) AuthorityControl(_authority) {
+    constructor(address _authority, address _collectionRegistry, address _strategyRegistry, address _vaultImplementation, address _floor)
+        AuthorityControl(_authority)
+    {
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
@@ -188,5 +184,4 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     function registerMint(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) {
         IVault(vaultIds[_vaultId]).registerMint(msg.sender, _amount);
     }
-
 }

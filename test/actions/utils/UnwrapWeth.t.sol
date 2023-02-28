@@ -9,7 +9,6 @@ import {UnwrapWeth} from '../../../src/contracts/actions/utils/UnwrapWeth.sol';
 import '../../utilities/Environments.sol';
 
 contract UnwrapWethTest is FloorTest {
-
     // Store our action contract
     UnwrapWeth action;
 
@@ -72,5 +71,4 @@ contract UnwrapWethTest is FloorTest {
         vm.expectRevert();
         action.execute(abi.encode(amount));
     }
-
 }

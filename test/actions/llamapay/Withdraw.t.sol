@@ -10,9 +10,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
-
 contract LlamaPayWithdrawTest is FloorTest {
-
     // Store the maximum amount of WETH available to the user
     uint weth_balance = 79228162514264337593543950335;
 
@@ -68,5 +66,4 @@ contract LlamaPayWithdrawTest is FloorTest {
         uint payerBalance = action.execute(abi.encode(WETH, 0));
         assertEq(payerBalance, 0);
     }
-
 }

@@ -19,7 +19,6 @@ import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import '../utilities/Environments.sol';
 
 contract GaugeWeightVoteTest is FloorTest {
-
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     FLOOR floor;
@@ -48,7 +47,7 @@ contract GaugeWeightVoteTest is FloorTest {
     address bob;
 
     // Store vote power from setUp
-    mapping (address => uint) votePower;
+    mapping(address => uint) votePower;
 
     constructor() {
         // Create our {StrategyRegistry}
@@ -428,19 +427,11 @@ contract GaugeWeightVoteTest is FloorTest {
         bytes4 _selector = bytes4(keccak256('collectionBoost(address,uint256)'));
 
         // Mock modifier calculation to return 1.00 and confirm multiplier has been applied
-        vm.mockCall(
-            nftStaking,
-            abi.encodeWithSelector(_selector, approvedCollection1, 0),
-            abi.encode(1e9)
-        );
+        vm.mockCall(nftStaking, abi.encodeWithSelector(_selector, approvedCollection1, 0), abi.encode(1e9));
         assertEq(gaugeWeightVote.votes(approvedCollection1), 15 ether);
 
         // Mock modifier calculation to return 1.50 and confirm effect
-        vm.mockCall(
-            nftStaking,
-            abi.encodeWithSelector(_selector, approvedCollection1, 0),
-            abi.encode(1500000000)
-        );
+        vm.mockCall(nftStaking, abi.encodeWithSelector(_selector, approvedCollection1, 0), abi.encode(1500000000));
         assertEq(gaugeWeightVote.votes(approvedCollection1), 22.5 ether);
     }
 
@@ -459,10 +450,6 @@ contract GaugeWeightVoteTest is FloorTest {
     }
 
     function _mockVaultStrategyRewardsGenerated(address vault, uint amount) internal {
-        vm.mockCall(
-            address(vault),
-            abi.encodeWithSelector(IVault.lastEpochRewards.selector),
-            abi.encode(amount)
-        );
+        vm.mockCall(address(vault), abi.encodeWithSelector(IVault.lastEpochRewards.selector), abi.encode(amount));
     }
 }

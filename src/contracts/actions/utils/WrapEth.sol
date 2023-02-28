@@ -31,7 +31,7 @@ contract WrapEth is IAction {
      *
      * @return uint The amount of ETH wrapped into WETH by the execution
      */
-    function execute(bytes calldata /* _request */) public payable returns (uint) {
+    function execute(bytes calldata /* _request */ ) public payable returns (uint) {
         IWETH(WETH).deposit{value: msg.value}();
         IWETH(WETH).transfer(treasury, msg.value);
 

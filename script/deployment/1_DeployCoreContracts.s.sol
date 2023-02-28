@@ -112,5 +112,4 @@ contract DeployCoreContracts is Script {
         // Stop collecting onchain transactions
         vm.stopBroadcast();
     }
-
 }

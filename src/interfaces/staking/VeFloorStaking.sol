@@ -10,7 +10,6 @@ struct Depositor {
 }
 
 interface IVeFloorStaking {
-
     /// Set a list of locking periods that the user can lock for
     function LOCK_PERIODS(uint) external returns (uint8);
 
@@ -32,9 +31,9 @@ interface IVeFloorStaking {
 
     function setFeeReceiver(address feeReceiver_) external;
 
-    function setMaxLossRatio(uint256 maxLossRatio_) external;
+    function setMaxLossRatio(uint maxLossRatio_) external;
 
-    function setMinLockPeriodRatio(uint256 minLockPeriodRatio_) external;
+    function setMinLockPeriodRatio(uint minLockPeriodRatio_) external;
 
     function setEmergencyExit(bool emergencyExit_) external;
 
@@ -44,19 +43,19 @@ interface IVeFloorStaking {
 
     function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint);
 
-    function deposit(uint256 amount, uint epochs) external;
+    function deposit(uint amount, uint epochs) external;
 
-    function depositWithPermit(uint256 amount, uint epochs, bytes calldata permit) external;
+    function depositWithPermit(uint amount, uint epochs, bytes calldata permit) external;
 
-    function depositFor(address account, uint256 amount) external;
+    function depositFor(address account, uint amount) external;
 
-    function depositForWithPermit(address account, uint256 amount, bytes calldata permit) external;
+    function depositForWithPermit(address account, uint amount, bytes calldata permit) external;
 
-    function earlyWithdraw(uint256 minReturn, uint256 maxLoss) external;
+    function earlyWithdraw(uint minReturn, uint maxLoss) external;
 
-    function earlyWithdrawTo(address to, uint256 minReturn, uint256 maxLoss) external;
+    function earlyWithdrawTo(address to, uint minReturn, uint maxLoss) external;
 
-    function earlyWithdrawLoss(address account) external view returns (uint256 loss, uint256 ret, bool canWithdraw);
+    function earlyWithdrawLoss(address account) external view returns (uint loss, uint ret, bool canWithdraw);
 
     function withdraw() external;
 
@@ -67,5 +66,4 @@ interface IVeFloorStaking {
     function isExemptFromEarlyWithdrawFees(address account) external view returns (bool);
 
     function addEarlyWithdrawFeeExemption(address account, bool exempt) external;
-
 }

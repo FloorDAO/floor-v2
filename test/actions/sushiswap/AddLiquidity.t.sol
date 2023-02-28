@@ -5,19 +5,18 @@ pragma solidity ^0.8.0;
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {SushiswapAddLiquidity} from '../../../src/contracts/actions/sushiswap/AddLiquidity.sol';
-import { IWETH } from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract SushiswapAddLiquidityTest is FloorTest {
-
     /// ..
     address internal constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     /// ..
-    address internal constant TOKEN_A   = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;  // X2Y2
-    address internal constant TOKEN_B   = 0x111111111117dC0aa78b770fA6A738034120C302;  // 1Inch
-    address internal constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;  // ETH
+    address internal constant TOKEN_A = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9; // X2Y2
+    address internal constant TOKEN_B = 0x111111111117dC0aa78b770fA6A738034120C302; // 1Inch
+    address internal constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; // ETH
 
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_619_311;
@@ -71,14 +70,14 @@ contract SushiswapAddLiquidityTest is FloorTest {
     function _addLiquidity(address tokenA, address tokenB, uint msgValue) internal returns (uint) {
         return action.execute{value: msgValue}(
             abi.encode(
-                tokenA,                 // address tokenA
-                tokenB,                 // address tokenB
-                1 ether,                // uint amountADesired
-                1 ether,                // uint amountBDesired
-                0,                      // uint amountAMin
-                0,                      // uint amountBMin
-                address(this),          // address to
-                block.timestamp + 3600  // uint deadline
+                tokenA, // address tokenA
+                tokenB, // address tokenB
+                1 ether, // uint amountADesired
+                1 ether, // uint amountBDesired
+                0, // uint amountAMin
+                0, // uint amountBMin
+                address(this), // address to
+                block.timestamp + 3600 // uint deadline
             )
         );
     }
@@ -89,5 +88,4 @@ contract SushiswapAddLiquidityTest is FloorTest {
     receive() external payable {
         assertEq(msg.value, 999880756991001119);
     }
-
 }

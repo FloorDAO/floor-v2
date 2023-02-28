@@ -10,7 +10,6 @@ import '../../src/contracts/staking/VeFloorStaking.sol';
 import '../utilities/Environments.sol';
 
 contract VeFloorStakingTest is FloorTest {
-
     // Test users
     address alice;
 
@@ -18,7 +17,7 @@ contract VeFloorStakingTest is FloorTest {
     FLOOR floor;
     VeFloorStaking veFloor;
 
-    constructor () {
+    constructor() {
         // Map our test user(s)
         alice = users[0];
 
@@ -41,7 +40,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_ShouldTakeUsersDeposit() external {
-        (, , uint amount) = veFloor.depositors(address(this));
+        (,, uint amount) = veFloor.depositors(address(this));
         assertEq(amount, 0);
         assertEq(veFloor.balanceOf(address(this)), 0);
         assertEq(veFloor.votingPowerOf(address(this)), 0);
@@ -60,7 +59,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_ShouldTakeUsersDepositForOtherAccount() external {
-        (, , uint amount) = veFloor.depositors(alice);
+        (,, uint amount) = veFloor.depositors(alice);
         assertEq(amount, 0);
         assertEq(veFloor.balanceOf(alice), 0);
         assertEq(veFloor.votingPowerOf(alice), 0);
@@ -79,7 +78,7 @@ contract VeFloorStakingTest is FloorTest {
 
         _assertBalances(alice, 100 ether, 0);
 
-        (, , amount) = veFloor.depositors(address(this));
+        (,, amount) = veFloor.depositors(address(this));
         assertEq(amount, 0);
         assertEq(veFloor.balanceOf(address(this)), 0);
         assertEq(veFloor.votingPowerOf(address(this)), 0);
@@ -202,7 +201,7 @@ contract VeFloorStakingTest is FloorTest {
 
         assertEq(floor.balanceOf(address(this)), balanceaddr + 100 ether);
 
-        (, , uint amount) = veFloor.depositors(address(this));
+        (,, uint amount) = veFloor.depositors(address(this));
         assertEq(amount, 0);
         assertEq(veFloor.balanceOf(address(this)), 0);
         assertEq(veFloor.votingPowerOf(address(this)), 0);
@@ -221,7 +220,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(floor.balanceOf(address(this)), balanceaddr);
         assertEq(floor.balanceOf(alice), balanceAddr1 + 100 ether);
 
-        (, , uint amount) = veFloor.depositors(address(this));
+        (,, uint amount) = veFloor.depositors(address(this));
         assertEq(amount, 0);
 
         assertEq(veFloor.balanceOf(address(this)), 0);
@@ -258,7 +257,6 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.setEmergencyExit(true);
         vm.stopPrank();
     }
-
 
     function test_EarlyWithdrawToShouldNotWorkAfterUnlockTime() external {
         veFloor.deposit(1 ether, 3);
@@ -308,7 +306,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.setFeeReceiver(alice);
 
         // Calculate our returned amount and loss
-        (uint loss, , bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        (uint loss,, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertTrue(canWithdraw);
 
         // Store our pre-tx balances
@@ -382,5 +380,4 @@ contract VeFloorStakingTest is FloorTest {
         // (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(_account);
         assertEq(veFloor.votingPowerAt(_account, _epoch), _balance);
     }
-
 }

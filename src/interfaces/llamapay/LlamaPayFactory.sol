@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface ILlamaPayFactory {
-
     function INIT_CODEHASH() external returns (bytes32);
     function parameter() external returns (address);
     function getLlamaPayContractCount() external returns (uint);
@@ -28,6 +27,5 @@ interface ILlamaPayFactory {
      * @return predictedAddress The deterministic address where the llama pay contract will be deployed for `_token`
      * @return isDeployed Boolean denoting whether the contract is currently deployed
      */
-    function getLlamaPayContractByToken(address _token) external view returns(address predictedAddress, bool isDeployed);
-
+    function getLlamaPayContractByToken(address _token) external view returns (address predictedAddress, bool isDeployed);
 }

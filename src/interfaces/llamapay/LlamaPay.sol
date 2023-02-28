@@ -1,10 +1,9 @@
 //SPDX-License-Identifier: None
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 interface ILlamaPay {
-
     struct Payer {
         uint40 lastPayerUpdate;
         uint216 totalPaidPerSec;
@@ -26,7 +25,10 @@ interface ILlamaPay {
 
     function createStreamWithReason(address to, uint216 amountPerSec, string calldata reason) external;
 
-    function withdrawable(address from, address to, uint216 amountPerSec) external view returns (uint withdrawableAmount, uint lastUpdate, uint owed);
+    function withdrawable(address from, address to, uint216 amountPerSec)
+        external
+        view
+        returns (uint withdrawableAmount, uint lastUpdate, uint owed);
 
     function withdraw(address from, address to, uint216 amountPerSec) external;
 

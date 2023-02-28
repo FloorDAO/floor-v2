@@ -12,20 +12,19 @@ import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingTest is FloorTest {
-
-    address constant LOW_VALUE_NFT  = 0x524cAB2ec69124574082676e6F654a18df49A048;
+    address constant LOW_VALUE_NFT = 0x524cAB2ec69124574082676e6F654a18df49A048;
     address constant HIGH_VALUE_NFT = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
 
-    address constant LOW_HOLDER_1  = 0x488C636D0a928aeCE719519FBe0cf171B442aBd8;
-    address constant LOW_HOLDER_2  = 0x8c0d2B62F133Db265EC8554282eE60EcA0Fd5a9E;
-    address constant LOW_HOLDER_3  = 0xA52899A1A8195c3Eef30E0b08658705250E154aE;
+    address constant LOW_HOLDER_1 = 0x488C636D0a928aeCE719519FBe0cf171B442aBd8;
+    address constant LOW_HOLDER_2 = 0x8c0d2B62F133Db265EC8554282eE60EcA0Fd5a9E;
+    address constant LOW_HOLDER_3 = 0xA52899A1A8195c3Eef30E0b08658705250E154aE;
 
     address constant HIGH_HOLDER_1 = 0xa523dA93344dD163C32a8cD9A31459eAD1d86B0A;
 
     // Test users
     address alice;
 
-    uint constant VOTE_DISCOUNT = 4000;  // 40%
+    uint constant VOTE_DISCOUNT = 4000; // 40%
 
     uint constant NFTX_LOCK_LENGTH = 2592001;
 
@@ -33,7 +32,7 @@ contract NftStakingTest is FloorTest {
     NftStaking staking;
     UniswapV3PricingExecutor pricingExecutor;
 
-    constructor () forkBlock(16_692_005) {
+    constructor() forkBlock(16_692_005) {
         // Map our test user(s)
         alice = users[0];
 
@@ -48,22 +47,17 @@ contract NftStakingTest is FloorTest {
         staking = new NftStaking(address(pricingExecutor), VOTE_DISCOUNT);
 
         // Set our staking zaps to the correct mainnet addresses
-        staking.setStakingZaps(
-            0xdC774D5260ec66e5DD4627E1DD800Eff3911345C,
-            0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3
-        );
+        staking.setStakingZaps(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3);
 
         // Add our underlying token mappings
-        staking.setUnderlyingToken(LOW_VALUE_NFT,  0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
+        staking.setUnderlyingToken(LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
         staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
 
         // Set our sweep modifier
         staking.setSweepModifier(4e9);
 
         // Set our default boost calculator
-        staking.setBoostCalculator(
-            address(new NftStakingBoostCalculator())
-        );
+        staking.setBoostCalculator(address(new NftStakingBoostCalculator()));
 
         // Label some addresses for nice debugging
         vm.label(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 'NFTX Staking Zap');
@@ -92,18 +86,18 @@ contract NftStakingTest is FloorTest {
     }
 
     function test_CanGetVoteBoost() external {
-        uint[] memory lowTokens1  = new uint[](5);
+        uint[] memory lowTokens1 = new uint[](5);
         lowTokens1[0] = 16543;
         lowTokens1[1] = 1672;
         lowTokens1[2] = 4774;
         lowTokens1[3] = 4818;
         lowTokens1[4] = 5587;
 
-        uint[] memory lowTokens2  = new uint[](2);
+        uint[] memory lowTokens2 = new uint[](2);
         lowTokens2[0] = 242;
         lowTokens2[1] = 5710;
 
-        uint[] memory lowTokens3  = new uint[](8);
+        uint[] memory lowTokens3 = new uint[](8);
         lowTokens3[0] = 11223;
         lowTokens3[1] = 11202;
         lowTokens3[2] = 11935;
@@ -134,31 +128,33 @@ contract NftStakingTest is FloorTest {
         staking.stake(LOW_VALUE_NFT, lowTokens3, 26);
         vm.stopPrank();
 
-        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1610730439);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1610730439);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1000000000);
 
         // User 4 stakes 1 high value NFT for 104 epochs
         vm.startPrank(HIGH_HOLDER_1);
-        (bool success,) = address(HIGH_VALUE_NFT).call(abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", highTokens1[0], 0, address(staking)));
+        (bool success,) = address(HIGH_VALUE_NFT).call(
+            abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', highTokens1[0], 0, address(staking))
+        );
         require(success, 'Failed to offer PUNK');
         staking.stake(HIGH_VALUE_NFT, highTokens1, 104);
         vm.stopPrank();
 
-        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1610730439);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1610730439);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1106073976);
 
         // Skip forward 26 epochs
         staking.setCurrentEpoch(staking.currentEpoch() + 26);
 
         // Get the total sweep power against gauge 1
-        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1150729596);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1150729596);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1071691143);
 
         // Skip forward to our penultimate epoch
         staking.setCurrentEpoch(staking.currentEpoch() + 104 - 26 - 1);
 
         // Get the total sweep power against gauge 1
-        assertEq(staking.collectionBoost(LOW_VALUE_NFT),  1000000000);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1000000000);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1000000000);
     }
 
@@ -350,5 +346,4 @@ contract NftStakingTest is FloorTest {
     function test_CanClaimRewards() external {
         // TODO: ..
     }
-
 }

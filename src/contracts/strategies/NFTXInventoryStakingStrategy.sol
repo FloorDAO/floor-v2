@@ -88,11 +88,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * @param initData Encoded data to be decoded
      */
     function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
-        (
-            address _underlyingToken,
-            address _yieldToken,
-            address _inventoryStaking
-        ) = abi.decode(initData, (address, address, address));
+        (address _underlyingToken, address _yieldToken, address _inventoryStaking) = abi.decode(initData, (address, address, address));
 
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;

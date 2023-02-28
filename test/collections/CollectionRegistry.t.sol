@@ -10,7 +10,6 @@ import '../mocks/PricingExecutor.sol';
 import '../utilities/Environments.sol';
 
 contract CollectionRegistryTest is FloorTest {
-
     /// Emitted when a collection is successfully approved
     event CollectionApproved(address contractAddr);
 

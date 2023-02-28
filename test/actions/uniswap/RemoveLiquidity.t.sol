@@ -10,7 +10,6 @@ import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract UniswapRemoveLiquidityTest is FloorTest {
-
     /// ..
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 
@@ -72,5 +71,4 @@ contract UniswapRemoveLiquidityTest is FloorTest {
 
         vm.stopPrank();
     }
-
 }

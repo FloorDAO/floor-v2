@@ -9,12 +9,10 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {ILlamaPay} from '@floor-interfaces/llamapay/LlamaPay.sol';
 import {ILlamaPayFactory} from '@floor-interfaces/llamapay/LlamaPayFactory.sol';
 
-
 /**
  * ..
  */
 contract LlamapayRouter is Pausable {
-
     /// ..
     ILlamaPayFactory public immutable llamaPayFactory;
 
@@ -56,8 +54,7 @@ contract LlamapayRouter is Pausable {
 
             // Deposit the tokens to LlamaPay and create our stream in a single call
             llamaPay.depositAndCreate(amount, to, amountPerSec);
-        }
-        else {
+        } else {
             // Otherwise, we just create the stream
             llamaPay.createStream(to, amountPerSec);
         }
@@ -118,5 +115,4 @@ contract LlamapayRouter is Pausable {
 
         return ILlamaPay(predictedAddress);
     }
-
 }

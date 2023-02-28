@@ -6,12 +6,10 @@ import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
 
 import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
 
-
 /**
  * ..
  */
 contract NftStakingBoostCalculator is INftStakingBoostCalculator {
-
     /**
      * ..
      */
@@ -33,30 +31,13 @@ contract NftStakingBoostCalculator is INftStakingBoostCalculator {
         // Apply our modifiers to our calculations to determine our final multiplier
         boost_ = (
             (
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6
-                    ) * 1e9
-                )
-                /
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6
-                    )
-                )
-            ) * (
-                (
-                    ABDKMath64x64.toUInt(
-                        ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9
-                    )
-                ) - 1e9
-            )
+                (ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6) * 1e9)
+                    / (ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6))
+            ) * ((ABDKMath64x64.toUInt(ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9)) - 1e9)
         ) / _voteModifier;
 
         if (boost_ < 1e9) {
             boost_ = 1e9;
         }
-
     }
-
 }

@@ -6,18 +6,17 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {SushiswapAddLiquidity} from '../../../src/contracts/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '../../../src/contracts/actions/sushiswap/RemoveLiquidity.sol';
-import { IWETH } from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract SushiswapRemoveLiquidityTest is FloorTest {
-
     /// ..
     address internal constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     /// ..
-    address internal constant TOKEN_A   = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;
-    address internal constant TOKEN_B   = 0x111111111117dC0aa78b770fA6A738034120C302;
+    address internal constant TOKEN_A = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;
+    address internal constant TOKEN_B = 0x111111111117dC0aa78b770fA6A738034120C302;
     address internal constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant WETH_TOKEN = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -53,22 +52,13 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
     function setUp() public {
         // Set up a liquidity placement so our user has something. This functionality is
         // already tested in another test suite so we can rely on it to work.
-        tokenPosition = addAction.execute(
-            abi.encode(
-                TOKEN_A, TOKEN_B, 1 ether, 1 ether, 0, 0,
-                address(this), block.timestamp + 3600
-            )
-        );
+        tokenPosition = addAction.execute(abi.encode(TOKEN_A, TOKEN_B, 1 ether, 1 ether, 0, 0, address(this), block.timestamp + 3600));
 
         // Set up an ETH liquidity placement so our user has something. This functionality
         // is already tested in another test suite so we can rely on it to work. We can deposit
         // in ETH and it is automatically put into a WETH position.
-        tokenEthPosition = addAction.execute{value: 1 ether}(
-            abi.encode(
-                TOKEN_A, ETH_TOKEN, 1 ether, 1 ether, 0, 0,
-                address(this), block.timestamp + 3600
-            )
-        );
+        tokenEthPosition =
+            addAction.execute{value: 1 ether}(abi.encode(TOKEN_A, ETH_TOKEN, 1 ether, 1 ether, 0, 0, address(this), block.timestamp + 3600));
     }
 
     /**
@@ -99,13 +89,10 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
      * ..
      */
     function _removeLiquidity(address tokenA, address tokenB, uint liquidity) internal returns (uint) {
-        return action.execute(
-            abi.encode(tokenA, tokenB, liquidity, 0, 0, address(this), block.timestamp + 3600)
-        );
+        return action.execute(abi.encode(tokenA, tokenB, liquidity, 0, 0, address(this), block.timestamp + 3600));
     }
 
     receive() external payable {
         assertEq(msg.value, 999880756991001119);
     }
-
 }

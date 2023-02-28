@@ -18,14 +18,12 @@ import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecuto
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
 
-
 /**
  * This contract allows approved collection NFTs to be depoited into it to generate
  * additional vote reward boosting through the calculation of a multiplier.
  */
 
 contract NftStaking is INftStaking, Ownable, Pausable {
-
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
     mapping(address => address) public underlyingXTokenMapping;
@@ -111,7 +109,10 @@ contract NftStaking is INftStaking, Ownable, Pausable {
                 // Get the remaining power of the stake based on remaining epochs
                 if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
                     // Determine our staked sweep power by calculating our epoch discount
-                    stakedSweepPower = (((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000) * stakingEpochCount[userCollectionHash]) / 104;
+                    stakedSweepPower = (
+                        ((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000)
+                            * stakingEpochCount[userCollectionHash]
+                    ) / 104;
                     epochModifier = ((_epoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
 
                     // Add the staked sweep power to our collection total
@@ -162,7 +163,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
                 // Confirm that the PUNK belongs to the caller
                 bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
                 (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
-                require(success && abi.decode(result, (address)) == msg.sender, "Not the NFT owner");
+                require(success && abi.decode(result, (address)) == msg.sender, 'Not the NFT owner');
 
                 // Buy our PUNK for zero value
                 bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
@@ -170,12 +171,14 @@ contract NftStaking is INftStaking, Ownable, Pausable {
                 require(success, string(result));
 
                 // Approve the staking zap to buy for zero value
-                data = abi.encodeWithSignature("offerPunkForSaleToAddress(uint256,uint256,address)", _tokenId[i], 0, address(stakingZap));
+                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(stakingZap));
                 (success, result) = address(_collection).call(data);
                 require(success, string(result));
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Find the current value of the token
@@ -255,7 +258,9 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         unstakingZap.unstakeInventory(_getVaultId(_collection), numNfts, remainingPortionToUnstake);
 
         // Transfer our remaining portion to the user
-        IERC20(underlyingTokenMapping[_collection]).transfer(_nftReceiver, IERC20(underlyingTokenMapping[_collection]).balanceOf(address(this)));
+        IERC20(underlyingTokenMapping[_collection]).transfer(
+            _nftReceiver, IERC20(underlyingTokenMapping[_collection]).balanceOf(address(this))
+        );
 
         // After our NFTs have been unstaked, we want to make sure we delete the receiver
         delete _nftReceiver;
@@ -303,7 +308,6 @@ contract NftStaking is INftStaking, Ownable, Pausable {
 
         return tokens - ((tokens * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash]);
     }
-
 
     /**
      * Set our Vote Discount value to increase or decrease the amount of base value that
@@ -448,6 +452,4 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         }
         return this.onERC721Received.selector;
     }
-
 }
-

@@ -39,7 +39,6 @@ error SampleSizeCannotBeZero();
  * ..
  */
 contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
-
     /// ..
     struct CollectionVote {
         uint power;
@@ -51,7 +50,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     uint internal epochIteration;
 
     // Store a mapping of the collection address to our `CollectionVote` struct
-    mapping (address => CollectionVote) collectionVotes;
+    mapping(address => CollectionVote) collectionVotes;
 
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
@@ -95,7 +94,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @param _veFloor Address of our {veFLOOR}
      * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority, address _treasury) AuthorityControl(_authority) {
+    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority, address _treasury)
+        AuthorityControl(_authority)
+    {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         vaultFactory = IVaultFactory(_vaultFactory);
         veFloor = VeFloorStaking(_veFloor);
@@ -273,7 +274,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 collectionVotes[_collections[i]] = collectionVote;
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -340,7 +343,9 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
 
             // emit SweepAmountAllocated(collections[i], amounts[i]);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Update the snapshot time made
@@ -461,5 +466,4 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         require(msg.sender == address(collectionRegistry), 'Caller not CollectionRegistry');
         approvedCollections.push(_collection);
     }
-
 }

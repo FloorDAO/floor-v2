@@ -9,9 +9,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
-
 contract LlamaPayCreateStreamTest is FloorTest {
-
     // Store our recipient test user
     address alice;
     address bob;
@@ -60,10 +58,10 @@ contract LlamaPayCreateStreamTest is FloorTest {
         // Action our stream creation with deposit
         uint payerBalance = action.execute(
             abi.encode(
-                alice,                   // to
-                WETH,                    // token
-                uint216(amount / 3600),  // amountPerSec
-                amount                   // amountToDeposit
+                alice, // to
+                WETH, // token
+                uint216(amount / 3600), // amountPerSec
+                amount // amountToDeposit
             )
         );
 
@@ -89,5 +87,4 @@ contract LlamaPayCreateStreamTest is FloorTest {
         vm.expectRevert();
         action.execute(abi.encode(alice, WETH, uint216(1), 1 ether));
     }
-
 }

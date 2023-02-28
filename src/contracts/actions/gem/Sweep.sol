@@ -11,7 +11,6 @@ import {IAction} from '../../../interfaces/actions/Action.sol';
 /// If Gem prevents our sweep from being successful
 error UnableToSweepGem();
 
-
 /**
  * @notice Allows sweeping from Gem.xyz to facilitate the purchasing and immediate
  * staking of ERC721s.
@@ -19,7 +18,6 @@ error UnableToSweepGem();
  * @author Twade
  */
 contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
-
     /// Internal store of GemSwap contract
     address GEM_SWAP;
 
@@ -31,7 +29,7 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
      */
     function execute(bytes calldata _request) public payable returns (uint spent) {
         // Sweeps from GemSwap
-        (bool success, ) = payable(GEM_SWAP).call{value: msg.value}(_request);
+        (bool success,) = payable(GEM_SWAP).call{value: msg.value}(_request);
         if (!success) revert UnableToSweepGem();
 
         // Emit the amount of ETH used to sweep
@@ -54,7 +52,11 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
     /**
      * ..
      */
-    function onERC721Received(address /* operator */, address /* from */, uint256 /* tokenId */, bytes calldata /* data */) external pure returns (bytes4) {
+    function onERC721Received(address, /* operator */ address, /* from */ uint, /* tokenId */ bytes calldata /* data */ )
+        external
+        pure
+        returns (bytes4)
+    {
         return IERC721Receiver.onERC721Received.selector;
     }
 
@@ -64,5 +66,4 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
     receive() external payable {
         //
     }
-
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./GPv2Order.sol";
+import './GPv2Order.sol';
 
 /// @title CoW Swap Onchain Order Creator Interface
 /// @author CoW Swap Developers
@@ -36,10 +36,5 @@ interface ICoWSwapOnchainOrders {
     /// information that is not included in the order data so that it can be passed along when decoding an onchain
     /// order. As an example, a contract that creates orders on behalf of a user could set a different expiration date
     /// than the one specified in the order.
-    event OrderPlacement(
-        address indexed sender,
-        GPv2Order.Data order,
-        OnchainSignature signature,
-        bytes data
-    );
+    event OrderPlacement(address indexed sender, GPv2Order.Data order, OnchainSignature signature, bytes data);
 }

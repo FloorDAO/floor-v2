@@ -5,12 +5,11 @@ pragma solidity ^0.8.0;
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import '../../../src/contracts/actions/uniswap/AddLiquidity.sol';
-import { IWETH } from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 
 import '../../utilities/Environments.sol';
 
 contract UniswapAddLiquidityTest is FloorTest {
-
     /// ..
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 
@@ -78,5 +77,4 @@ contract UniswapAddLiquidityTest is FloorTest {
 
         vm.stopPrank();
     }
-
 }

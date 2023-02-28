@@ -9,7 +9,6 @@ import {WrapEth} from '../../../src/contracts/actions/utils/WrapEth.sol';
 import '../../utilities/Environments.sol';
 
 contract WrapEthTest is FloorTest {
-
     // Store our action contract
     WrapEth action;
 
@@ -63,5 +62,4 @@ contract WrapEthTest is FloorTest {
         vm.expectRevert();
         action.execute{value: amount}('');
     }
-
 }

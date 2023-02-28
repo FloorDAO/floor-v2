@@ -2,10 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
-import { IWETH } from '../../interfaces/tokens/WETH.sol';
-
+import {IWETH} from '../../interfaces/tokens/WETH.sol';
 
 library TokenUtils {
     using SafeERC20 for IERC20;
@@ -16,11 +15,7 @@ library TokenUtils {
     address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant ETH_ADDR = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    function approveToken(
-        address _tokenAddr,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function approveToken(address _tokenAddr, address _to, uint _amount) internal {
         if (_tokenAddr == ETH_ADDR) return;
 
         if (IERC20(_tokenAddr).allowance(address(this), _to) < _amount) {
@@ -28,13 +23,9 @@ library TokenUtils {
         }
     }
 
-    function pullTokensIfNeeded(
-        address _token,
-        address _from,
-        uint256 _amount
-    ) internal returns (uint256) {
+    function pullTokensIfNeeded(address _token, address _from, uint _amount) internal returns (uint) {
         // handle max uint amount
-        if (_amount == type(uint256).max) {
+        if (_amount == type(uint).max) {
             _amount = getBalance(_token, _from);
         }
 
@@ -45,12 +36,8 @@ library TokenUtils {
         return _amount;
     }
 
-    function withdrawTokens(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) internal returns (uint256) {
-        if (_amount == type(uint256).max) {
+    function withdrawTokens(address _token, address _to, uint _amount) internal returns (uint) {
+        if (_amount == type(uint).max) {
             _amount = getBalance(_token, address(this));
         }
 
@@ -58,23 +45,23 @@ library TokenUtils {
             if (_token != ETH_ADDR) {
                 IERC20(_token).safeTransfer(_to, _amount);
             } else {
-                (bool success, ) = _to.call{value: _amount}("");
-                require(success, "Eth send fail");
+                (bool success,) = _to.call{value: _amount}('');
+                require(success, 'Eth send fail');
             }
         }
 
         return _amount;
     }
 
-    function depositWeth(uint256 _amount) internal {
+    function depositWeth(uint _amount) internal {
         IWETH(WETH_ADDR).deposit{value: _amount}();
     }
 
-    function withdrawWeth(uint256 _amount) internal {
+    function withdrawWeth(uint _amount) internal {
         IWETH(WETH_ADDR).withdraw(_amount);
     }
 
-    function getBalance(address _tokenAddr, address _acc) internal view returns (uint256) {
+    function getBalance(address _tokenAddr, address _acc) internal view returns (uint) {
         if (_tokenAddr == ETH_ADDR) {
             return _acc.balance;
         } else {

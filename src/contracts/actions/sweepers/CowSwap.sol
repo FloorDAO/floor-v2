@@ -2,40 +2,39 @@
 
 pragma solidity ^0.8.0;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
 
-import { ISweeper } from '../../../interfaces/actions/Sweeper.sol';
-import { ICoWSwapSettlement } from "../../../interfaces/cowswap/CoWSwapSettlement.sol";
-import { GPv2Order } from "../../../interfaces/cowswap/GPv2Order.sol";
-import { ICoWSwapOnchainOrders } from "../../../interfaces/cowswap/CoWSwapOnchainOrders.sol";
-import { IWETH } from '../../../interfaces/tokens/WETH.sol';
+import {ISweeper} from '../../../interfaces/actions/Sweeper.sol';
+import {ICoWSwapSettlement} from '../../../interfaces/cowswap/CoWSwapSettlement.sol';
+import {GPv2Order} from '../../../interfaces/cowswap/GPv2Order.sol';
+import {ICoWSwapOnchainOrders} from '../../../interfaces/cowswap/CoWSwapOnchainOrders.sol';
+import {IWETH} from '../../../interfaces/tokens/WETH.sol';
 
 /// https://github.com/nlordell/dappcon-2022-smart-orders
 contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
-
     using GPv2Order for *;
 
     struct Data {
         IERC20 sellToken;
         IERC20 buyToken;
         address receiver;
-        uint256 sellAmount;
-        uint256 buyAmount;
+        uint sellAmount;
+        uint buyAmount;
         uint32 validFrom;
         uint32 validTo;
-        uint256 feeAmount;
+        uint feeAmount;
         bytes meta;
     }
 
-    bytes32 constant public APP_DATA = keccak256('smart orders are cool');
+    bytes32 public constant APP_DATA = keccak256('smart orders are cool');
 
-    ICoWSwapSettlement immutable public settlement;
-    bytes32 immutable public domainSeparator;
+    ICoWSwapSettlement public immutable settlement;
+    bytes32 public immutable domainSeparator;
 
-    IWETH immutable public weth;
+    IWETH public immutable weth;
 
-    address immutable public treasury;
+    address public immutable treasury;
 
     constructor(address settlement_, address weth_, address treasury_) {
         settlement = ICoWSwapSettlement(settlement_);
@@ -44,7 +43,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         weth = IWETH(weth_);
     }
 
-    function execute(address[] memory collections, uint[] memory amounts) external override payable returns (bytes memory orderUid) {
+    function execute(address[] memory collections, uint[] memory amounts) external payable override returns (bytes memory orderUid) {
         // Wrap out msg.value into WETH
         weth.deposit{value: msg.value}();
 
@@ -75,16 +74,9 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
                 settlement
             );
 
-            order.sellToken.transferFrom(
-                address(this),
-                address(instance),
-                order.sellAmount + order.feeAmount
-            );
+            order.sellToken.transferFrom(address(this), address(instance), order.sellAmount + order.feeAmount);
 
-            OnchainSignature memory signature = OnchainSignature({
-                scheme: OnchainSigningScheme.Eip1271,
-                data: hex""
-            });
+            OnchainSignature memory signature = OnchainSignature({scheme: OnchainSigningScheme.Eip1271, data: hex''});
 
             emit OrderPlacement(address(instance), order, signature, ''); // TODO: 4th param is meta?
 
@@ -92,43 +84,32 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
             orderUid.packOrderUidParams(orderHash, address(instance), order.validTo);
         }
     }
-
 }
 
 contract GATOrder is IERC1271 {
-
-    address immutable public owner;
-    IERC20 immutable public sellToken;
-    uint32 immutable public validFrom;
+    address public immutable owner;
+    IERC20 public immutable sellToken;
+    uint32 public immutable validFrom;
 
     bytes32 public orderHash;
 
-    constructor(
-        address owner_,
-        IERC20 sellToken_,
-        uint32 validFrom_,
-        bytes32 orderHash_,
-        ICoWSwapSettlement settlement
-    ) {
+    constructor(address owner_, IERC20 sellToken_, uint32 validFrom_, bytes32 orderHash_, ICoWSwapSettlement settlement) {
         owner = owner_;
         sellToken = sellToken_;
         validFrom = validFrom_;
         orderHash = orderHash_;
 
-        sellToken_.approve(settlement.vaultRelayer(), type(uint256).max);
+        sellToken_.approve(settlement.vaultRelayer(), type(uint).max);
     }
 
-    function isValidSignature(
-        bytes32 hash,
-        bytes calldata
-    ) external view returns (bytes4 magicValue) {
-        require(hash == orderHash, "invalid order");
-        require(block.timestamp >= validFrom, "not mature");
-        magicValue = 0x1626ba7e;  // ERC1271_MAGIC_VALUE
+    function isValidSignature(bytes32 hash, bytes calldata) external view returns (bytes4 magicValue) {
+        require(hash == orderHash, 'invalid order');
+        require(block.timestamp >= validFrom, 'not mature');
+        magicValue = 0x1626ba7e; // ERC1271_MAGIC_VALUE
     }
 
     function cancel() public {
-        require(msg.sender == owner, "not the owner");
+        require(msg.sender == owner, 'not the owner');
         orderHash = bytes32(0);
         sellToken.transfer(owner, sellToken.balanceOf(address(this)));
     }

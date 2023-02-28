@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 interface IVoteMarket {
-
     /// @notice Bribe struct requirements.
     struct Bribe {
         // ID of the bribe
@@ -13,13 +12,13 @@ interface IVoteMarket {
         // Address of the ERC20 used for rewards.
         address rewardToken;
         // The first epoch at which the bribe reward is claimable.
-        uint256 startEpoch;
+        uint startEpoch;
         // Number of periods.
         uint8 numberOfEpochs;
         // Max Price per vote.
-        uint256 maxRewardPerVote;
+        uint maxRewardPerVote;
         // Total Reward Added.
-        uint256 totalRewardAmount;
+        uint totalRewardAmount;
         // Blacklisted addresses.
         address[] blacklist;
     }
@@ -66,10 +65,10 @@ interface IVoteMarket {
         address collection,
         address rewardToken,
         uint8 numberOfEpochs,
-        uint256 maxRewardPerVote,
-        uint256 totalRewardAmount,
+        uint maxRewardPerVote,
+        uint totalRewardAmount,
         address[] calldata blacklist
-    ) external returns (uint256 newBribeID);
+    ) external returns (uint newBribeID);
 
     function claim(
         address account,
@@ -95,5 +94,4 @@ interface IVoteMarket {
     function setOracleWallet(address _oracleWallet) external;
 
     function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external;
-
 }

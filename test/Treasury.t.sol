@@ -714,7 +714,9 @@ contract TreasuryTest is FloorTest {
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
-        vm.mockCall(address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max));
+        vm.mockCall(
+            address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max)
+        );
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
@@ -748,15 +750,10 @@ contract TreasuryTest is FloorTest {
         // We can now confirm the distribution of ETH going to the top collections by
         // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
         // are not included in read attempts as we cannot get the information accurately.
-        (
-            uint allocationBlock,
-            uint sweepBlock,
-            bool completed
-        ) = treasury.epochSweeps(treasury.epochIteration());
+        (uint allocationBlock, uint sweepBlock, bool completed) = treasury.epochSweeps(treasury.epochIteration());
 
         assertEq(allocationBlock, block.number);
         assertEq(sweepBlock, 0);
         assertEq(completed, false);
     }
-
 }

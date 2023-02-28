@@ -31,7 +31,7 @@ contract NFTXLiquidityStakingStrategyTest is FloorTest {
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _pool
                 0x0463a06fBc8bF28b3F120cd1BfC59483F099d332, // _underlyingToken
                 0xFB2f1C0e0086Bcef24757C3b9bfE91585b1A280f, // _yieldToken
-                0x688c3E4658B5367da06fd629E41879beaB538E37  // _liquidityStaking
+                0x688c3E4658B5367da06fd629E41879beaB538E37 // _liquidityStaking
             )
         );
     }

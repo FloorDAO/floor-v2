@@ -75,13 +75,10 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      * @param _strategy The strategy implemented by the vault
      * @param _vaultFactory The address of the {VaultFactory} that created the vault
      */
-    function initialize(
-        string memory _name,
-        uint _vaultId,
-        address _collection,
-        address _strategy,
-        address _vaultFactory
-    ) public initializer {
+    function initialize(string memory _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory)
+        public
+        initializer
+    {
         __Ownable_init();
         __Pausable_init();
 
@@ -198,7 +195,8 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      * @param _p Boolean value for if the vault should be paused
      */
     function pause(bool _p) external onlyOwner {
-        if (_p) { _pause(); } else { _unpause(); }
+        if (_p) _pause();
+        else _unpause();
     }
 
     /**

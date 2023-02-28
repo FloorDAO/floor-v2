@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV2Router01} from "../../../interfaces/uniswap/IUniswapV2Router01.sol";
+import {IUniswapV2Router01} from '../../../interfaces/uniswap/IUniswapV2Router01.sol';
 
-import {TokenUtils} from "../../utils/TokenUtils.sol";
+import {TokenUtils} from '../../utils/TokenUtils.sol';
 
 /**
  * ..
@@ -18,7 +18,6 @@ import {TokenUtils} from "../../utils/TokenUtils.sol";
  * @author Twade
  */
 contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
-
     using TokenUtils for address;
 
     struct ActionRequest {
@@ -41,7 +40,7 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    constructor (address _uniswapRouter) {
+    constructor(address _uniswapRouter) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
     }
 
@@ -70,13 +69,8 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
         // Update our desired amounts based on the amount pulled
         request.amountADesired = amountAPulled;
 
-        (uint amountA, , uint liquidity) = uniswapRouter.addLiquidityETH{value: msg.value}(
-            request.tokenA,
-            request.amountADesired,
-            request.amountAMin,
-            request.amountBMin,
-            request.to,
-            request.deadline
+        (uint amountA,, uint liquidity) = uniswapRouter.addLiquidityETH{value: msg.value}(
+            request.tokenA, request.amountADesired, request.amountAMin, request.amountBMin, request.to, request.deadline
         );
 
         // Send leftovers
@@ -84,8 +78,8 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
 
         // Return any left over eth dust
         if (payable(address(this)).balance != 0) {
-            (bool sent, ) = msg.sender.call{value: payable(address(this)).balance}("");
-            require(sent, "Failed to refund Ether dust");
+            (bool sent,) = msg.sender.call{value: payable(address(this)).balance}('');
+            require(sent, 'Failed to refund Ether dust');
         }
 
         return liquidity;
@@ -126,5 +120,4 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
      * ..
      */
     receive() external payable {}
-
 }

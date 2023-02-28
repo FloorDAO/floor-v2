@@ -33,9 +33,13 @@ error NoPricingExecutorSet();
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
-
     /// ..
-    enum ApprovalType { NATIVE, ERC20, ERC721, ERC1155 }
+    enum ApprovalType {
+        NATIVE,
+        ERC20,
+        ERC721,
+        ERC1155
+    }
 
     /**
      * ..
@@ -49,16 +53,16 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /// An array of sweeps that map against the epoch iteration
-    mapping (uint => Sweep) public epochSweeps;
+    mapping(uint => Sweep) public epochSweeps;
 
     /**
      * ..
      */
     struct ActionApproval {
-        ApprovalType _type;  // Token type
-        address assetContract;  // Used by 20, 721 and 1155
-        uint tokenId;  // Used by 721 tokens
-        uint amount;  // Used by native and 20 tokens
+        ApprovalType _type; // Token type
+        address assetContract; // Used by 20, 721 and 1155
+        uint tokenId; // Used by 721 tokens
+        uint amount; // Used by native and 20 tokens
     }
 
     /// Store when last epoch was run so that we can timelock usage
@@ -238,13 +242,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
 
             // Now that we have the results of the snapshot we can register them against our
             // pending sweeps.
-            epochSweeps[epochIteration] = Sweep({
-                collections: collections,
-                amounts: amounts,
-                allocationBlock: block.number,
-                sweepBlock: 0,
-                completed: false
-            });
+            epochSweeps[epochIteration] =
+                Sweep({collections: collections, amounts: amounts, allocationBlock: block.number, sweepBlock: 0, completed: false});
         }
 
         // emit EpochEnded(lastEpoch);
@@ -453,23 +452,25 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address payable action, ActionApproval[] memory approvals, bytes memory data) external onlyRole(TREASURY_MANAGER) {
+    function processAction(address payable action, ActionApproval[] memory approvals, bytes memory data)
+        external
+        onlyRole(TREASURY_MANAGER)
+    {
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == ApprovalType.NATIVE) {
                 (bool sent,) = payable(action).call{value: approvals[i].amount}('');
                 require(sent, 'Unable to fund action');
-            }
-            else if (approvals[i]._type == ApprovalType.ERC20) {
+            } else if (approvals[i]._type == ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
-            }
-            else if (approvals[i]._type == ApprovalType.ERC721) {
+            } else if (approvals[i]._type == ApprovalType.ERC721) {
                 IERC721(approvals[i].assetContract).approve(action, approvals[i].tokenId);
-            }
-            else if (approvals[i]._type == ApprovalType.ERC1155) {
+            } else if (approvals[i]._type == ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(action, true);
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         IAction(action).execute(data);

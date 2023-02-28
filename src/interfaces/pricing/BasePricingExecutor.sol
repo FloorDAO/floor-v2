@@ -49,5 +49,4 @@ interface IBasePricingExecutor {
      * ..
      */
     function getLiquidity(address token) external returns (uint);
-
 }

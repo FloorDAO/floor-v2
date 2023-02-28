@@ -34,13 +34,13 @@ contract SendEth is IAction {
         require(msg.value >= request.amount, 'Insufficient msg.value');
 
         // Transfer ETH to the {Treasury}
-        (bool success, ) = request.recipient.call{value: request.amount}('');
+        (bool success,) = request.recipient.call{value: request.amount}('');
         require(success, 'Eth send fail');
 
         // If we have any ETH remaining in the contract we can return it to the sender
         unchecked {
             if (msg.value - request.amount != 0) {
-                (success, ) = msg.sender.call{value: msg.value - request.amount}('');
+                (success,) = msg.sender.call{value: msg.value - request.amount}('');
                 require(success, 'Eth send fail');
             }
         }
@@ -49,5 +49,4 @@ contract SendEth is IAction {
         // already been transferred to the {Treasury}.
         return request.amount;
     }
-
 }

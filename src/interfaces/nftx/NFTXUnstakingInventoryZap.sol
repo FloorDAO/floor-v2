@@ -2,10 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-
 interface INFTXUnstakingInventoryZap {
+    function unstakeInventory(uint vaultId, uint numNfts, uint remainingPortionToUnstake) external payable;
 
-    function unstakeInventory(uint256 vaultId, uint256 numNfts, uint256 remainingPortionToUnstake) external payable;
-
-    function maxNftsUsingXToken(uint256 vaultId, address staker, address slpToken) external returns (uint256 numNfts, bool shortByTinyAmount);
+    function maxNftsUsingXToken(uint vaultId, address staker, address slpToken) external returns (uint numNfts, bool shortByTinyAmount);
 }
