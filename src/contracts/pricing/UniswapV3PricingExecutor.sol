@@ -183,7 +183,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * ..
      */
-    function getLiquidity(address token) external view returns (uint) {
+    function getLiquidity(address token) external returns (uint) {
         return IUniswapV3Pool(_poolAddress(token)).liquidity();
     }
 

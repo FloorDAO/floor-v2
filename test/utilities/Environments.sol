@@ -18,7 +18,13 @@ contract FloorTest is Test {
     Utilities utilities;
     address payable[] users;
 
+    /// Store our deployer address
     address constant DEPLOYER = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+
+    /// Store an underlying token that has sufficient liquidity in Uniswap. Most tests will
+    /// use the mocked pricing executor which will automatically pass, or it won't be set
+    /// in the collection registry so it will be bypassed, but this is just easier.
+    address constant SUFFICIENT_LIQUIDITY_COLLECTION = 0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3;
 
     constructor() {
         // Set up our utilities class

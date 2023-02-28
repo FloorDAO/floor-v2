@@ -2,9 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
+import '@floor/collections/CollectionRegistry.sol';
 
 import '../mocks/GaugeWeightVote.sol';
+import '../mocks/PricingExecutor.sol';
+
 import '../utilities/Environments.sol';
 
 contract CollectionRegistryTest is FloorTest {
@@ -49,7 +51,7 @@ contract CollectionRegistryTest is FloorTest {
      * call `approveCollection` before we can check.
      */
     function test_IsApproved() public {
-        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
         assertTrue(collectionRegistry.isApproved(USDC));
     }
 
@@ -76,7 +78,7 @@ contract CollectionRegistryTest is FloorTest {
         emit CollectionApproved(DAI);
 
         // Approve the DAI collection
-        collectionRegistry.approveCollection(DAI);
+        collectionRegistry.approveCollection(DAI, SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
@@ -90,7 +92,7 @@ contract CollectionRegistryTest is FloorTest {
      */
     function test_ApproveNullAddressCollection() public {
         vm.expectRevert(CannotApproveNullCollection.selector);
-        collectionRegistry.approveCollection(address(0));
+        collectionRegistry.approveCollection(address(0), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
     /**
@@ -100,8 +102,8 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveAlreadyApprovedCollection() public {
-        collectionRegistry.approveCollection(USDC);
-        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
     /**
@@ -113,6 +115,33 @@ contract CollectionRegistryTest is FloorTest {
      */
     function testFail_CannotApproveCollectionWithoutPermissions() public {
         vm.prank(alice);
-        collectionRegistry.approveCollection(USDC);
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+    }
+
+    /**
+     * When a collection is approved, if a {PricingExecutor} has been set
+     * then we should be validating the liquidity returned by the executor
+     * before approving it. This liquidity threshold is set on the contract.
+     */
+    function test_LiquidityIsValidatedOnCollectionApproval() public {
+        // Set our mock pricing executor
+        collectionRegistry.setPricingExecutor(address(new PricingExecutorMock()));
+
+        // Set our threshold above the mock's returned amount
+        collectionRegistry.setCollectionLiquidityThreshold(1 ether + 1);
+        vm.expectRevert();
+        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        // Set our threshold to equal the same amount
+        collectionRegistry.setCollectionLiquidityThreshold(1 ether);
+        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        // Set our threshold below the returned amount
+        collectionRegistry.setCollectionLiquidityThreshold(1 ether - 1);
+        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        // Set our threshold to zero
+        collectionRegistry.setCollectionLiquidityThreshold(0);
+        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 }

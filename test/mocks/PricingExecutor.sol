@@ -86,7 +86,7 @@ contract PricingExecutorMock is IBasePricingExecutor {
         return _getPrice(token);
     }
 
-    function getLiquidity(address token) external pure returns (uint) {
+    function getLiquidity(address /* token */) external pure returns (uint) {
         return 1 ether;
     }
 

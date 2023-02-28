@@ -58,7 +58,7 @@ contract VaultTest is FloorTest {
         collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
 
         // Approve our test collection
-        collectionRegistry.approveCollection(0x269616D549D7e8Eaa82DFb17028d0B212D11232A);
+        collectionRegistry.approveCollection(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Deploy our vault implementation
         address vaultImplementation = address(new Vault());

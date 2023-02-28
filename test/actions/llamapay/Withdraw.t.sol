@@ -57,11 +57,11 @@ contract LlamaPayWithdrawTest is FloorTest {
         action.execute(abi.encode(WETH, amount));
     }
 
-    function test_CannotWithdrawMoreThanAvailable(uint amount) external {
-        vm.assume(amount > 5 ether);
-
-        vm.expectRevert();
-        action.execute(abi.encode(WETH, amount));
+    function test_CannotWithdrawMoreThanAvailable() external {
+        // We can request to withdraw more than our limit, but it just won't
+        // action it. Our payer balance will still be as before.
+        uint payerBalance = action.execute(abi.encode(WETH, 100 ether));
+        assertFalse(payerBalance == 0);
     }
 
     function test_CanWithdrawZeroAmountToGetAll() external {

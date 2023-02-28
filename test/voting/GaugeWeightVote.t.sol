@@ -104,9 +104,9 @@ contract GaugeWeightVoteTest is FloorTest {
         strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1);
-        collectionRegistry.approveCollection(approvedCollection2);
-        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);

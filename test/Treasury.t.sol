@@ -104,7 +104,7 @@ contract TreasuryTest is FloorTest {
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        collectionRegistry.approveCollection(approvedCollection);
+        collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Create our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
@@ -565,10 +565,10 @@ contract TreasuryTest is FloorTest {
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Set test addresses as approved collections
-        collectionRegistry.approveCollection(address(1));
-        collectionRegistry.approveCollection(address(2));
-        collectionRegistry.approveCollection(address(3));
-        collectionRegistry.approveCollection(address(4));
+        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Our pricing executor Mock has preset address -> uint mapping for
         // the price. So we can at first expect 0 prices, but then after our
@@ -635,10 +635,10 @@ contract TreasuryTest is FloorTest {
         treasury.setPricingExecutor(address(pricingExecutorMock));
 
         // Approve our vault collections
-        collectionRegistry.approveCollection(address(1));
-        collectionRegistry.approveCollection(address(2));
-        collectionRegistry.approveCollection(address(3));
-        collectionRegistry.approveCollection(address(4));
+        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
@@ -725,7 +725,7 @@ contract TreasuryTest is FloorTest {
         for (uint i; i < vaultCount; ++i) {
             // Approve a unique collection
             address collection = address(uint160(uint(vaultCount + i)));
-            collectionRegistry.approveCollection(collection);
+            collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
             // Deploy our vault
             (, vaults[i]) = vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);

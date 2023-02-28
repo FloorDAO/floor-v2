@@ -218,4 +218,11 @@ contract UniswapV3PricingExecutorTest is FloorTest {
 
         assertEq(prices[0], X2Y2_FLOOR_PRICE);
     }
+
+    /**
+     * We should be able to query the liquidity of a pool.
+     */
+    function test_CanGetTheLiquidityOfAPool() public {
+        assertEq(executor.getLiquidity(X2Y2), 3178044990375732629394);
+    }
 }

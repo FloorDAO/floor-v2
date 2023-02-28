@@ -87,7 +87,9 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         // If we haven't already got this collection added, then store it internally
         if (!collections[contractAddr]) {
             // Validate the liquidity of the collection before we can add it
-            require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
+            if (address(pricingExecutor) != address(0)) {
+                require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
+            }
 
             // Approve our collection
             collections[contractAddr] = true;
