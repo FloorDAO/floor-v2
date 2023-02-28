@@ -7,20 +7,20 @@ import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
 
-import {AuthorityControl} from './authorities/AuthorityControl.sol';
-import {FLOOR} from './tokens/Floor.sol';
-import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from './utils/Errors.sol';
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
+import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from '@floor/utils/Errors.sol';
 
-import {IAction} from '../interfaces/actions/Action.sol';
-import {ISweeper} from '../interfaces/actions/Sweeper.sol';
-import {ICollectionRegistry} from '../interfaces/collections/CollectionRegistry.sol';
-import {IBasePricingExecutor} from '../interfaces/pricing/BasePricingExecutor.sol';
-import {IBaseStrategy} from '../interfaces/strategies/BaseStrategy.sol';
-import {IStrategyRegistry} from '../interfaces/strategies/StrategyRegistry.sol';
-import {IVault} from '../interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '../interfaces/vaults/VaultFactory.sol';
-import {IGaugeWeightVote} from '../interfaces/voting/GaugeWeightVote.sol';
-import {ITreasury} from '../interfaces/Treasury.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
+import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
+import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
+import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
+import {IVault} from '@floor-interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
+import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /// If the epoch is currently timelocked and insufficient time has passed.
 /// @param timelockExpiry The timestamp at which the epoch can next be run

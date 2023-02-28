@@ -181,6 +181,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
+     * ..
+     */
+    function getLiquidity(address token) external view returns (uint) {
+        return IUniswapV3Pool(_poolAddress(token)).liquidity();
+    }
+
+    /**
      * This helper function allows us to return the amount of FLOOR a user would receive
      * for 1 token, returned in the decimal accuracy of the FLOOR token.
      *

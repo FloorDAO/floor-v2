@@ -30,5 +30,5 @@ interface ICollectionRegistry {
     /**
      * Approves a collection contract to be used for vaults.
      */
-    function approveCollection(address contractAddr) external;
+    function approveCollection(address contractAddr, address underlyingToken) external;
 }

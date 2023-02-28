@@ -45,4 +45,9 @@ interface IBasePricingExecutor {
      */
     function getLatestFloorPrice(address token) external view returns (uint);
 
+    /**
+     * ..
+     */
+    function getLiquidity(address token) external returns (uint);
+
 }

@@ -86,6 +86,10 @@ contract PricingExecutorMock is IBasePricingExecutor {
         return _getPrice(token);
     }
 
+    function getLiquidity(address token) external pure returns (uint) {
+        return 1 ether;
+    }
+
     /**
      * This helper function allows us to return the amount of tokens a user would receive
      * for 1 FLOOR token, returned in the decimal accuracy of the base token.

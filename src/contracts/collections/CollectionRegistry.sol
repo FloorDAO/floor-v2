@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {AuthorityControl} from '../authorities/AuthorityControl.sol';
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
-import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
-import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
+import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
+import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 
 /// If a zero address strategy tries to be approved
 error CannotApproveNullCollection();
@@ -25,7 +26,14 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
     /// Maintains a contract mapping to our gaugeWeightVote contract to allow us
     /// to keep a sync of approved collections for gas saving.
-    IGaugeWeightVote gaugeWeightVote;
+    IGaugeWeightVote public gaugeWeightVote;
+
+    /// ..
+    IBasePricingExecutor public pricingExecutor;
+
+    /// Stores a minimum liquidity threshold that is enforced before a collection can
+    /// be approved.
+    uint public liquidityThreshold;
 
     /**
      * Sets up our contract with our authority control to restrict access to
@@ -66,9 +74,9 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      *
      * @param contractAddr Address of unapproved collection
      */
-    function approveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
+    function approveCollection(address contractAddr, address underlyingToken) external onlyRole(COLLECTION_MANAGER) {
         // Prevent a null contract being added
-        if (contractAddr == address(0)) {
+        if (contractAddr == address(0) || underlyingToken == address(0)) {
             revert CannotApproveNullCollection();
         }
 
@@ -78,6 +86,10 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
         // If we haven't already got this collection added, then store it internally
         if (!collections[contractAddr]) {
+            // Validate the liquidity of the collection before we can add it
+            require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
+
+            // Approve our collection
             collections[contractAddr] = true;
             _approvedCollections.push(contractAddr);
             emit CollectionApproved(contractAddr);
@@ -93,5 +105,19 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      */
     function setGaugeWeightVoteContract(address _gaugeWeightVote) external onlyRole(COLLECTION_MANAGER) {
         gaugeWeightVote = IGaugeWeightVote(_gaugeWeightVote);
+    }
+
+    /**
+     * ..
+     */
+    function setPricingExecutor(address _pricingExecutor) external onlyRole(COLLECTION_MANAGER) {
+        pricingExecutor = IBasePricingExecutor(_pricingExecutor);
+    }
+
+    /**
+     * ..
+     */
+    function setCollectionLiquidityThreshold(uint _liquidityThreshold) external onlyRole(COLLECTION_MANAGER) {
+        liquidityThreshold = _liquidityThreshold;
     }
 }
