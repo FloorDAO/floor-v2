@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
-import '../../../src/contracts/actions/gem/Sweep.sol';
+import {GemSweep} from '@floor/actions/gem/Sweep.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract GemSweepTest is FloorTest {
 

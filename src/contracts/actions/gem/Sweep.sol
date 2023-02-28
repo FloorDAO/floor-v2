@@ -51,8 +51,18 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
         GEM_SWAP = _gemSwap;
     }
 
+    /**
+     * ..
+     */
     function onERC721Received(address /* operator */, address /* from */, uint256 /* tokenId */, bytes calldata /* data */) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    /**
+     * ..
+     */
+    receive() external payable {
+        //
     }
 
 }
