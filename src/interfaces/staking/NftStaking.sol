@@ -27,6 +27,8 @@ interface INftStaking {
 
     function unstake(address _collection) external;
 
+    function unstakeFees(address _collection) external returns (uint);
+
     function setVoteDiscount(uint _voteDiscount) external;
 
     function setSweepModifier(uint _sweepModifier) external;

@@ -227,7 +227,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // our returned value. We can then divide this by `1 ether` to find the number of whole
         // tokens that can be withdrawn. This will leave the `remainingPortionToUnstake` with just
         // the dust allocation.
-        uint remainingPortionToUnstake = (userTokensStaked[userCollectionHash] * 1 ether) - this.unstakeFees(_collection);
+        uint remainingPortionToUnstake = (userTokensStaked[userCollectionHash] * 1 ether) - _unstakeFees(_collection, msg.sender);
 
         // We can now iterate over our whole tokens to determine the number of full ERC721s we can
         // withdraw, and how much will be left as ERC20.
@@ -274,12 +274,16 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // emit TokensUnStaked(msg.sender, _tokenId, tokenValue);
     }
 
+    function unstakeFees(address _collection) external view returns (uint) {
+        return _unstakeFees(_collection, msg.sender);
+    }
+
     /**
      * ..
      */
-    function unstakeFees(address _collection) external view returns (uint) {
+    function _unstakeFees(address _collection, address _sender) internal view returns (uint) {
         // Get our user collection hash
-        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
+        bytes32 userCollectionHash = keccak256(abi.encode(_sender, _collection));
 
         // If we are waiving fees, then nothing to pay
         if (waiveUnstakeFees) {
@@ -287,7 +291,8 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         }
 
         // If the user has no tokens staked, then no fees
-        if (userTokensStaked[userCollectionHash] == 0) {
+        uint tokens = userTokensStaked[userCollectionHash] * 1 ether;
+        if (tokens == 0) {
             return 0;
         }
 
@@ -296,7 +301,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
             return 0;
         }
 
-        return ((userTokensStaked[userCollectionHash] * 1 ether) * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash];
+        return tokens - ((tokens * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash]);
     }
 
 
