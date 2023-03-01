@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/tokens/Floor.sol';
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract FloorTokenTest is FloorTest {
     // Store some test users

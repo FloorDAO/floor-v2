@@ -6,7 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /// If Gem prevents our sweep from being successful
 error UnableToSweepGem();

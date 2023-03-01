@@ -8,13 +8,13 @@ import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 import {CollectionNotApproved} from '../utils/Errors.sol';
 import {VeFloorStaking} from '../staking/VeFloorStaking.sol';
 
-import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
+import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
-import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
-import {IVault} from '../../interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
-import {IGaugeWeightVote} from '../../interfaces/voting/GaugeWeightVote.sol';
-import {ITreasury} from '../../interfaces/Treasury.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
+import {IVault} from '@floor-interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
+import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /// If a vote with a zero amount is sent
 error CannotVoteWithZeroAmount();

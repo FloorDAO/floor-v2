@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
-import {UniswapRemoveLiquidity} from '../../../src/contracts/actions/uniswap/RemoveLiquidity.sol';
+import {UniswapRemoveLiquidity} from '@floor/actions/uniswap/RemoveLiquidity.sol';
 import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';

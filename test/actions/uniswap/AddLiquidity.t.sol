@@ -2,12 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '../../../src/contracts/actions/uniswap/AddLiquidity.sol';
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
 
-import '../../utilities/Environments.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
+
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract UniswapAddLiquidityTest is FloorTest {
     /// ..

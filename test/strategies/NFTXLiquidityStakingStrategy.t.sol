@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
-import '../../src/interfaces/nftx/NFTXVault.sol';
-import '../../src/interfaces/nftx/TimelockRewardDistributionToken.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NFTXLiquidityStakingStrategy} from '@floor/strategies/NFTXLiquidityStakingStrategy.sol';
 
-import '../utilities/Environments.sol';
+import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
+
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract NFTXLiquidityStakingStrategyTest is FloorTest {
     NFTXLiquidityStakingStrategy strategy;

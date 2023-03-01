@@ -7,7 +7,7 @@ import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/Transfer
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.

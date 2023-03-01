@@ -7,7 +7,7 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
-import {IBasePricingExecutor} from '../../interfaces/pricing/BasePricingExecutor.sol';
+import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 
 /// If we are unable to find a pool for the Uniswap token combination
 error UnknownUniswapPool();

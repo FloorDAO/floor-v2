@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/strategies/StrategyRegistry.sol';
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
+import {CannotApproveNullStrategy, CannotRevokeUnapprovedStrategy, StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract StrategyRegistryTest is FloorTest {
     /// Emitted when a strategy is successfully approved

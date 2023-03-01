@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {VoteMarket} from '../../src/contracts/bribes/VoteMarket.sol';
-import {FloorTest} from '../utilities/Environments.sol';
+import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 
-import {IWETH} from '../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
+
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract VoteMarketTest is FloorTest {
     // Store our mainnet fork information

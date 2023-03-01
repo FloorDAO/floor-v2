@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV3NonfungiblePositionManager} from '../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
-import {TokenUtils} from '../../utils/TokenUtils.sol';
+import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 /// @title Decreases liquidity from a position represented by tokenID, and collects tokensOwed from position to recipient
 contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {

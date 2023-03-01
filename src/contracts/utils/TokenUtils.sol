@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
-import {IWETH} from '../../interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 library TokenUtils {
     using SafeERC20 for IERC20;

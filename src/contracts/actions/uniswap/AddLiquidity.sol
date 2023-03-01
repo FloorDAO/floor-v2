@@ -7,10 +7,10 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IUniswapV3NonfungiblePositionManager} from '../../../interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
-import {TokenUtils} from '../../utils/TokenUtils.sol';
+import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 /**
  * ..

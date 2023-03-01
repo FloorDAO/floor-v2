@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import '@floor/collections/CollectionRegistry.sol';
+import {CannotApproveNullCollection, CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 
-import '../mocks/GaugeWeightVote.sol';
-import '../mocks/PricingExecutor.sol';
+import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
+import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract CollectionRegistryTest is FloorTest {
     /// Emitted when a collection is successfully approved

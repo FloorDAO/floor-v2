@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 
 import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 
-import {IAuthorityControl} from '../../interfaces/authorities/AuthorityControl.sol';
-import {IAuthorityRegistry} from '../../interfaces/authorities/AuthorityRegistry.sol';
+import {IAuthorityControl} from '@floor-interfaces/authorities/AuthorityControl.sol';
+import {IAuthorityRegistry} from '@floor-interfaces/authorities/AuthorityRegistry.sol';
 
 /// If the account does not have the required role for the call.
 /// @param caller The address making the call

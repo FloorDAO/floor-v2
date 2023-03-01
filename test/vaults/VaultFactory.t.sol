@@ -2,15 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/collections/CollectionRegistry.sol';
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../../src/contracts/strategies/StrategyRegistry.sol';
-import '../../src/contracts/tokens/Floor.sol';
-import '../../src/contracts/vaults/Vault.sol';
-import '../../src/contracts/vaults/VaultFactory.sol';
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
+import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
+import {Vault} from '@floor/vaults/Vault.sol';
+import {CollectionNotApproved, StrategyNotApproved, VaultFactory, VaultNameCannotBeEmpty} from '@floor/vaults/VaultFactory.sol';
 
-import '../mocks/GaugeWeightVote.sol';
-import '../utilities/Environments.sol';
+import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract VaultFactoryTest is FloorTest {
     CollectionRegistry collectionRegistry;

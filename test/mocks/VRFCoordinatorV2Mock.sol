@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import '@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol';
+import {VRFConsumerBaseV2} from '@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol';
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 /**
  * A mock for testing code that relies on Chainlink VRFCoordinatorV2.

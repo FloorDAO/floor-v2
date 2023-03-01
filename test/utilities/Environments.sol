@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import 'forge-std/Test.sol';
+import {Test} from 'forge-std/Test.sol';
 
-import '../../src/contracts/authorities/AuthorityControl.sol';
-import '../../src/contracts/authorities/AuthorityRegistry.sol';
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 
-import '../utilities/Utilities.sol';
+import {Utilities} from '../utilities/Utilities.sol';
 
 contract FloorTest is Test {
     uint mainnetFork;

@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 
 import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
 
-import {UnwrapWeth} from '../../../src/contracts/actions/utils/UnwrapWeth.sol';
+import {UnwrapWeth} from '@floor/actions/utils/UnwrapWeth.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract UnwrapWethTest is FloorTest {
     // Store our action contract

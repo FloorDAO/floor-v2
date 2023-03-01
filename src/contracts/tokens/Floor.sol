@@ -8,7 +8,7 @@ import {ERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import {IFLOOR} from '../../interfaces/tokens/Floor.sol';
+import {IFLOOR} from '@floor-interfaces/tokens/Floor.sol';
 
 /**
  * Sets up our FLOOR ERC20 token.

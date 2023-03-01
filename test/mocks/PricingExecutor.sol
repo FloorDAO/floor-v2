@@ -2,12 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
-
-import '../../src/interfaces/pricing/BasePricingExecutor.sol';
+import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 
 /**
  * The mock pricing executor will return prices for a set list of token addresses.

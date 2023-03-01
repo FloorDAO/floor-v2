@@ -7,8 +7,8 @@ import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.s
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
 
-import {INFTXInventoryStaking} from '../../interfaces/nftx/NFTXInventoryStaking.sol';
-import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 /// If the contract was unable to transfer tokens when registering the mint
 /// @param recipient The recipient of the token transfer

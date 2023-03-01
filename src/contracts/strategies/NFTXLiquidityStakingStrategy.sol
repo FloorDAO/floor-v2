@@ -7,9 +7,9 @@ import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.s
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount} from '../utils/Errors.sol';
 
-import {INFTXLiquidityStaking} from '../../interfaces/nftx/NFTXLiquidityStaking.sol';
-import {ITimelockRewardDistributionToken} from '../../interfaces/nftx/TimelockRewardDistributionToken.sol';
-import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
+import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking.sol';
+import {ITimelockRewardDistributionToken} from '@floor-interfaces/nftx/TimelockRewardDistributionToken.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 /// If the contract was unable to transfer tokens when registering the mint
 /// @param recipient The recipient of the token transfer

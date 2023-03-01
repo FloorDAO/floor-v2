@@ -5,11 +5,11 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
 
-import {ISweeper} from '../../../interfaces/actions/Sweeper.sol';
-import {ICoWSwapSettlement} from '../../../interfaces/cowswap/CoWSwapSettlement.sol';
-import {GPv2Order} from '../../../interfaces/cowswap/GPv2Order.sol';
-import {ICoWSwapOnchainOrders} from '../../../interfaces/cowswap/CoWSwapOnchainOrders.sol';
-import {IWETH} from '../../../interfaces/tokens/WETH.sol';
+import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
+import {ICoWSwapSettlement} from '@floor-interfaces/cowswap/CoWSwapSettlement.sol';
+import {GPv2Order} from '@floor-interfaces/cowswap/GPv2Order.sol';
+import {ICoWSwapOnchainOrders} from '@floor-interfaces/cowswap/CoWSwapOnchainOrders.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 /// https://github.com/nlordell/dappcon-2022-smart-orders
 contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {

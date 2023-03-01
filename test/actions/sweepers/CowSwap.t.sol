@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {CowSwapSweeper} from '../../../src/contracts/actions/sweepers/CowSwap.sol';
+import {CowSwapSweeper} from '@floor/actions/sweepers/CowSwap.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 

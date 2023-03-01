@@ -7,7 +7,7 @@ import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import {IVoteMarket} from '../../interfaces/bribes/VoteMarket.sol';
+import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 
 contract VoteMarket is IVoteMarket, Ownable, Pausable {
     event BribeCreated(

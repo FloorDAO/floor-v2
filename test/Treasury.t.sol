@@ -2,26 +2,27 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/mocks/ERC20Mock.sol';
+import {ERC20Mock} from '@openzeppelin/contracts/mocks/ERC20Mock.sol';
 
-import './mocks/erc/ERC721Mock.sol';
-import './mocks/erc/ERC1155Mock.sol';
-import './mocks/PricingExecutor.sol';
+import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
+import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
+import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
-import '../src/contracts/collections/CollectionRegistry.sol';
-import '../src/contracts/tokens/Floor.sol';
-import {VeFloorStaking} from '../src/contracts/staking/VeFloorStaking.sol';
-import '../src/contracts/strategies/StrategyRegistry.sol';
-import '../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import '../src/contracts/vaults/Vault.sol';
-import {VaultFactory} from '../src/contracts/vaults/VaultFactory.sol';
-import {GaugeWeightVote} from '../src/contracts/voting/GaugeWeightVote.sol';
-import '../src/contracts/Treasury.sol';
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {Vault} from '@floor/vaults/Vault.sol';
+import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
+import {CannotSetNullAddress, EpochTimelocked, InsufficientAmount, NoPricingExecutorSet, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
-import '../src/interfaces/vaults/Vault.sol';
-import '../src/interfaces/voting/GaugeWeightVote.sol';
+import {IVault} from '@floor-interfaces/vaults/Vault.sol';
+import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 
-import './utilities/Environments.sol';
+import {FloorTest} from './utilities/Environments.sol';
 
 contract TreasuryTest is FloorTest {
     // We want to store a small number of specific users for testing

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract AuthorityControlTest is FloorTest {
     // Set up an unknown role for use in tests

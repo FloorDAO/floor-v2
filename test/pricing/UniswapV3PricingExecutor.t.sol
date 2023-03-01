@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
-import '../../src/contracts/tokens/Floor.sol';
+import {UniswapV3PricingExecutor, UnknownUniswapPool} from '@floor/pricing/UniswapV3PricingExecutor.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 /**
  * For this test we will want to implement Forge forking cheatcode to ensure

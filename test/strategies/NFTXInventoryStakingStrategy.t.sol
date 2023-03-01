@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract NFTXInventoryStakingStrategyTest is FloorTest {
     NFTXInventoryStakingStrategy strategy;

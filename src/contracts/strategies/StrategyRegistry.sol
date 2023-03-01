@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 
-import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
+import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 
 /// If a zero address strategy tries to be approved
 error CannotApproveNullStrategy();

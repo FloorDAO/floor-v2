@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../../src/contracts/tokens/Floor.sol';
-import '../../src/contracts/staking/VeFloorStaking.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract VeFloorStakingTest is FloorTest {
     // Test users

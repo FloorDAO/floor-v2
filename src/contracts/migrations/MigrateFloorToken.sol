@@ -6,7 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {FLOOR} from '../tokens/Floor.sol';
 
-import {IMigrateFloorToken} from '../../interfaces/migrations/MigrateFloorToken.sol';
+import {IMigrateFloorToken} from '@floor-interfaces/migrations/MigrateFloorToken.sol';
 
 /// If there are no tokens available for the recipient
 error NoTokensAvailableToMigrate();

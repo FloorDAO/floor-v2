@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {WrapEth} from '@floor/actions/utils/WrapEth.sol';
 
-import {WrapEth} from '../../../src/contracts/actions/utils/WrapEth.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract WrapEthTest is FloorTest {
     // Store our action contract

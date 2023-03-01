@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '../../src/contracts/migrations/MigrateFloorToken.sol';
-import '../../src/contracts/tokens/Floor.sol';
+import {MigrateFloorToken} from '@floor/migrations/MigrateFloorToken.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract MigrateFloorTokenTest is FloorTest {
     FLOOR newFloor;

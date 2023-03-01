@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import {SendEth} from '../../../src/contracts/actions/utils/SendEth.sol';
+import {SendEth} from '@floor/actions/utils/SendEth.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
 contract SendEthTest is FloorTest {
     // Store our action contract

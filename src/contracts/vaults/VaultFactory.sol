@@ -8,11 +8,11 @@ import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 import {AuthorityControl} from '../authorities/AuthorityControl.sol';
 import {CollectionNotApproved, StrategyNotApproved} from '../utils/Errors.sol';
 
-import {ICollectionRegistry} from '../../interfaces/collections/CollectionRegistry.sol';
-import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
-import {IStrategyRegistry} from '../../interfaces/strategies/StrategyRegistry.sol';
-import {IVault} from '../../interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '../../interfaces/vaults/VaultFactory.sol';
+import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
+import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
+import {IVault} from '@floor-interfaces/vaults/Vault.sol';
+import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 
 // No empty names, that's just silly
 error VaultNameCannotBeEmpty();

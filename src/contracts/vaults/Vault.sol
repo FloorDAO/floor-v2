@@ -10,8 +10,8 @@ import {PausableUpgradeable} from '@openzeppelin-upgradeable/contracts/security/
 
 import {InsufficientAmount} from '../utils/Errors.sol';
 
-import {IBaseStrategy} from '../../interfaces/strategies/BaseStrategy.sol';
-import {IVault} from '../../interfaces/vaults/Vault.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
+import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 
 /// If a zero amount is sent to be deposited
 error ZeroAmountReceivedFromDeposit();

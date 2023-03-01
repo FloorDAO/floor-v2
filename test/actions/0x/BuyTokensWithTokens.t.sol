@@ -6,9 +6,8 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {BuyTokensWithTokens} from '@floor/actions/0x/BuyTokensWithTokens.sol';
 
-import '../../utilities/Environments.sol';
+import {FloorTest} from '../../utilities/Environments.sol';
 
-// TODO: Regenerate tx data: https://docs.0x.org/0x-api-swap/api-references/get-swap-v1-quote
 contract ZeroXBuyTokensWithTokensTest is FloorTest {
     // Mainnet 0x swapTarget contract
     address internal constant ZEROX_CONTRACT = 0xDef1C0ded9bec7F1a1670819833240f027b25EfF;

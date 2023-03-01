@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
  * This action allows us to send ETH.

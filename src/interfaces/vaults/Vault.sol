@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import '../strategies/BaseStrategy.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 interface IVault {
     /// @dev Emitted when a user deposits

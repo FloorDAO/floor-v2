@@ -2,21 +2,22 @@
 
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import '@floor/collections/CollectionRegistry.sol';
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import '@floor/strategies/StrategyRegistry.sol';
-import '@floor/tokens/Floor.sol';
-import '@floor/vaults/Vault.sol';
-import '@floor/vaults/VaultFactory.sol';
-import '@floor/voting/GaugeWeightVote.sol';
-import '@floor/Treasury.sol';
+import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
+import {IVault, Vault} from '@floor/vaults/Vault.sol';
+import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {CannotVoteWithZeroAmount, CollectionNotApproved, GaugeWeightVote, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/GaugeWeightVote.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 
-import '../utilities/Environments.sol';
+import {FloorTest} from '../utilities/Environments.sol';
 
 contract GaugeWeightVoteTest is FloorTest {
     // Contract references to be deployed

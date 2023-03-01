@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import {IAction} from '../../../interfaces/actions/Action.sol';
-import {IWETH} from '../../../interfaces/tokens/WETH.sol';
+import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 /**
  * This action allows us to unwrap WETH in the {Treasury} into ETH.

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 
-import {IAuthorityRegistry} from '../../interfaces/authorities/AuthorityRegistry.sol';
+import {IAuthorityRegistry} from '@floor-interfaces/authorities/AuthorityRegistry.sol';
 
 /// require(hasAdminRole(_msgSender()), 'Only admin roles can grant roles');
 error UserDoesNotAnAdminRole(address user);
