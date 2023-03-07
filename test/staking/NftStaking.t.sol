@@ -113,19 +113,19 @@ contract NftStakingTest is FloorTest {
         // User 1 stakes 5 NFT for 104 epochs
         vm.startPrank(LOW_HOLDER_1);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, lowTokens1, 104);
+        staking.stake(LOW_VALUE_NFT, lowTokens1, 6);
         vm.stopPrank();
 
         // User 2 stakes 2 NFT for 52 epochs
         vm.startPrank(LOW_HOLDER_2);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, lowTokens2, 52);
+        staking.stake(LOW_VALUE_NFT, lowTokens2, 4);
         vm.stopPrank();
 
         // User 3 stakes 8 NFT for 26 epochs
         vm.startPrank(LOW_HOLDER_3);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, lowTokens3, 26);
+        staking.stake(LOW_VALUE_NFT, lowTokens3, 3);
         vm.stopPrank();
 
         assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1610730439);
@@ -137,7 +137,7 @@ contract NftStakingTest is FloorTest {
             abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', highTokens1[0], 0, address(staking))
         );
         require(success, 'Failed to offer PUNK');
-        staking.stake(HIGH_VALUE_NFT, highTokens1, 104);
+        staking.stake(HIGH_VALUE_NFT, highTokens1, 6);
         vm.stopPrank();
 
         assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1610730439);
@@ -163,7 +163,7 @@ contract NftStakingTest is FloorTest {
         tokens[0] = 1;
 
         vm.expectRevert('ERC721: transfer caller is not owner nor approved');
-        staking.stake(LOW_VALUE_NFT, tokens, 104);
+        staking.stake(LOW_VALUE_NFT, tokens, 6);
     }
 
     function test_CannotStakeInvalidCollectionNft() external {
@@ -172,7 +172,7 @@ contract NftStakingTest is FloorTest {
 
         vm.expectRevert('Underlying token not found');
         vm.prank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
-        staking.stake(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a, tokens, 104);
+        staking.stake(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a, tokens, 6);
     }
 
     function test_CannotStakeNftForInvalidEpochCount() external {
@@ -182,7 +182,9 @@ contract NftStakingTest is FloorTest {
 
         vm.startPrank(LOW_HOLDER_2);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, tokens, 104 + 1);
+
+        vm.expectRevert('Invalid epoch index');
+        staking.stake(LOW_VALUE_NFT, tokens, 7);
         vm.stopPrank();
     }
 
@@ -194,7 +196,7 @@ contract NftStakingTest is FloorTest {
         vm.startPrank(LOW_HOLDER_2);
         // Stake 2 tokens
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, tokens, 104);
+        staking.stake(LOW_VALUE_NFT, tokens, 6);
 
         // Skip some time to unlock our user, moving our epoch to the full stake period
         staking.setCurrentEpoch(104);
@@ -219,7 +221,7 @@ contract NftStakingTest is FloorTest {
 
         vm.startPrank(LOW_HOLDER_2);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
-        staking.stake(LOW_VALUE_NFT, tokens, 104);
+        staking.stake(LOW_VALUE_NFT, tokens, 6);
 
         // Skip some time to unlock our user, moving our epoch only partially through stake
         staking.setCurrentEpoch(78);

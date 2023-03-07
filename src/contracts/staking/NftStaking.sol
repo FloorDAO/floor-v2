@@ -65,6 +65,9 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     // Allow us to waive early unstake fees
     bool public waiveUnstakeFees;
 
+    /// Set a list of locking periods that the user can lock for
+    uint8[] public LOCK_PERIODS = [uint8(0), 4, 13, 26, 52, 78, 104];
+
     /**
      * Sets up our immutable contract addresses.
      */
@@ -112,7 +115,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
                     stakedSweepPower = (
                         ((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000)
                             * stakingEpochCount[userCollectionHash]
-                    ) / 104;
+                    ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
                     epochModifier = ((_epoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
 
                     // Add the staked sweep power to our collection total
@@ -139,9 +142,9 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      * @param _tokenId[] Token ID to be staked
      * @param _epochCount The number of epochs to stake for
      */
-    function stake(address _collection, uint[] calldata _tokenId, uint _epochCount) external whenNotPaused {
-        // Todo: Validate the number of epochs staked
-        // ..
+    function stake(address _collection, uint[] calldata _tokenId, uint8 _epochCount) external whenNotPaused {
+        // Validate the number of epochs staked
+        require(_epochCount < LOCK_PERIODS.length, 'Invalid epoch index');
 
         // Ensure we have a mapped underlying token
         require(underlyingTokenMapping[_collection] != address(0), 'Underlying token not found');
@@ -202,7 +205,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
 
         // Store the epoch starting epoch and the duration it is being staked for
         stakingEpochStart[userCollectionHash] = currentEpoch;
-        stakingEpochCount[userCollectionHash] = _epochCount;
+        stakingEpochCount[userCollectionHash] = LOCK_PERIODS[_epochCount];
 
         // Fire an event to show staked tokens
         // emit TokensStaked(msg.sender, _tokenId, tokenValue, currentEpoch, epochCount);

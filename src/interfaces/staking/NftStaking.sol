@@ -22,7 +22,7 @@ interface INftStaking {
 
     function collectionBoost(address _collection, uint _epoch) external view returns (uint boost_);
 
-    function stake(address _collection, uint[] calldata _tokenId, uint _epochCount) external;
+    function stake(address _collection, uint[] calldata _tokenId, uint8 _epochCount) external;
 
     function unstake(address _collection) external;
 
