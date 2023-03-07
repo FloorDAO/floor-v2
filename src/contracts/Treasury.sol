@@ -452,7 +452,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address payable action, ActionApproval[] memory approvals, bytes memory data)
+    function processAction(address payable action, ActionApproval[] calldata approvals, bytes calldata data)
         external
         onlyRole(TREASURY_MANAGER)
     {
