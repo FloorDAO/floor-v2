@@ -43,7 +43,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         weth = IWETH(weth_);
     }
 
-    function execute(address[] memory collections, uint[] memory amounts) external payable override returns (bytes memory orderUid) {
+    function execute(address[] calldata collections, uint[] calldata amounts) external payable override returns (bytes memory orderUid) {
         // Wrap out msg.value into WETH
         weth.deposit{value: msg.value}();
 

@@ -441,7 +441,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      *
      * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
      */
-    function voteOptions() external view returns (address[] memory collections_) {
+    function voteOptions() external view returns (address[] memory) {
         return approvedCollections;
     }
 

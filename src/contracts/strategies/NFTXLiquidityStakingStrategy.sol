@@ -91,7 +91,7 @@ contract NFTXLiquidityStakingStrategy is IBaseStrategy, Initializable {
      * @param _vaultAddr Address of vault the strategy is attached to
      * @param initData Encoded data to be decoded
      */
-    function initialize(uint _vaultId, address _vaultAddr, bytes memory initData) public initializer {
+    function initialize(uint _vaultId, address _vaultAddr, bytes calldata initData) public initializer {
         (address _pool, address _underlyingToken, address _yieldToken, address _liquidityStaking) =
             abi.decode(initData, (address, address, address, address));
 
