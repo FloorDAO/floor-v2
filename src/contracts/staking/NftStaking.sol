@@ -43,8 +43,8 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     mapping(address => uint) internal cachedNftxVaultId;
 
     /// Store the amount of discount applied to voting power of staked NFT
-    uint public voteDiscount;
-    uint public sweepModifier;
+    uint16 public voteDiscount;
+    uint64 public sweepModifier;
 
     /// Store the current epoch, which will be updated by our internal calls to sync
     uint public currentEpoch;
@@ -71,7 +71,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     /**
      * Sets up our immutable contract addresses.
      */
-    constructor(address _pricingExecutor, uint _voteDiscount) {
+    constructor(address _pricingExecutor, uint16 _voteDiscount) {
         require(_pricingExecutor != address(0), 'Address not zero');
         require(_voteDiscount < 10000, 'Must be less that 10000');
 
@@ -320,7 +320,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      *
      * @param _voteDiscount The amount of vote discount to apply
      */
-    function setVoteDiscount(uint _voteDiscount) external onlyOwner {
+    function setVoteDiscount(uint16 _voteDiscount) external onlyOwner {
         require(_voteDiscount < 10000, 'Must be less that 10000');
         voteDiscount = _voteDiscount;
     }
@@ -332,7 +332,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
      *
      * @param _sweepModifier The amount to modify our multiplier
      */
-    function setSweepModifier(uint _sweepModifier) external onlyOwner {
+    function setSweepModifier(uint64 _sweepModifier) external onlyOwner {
         require(_sweepModifier != 0);
         sweepModifier = _sweepModifier;
     }

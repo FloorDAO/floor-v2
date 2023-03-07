@@ -12,9 +12,9 @@ interface INftStaking {
 
     function collectionStakerIndex(bytes32) external returns (uint);
 
-    function voteDiscount() external returns (uint);
+    function voteDiscount() external returns (uint16);
 
-    function sweepModifier() external returns (uint);
+    function sweepModifier() external returns (uint64);
 
     function currentEpoch() external returns (uint);
 
@@ -28,9 +28,9 @@ interface INftStaking {
 
     function unstakeFees(address _collection) external returns (uint);
 
-    function setVoteDiscount(uint _voteDiscount) external;
+    function setVoteDiscount(uint16 _voteDiscount) external;
 
-    function setSweepModifier(uint _sweepModifier) external;
+    function setSweepModifier(uint64 _sweepModifier) external;
 
     function setPricingExecutor(address _pricingExecutor) external;
 

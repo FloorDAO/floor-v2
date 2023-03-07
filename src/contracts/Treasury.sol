@@ -194,7 +194,8 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         uint vaultYield;
 
         // Iterate over vaults
-        for (uint i; i < vaults.length;) {
+        uint vaultLength = vaults.length;
+        for (uint i; i < vaultLength;) {
             // Parse our vault address into the Vault interface
             vault = IVault(vaults[i]);
 

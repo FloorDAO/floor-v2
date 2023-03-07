@@ -24,7 +24,7 @@ contract NftStakingTest is FloorTest {
     // Test users
     address alice;
 
-    uint constant VOTE_DISCOUNT = 4000; // 40%
+    uint16 constant VOTE_DISCOUNT = 4000; // 40%
 
     uint constant NFTX_LOCK_LENGTH = 2592001;
 
@@ -250,7 +250,7 @@ contract NftStakingTest is FloorTest {
         staking.unstake(LOW_VALUE_NFT);
     }
 
-    function test_CanSetVoteDiscount(uint amount) external {
+    function test_CanSetVoteDiscount(uint16 amount) external {
         vm.assume(amount >= 0);
         vm.assume(amount < 10000);
 
@@ -258,7 +258,7 @@ contract NftStakingTest is FloorTest {
         assertEq(staking.voteDiscount(), amount);
     }
 
-    function test_CannotSetInvalidVoteDiscount(uint amount) external {
+    function test_CannotSetInvalidVoteDiscount(uint16 amount) external {
         vm.assume(amount >= 10000);
 
         vm.expectRevert();
