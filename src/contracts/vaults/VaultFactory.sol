@@ -112,7 +112,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      * @return vaultId_ ID of the newly created vault
      * @return vaultAddr_ Address of the newly created vault
      */
-    function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
+    function createVault(string calldata _name, address _strategy, bytes calldata _strategyInitData, address _collection)
         external
         onlyRole(VAULT_MANAGER)
         returns (uint vaultId_, address vaultAddr_)

@@ -20,7 +20,7 @@ interface IVault {
      * @param _strategy The strategy implemented by the vault
      * @param _vaultFactory The address of the {VaultFactory} that created the vault
      */
-    function initialize(string memory _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory) external;
+    function initialize(string calldata _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory) external;
 
     /**
      * Gets the contract address for the vault collection. Only assets from this contract

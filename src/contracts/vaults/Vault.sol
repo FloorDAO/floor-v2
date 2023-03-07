@@ -75,7 +75,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      * @param _strategy The strategy implemented by the vault
      * @param _vaultFactory The address of the {VaultFactory} that created the vault
      */
-    function initialize(string memory _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory)
+    function initialize(string calldata _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory)
         public
         initializer
     {
