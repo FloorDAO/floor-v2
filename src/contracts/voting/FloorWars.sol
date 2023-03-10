@@ -6,6 +6,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
+import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
+import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
+
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
@@ -16,7 +19,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  *  - Move iserc1155 to mapping
  */
 
-contract FloorWars is Ownable {
+contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
@@ -452,6 +455,22 @@ contract FloorWars is Ownable {
         // TODO: Needs lockdown
         // require(msg.sender == address(treasury), 'Treasury only');
         currentEpoch = _currentEpoch;
+    }
+
+    function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    function onERC1155Received(address, address, uint, uint, bytes calldata) external pure returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint[] calldata, uint[] calldata, bytes calldata) external pure returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    function supportsInterface(bytes4) external pure returns (bool) {
+        return true;
     }
 
 }

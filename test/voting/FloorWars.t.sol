@@ -186,7 +186,30 @@ contract FloorWarsTest is FloorTest {
     }
 
     function test_CanVoteWithCollectionNft1155() external {
-        // TODO
+        uint[] memory tokenIds = new uint[](2);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 5;
+        amounts[1] = 3;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 250000000;
+        exercisePrices[1] = 500000000;
+
+        vm.startPrank(alice);
+        mock1155.setApprovalForAll(address(floorWars), true);
+        floorWars.voteWithCollectionNft(address(mock1155), tokenIds, amounts, exercisePrices);
+        vm.stopPrank();
+
+        assertEq(mock1155.balanceOf(address(floorWars), 0), 5);
+        assertEq(mock1155.balanceOf(address(floorWars), 1), 3);
+        assertEq(mock1155.balanceOf(address(floorWars), 2), 0);
+
+        assertEq(mock1155.balanceOf(alice, 0), 5);
+        assertEq(mock1155.balanceOf(alice, 1), 7);
+        assertEq(mock1155.balanceOf(alice, 2), 10);
     }
 
     function test_CannotVoteWithInvalidCollectionNft() external {
@@ -254,6 +277,37 @@ contract FloorWarsTest is FloorTest {
         uint56[] memory exercisePrices = new uint56[](2);
         exercisePrices[0] = 750000000;
         exercisePrices[1] = 850000000;
+
+        uint aliceStartAmount = address(alice).balance;
+
+        vm.startPrank(alice);
+        mock721.setApprovalForAll(address(floorWars), true);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
+        vm.stopPrank();
+
+        floorWars.setCurrentEpoch(1);
+        floorWars.endFloorWar();
+
+        floorWars.exerciseCollectionERC721s(war, tokenIds);
+
+        assertEq(mock721.ownerOf(0), treasury);
+        assertEq(mock721.ownerOf(1), treasury);
+
+        assertEq(address(alice).balance, aliceStartAmount + 0.75 ether + 0.85 ether);
+    }
+
+    function test_CanExerciseStakedNft1155() external {
+        uint[] memory tokenIds = new uint[](2);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 5;
+        amounts[1] = 3;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 250000000;
+        exercisePrices[1] = 350000000;
 
         uint aliceStartAmount = address(alice).balance;
 
