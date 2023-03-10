@@ -167,13 +167,17 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         assertEq(mock721.ownerOf(0), address(floorWars));
@@ -189,14 +193,17 @@ contract FloorWarsTest is FloorTest {
         uint[] memory tokenIds = new uint[](1);
         tokenIds[0] = 10;
 
-        uint[] memory exercisePrices = new uint[](1);
-        exercisePrices[0] = 0.75 ether;
+        uint40[] memory amounts = new uint40[](1);
+        amounts[0] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](1);
+        exercisePrices[0] = 750000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
 
         vm.expectRevert('ERC721: caller is not token owner or approved');
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         assertEq(mock721.ownerOf(10), carol);
@@ -225,6 +232,9 @@ contract FloorWarsTest is FloorTest {
     }
 
     function test_CannotEndAlreadyEndedFloorWar() external {
+        vm.prank(bob);
+        floorWars.vote(address(1));
+
         floorWars.setCurrentEpoch(1);
         floorWars.endFloorWar();
 
@@ -237,21 +247,25 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(1);
         floorWars.endFloorWar();
 
-        floorWars.exerciseCollectionNfts(war, tokenIds);
+        floorWars.exerciseCollectionERC721s(war, tokenIds);
 
         assertEq(mock721.ownerOf(0), treasury);
         assertEq(mock721.ownerOf(1), treasury);
@@ -264,15 +278,19 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(1);
@@ -283,7 +301,7 @@ contract FloorWarsTest is FloorTest {
         tokenIds[1] = 2;
 
         vm.expectRevert('Token is not staked');
-        floorWars.exerciseCollectionNfts(war, mixedTokenIds);
+        floorWars.exerciseCollectionERC721s(war, mixedTokenIds);
 
         assertEq(mock721.ownerOf(0), address(floorWars));
         assertEq(mock721.ownerOf(1), address(floorWars));
@@ -299,22 +317,26 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(1);
         floorWars.endFloorWar();
 
         vm.expectRevert();
-        floorWars.exerciseCollectionNfts(war, tokenIds);
+        floorWars.exerciseCollectionERC721s(war, tokenIds);
 
         assertEq(mock721.ownerOf(0), address(floorWars));
         assertEq(mock721.ownerOf(1), address(floorWars));
@@ -330,13 +352,17 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.75 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 750000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         assertEq(floorWars.collectionVotes(keccak256(abi.encode(war, address(mock721)))), 1.5 ether);
@@ -354,13 +380,17 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.75 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 750000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(2);
@@ -374,7 +404,7 @@ contract FloorWarsTest is FloorTest {
         assertEq(mock721.ownerOf(1), alice);
     }
 
-    function test_CanReclaimStakedNftThatDidNotWinWithinTimelock() external {
+    function test_aaaCanReclaimStakedNftThatDidNotWinWithinTimelock() external {
         vm.prank(bob);
         floorWars.vote(address(1));
 
@@ -382,13 +412,17 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(1);
@@ -407,13 +441,17 @@ contract FloorWarsTest is FloorTest {
         tokenIds[0] = 0;
         tokenIds[1] = 1;
 
-        uint[] memory exercisePrices = new uint[](2);
-        exercisePrices[0] = 0.75 ether;
-        exercisePrices[1] = 0.85 ether;
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePrices = new uint56[](2);
+        exercisePrices[0] = 750000000;
+        exercisePrices[1] = 850000000;
 
         vm.startPrank(alice);
         mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, exercisePrices);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         // Should only be reclaimable from epoch 2
