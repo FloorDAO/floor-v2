@@ -103,9 +103,6 @@ contract FloorWarsTest is FloorTest {
         floor.approve(address(veFloor), 50 ether);
         veFloor.deposit(50 ether, 6);
         vm.stopPrank();
-
-        // Fund our {FloorWars} contract so that it can exercise tokens in tests
-        vm.deal(address(floorWars), 100 ether);
     }
 
     function test_CanGetUserVotingPower() external {
@@ -288,7 +285,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.setCurrentEpoch(1);
         floorWars.endFloorWar();
 
-        floorWars.exerciseCollectionERC721s(war, tokenIds);
+        floorWars.exerciseCollectionERC721s{value: 1.6 ether}(war, tokenIds);
 
         assertEq(mock721.ownerOf(0), treasury);
         assertEq(mock721.ownerOf(1), treasury);
@@ -297,34 +294,62 @@ contract FloorWarsTest is FloorTest {
     }
 
     function test_CanExerciseStakedNft1155() external {
-        uint[] memory tokenIds = new uint[](2);
+        uint[] memory tokenIds = new uint[](3);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
+        tokenIds[2] = 1;
 
-        uint40[] memory amounts = new uint40[](2);
+        uint40[] memory amounts = new uint40[](3);
         amounts[0] = 5;
         amounts[1] = 3;
+        amounts[2] = 2;
 
-        uint56[] memory exercisePrices = new uint56[](2);
+        uint56[] memory exercisePrices = new uint56[](3);
         exercisePrices[0] = 250000000;
         exercisePrices[1] = 350000000;
+        exercisePrices[2] = 450000000;
 
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePrices);
+        mock1155.setApprovalForAll(address(floorWars), true);
+        floorWars.voteWithCollectionNft(address(mock1155), tokenIds, amounts, exercisePrices);
         vm.stopPrank();
 
         floorWars.setCurrentEpoch(1);
         floorWars.endFloorWar();
 
-        floorWars.exerciseCollectionERC721s(war, tokenIds);
+        /**
+         * From our voting, we should have the following available to the {Treasury}:
+         *  - Token #0 - 5x - 0.25
+         *  - Token #1 - 3x - 0.35
+         *  - Token #1 - 2x - 0.45
+         *
+         * We want to exercise the following:
+         *  - Token #0 - 3x - 0.25
+         *  - Token #1 - 3x - 0.35
+         *  - Token #1 - 1x - 0.45
+         *
+         * This should total 1.90 spend and return 3x of Token #0 and 3x of Token #1.
+         */
 
-        assertEq(mock721.ownerOf(0), treasury);
-        assertEq(mock721.ownerOf(1), treasury);
+        uint[] memory exerciseTokenIds = new uint[](2);
+        exerciseTokenIds[0] = 0;
+        exerciseTokenIds[1] = 1;
 
-        assertEq(address(alice).balance, aliceStartAmount + 0.75 ether + 0.85 ether);
+        uint[] memory exerciseAmounts = new uint[](2);
+        exerciseAmounts[0] = 800000000;  // 0.8eth - We have added more than needed to show refund
+        exerciseAmounts[1] = 1500000000;  // 1.5eth
+
+        floorWars.exerciseCollectionERC1155s{value: 3 ether}(war, exerciseTokenIds, exerciseAmounts);
+
+        assertEq(mock1155.balanceOf(address(floorWars), 0), 2);
+        assertEq(mock1155.balanceOf(address(floorWars), 1), 1);
+
+        assertEq(mock1155.balanceOf(address(treasury), 0), 3);
+        assertEq(mock1155.balanceOf(address(treasury), 1), 4);
+
+        assertEq(address(alice).balance, aliceStartAmount + 0.75 ether + 1.5 ether);
     }
 
     function test_CannotExerciseUnknownStakedNft() external {
