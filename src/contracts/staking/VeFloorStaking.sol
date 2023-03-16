@@ -11,6 +11,8 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {IVeFloorStaking, Depositor} from '@floor-interfaces/staking/VeFloorStaking.sol';
 import {IERC20, IVotable} from '@floor-interfaces/tokens/Votable.sol';
+import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
+import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /**
@@ -52,8 +54,10 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
     /// Our FLOOR token
     IERC20 public immutable floor;
 
-    /// Our {Treasury}
+    /// Our internal contracts
     ITreasury public immutable treasury;
+    IFloorWars public floorWars;
+    IGaugeWeightVote public gaugeWeightVote;
 
     uint internal currentEpoch;
 
@@ -226,10 +230,6 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
         // Increase our total deposits
         totalDeposits += amount;
 
-        // TODO: Update any votes that the user is currently a part of
-        // I don't think we need to, as if the user wants to update their voting power, they
-        // will need to make a call in the GWV. This can be done in a zap.
-
         // If we are staking additional tokens, then transfer the based FLOOR from the user
         // and mint veFloor tokens to the recipient `account`.
         if (amount > 0) {
@@ -329,11 +329,31 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
         }
     }
 
+    /**
+     * ..
+     */
     function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
         depositors[msg.sender] = depositor; // SSTORE
+
+        if (address(floorWars) != address(0)) {
+            floorWars.revokeVotes(msg.sender);
+        }
+
+        if (address(gaugeWeightVote) != address(0)) {
+            gaugeWeightVote.revokeAllUserVotes(msg.sender);
+        }
+
         _burn(msg.sender, balance);
+    }
+
+    /**
+     * ..
+     */
+    function setVotingContracts(address _floorWars, address _gaugeWeightVote) external onlyOwner {
+        floorWars = IFloorWars(_floorWars);
+        gaugeWeightVote = IGaugeWeightVote(_gaugeWeightVote);
     }
 
     /**
@@ -366,6 +386,9 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
         earlyWithdrawFeeExemptions[account] = exempt;
     }
 
+    /**
+     * ..
+     */
     function setCurrentEpoch(uint _currentEpoch) external {
         // TODO: Needs lockdown
         // require(msg.sender == address(treasury), 'Treasury only');

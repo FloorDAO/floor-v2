@@ -10,55 +10,26 @@ import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+
+import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 
 /**
- * NOTES:
- *  - Need the ability to revoke a users votes in an epoch
- *  - Move iserc1155 to mapping
+ * ..
  */
 
-contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
+contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
     VeFloorStaking immutable public veFloor;
 
-    /**
-     * Stores information about the NFT that has been staked. This allows either
-     * the DAO to exercise the NFT, or for the initial staker to reclaim it.
-     */
-    struct StakedCollectionERC721 {
-        address staker;         // 160 / 256
-        uint56 exercisePrice;   // 216 / 256
-    }
-
-    /**
-     * ..
-     */
-    struct StakedCollectionERC1155 {
-        address staker;         // 160 / 256
-        uint56 exercisePrice;   // 216 / 256
-        uint40 amount;          // 256 / 256
-    }
-
-    /**
-     * For each FloorWar that is created, this structure will be created. When
-     * the epoch ends, the FloorWar will remain and will be updated with information
-     * on the winning collection and the votes attributed to each collection.
-     */
-    struct FloorWar {
-        uint index;
-        uint startEpoch;
-        address[] collections;
-    }
-
     /// Stores a collection of all the FloorWars that have been started
     FloorWar public currentWar;
 
     /// ..
-    uint nextIndex = 1;
+    uint internal nextIndex = 1;
 
     /// Stores the current epoch enforced by the {Treasury}
     uint public currentEpoch;
@@ -125,6 +96,9 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
      * additionally reallocate their votes.
      */
     function vote(address collection) external {
+        // Ensure a war is currently running
+        require(currentWar.index != 0, 'No war currently running');
+
         // Confirm that the collection being voted for is in the war
         bytes32 warUser = keccak256(abi.encode(currentWar.index, msg.sender));
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
@@ -146,6 +120,32 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
             // Increase our tracked user amounts
             collectionVotes[warCollection] += votesAvailable;
             userVotes[warUser] += votesAvailable;
+        }
+    }
+
+    /**
+     * ..
+     *
+     * TODO: Lock down to vote manager
+     */
+    function revokeVotes(address account) external {
+        // Ensure a war is currently running
+        require(currentWar.index != 0, 'No war currently running');
+
+        // Confirm that the collection being voted for is in the war
+        bytes32 warUser = keccak256(abi.encode(currentWar.index, account));
+
+        // Find the collection that the user has currently voted on
+        address collection = userCollectionVote[warUser];
+
+        // If the user has voted on a collection, then we can subtract the votes
+        if (collection != address(0)) {
+            bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
+
+            unchecked {
+                collectionVotes[warCollection] -= userVotes[warUser];
+                userVotes[warUser] = 0;
+            }
         }
     }
 
@@ -306,6 +306,9 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
         }
     }
 
+    /**
+     * ..
+     */
     function sortStaked1155s(StakedCollectionERC1155[] memory array) internal pure returns (StakedCollectionERC1155[] memory) {
         bool swapped;
         uint length = array.length;
