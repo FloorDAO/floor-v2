@@ -306,11 +306,38 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
         }
     }
 
+    function sortStaked1155s(StakedCollectionERC1155[] memory array) internal pure returns (StakedCollectionERC1155[] memory) {
+        bool swapped;
+        uint length = array.length;
+        for (uint i = 1; i < length;) {
+            swapped = false;
+            for (uint j = 0; j < length - i;) {
+                StakedCollectionERC1155 memory next = array[j + 1];
+                StakedCollectionERC1155 memory actual = array[j];
+                if (next.exercisePrice < actual.exercisePrice) {
+                    array[j] = next;
+                    array[j + 1] = actual;
+                    swapped = true;
+                }
+
+                unchecked { ++j; }
+            }
+
+            if (!swapped) {
+                return array;
+            }
+
+            unchecked { ++i; }
+        }
+
+        return array;
+    }
+
     /**
      * Allows an approved user to exercise the staked NFT at the price that it was
      * listed at by the staking user.
      */
-    function exerciseCollectionERC1155s(uint war, uint[] calldata tokenIds, uint[][] calldata indexes, uint40[][] calldata amounts) external payable onlyOwner {
+    function exerciseCollectionERC1155s(uint war, uint[] calldata tokenIds, uint[] memory amount) external payable onlyOwner {
         // Get the collection that will be exercised based on the winner of the war
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
@@ -319,38 +346,53 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, Ownable {
 
         // Iterate over the tokenIds we want to exercise
         for (uint i; i < tokenIds.length;) {
+            // Get our war collection token hash
             warCollectionToken = keccak256(abi.encode(war, collection, tokenIds[i]));
 
-            for (uint k; k < indexes[i].length;) {
-                // Get all NFTs that were staked against the war collection
-                StakedCollectionERC1155 memory nft = stakedERC1155s[warCollectionToken][indexes[i][k]];
+            // For each token ID we need to sort through to order the prices in
+            // ascending order.
+            StakedCollectionERC1155[] memory orderedTokens = sortStaked1155s(stakedERC1155s[warCollectionToken]);
 
-                // If we don't have a token match, skippers
-                require(nft.staker != address(0), 'Token is not staked');
-
-                // Pay the staker the amount that they requested. Not our problem if the recipient
-                // is not able to receive ETH.
-                payable(nft.staker).call{value: uint(nft.exercisePrice) * 1e9 * amounts[i][k]}('');
-
-                // Transfer the NFT to our {Treasury}
-                IERC1155(collection).safeTransferFrom(address(this), address(treasury), tokenIds[i], amounts[i][k], '');
-
-                if (nft.amount == amounts[i][k]) {
-                    delete stakedERC1155s[warCollectionToken][indexes[i][k]];
-                }
-                else {
-                    stakedERC1155s[warCollectionToken][indexes[i][k]].amount -= amounts[i][k];
+            // Once we have the ordered tokens, we iterate over them and buy tokens
+            // until we can't buy any more.
+            uint totalToBuy;
+            for (uint k; k < orderedTokens.length;) {
+                // If the value is above the remaining available balance, then we can
+                // move to the next token.
+                uint amountToBuy = amount[i] / orderedTokens[k].exercisePrice;
+                if (amountToBuy == 0) {
+                    break;
                 }
 
-                erc1155Stakers[keccak256(abi.encode(war, collection, tokenIds[i], nft.staker))] -= amounts[i][k];
+                // If we can afford more than are staked, just take the staked amount
+                if (amountToBuy > orderedTokens[k].amount) {
+                    amountToBuy = orderedTokens[k].amount;
+                }
+
+                // Reduce our remaining balance by the number exercised
+                amount[i] -= orderedTokens[k].exercisePrice * amountToBuy;
+
+                // Pay the staking user
+                payable(orderedTokens[k].staker).call{value: uint(orderedTokens[k].exercisePrice) * 1e9 * amountToBuy}('');
+
+                // Increment our total to buy
+                totalToBuy += amountToBuy;
+
+                // Reduce the amount remaining against the staked 1155, deleting the stake if
+                // we have exhausted the staked amount.
+                erc1155Stakers[keccak256(abi.encode(war, collection, tokenIds[i], orderedTokens[k].staker))] -= amountToBuy;
 
                 unchecked { ++k; }
+            }
+
+            if (totalToBuy != 0) {
+                // Transfer the NFT to our {Treasury}
+                IERC1155(collection).safeTransferFrom(address(this), address(treasury), tokenIds[i], totalToBuy, '');
             }
 
             unchecked { ++i; }
         }
     }
-
 
     /**
      * If the FloorWar has not yet ended, or the NFT timelock has expired, then the
