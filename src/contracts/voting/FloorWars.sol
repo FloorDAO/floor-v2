@@ -164,6 +164,10 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
 
         // Loop through our tokens
         for (uint i; i < tokenIds.length;) {
+            // Ensure that our exercise price is equal to, or less than, the floor price for
+            // the collection.
+            require(exercisePrice[i] <= collectionSpotPrice[warCollection], 'Exercise price above floor price');
+
             // Transfer the NFT into our contract
             if (is1155[collection]) {
                 IERC1155(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i], amounts[i], '');
@@ -469,24 +473,17 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
             return spotPrice;
         }
 
-        // If the user has set a higher exercise price that the spot price, then the amount
-        // of voting power they are assigned will be lower as they are offering the NFT at
-        // a premium.
+        // The user cannot place an exercise price above the spot price that has been set. This
+        // information should be validated internally before this function is called to prevent
+        // this from happening.
         if (exercisePrice > spotPrice) {
-            unchecked {
-                // Our formula doesn't allow a more than 2x pricing equivalent
-                if (exercisePrice > spotPrice * 2) {
-                    return 0;
-                }
-
-                return spotPrice - ((exercisePrice - spotPrice) / (spotPrice / (exercisePrice - spotPrice)));
-            }
+            return 0;
         }
 
         // Otherwise, if the user has set a lower spot price, then the voting power will be
         // increased as they are offering the NFT at a discount.
         unchecked {
-            return spotPrice + ((spotPrice - exercisePrice) / (spotPrice / (spotPrice - exercisePrice)));
+            return spotPrice + spotPrice - exercisePrice;
         }
     }
 
