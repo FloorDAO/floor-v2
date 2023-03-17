@@ -9,17 +9,17 @@ interface IFloorWars {
      * the DAO to exercise the NFT, or for the initial staker to reclaim it.
      */
     struct StakedCollectionERC721 {
-        address staker;         // 160 / 256
-        uint56 exercisePrice;   // 216 / 256
+        address staker;          // 160 / 256
+        uint56 exercisePercent;  // 216 / 256
     }
 
     /**
      * ..
      */
     struct StakedCollectionERC1155 {
-        address staker;         // 160 / 256
-        uint56 exercisePrice;   // 216 / 256
-        uint40 amount;          // 256 / 256
+        address staker;          // 160 / 256
+        uint56 exercisePercent;  // 216 / 256
+        uint40 amount;           // 256 / 256
     }
 
     /**
@@ -46,6 +46,7 @@ interface IFloorWars {
 
     /// Stores the total number of votes against a war collection
     function collectionVotes(bytes32) external view returns (uint);
+    function collectionNftVotes(bytes32) external view returns (uint);
 
     /// Stores which collection the user has cast their votes towards to allow for
     /// reallocation on subsequent votes if needed.
@@ -87,7 +88,7 @@ interface IFloorWars {
      * gain additional voting power based on the floor price attached to the
      * collection in the FloorWar.
      */
-    function voteWithCollectionNft(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePrice) external;
+    function voteWithCollectionNft(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercent) external;
 
     /**
      * Allow an authorised user to create a new floor war to start with a range of
@@ -135,7 +136,7 @@ interface IFloorWars {
      * Determines the voting power given by a staked NFT based on the requested
      * exercise price and the spot price.
      */
-    function nftVotingPower(uint spotPrice, uint exercisePrice) external pure returns (uint);
+    function nftVotingPower(uint spotPrice, uint exercisePercent) external view returns (uint);
 
     /**
      * Allows our epoch to be set by the {Treasury}. This should be sent when our {Treasury} ends
@@ -145,4 +146,8 @@ interface IFloorWars {
      */
     function setCurrentEpoch(uint _currentEpoch) external;
 
+    /**
+     * ..
+     */
+    function updateCollectionFloorPrice(address collection, uint floorPrice) external;
 }

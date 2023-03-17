@@ -49,6 +49,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
 
     /// Stores the total number of votes against a war collection
     mapping (bytes32 => uint) public collectionVotes;
+    mapping (bytes32 => uint) public collectionNftVotes;
 
     /// Stores which collection the user has cast their votes towards to allow for
     /// reallocation on subsequent votes if needed.
@@ -154,7 +155,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
      * gain additional voting power based on the floor price attached to the
      * collection in the FloorWar.
      */
-    function voteWithCollectionNft(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePrice) external {
+    function voteWithCollectionNft(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents) external {
         // Confirm that the collection being voted for is in the war
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
         require(_isCollectionInWar(warCollection), 'Invalid collection');
@@ -166,35 +167,34 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
         for (uint i; i < tokenIds.length;) {
             // Ensure that our exercise price is equal to, or less than, the floor price for
             // the collection.
-            require(exercisePrice[i] <= collectionSpotPrice[warCollection], 'Exercise price above floor price');
+            require(exercisePercents[i] < 101, 'Exercise percent above 100%');
 
             // Transfer the NFT into our contract
             if (is1155[collection]) {
                 IERC1155(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i], amounts[i], '');
 
                 stakedERC1155s[keccak256(abi.encode(currentWar.index, collection, tokenIds[i]))].push(
-                    StakedCollectionERC1155(msg.sender, exercisePrice[i], amounts[i])
+                    StakedCollectionERC1155(msg.sender, exercisePercents[i], amounts[i])
                 );
 
                 unchecked {
                     erc1155Stakers[keccak256(abi.encode(currentWar.index, collection, tokenIds[i], msg.sender))] += amounts[i];
-
-                    votingPower = this.nftVotingPower(collectionSpotPrice[warCollection], uint(exercisePrice[i]) * 1e9) * amounts[i];
+                    votingPower = this.nftVotingPower(collectionSpotPrice[warCollection], uint(exercisePercents[i])) * amounts[i];
                 }
             }
             else {
                 IERC721(collection).transferFrom(msg.sender, address(this), tokenIds[i]);
-                stakedERC721s[keccak256(abi.encode(currentWar.index, collection, tokenIds[i]))] = StakedCollectionERC721(msg.sender, exercisePrice[i]);
+                stakedERC721s[keccak256(abi.encode(currentWar.index, collection, tokenIds[i]))] = StakedCollectionERC721(msg.sender, exercisePercents[i]);
 
                 unchecked {
-                    votingPower = this.nftVotingPower(collectionSpotPrice[warCollection], uint(exercisePrice[i]) * 1e9);
+                    votingPower = this.nftVotingPower(collectionSpotPrice[warCollection], uint(exercisePercents[i]));
                 }
             }
 
             unchecked {
                 // Increment our vote counters
                 collectionVotes[warCollection] += votingPower;
-                userVotes[keccak256(abi.encode(currentWar.index, msg.sender))] += votingPower;
+                collectionNftVotes[warCollection] += votingPower;
             }
 
             unchecked { ++i; }
@@ -286,10 +286,12 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
 
+        bytes32 warCollection;
         bytes32 warCollectionToken;
 
         // Iterate over the tokenIds we want to exercise
         for (uint i; i < tokenIds.length;) {
+            warCollection = keccak256(abi.encode(war, collection));
             warCollectionToken = keccak256(abi.encode(war, collection, tokenIds[i]));
 
             // Get all NFTs that were staked against the war collection
@@ -299,8 +301,9 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
             require(nft.staker != address(0), 'Token is not staked');
 
             // Pay the staker the amount that they requested. Not our problem if the recipient
-            // is not able to receive ETH.
-            payable(nft.staker).call{value: uint(nft.exercisePrice) * 1e9}('');
+            // is not able to receive ETH :(
+            (bool success,) = payable(nft.staker).call{value: (collectionSpotPrice[warCollection] * nft.exercisePercent) / 100}('');
+            require(success, 'Unable to make payment');
 
             // Transfer the NFT to our {Treasury}
             IERC721(collection).transferFrom(address(this), address(treasury), tokenIds[i]);
@@ -321,7 +324,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
             for (uint j = 0; j < length - i;) {
                 StakedCollectionERC1155 memory next = array[j + 1];
                 StakedCollectionERC1155 memory actual = array[j];
-                if (next.exercisePrice < actual.exercisePrice) {
+                if (next.exercisePercent < actual.exercisePercent) {
                     array[j] = next;
                     array[j + 1] = actual;
                     swapped = true;
@@ -349,24 +352,36 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
 
+        // Store our hashes once and update each time
+        bytes32 warCollection;
         bytes32 warCollectionToken;
+        bytes32 warCollectionTokenAmount;
+
+        StakedCollectionERC1155[] memory orderedTokens;
 
         // Iterate over the tokenIds we want to exercise
         for (uint i; i < tokenIds.length;) {
             // Get our war collection token hash
+            warCollection = keccak256(abi.encode(war, collection));
             warCollectionToken = keccak256(abi.encode(war, collection, tokenIds[i]));
 
             // For each token ID we need to sort through to order the prices in
             // ascending order.
-            StakedCollectionERC1155[] memory orderedTokens = sortStaked1155s(stakedERC1155s[warCollectionToken]);
+            orderedTokens = sortStaked1155s(stakedERC1155s[warCollectionToken]);
 
             // Once we have the ordered tokens, we iterate over them and buy tokens
             // until we can't buy any more.
+            uint amountToBuy;
+            uint exercisePrice;
             uint totalToBuy;
+
             for (uint k; k < orderedTokens.length;) {
+                warCollectionTokenAmount = keccak256(abi.encode(war, collection, tokenIds[i], orderedTokens[k].staker));
+
                 // If the value is above the remaining available balance, then we can
                 // move to the next token.
-                uint amountToBuy = amount[i] / orderedTokens[k].exercisePrice;
+                exercisePrice = (collectionSpotPrice[warCollection] * orderedTokens[k].exercisePercent) / 100;
+                amountToBuy = amount[i] / exercisePrice;
                 if (amountToBuy == 0) {
                     break;
                 }
@@ -377,17 +392,18 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
                 }
 
                 // Reduce our remaining balance by the number exercised
-                amount[i] -= orderedTokens[k].exercisePrice * amountToBuy;
+                amount[i] -= exercisePrice * amountToBuy;
 
                 // Pay the staking user
-                payable(orderedTokens[k].staker).call{value: uint(orderedTokens[k].exercisePrice) * 1e9 * amountToBuy}('');
+                (bool success,) = payable(orderedTokens[k].staker).call{value: exercisePrice * amountToBuy}('');
+                require(success, 'Unable to make payment');
 
                 // Increment our total to buy
                 totalToBuy += amountToBuy;
 
                 // Reduce the amount remaining against the staked 1155, deleting the stake if
                 // we have exhausted the staked amount.
-                erc1155Stakers[keccak256(abi.encode(war, collection, tokenIds[i], orderedTokens[k].staker))] -= amountToBuy;
+                erc1155Stakers[warCollectionTokenAmount] -= amountToBuy;
 
                 unchecked { ++k; }
             }
@@ -467,23 +483,23 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
      * Determines the voting power given by a staked NFT based on the requested
      * exercise price and the spot price.
      */
-    function nftVotingPower(uint spotPrice, uint exercisePrice) external pure returns (uint) {
+    function nftVotingPower(uint spotPrice, uint exercisePercent) external view returns (uint) {
         // If the user has matched our spot price, then we return full value
-        if (exercisePrice == spotPrice) {
+        if (exercisePercent == 100) {
             return spotPrice;
         }
 
         // The user cannot place an exercise price above the spot price that has been set. This
         // information should be validated internally before this function is called to prevent
         // this from happening.
-        if (exercisePrice > spotPrice) {
+        if (exercisePercent > 100) {
             return 0;
         }
 
         // Otherwise, if the user has set a lower spot price, then the voting power will be
         // increased as they are offering the NFT at a discount.
         unchecked {
-            return spotPrice + spotPrice - exercisePrice;
+            return spotPrice + ((spotPrice * (100 - exercisePercent)) / 100);
         }
     }
 
@@ -494,9 +510,48 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
      * @param _currentEpoch The new, current epoch
      */
     function setCurrentEpoch(uint _currentEpoch) external {
-        // TODO: Needs lockdown
-        // require(msg.sender == address(treasury), 'Treasury only');
+        require(msg.sender == address(treasury), 'Treasury only');
         currentEpoch = _currentEpoch;
+    }
+
+    /**
+     * ..
+     */
+    function updateCollectionFloorPrice(address collection, uint floorPrice) external onlyOwner {
+        // Prevent an invalid floor price breaking everything
+        require(floorPrice != 0, 'Invalid floor price');
+
+        // Ensure that we have a current war running
+        require(currentWar.index != 0, 'No war currently running');
+
+        // Ensure that the collection specified is valid
+        bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
+        require(_isCollectionInWar(warCollection), 'Invalid collection');
+
+        // Update the floor price of the collection
+        uint oldFloorPrice = collectionSpotPrice[warCollection];
+        collectionSpotPrice[warCollection] = floorPrice;
+
+        // Alter the vote count based on the percentage change of the floor price
+        if (floorPrice == oldFloorPrice) {
+            return;
+        }
+
+        // If the collection currently has no votes, we don't need to recalculate
+        if (collectionNftVotes[warCollection] == 0) {
+            return;
+        }
+
+        unchecked {
+            // Calculate the updated NFT vote power for the collection
+            uint percentage = ((floorPrice * 1e18 - oldFloorPrice * 1e18) * 100) / oldFloorPrice;
+            uint increase = (collectionNftVotes[warCollection] * percentage) / 100  / 1e18;
+            uint newNumber = (collectionNftVotes[warCollection] + increase);
+
+            // Update our collection votes
+            collectionVotes[warCollection] = collectionVotes[warCollection] - collectionNftVotes[warCollection] + newNumber;
+            collectionNftVotes[warCollection] = newNumber;
+        }
     }
 
     function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
