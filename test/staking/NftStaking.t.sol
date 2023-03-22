@@ -8,6 +8,7 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {NftStaking} from '@floor/staking/NftStaking.sol';
 import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
+import {EpochManager} from '@floor/EpochManager.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -29,6 +30,7 @@ contract NftStakingTest is FloorTest {
     uint constant NFTX_LOCK_LENGTH = 2592001;
 
     // Internal contract references
+    EpochManager epochManager;
     NftStaking staking;
     UniswapV3PricingExecutor pricingExecutor;
 
@@ -42,6 +44,10 @@ contract NftStakingTest is FloorTest {
             0x1F98431c8aD98523631AE4a59f267346ea31F984,
             0xf59257E961883636290411c11ec5Ae622d19455e
         );
+
+        // Set up our epoch manager so that our staking contract has visibility of
+        // epoch transitions.
+        epochManager = new EpochManager();
 
         // Set up our staking contract
         staking = new NftStaking(address(pricingExecutor), VOTE_DISCOUNT);
@@ -58,6 +64,9 @@ contract NftStakingTest is FloorTest {
 
         // Set our default boost calculator
         staking.setBoostCalculator(address(new NftStakingBoostCalculator()));
+
+        // Set our epoch manager contract
+        staking.setEpochManager(address(epochManager));
 
         // Label some addresses for nice debugging
         vm.label(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 'NFTX Staking Zap');
@@ -144,14 +153,14 @@ contract NftStakingTest is FloorTest {
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1106073976);
 
         // Skip forward 26 epochs
-        staking.setCurrentEpoch(staking.currentEpoch() + 26);
+        epochManager.setCurrentEpoch(epochManager.currentEpoch() + 26);
 
         // Get the total sweep power against gauge 1
         assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1150729596);
         assertEq(staking.collectionBoost(HIGH_VALUE_NFT), 1071691143);
 
         // Skip forward to our penultimate epoch
-        staking.setCurrentEpoch(staking.currentEpoch() + 104 - 26 - 1);
+        epochManager.setCurrentEpoch(epochManager.currentEpoch() + 104 - 26 - 1);
 
         // Get the total sweep power against gauge 1
         assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1000000000);
@@ -197,12 +206,14 @@ contract NftStakingTest is FloorTest {
         // Stake 2 tokens
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
         staking.stake(LOW_VALUE_NFT, tokens, 6);
+        vm.stopPrank();
 
         // Skip some time to unlock our user, moving our epoch to the full stake period
-        staking.setCurrentEpoch(104);
+        epochManager.setCurrentEpoch(104);
         skip(NFTX_LOCK_LENGTH);
 
         // Unstake our NFTs
+        vm.startPrank(LOW_HOLDER_2);
         staking.unstake(LOW_VALUE_NFT);
 
         // The NFTs would normally be random, but since we are locked at a specific time, the
@@ -222,12 +233,14 @@ contract NftStakingTest is FloorTest {
         vm.startPrank(LOW_HOLDER_2);
         IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
         staking.stake(LOW_VALUE_NFT, tokens, 6);
+        vm.stopPrank();
 
         // Skip some time to unlock our user, moving our epoch only partially through stake
-        staking.setCurrentEpoch(78);
+        epochManager.setCurrentEpoch(78);
         skip(NFTX_LOCK_LENGTH);
 
         // Unstake our NFTs which should give us one full NFT and some ERC dust
+        vm.startPrank(LOW_HOLDER_2);
         staking.unstake(LOW_VALUE_NFT);
 
         // The NFTs would normally be random, but since we are locked at a specific time, the
@@ -311,18 +324,6 @@ contract NftStakingTest is FloorTest {
         vm.expectRevert();
         vm.prank(alice);
         staking.setStakingZaps(address(1), address(2));
-    }
-
-    function test_CanSetCurrentEpoch() external {
-        staking.setCurrentEpoch(3);
-        assertEq(staking.currentEpoch(), 3);
-    }
-
-    function test_CannotSetCurrentEpochWithoutPermission() external {
-        // TODO: Not currently locked
-        // vm.expectRevert();
-        vm.prank(alice);
-        staking.setCurrentEpoch(3);
     }
 
     function test_CanSetBoostCalculator() external {

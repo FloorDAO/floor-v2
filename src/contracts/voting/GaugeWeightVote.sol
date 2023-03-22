@@ -4,9 +4,10 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {AuthorityControl} from '../authorities/AuthorityControl.sol';
-import {CollectionNotApproved} from '../utils/Errors.sol';
-import {VeFloorStaking} from '../staking/VeFloorStaking.sol';
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
@@ -38,16 +39,14 @@ error SampleSizeCannotBeZero();
 /**
  * ..
  */
-contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
+contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
+
     /// ..
     struct CollectionVote {
         uint power;
         uint powerBurn;
         uint lastVoteEpoch;
     }
-
-    // Store our current epoch iteraction
-    uint internal epochIteration;
 
     // Store a mapping of the collection address to our `CollectionVote` struct
     mapping(address => CollectionVote) collectionVotes;
@@ -174,12 +173,13 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         CollectionVote memory collectionVote = collectionVotes[_collection];
 
         // Update the power and power burn based on the new amount added
-        collectionVote.power += veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epochIteration);
+        uint epoch = currentEpoch();
+        collectionVote.power += veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epoch);
         collectionVote.powerBurn += _amount / 104;
 
         // Set the last epoch iteration to have updated
-        if (collectionVote.lastVoteEpoch != epochIteration) {
-            collectionVote.lastVoteEpoch = epochIteration;
+        if (collectionVote.lastVoteEpoch != epoch) {
+            collectionVote.lastVoteEpoch = epoch;
         }
 
         // SSTORE our updated collectionVote
@@ -189,7 +189,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
     }
 
     function votes(address _collection) public view returns (uint) {
-        return votes(_collection, epochIteration);
+        return votes(_collection, currentEpoch());
     }
 
     /**
@@ -199,13 +199,14 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         CollectionVote memory collectionVote = collectionVotes[_collection];
 
         // If we are looking for a date in the past, just return 0
-        if (epochIteration > _baseEpoch) {
+        uint epoch = currentEpoch();
+        if (epoch > _baseEpoch) {
             return 0;
         }
 
         // If we look to a point that would turn the returned value negative, then we need
         // to catch this and just return 0.
-        uint burnAmount = collectionVote.powerBurn * (_baseEpoch - epochIteration);
+        uint burnAmount = collectionVote.powerBurn * (_baseEpoch - epoch);
         if (burnAmount > collectionVote.power) {
             return 0;
         }
@@ -260,14 +261,15 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
                 CollectionVote memory collectionVote = collectionVotes[_collections[i]];
 
                 // Update the power and power burn based on the new amount added
+                uint epoch = currentEpoch();
                 unchecked {
-                    collectionVote.power -= veFloor.votingPowerOfAt(_account, uint88(userCollectionVotes), epochIteration);
+                    collectionVote.power -= veFloor.votingPowerOfAt(_account, uint88(userCollectionVotes), epoch);
                     collectionVote.powerBurn -= userCollectionVotes / 104;
                 }
 
                 // Set the last epoch iteration to have updated
-                if (collectionVote.lastVoteEpoch != epochIteration) {
-                    collectionVote.lastVoteEpoch = epochIteration;
+                if (collectionVote.lastVoteEpoch != epoch) {
+                    collectionVote.lastVoteEpoch = epoch;
                 }
 
                 // SSTORE our updated collectionVote
@@ -304,10 +306,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
      * @return address[] The collections that were granted rewards
      * @return amounts[] The vote values of each collection
      */
-    function snapshot(uint tokens, uint epoch) external returns (address[] memory, uint[] memory) {
-        // Should this be locked down to only run by epoch
-        require(msg.sender == address(treasury), 'Not called by Treasury');
-
+    function snapshot(uint tokens, uint epoch) external view returns (address[] memory, uint[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
@@ -322,7 +321,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
             unchecked {
-                totalRelevantVotes += votes(collections[i]);
+                totalRelevantVotes += votes(collections[i], epoch);
                 ++i;
             }
         }
@@ -334,7 +333,7 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             if (i == collectionsLength - 1) {
                 amounts[i] = remainingTokens;
             } else {
-                amounts[i] = (tokens * ((totalRelevantVotes * votes(collections[i])) / (100 * 1e18))) / (10 * 1e18);
+                amounts[i] = (tokens * ((totalRelevantVotes * votes(collections[i], epoch)) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
@@ -346,15 +345,6 @@ contract GaugeWeightVote is AuthorityControl, IGaugeWeightVote {
             unchecked {
                 ++i;
             }
-        }
-
-        // Update the snapshot time made
-        epochIteration = epoch;
-
-        // Update our epochs across contracts
-        veFloor.setCurrentEpoch(epoch);
-        if (address(nftStaking) != address(0)) {
-            nftStaking.setCurrentEpoch(epoch);
         }
 
         return (collections, amounts);

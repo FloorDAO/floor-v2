@@ -9,6 +9,8 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+
 import {IVeFloorStaking, Depositor} from '@floor-interfaces/staking/VeFloorStaking.sol';
 import {IERC20, IVotable} from '@floor-interfaces/tokens/Votable.sol';
 import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
@@ -25,7 +27,8 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * - earlyWithdrawal
  * - penalty math
  */
-contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
+contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
+
     using SafeERC20 for IERC20;
 
     event EmergencyExitSet(bool status);
@@ -58,8 +61,6 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
     ITreasury public immutable treasury;
     IFloorWars public floorWars;
     IGaugeWeightVote public gaugeWeightVote;
-
-    uint internal currentEpoch;
 
     /// Allow some addresses to be exempt from early withdraw fees
     mapping(address => bool) public earlyWithdrawFeeExemptions;
@@ -137,7 +138,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      * @return votingPower The voting power available at the block timestamp
      */
     function votingPowerOf(address account) external view returns (uint) {
-        return this.votingPowerAt(account, currentEpoch);
+        return this.votingPowerAt(account, currentEpoch());
     }
 
     /**
@@ -220,7 +221,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
 
         // Update the user's lock
         if (epochs != 0) {
-            depositor.epochStart = uint160(currentEpoch);
+            depositor.epochStart = uint160(currentEpoch());
             depositor.epochCount = LOCK_PERIODS[epochs];
         }
 
@@ -261,9 +262,9 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      */
     function earlyWithdrawTo(address to, uint minReturn, uint maxLoss) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
-        if (emergencyExit || currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
+        if (emergencyExit || currentEpoch() >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
         uint allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
-        if (currentEpoch < allowedExitTime) revert MinLockPeriodRatioNotReached();
+        if (currentEpoch() < allowedExitTime) revert MinLockPeriodRatioNotReached();
 
         // Get the amount that has been deposited and ensure that there is an amount to
         // be withdrawn at all.
@@ -304,7 +305,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
     }
 
     function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint loss, uint ret) {
-        ret = depAmount - this.votingPowerOfAt(account, uint88(stBalance), currentEpoch);
+        ret = depAmount - this.votingPowerOfAt(account, uint88(stBalance), currentEpoch());
         loss = depAmount - ret;
     }
 
@@ -320,7 +321,7 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      */
     function withdrawTo(address to) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
-        if (!emergencyExit && currentEpoch < depositor.epochStart + depositor.epochCount) revert UnlockTimeHasNotCome();
+        if (!emergencyExit && currentEpoch() < depositor.epochStart + depositor.epochCount) revert UnlockTimeHasNotCome();
 
         uint amount = depositor.amount;
         if (amount > 0) {
@@ -384,15 +385,6 @@ contract VeFloorStaking is ERC20, IVeFloorStaking, IVotable, Ownable {
      */
     function addEarlyWithdrawFeeExemption(address account, bool exempt) external onlyOwner {
         earlyWithdrawFeeExemptions[account] = exempt;
-    }
-
-    /**
-     * ..
-     */
-    function setCurrentEpoch(uint _currentEpoch) external {
-        // TODO: Needs lockdown
-        // require(msg.sender == address(treasury), 'Treasury only');
-        currentEpoch = _currentEpoch;
     }
 
     // ERC20 methods disablers

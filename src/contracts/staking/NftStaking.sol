@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
@@ -23,7 +23,8 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBo
  * additional vote reward boosting through the calculation of a multiplier.
  */
 
-contract NftStaking is INftStaking, Ownable, Pausable {
+contract NftStaking is EpochManaged, INftStaking, Pausable {
+
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
     mapping(address => address) public underlyingXTokenMapping;
@@ -45,9 +46,6 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     /// Store the amount of discount applied to voting power of staked NFT
     uint16 public voteDiscount;
     uint64 public sweepModifier;
-
-    /// Store the current epoch, which will be updated by our internal calls to sync
-    uint public currentEpoch;
 
     /// Store our pricing executor that will determine the vote power of our NFT
     IBasePricingExecutor public pricingExecutor;
@@ -80,7 +78,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
     }
 
     function collectionBoost(address _collection) external view returns (uint) {
-        return this.collectionBoost(_collection, currentEpoch);
+        return this.collectionBoost(_collection, currentEpoch());
     }
 
     /**
@@ -110,7 +108,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
 
             unchecked {
                 // Get the remaining power of the stake based on remaining epochs
-                if (currentEpoch < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+                if (currentEpoch() < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
                     // Determine our staked sweep power by calculating our epoch discount
                     stakedSweepPower = (
                         ((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000)
@@ -204,7 +202,7 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         stakingZap.provideInventory721(_getVaultId(_collection), _tokenId);
 
         // Store the epoch starting epoch and the duration it is being staked for
-        stakingEpochStart[userCollectionHash] = currentEpoch;
+        stakingEpochStart[userCollectionHash] = currentEpoch();
         stakingEpochCount[userCollectionHash] = LOCK_PERIODS[_epochCount];
 
         // Fire an event to show staked tokens
@@ -305,11 +303,11 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         }
 
         // If we have passed the full duration of the epoch staking, then no fees
-        if (currentEpoch >= stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+        if (currentEpoch() >= stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
             return 0;
         }
 
-        return tokens - ((tokens * (currentEpoch - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash]);
+        return tokens - ((tokens * (currentEpoch() - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash]);
     }
 
     /**
@@ -375,18 +373,6 @@ contract NftStaking is INftStaking, Ownable, Pausable {
         // Map our collection to the underlying token
         underlyingTokenMapping[_collection] = _token;
         underlyingXTokenMapping[_collection] = _xToken;
-    }
-
-    /**
-     * Allows our epoch to be set by the {Treasury}. This should be sent when our {Treasury} ends
-     * the current epoch and moves to a new one.
-     *
-     * @param _currentEpoch The new, current epoch
-     */
-    function setCurrentEpoch(uint _currentEpoch) external {
-        // TODO: Needs lockdown
-        // require(msg.sender == address(treasury), 'Treasury only');
-        currentEpoch = _currentEpoch;
     }
 
     /**

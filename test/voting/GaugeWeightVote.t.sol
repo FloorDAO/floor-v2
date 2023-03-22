@@ -13,6 +13,7 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {IVault, Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
 import {CannotVoteWithZeroAmount, CollectionNotApproved, GaugeWeightVote, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/GaugeWeightVote.sol';
+import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
@@ -22,6 +23,7 @@ import {FloorTest} from '../utilities/Environments.sol';
 contract GaugeWeightVoteTest is FloorTest {
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
+    EpochManager epochManager;
     FLOOR floor;
     GaugeWeightVote gaugeWeightVote;
     StrategyRegistry strategyRegistry;
@@ -75,17 +77,14 @@ contract GaugeWeightVoteTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(collectionRegistry),
             address(strategyRegistry),
-            address(vaultFactory),
             address(floor)
         );
 
         // Set up our veFloor token
         veFloor = new VeFloorStaking(floor, address(treasury));
 
-        // Now that we have all our dependencies, we can deploy our
-        // {GaugeWeightVote} contract.
+        // Now that we have all our dependencies, we can deploy our {GaugeWeightVote} contract
         gaugeWeightVote = new GaugeWeightVote(
             address(collectionRegistry),
             address(vaultFactory),
@@ -94,7 +93,11 @@ contract GaugeWeightVoteTest is FloorTest {
             address(treasury)
         );
 
-        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
+        // Create our {EpochManager} and assign the contract to our test contracts
+        epochManager = new EpochManager();
+        gaugeWeightVote.setEpochManager(address(epochManager));
+        veFloor.setEpochManager(address(epochManager));
+
         collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
 
         // Define our strategy implementations

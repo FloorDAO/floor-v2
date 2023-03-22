@@ -13,21 +13,12 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFai
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
-import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
-
-/// If the epoch is currently timelocked and insufficient time has passed.
-/// @param timelockExpiry The timestamp at which the epoch can next be run
-error EpochTimelocked(uint timelockExpiry);
-
-/// If not pricing executor has been set before a call that requires it
-error NoPricingExecutorSet();
 
 /**
  * The Treasury will hold all assets.
@@ -65,37 +56,15 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         uint amount; // Used by native and 20 tokens
     }
 
-    /// Store when last epoch was run so that we can timelock usage
-    uint public lastEpoch;
-    uint public EPOCH_LENGTH = 7 days;
-
-    /// Store our epoch iteration number
-    uint public epochIteration;
-
     /// Holds our {StrategyRegistry} contract reference
     IStrategyRegistry public strategyRegistry;
-
-    /// Holds our {CollectionRegistry} contract reference
-    ICollectionRegistry public collectionRegistry;
-
-    /// Holds our {VaultFactory} contract reference
-    IVaultFactory public vaultFactory;
 
     /// Holds our {FLOOR} contract reference
     FLOOR public floor;
 
-    /// The current pricing executor contract
-    IBasePricingExecutor public pricingExecutor;
-
     /// The amount of our {Treasury} reward yield that is retained. Any remaining percentage
     /// amount will be distributed to the top voted collections via our {GaugeWeightVote} contract.
     uint public retainedTreasuryYieldPercentage;
-
-    /// Our Gauge Weight Voting contract
-    IGaugeWeightVote public voteContract;
-
-    /// Store our token prices, set by our `pricingExecutor`
-    mapping(address => uint) public tokenEthPrice;
 
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
@@ -106,148 +75,12 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
      * trusted source.
      *
      * @param _authority {AuthorityRegistry} contract address
-     * @param _collectionRegistry Address of our {CollectionRegistry}
      * @param _strategyRegistry Address of our {StrategyRegistry}
-     * @param _vaultFactory Address of our {VaultFactory}
      * @param _floor Address of our {FLOOR}
      */
-    constructor(address _authority, address _collectionRegistry, address _strategyRegistry, address _vaultFactory, address _floor)
-        AuthorityControl(_authority)
-    {
-        collectionRegistry = ICollectionRegistry(_collectionRegistry);
+    constructor(address _authority, address _strategyRegistry, address _floor) AuthorityControl(_authority) {
         strategyRegistry = IStrategyRegistry(_strategyRegistry);
-        vaultFactory = IVaultFactory(_vaultFactory);
         floor = FLOOR(_floor);
-    }
-
-    /**
-     * Distributes reward tokens to the {VaultXToken}, sending the FLOOR token to each instance
-     * based on the amount of reward yield that has been generated.
-     *
-     *  - If the reward is from treasury yield, then the recipient is based on GWV
-     *  - If the reward is from staker yield, then it will be allocated to user in the {VaultXToken}
-     *
-     * When a token deposit from strategy reward yield comes in, we can find the matching vault and
-     * find the holdings of all users. The treasury user is a special case, but the others will have
-     * a holding percentage determined for their reward share. Only users that are eligible (see note
-     * below on rewards cycle) will have their holdings percentage calculated. This holdings
-     * percentage will get them FLOOR rewards of all non-treasury yield, plus non-retained treasury
-     * yield based on {setRetainedTreasuryYieldPercentage}.
-     *
-     * As an example, consider the following scenario:
-     *
-     * +----------------+-----------------+-------------------+
-     * | Staker         | Amount          | Percent           |
-     * +----------------+-----------------+-------------------+
-     * | Alice          | 30              | 30%               |
-     * | Bob            | 10              | 10%               |
-     * | Treasury       | 60              | 60%               |
-     * +----------------+-----------------+-------------------+
-     *
-     * Say the strategy collects 10 tokens in reward in this cycle, and all staked parties are
-     * eligible to receive their reward allocation. The GWV in this example is attributing 40% to
-     * the example vault and we assume a FLOOR to token ratio of 5:1 (5 FLOOR is minted for each
-     * reward token in treasury). We are also assuming that we are retaining 50% of treasury rewards.
-     *
-     * The Treasury in this instance would be allocated 6 reward tokens (as they hold 60% of the vault
-     * share) and would convert 50% of this reward yield to FLOOR (due to 50% retention). This means
-     * that 3 of the reward tokens would generate an additional 15 FLOOR, distributed to non-Treasry
-     * holders, giving a total of 35.
-     *
-     * +----------------+--------------------+
-     * | Staker         | FLOOR Rewards      |
-     * +----------------+--------------------+
-     * | Alice          | 26.25              |
-     * | Bob            | 8.75               |
-     * | Treasury       | 0                  |
-     * +----------------+--------------------+
-     *
-     * And gives us a treasury updated holding of:
-     *
-     * +----------------+--------------------+
-     * | Token          | Amount             |
-     * +----------------+--------------------+
-     * | FLOOR          | 0                  |
-     * | Reward Token   | 10                 |
-     * +----------------+--------------------+
-     *
-     * A user will only be eligible if they have been staked for a complete rewards epoch.
-     */
-    function endEpoch() external {
-        // Ensure enough time has past since the last epoch ended
-        if (lastEpoch != 0 && block.timestamp < lastEpoch + EPOCH_LENGTH) {
-            revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
-        }
-
-        // Get our vaults
-        address[] memory vaults = vaultFactory.vaults();
-
-        // Get the prices of our approved collections
-        getCollectionEthPrices();
-
-        // Store the amount of rewards generated in ETH
-        uint ethRewards;
-
-        // Create our variables that we will reallocate during our loop to save gas
-        IVault vault;
-        uint vaultId;
-        uint vaultYield;
-
-        // Iterate over vaults
-        uint vaultLength = vaults.length;
-        for (uint i; i < vaultLength;) {
-            // Parse our vault address into the Vault interface
-            vault = IVault(vaults[i]);
-
-            // Pull out rewards and transfer into the {Treasury}
-            vaultId = vault.vaultId();
-            vaultYield = vaultFactory.claimRewards(vaultId);
-
-            if (vaultYield != 0) {
-                // Calculate the reward yield in FLOOR token terms
-                unchecked {
-                    ethRewards += tokenEthPrice[vault.collection()] * vaultYield;
-                }
-
-                // Now that the {Treasury} has knowledge of the reward tokens and has minted
-                // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
-                // the {Treasury}.
-                vaultFactory.registerMint(vaultId, vaultYield);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        unchecked {
-            epochIteration += 1;
-            lastEpoch = block.timestamp;
-        }
-
-        // Confirm we are not retaining all yield
-        if (ethRewards != 0 && retainedTreasuryYieldPercentage != 10000) {
-            // Determine the total amount of snapshot tokens. This should be calculated as all
-            // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-            // of the treasuryFloorYield.
-            uint sweepAmount = (ethRewards * (10000 - retainedTreasuryYieldPercentage)) / 10000;
-
-            // We want the ability to set a minimum sweep amount, so that when we are first
-            // starting out the sweeps aren't pathetic.
-            if (minSweepAmount != 0 && sweepAmount < minSweepAmount) {
-                sweepAmount = minSweepAmount;
-            }
-
-            // Process the snapshot, which will reward xTokens holders directly
-            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(sweepAmount, epochIteration);
-
-            // Now that we have the results of the snapshot we can register them against our
-            // pending sweeps.
-            epochSweeps[epochIteration] =
-                Sweep({collections: collections, amounts: amounts, allocationBlock: block.number, sweepBlock: 0, completed: false});
-        }
-
-        // emit EpochEnded(lastEpoch);
     }
 
     /**
@@ -374,19 +207,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows the GWV contract address to be set.
-     *
-     * @param contractAddr Address of new {GaugeWeightVote} contract
-     */
-    function setGaugeWeightVoteContract(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        if (contractAddr == address(0)) {
-            revert CannotSetNullAddress();
-        }
-
-        voteContract = IGaugeWeightVote(contractAddr);
-    }
-
-    /**
      * Sets the percentage of treasury rewards yield to be retained by the treasury, with
      * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
      *
@@ -398,52 +218,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         }
 
         retainedTreasuryYieldPercentage = percent;
-    }
-
-    /**
-     * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
-     * as user rewards.
-     *
-     * The vault will handle its own internal price calculation and stale caching logic based
-     * on a {VaultPricingStrategy} tied to the vault.
-     *
-     * @dev Our FLOOR ETH price is determined by:
-     * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-     *
-     * Our token ETH price is determined by (e.g. PUNK):
-     * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-     */
-    function getCollectionEthPrices() public {
-        if (address(pricingExecutor) == address(0)) {
-            revert NoPricingExecutorSet();
-        }
-
-        // Get our approved collections
-        address[] memory collections = collectionRegistry.approvedCollections();
-
-        // Query our pricing executor to get our floor price equivalent
-        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(collections);
-
-        // Iterate through our list and store it to our internal mapping
-        for (uint i; i < tokenEthPrices.length;) {
-            tokenEthPrice[collections[i]] = tokenEthPrices[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * Sets an updated pricing executor (needs to confirm an implementation function).
-     *
-     * @param contractAddr Address of new {IBasePricingExecutor} contract
-     */
-    function setPricingExecutor(address contractAddr) external onlyRole(TREASURY_MANAGER) {
-        if (contractAddr == address(0)) {
-            revert CannotSetNullAddress();
-        }
-
-        pricingExecutor = IBasePricingExecutor(contractAddr);
     }
 
     /**
@@ -482,6 +256,14 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
             }
         }
+    }
+
+    /**
+     * ..
+     */
+    // TODO: Lock down to only receive from epoch manager
+    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external {
+        epochSweeps[epoch] = Sweep({collections: collections, amounts: amounts, allocationBlock: block.number, sweepBlock: 0, completed: false});
     }
 
     /**
@@ -542,21 +324,6 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         epochSweeps[epochIndex] = epochSweep;
 
         // emit EpochSwept(epochIndex);
-    }
-
-    /**
-     * ..
-     */
-    function epochIterationTimestamp(uint _epochIteration) public view returns (uint) {
-        if (epochIteration < _epochIteration) {
-            return lastEpoch + (_epochIteration * EPOCH_LENGTH);
-        }
-
-        if (epochIteration == _epochIteration) {
-            return lastEpoch;
-        }
-
-        return lastEpoch - (_epochIteration * EPOCH_LENGTH);
     }
 
     /**

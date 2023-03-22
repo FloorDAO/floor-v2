@@ -10,6 +10,7 @@ import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
@@ -19,7 +20,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * ..
  */
 
-contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
+contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
@@ -30,9 +31,6 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
 
     /// ..
     uint internal nextIndex = 1;
-
-    /// Stores the current epoch enforced by the {Treasury}
-    uint public currentEpoch;
 
     /// ..
     mapping (uint => address) internal floorWarWinner;
@@ -225,7 +223,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
         for (uint i; i < collectionsLength;) {
             collectionHash = keccak256(abi.encode(nextIndex, collections[i]));
             collectionSpotPrice[collectionHash] = floorPrices[i];
-            collectionEpochLock[collectionHash] = currentEpoch + 1;
+            collectionEpochLock[collectionHash] = currentEpoch() + 1;
             is1155[collections[i]] = isErc1155[i];
 
             unchecked { ++i; }
@@ -249,7 +247,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
      */
     function endFloorWar() external returns (address highestVoteCollection) {
         // Ensure the war has ended based on epoch
-        require(currentWar.startEpoch < currentEpoch, 'FloorWar has not ended');
+        require(currentWar.startEpoch < currentEpoch(), 'FloorWar has not ended');
 
         // Ensure the epoch hasn't already been ended
         require(floorWarWinner[currentWar.index] == address(0), 'FloorWar end already actioned');
@@ -429,7 +427,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
     function reclaimCollectionNft(uint war, address collection, uint[] calldata tokenIds) external {
         // Check that the war has ended and that the requested collection is a timelocked token
         require(floorWarWinner[war] != address(0), 'FloorWar has not ended');
-        require(collectionEpochLock[keccak256(abi.encode(war, collection))] <= currentEpoch, 'Currently timelocked');
+        require(collectionEpochLock[keccak256(abi.encode(war, collection))] <= currentEpoch(), 'Currently timelocked');
 
         bytes32 warCollectionToken;
 
@@ -483,7 +481,7 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
      * Determines the voting power given by a staked NFT based on the requested
      * exercise price and the spot price.
      */
-    function nftVotingPower(uint spotPrice, uint exercisePercent) external view returns (uint) {
+    function nftVotingPower(uint spotPrice, uint exercisePercent) external pure returns (uint) {
         // If the user has matched our spot price, then we return full value
         if (exercisePercent == 100) {
             return spotPrice;
@@ -501,17 +499,6 @@ contract FloorWars is IERC1155Receiver, IERC721Receiver, IFloorWars, Ownable {
         unchecked {
             return spotPrice + ((spotPrice * (100 - exercisePercent)) / 100);
         }
-    }
-
-    /**
-     * Allows our epoch to be set by the {Treasury}. This should be sent when our {Treasury} ends
-     * the current epoch and moves to a new one.
-     *
-     * @param _currentEpoch The new, current epoch
-     */
-    function setCurrentEpoch(uint _currentEpoch) external {
-        require(msg.sender == address(treasury), 'Treasury only');
-        currentEpoch = _currentEpoch;
     }
 
     /**

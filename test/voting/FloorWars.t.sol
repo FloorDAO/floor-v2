@@ -10,6 +10,7 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FloorWars} from '@floor/voting/FloorWars.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
 import {ERC1155Mock} from '../mocks/erc/ERC1155Mock.sol';
@@ -19,6 +20,7 @@ import {FloorTest} from '../utilities/Environments.sol';
 contract FloorWarsTest is FloorTest {
 
     // Contract references to be deployed
+    EpochManager epochManager;
     FLOOR floor;
     FloorWars floorWars;
     VeFloorStaking veFloor;
@@ -46,6 +48,11 @@ contract FloorWarsTest is FloorTest {
 
         // Create our {FloorWars} contract
         floorWars = new FloorWars(treasury, address(veFloor));
+
+        // Create our {EpochManager} contract and assign it to required contracts
+        epochManager = new EpochManager();
+        floorWars.setEpochManager(address(epochManager));
+        veFloor.setEpochManager(address(epochManager));
 
         // Create some mock tokens
         mock721 = new ERC721Mock();
@@ -237,8 +244,7 @@ contract FloorWarsTest is FloorTest {
         vm.assume(currentEpoch > 0);
         vm.assume(currentEpoch <= 10);
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(currentEpoch);
+        epochManager.setCurrentEpoch(currentEpoch);
 
         floorWars.endFloorWar();
     }
@@ -257,8 +263,7 @@ contract FloorWarsTest is FloorTest {
         vm.prank(bob);
         floorWars.vote(address(1));
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -286,8 +291,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -317,8 +321,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -349,8 +352,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock1155), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -407,8 +409,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -448,8 +449,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -511,8 +511,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(2);
+        epochManager.setCurrentEpoch(2);
 
         floorWars.endFloorWar();
 
@@ -545,8 +544,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 
@@ -577,8 +575,7 @@ contract FloorWarsTest is FloorTest {
         vm.stopPrank();
 
         // Should only be reclaimable from epoch 2
-        vm.prank(treasury);
-        floorWars.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         floorWars.endFloorWar();
 

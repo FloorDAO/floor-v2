@@ -17,7 +17,8 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
 import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
-import {CannotSetNullAddress, EpochTimelocked, InsufficientAmount, NoPricingExecutorSet, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
+import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
+import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
@@ -40,6 +41,7 @@ contract TreasuryTest is FloorTest {
     ERC721Mock erc721;
     ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
+    EpochManager epochManager;
     StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
@@ -80,9 +82,7 @@ contract TreasuryTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(collectionRegistry),
             address(strategyRegistry),
-            address(vaultFactory),
             address(floor)
         );
 
@@ -94,6 +94,19 @@ contract TreasuryTest is FloorTest {
             address(authorityRegistry),
             address(treasury)
         );
+
+        // Set up our {EpochManager}
+        epochManager = new EpochManager();
+        epochManager.setContracts(
+            address(collectionRegistry),
+            address(pricingExecutorMock),
+            address(treasury),
+            address(vaultFactory),
+            address(gaugeWeightVote)
+        );
+
+        // Set our epoch manager
+        gaugeWeightVote.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
@@ -510,27 +523,6 @@ contract TreasuryTest is FloorTest {
     }
 
     /**
-     * Gauge Weight Vote get/set.
-     */
-    function test_CanSetGaugeWeightVoteContract() public {
-        assertEq(address(treasury.voteContract()), address(0));
-
-        treasury.setGaugeWeightVoteContract(address(1));
-        assertEq(address(treasury.voteContract()), address(1));
-    }
-
-    function test_CannotSetGaugeWeightVoteContractNullValue() public {
-        vm.expectRevert(CannotSetNullAddress.selector);
-        treasury.setGaugeWeightVoteContract(address(0));
-    }
-
-    function test_CannotSetGaugeWeightVoteContractWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
-        vm.prank(alice);
-        treasury.setGaugeWeightVoteContract(address(1));
-    }
-
-    /**
      * Retained Treasury Yield Percentage get/set.
      */
     function test_CanSetRetainedTreasuryYieldPercentage(uint percentage) public {
@@ -556,205 +548,4 @@ contract TreasuryTest is FloorTest {
         treasury.setRetainedTreasuryYieldPercentage(0);
     }
 
-    /**
-     * We need to be able to get the equivalent floor token price of another token
-     * through using a known pricing executor. For the purposes of this test we can
-     * use a Mock.
-     */
-    function test_CanGetTokenFloorPrice() public {
-        // We first need to set our pricing executor to the Mock
-        treasury.setPricingExecutor(address(pricingExecutorMock));
-
-        // Set test addresses as approved collections
-        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
-
-        // Our pricing executor Mock has preset address -> uint mapping for
-        // the price. So we can at first expect 0 prices, but then after our
-        // call we can expect specific prices.
-        assertEq(treasury.tokenEthPrice(address(1)), 0);
-        assertEq(treasury.tokenEthPrice(address(2)), 0);
-        assertEq(treasury.tokenEthPrice(address(3)), 0);
-        assertEq(treasury.tokenEthPrice(address(4)), 0);
-
-        // Call our pricing executor, querying the prices and writing it to
-        // to our {Treasury} pricing cache.
-        treasury.getCollectionEthPrices();
-
-        assertEq(treasury.tokenEthPrice(address(1)), 1);
-        assertEq(treasury.tokenEthPrice(address(2)), 2);
-        assertEq(treasury.tokenEthPrice(address(3)), 3);
-        assertEq(treasury.tokenEthPrice(address(4)), 4);
-    }
-
-    /**
-     * If we don't have a pricing executor set, then we won't be able to query
-     * anything and we should have our call reverted.
-     */
-    function test_CannotGetFloorPricesWithoutPricingExecutor() public {
-        vm.expectRevert(NoPricingExecutorSet.selector);
-        treasury.getCollectionEthPrices();
-    }
-
-    /**
-     * Pricing Executor get/set.
-     */
-    function test_CanSetPricingExecutor() public {
-        assertEq(address(treasury.pricingExecutor()), address(0));
-
-        treasury.setPricingExecutor(address(1));
-        assertEq(address(treasury.pricingExecutor()), address(1));
-    }
-
-    function test_CannotSetPricingExecutorNullValue() public {
-        vm.expectRevert(CannotSetNullAddress.selector);
-        treasury.setPricingExecutor(address(0));
-    }
-
-    function test_CannotSetPricingExecutorWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
-        vm.prank(alice);
-        treasury.setPricingExecutor(address(1));
-    }
-
-    /**
-     * When the epoch ends, the {TreasuryManager} can call to end the epoch. This
-     * will generate FLOOR against the token rewards, determine the yield of the
-     * {Treasury} to generate additional FLOOR through `RetainedTreasuryYieldPercentage`.
-     *
-     * We will then need to reference this against the {RewardsLedger} and the
-     * {GaugeWeightVote} to confirm that all test users are allocated their correct
-     * share.
-     *
-     * This will be quite a large test. Brace yourselves!
-     */
-    function test_CanEndEpoch() public {
-        // Set our required internal contracts
-        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
-        treasury.setPricingExecutor(address(pricingExecutorMock));
-
-        // Approve our vault collections
-        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
-
-        // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
-
-        // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
-        // set up the {Treasury} contract).
-        address[] memory vaults = new address[](5);
-        (, vaults[0]) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), address(1));
-        (, vaults[1]) = vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), address(2));
-        (, vaults[2]) = vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), address(2));
-        (, vaults[3]) = vaultFactory.createVault('Test Vault 4', approvedStrategy, _strategyInitBytes(), address(3));
-        (, vaults[4]) = vaultFactory.createVault('Test Vault 5', approvedStrategy, _strategyInitBytes(), address(4));
-
-        // Create a unique set of test users
-        users = utilities.createUsers(8, 0);
-
-        // Mock our rewards yield claim amount. For simplicity of future calculations, I've made
-        // these the same as the number of users that have (mock) staked against to it
-        vm.mockCall(vaults[0], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(8 ether)));
-        vm.mockCall(vaults[1], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
-        vm.mockCall(vaults[2], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(5 ether)));
-        vm.mockCall(vaults[3], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(6 ether)));
-        vm.mockCall(vaults[4], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(4 ether)));
-
-        assertEq(treasury.lastEpoch(), 0);
-        assertEq(treasury.epochIteration(), 0);
-
-        // Trigger our epoch end
-        treasury.endEpoch();
-
-        assertEq(treasury.lastEpoch(), block.timestamp);
-        assertEq(treasury.epochIteration(), 1);
-    }
-
-    /**
-     * After an epoch has run, there is a minimum wait that must be respected before
-     * trying to run it again. If this is not catered for, then we expect a revert.
-     */
-    function test_CannotCallAnotherEpochWithoutRespectingTimeout() public {
-        // Set our required internal contracts
-        treasury.setPricingExecutor(address(pricingExecutorMock));
-
-        // Mock our VaultFactory call to return no vaults
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(new address[](0)));
-
-        // Call an initial trigger, which should pass as no vaults or staked users
-        // are set up for the test.
-        treasury.endEpoch();
-
-        // Calling the epoch again should result in a reversion as we have not
-        // respected the enforced timelock.
-        vm.expectRevert(abi.encodeWithSelector(EpochTimelocked.selector, block.timestamp + 7 days));
-        treasury.endEpoch();
-
-        // After moving forwards 7 days, we can now successfully end another epoch
-        vm.warp(block.timestamp + 7 days);
-        treasury.endEpoch();
-    }
-
-    function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 20;
-        uint stakerCount = 100;
-
-        // Set our required internal contracts
-        treasury.setGaugeWeightVoteContract(address(gaugeWeightVote));
-        treasury.setPricingExecutor(address(pricingExecutorMock));
-
-        // Set our sample size of the GWV and to retain 50% of {Treasury} yield
-        gaugeWeightVote.setSampleSize(5);
-        treasury.setRetainedTreasuryYieldPercentage(5000);
-
-        // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
-
-        // Mock our Voting mechanism to unlock unlimited user votes without backing
-        vm.mockCall(
-            address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max)
-        );
-
-        // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
-        // set up the {Treasury} contract).
-        address[] memory vaults = new address[](vaultCount);
-        address payable[] memory stakers = utilities.createUsers(stakerCount);
-
-        // Loop through our mocked vaults to mint tokens
-        for (uint i; i < vaultCount; ++i) {
-            // Approve a unique collection
-            address collection = address(uint160(uint(vaultCount + i)));
-            collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
-
-            // Deploy our vault
-            (, vaults[i]) = vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
-
-            // Set up a mock that will set rewards to be a static amount of ether
-            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
-
-            // Each staker will then deposit and vote
-            for (uint j; j < stakerCount; ++j) {
-                // Cast votes from this user against the vault collection
-                vm.startPrank(stakers[i]);
-                gaugeWeightVote.vote(collection, 1 ether);
-                vm.stopPrank();
-            }
-        }
-
-        // Trigger our epoch end and pray to the gas gods
-        treasury.endEpoch();
-
-        // We can now confirm the distribution of ETH going to the top collections by
-        // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
-        // are not included in read attempts as we cannot get the information accurately.
-        (uint allocationBlock, uint sweepBlock, bool completed) = treasury.epochSweeps(treasury.epochIteration());
-
-        assertEq(allocationBlock, block.number);
-        assertEq(sweepBlock, 0);
-        assertEq(completed, false);
-    }
 }

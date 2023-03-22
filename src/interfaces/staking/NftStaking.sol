@@ -16,8 +16,6 @@ interface INftStaking {
 
     function sweepModifier() external returns (uint64);
 
-    function currentEpoch() external returns (uint);
-
     function collectionBoost(address _collection) external view returns (uint boost_);
 
     function collectionBoost(address _collection, uint _epoch) external view returns (uint boost_);
@@ -37,8 +35,6 @@ interface INftStaking {
     function setStakingZaps(address _stakingZap, address _unstakingZap) external;
 
     function setUnderlyingToken(address _collection, address _token, address _xToken) external;
-
-    function setCurrentEpoch(uint _currentEpoch) external;
 
     function setBoostCalculator(address _boostCalculator) external;
 

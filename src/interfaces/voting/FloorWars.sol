@@ -33,11 +33,6 @@ interface IFloorWars {
         address[] collections;
     }
 
-    /**
-     * Stores the current epoch enforced by the {Treasury}.
-     */
-    function currentEpoch() external view returns (uint);
-
     /// Stores the number of votes a user has placed against a war collection
     function userVotes(bytes32) external view returns (uint);
 
@@ -137,14 +132,6 @@ interface IFloorWars {
      * exercise price and the spot price.
      */
     function nftVotingPower(uint spotPrice, uint exercisePercent) external view returns (uint);
-
-    /**
-     * Allows our epoch to be set by the {Treasury}. This should be sent when our {Treasury} ends
-     * the current epoch and moves to a new one.
-     *
-     * @param _currentEpoch The new, current epoch
-     */
-    function setCurrentEpoch(uint _currentEpoch) external;
 
     /**
      * ..

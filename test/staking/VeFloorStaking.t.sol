@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {EpochManager} from '@floor/EpochManager.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -14,6 +15,7 @@ contract VeFloorStakingTest is FloorTest {
     address alice;
 
     // Internal contract references
+    EpochManager epochManager;
     FLOOR floor;
     VeFloorStaking veFloor;
 
@@ -26,6 +28,10 @@ contract VeFloorStakingTest is FloorTest {
 
         // Deploy our staking contract with our test contract as the recipient of fees
         veFloor = new VeFloorStaking(floor, address(this));
+
+        // Create our {EpochManager} contract and assign it to {VeFloorStaking}
+        epochManager = new EpochManager();
+        veFloor.setEpochManager(address(epochManager));
 
         floor.mint(address(this), 100 ether);
         floor.approve(address(veFloor), 100 ether);
@@ -87,7 +93,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldIncreaseUnlockTimeForDeposit() external {
         veFloor.deposit(100 ether, 1);
 
-        veFloor.setCurrentEpoch(2);
+        epochManager.setCurrentEpoch(2);
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
@@ -111,7 +117,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.setFeeReceiver(address(this));
 
         veFloor.deposit(100 ether, 2);
-        veFloor.setCurrentEpoch(6);
+        epochManager.setCurrentEpoch(6);
 
         veFloor.earlyWithdrawTo(address(this), 0 ether, 100 ether);
 
@@ -134,7 +140,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(20 ether, 4);
 
         // Set our epoch to half way through the lock
-        veFloor.setCurrentEpoch(26);
+        epochManager.setCurrentEpoch(26);
 
         // Deposit 30 ether with no epoch specified
         veFloor.deposit(30 ether, 0);
@@ -164,7 +170,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_ShouldReturnZeroBeforeDepositMade() external {
-        veFloor.setCurrentEpoch(1);
+        epochManager.setCurrentEpoch(1);
 
         veFloor.deposit(1 ether, 6);
 
@@ -176,7 +182,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(70 ether, 4);
 
         // Get our epoch end by taking the `epochStart` and the `epochCount`
-        veFloor.setCurrentEpoch(26);
+        epochManager.setCurrentEpoch(26);
 
         // Deposit an additional 20 tokens with no time increase
         veFloor.deposit(20 ether, 0);
@@ -193,7 +199,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldWithdrawUsersDeposit() external {
         veFloor.deposit(100 ether, 1);
 
-        veFloor.setCurrentEpoch(4);
+        epochManager.setCurrentEpoch(4);
 
         uint balanceaddr = floor.balanceOf(address(this));
 
@@ -210,7 +216,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldWithdrawUsersDepositAndSentTokensToOtherAddress() external {
         veFloor.deposit(100 ether, 1);
 
-        veFloor.setCurrentEpoch(4);
+        epochManager.setCurrentEpoch(4);
 
         uint balanceaddr = floor.balanceOf(address(this));
         uint balanceAddr1 = floor.balanceOf(alice);
@@ -260,7 +266,7 @@ contract VeFloorStakingTest is FloorTest {
 
     function test_EarlyWithdrawToShouldNotWorkAfterUnlockTime() external {
         veFloor.deposit(1 ether, 3);
-        veFloor.setCurrentEpoch(26);
+        epochManager.setCurrentEpoch(26);
 
         vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
         veFloor.earlyWithdrawTo(address(this), 1, 1);
@@ -300,7 +306,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, 4);
 
         // Move our epoch forward to 26 weeks
-        veFloor.setCurrentEpoch(48);
+        epochManager.setCurrentEpoch(48);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
@@ -325,22 +331,22 @@ contract VeFloorStakingTest is FloorTest {
 
         (uint rest2YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(26);
+        epochManager.setCurrentEpoch(26);
         (uint rest1HalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(52);
+        epochManager.setCurrentEpoch(52);
         (uint rest1YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(78);
+        epochManager.setCurrentEpoch(78);
         (uint restHalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(100);
+        epochManager.setCurrentEpoch(100);
         (uint restMonthLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(102);
+        epochManager.setCurrentEpoch(102);
         (uint restWeekLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        veFloor.setCurrentEpoch(103);
+        epochManager.setCurrentEpoch(103);
         (uint restDayLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
         assertGt(rest2YearsLoss, rest1HalfYearsLoss);
@@ -356,7 +362,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, 4);
 
         // Shift our epoch to 26 weeks
-        veFloor.setCurrentEpoch(26);
+        epochManager.setCurrentEpoch(26);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
