@@ -263,12 +263,6 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
         // Ensure that we have a current war running
         require(currentWar.index != 0, 'No war currently running');
 
-        // Ensure the war has ended based on epoch
-        require(currentWar.startEpoch < currentEpoch(), 'FloorWar has not ended');
-
-        // Ensure the epoch hasn't already been ended
-        require(floorWarWinner[currentWar.index] == address(0), 'FloorWar end already actioned');
-
         // Find the collection that holds the top number of votes
         uint highestVoteCount;
         uint collectionsLength = currentWar.collections.length;
@@ -447,7 +441,7 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
     function reclaimCollectionNft(uint war, address collection, uint[] calldata tokenIds) external {
         // Check that the war has ended and that the requested collection is a timelocked token
         require(floorWarWinner[war] != address(0), 'FloorWar has not ended');
-        require(collectionEpochLock[keccak256(abi.encode(war, collection))] <= currentEpoch(), 'Currently timelocked');
+        require(currentEpoch() > collectionEpochLock[keccak256(abi.encode(war, collection))], 'Currently timelocked');
 
         bytes32 warCollectionToken;
 

@@ -30,7 +30,7 @@ abstract contract EpochManaged is Ownable {
      * ..
      */
     modifier onlyEpochManager() {
-        require(msg.sender == address(epochManager));
+        require(msg.sender == address(epochManager), 'Only EpochManager can call');
         _;
     }
 

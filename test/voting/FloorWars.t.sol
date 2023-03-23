@@ -153,6 +153,9 @@ contract FloorWarsTest is FloorTest {
         // Move to our next epoch to activate the created war at epoch 1
         epochManager.endEpoch();
 
+        // Skip forward so that epoch is unlocked
+        vm.warp(block.timestamp + 7 days);
+
         // Grant Alice and Bob plenty of veFLOOR tokens to play with
         floor.mint(alice, 100 ether);
         floor.mint(bob, 50 ether);
@@ -302,28 +305,17 @@ contract FloorWarsTest is FloorTest {
 
         epochManager.setCurrentEpoch(currentEpoch);
 
-        floorWars.endFloorWar();
-    }
-
-    function test_CannotEndPendingFloorWar() external {
-        vm.expectRevert('FloorWar has not ended');
+        vm.prank(address(epochManager));
         floorWars.endFloorWar();
     }
 
     function test_CannotEndFloorWarThatDoesNotExist() external {
-        vm.expectRevert('FloorWar has not ended');
-        floorWars.endFloorWar();
-    }
+        // This will end the existing war
+        epochManager.endEpoch();
 
-    function test_CannotEndAlreadyEndedFloorWar() external {
-        vm.prank(bob);
-        floorWars.vote(address(1));
-
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
-
-        vm.expectRevert('FloorWar end already actioned');
+        // We then try to end another floor war, but none should exist
+        vm.expectRevert('No war currently running');
+        vm.prank(address(epochManager));
         floorWars.endFloorWar();
     }
 
@@ -347,9 +339,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         floorWars.exerciseCollectionERC721s{value: 1.35 ether}(war, tokenIds);
 
@@ -385,11 +375,9 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
+        epochManager.endEpoch();
 
-        floorWars.endFloorWar();
-
-        vm.expectRevert('Unable to make payment');
+        vm.expectRevert();  // Throws "EvmError: OutOfFund"
         floorWars.exerciseCollectionERC721s{value: 1 ether}(war, tokenIds);
     }
 
@@ -416,9 +404,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock1155), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         /**
          * From our voting, we should have the following available to the {Treasury}:
@@ -450,7 +436,15 @@ contract FloorWarsTest is FloorTest {
         assertEq(mock1155.balanceOf(address(treasury), 0), 3);
         assertEq(mock1155.balanceOf(address(treasury), 1), 4);
 
+        // Alice should still have the same ETH amount that she started with, but will have
+        // the additional amounts awaiting her in escrow.
+        assertEq(address(alice).balance, aliceStartAmount);
+        assertEq(floorWars.payments(address(alice)), 0.75 ether + 1.5 ether);
+
+        // Confirm that Alice can then withdraw the payment
+        floorWars.withdrawPayments(payable(alice));
         assertEq(address(alice).balance, aliceStartAmount + 0.75 ether + 1.5 ether);
+        assertEq(floorWars.payments(address(alice)), 0);
     }
 
     function test_CannotExerciseUnknownStakedNft() external {
@@ -473,9 +467,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         uint[] memory mixedTokenIds = new uint[](2);
         tokenIds[0] = 1;
@@ -513,9 +505,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         vm.expectRevert();
         floorWars.exerciseCollectionERC721s(war, tokenIds);
@@ -575,9 +565,8 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
+        epochManager.endEpoch();
         epochManager.setCurrentEpoch(2);
-
-        floorWars.endFloorWar();
 
         vm.startPrank(alice);
         floorWars.reclaimCollectionNft(war, address(mock721), tokenIds);
@@ -587,7 +576,7 @@ contract FloorWarsTest is FloorTest {
         assertEq(mock721.ownerOf(1), alice);
     }
 
-    function test_aaaCanReclaimStakedNftThatDidNotWinWithinTimelock() external {
+    function test_CanReclaimStakedNftThatDidNotWinWithinTimelock() external {
         vm.prank(bob);
         floorWars.vote(address(1));
 
@@ -608,9 +597,7 @@ contract FloorWarsTest is FloorTest {
         floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         vm.startPrank(alice);
         floorWars.reclaimCollectionNft(war, address(mock721), tokenIds);
@@ -639,9 +626,7 @@ contract FloorWarsTest is FloorTest {
         vm.stopPrank();
 
         // Should only be reclaimable from epoch 2
-        epochManager.setCurrentEpoch(1);
-
-        floorWars.endFloorWar();
+        epochManager.endEpoch();
 
         vm.startPrank(alice);
         vm.expectRevert('Currently timelocked');
@@ -650,6 +635,18 @@ contract FloorWarsTest is FloorTest {
 
         assertEq(mock721.ownerOf(0), address(floorWars));
         assertEq(mock721.ownerOf(1), address(floorWars));
+
+        // Skip forward so that epoch is unlocked
+        vm.warp(block.timestamp + 7 days);
+
+        // Now that an additional epoch has ended, it will now be claimable
+        epochManager.endEpoch();
+
+        vm.prank(alice);
+        floorWars.reclaimCollectionNft(war, address(mock721), tokenIds);
+
+        assertEq(mock721.ownerOf(0), address(alice));
+        assertEq(mock721.ownerOf(1), address(alice));
     }
 
     function test_CannotHaveAnExercisePercentAbove100(uint56 exercisePercent) external {
