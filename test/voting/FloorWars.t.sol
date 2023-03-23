@@ -300,7 +300,15 @@ contract FloorWarsTest is FloorTest {
         assertEq(mock721.ownerOf(0), treasury);
         assertEq(mock721.ownerOf(1), treasury);
 
+        // Alice should still have the same ETH amount that she started with, but will have
+        // the additional amounts awaiting her in escrow.
+        assertEq(address(alice).balance, aliceStartAmount);
+        assertEq(floorWars.payments(address(alice)), 0.60 ether + 0.75 ether);
+
+        // Confirm that Alice can then withdraw the payment
+        floorWars.withdrawPayments(payable(alice));
         assertEq(address(alice).balance, aliceStartAmount + 0.60 ether + 0.75 ether);
+        assertEq(floorWars.payments(address(alice)), 0);
     }
 
     function test_CannotExerciseStakedNft721WithInsufficientMsgValue() external {

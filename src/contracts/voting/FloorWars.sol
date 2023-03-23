@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {PullPayment} from '@openzeppelin/contracts/security/PullPayment.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -20,7 +21,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * ..
  */
 
-contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars {
+contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars, PullPayment {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
@@ -288,7 +289,8 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
         bytes32 warCollectionToken;
 
         // Iterate over the tokenIds we want to exercise
-        for (uint i; i < tokenIds.length;) {
+        uint length = tokenIds.length;
+        for (uint i; i < length;) {
             warCollection = keccak256(abi.encode(war, collection));
             warCollectionToken = keccak256(abi.encode(war, collection, tokenIds[i]));
 
@@ -298,10 +300,8 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
             // If we don't have a token match, skippers
             require(nft.staker != address(0), 'Token is not staked');
 
-            // Pay the staker the amount that they requested. Not our problem if the recipient
-            // is not able to receive ETH :(
-            (bool success,) = payable(nft.staker).call{value: (collectionSpotPrice[warCollection] * nft.exercisePercent) / 100}('');
-            require(success, 'Unable to make payment');
+            // Pay the staker the amount that they requested into escrow
+            _asyncTransfer(nft.staker, (collectionSpotPrice[warCollection] * nft.exercisePercent) / 100);
 
             // Transfer the NFT to our {Treasury}
             IERC721(collection).transferFrom(address(this), address(treasury), tokenIds[i]);
@@ -389,15 +389,16 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
                     amountToBuy = orderedTokens[k].amount;
                 }
 
-                // Reduce our remaining balance by the number exercised
-                amount[i] -= exercisePrice * amountToBuy;
+                unchecked {
+                    // Reduce our remaining balance by the number exercised
+                    amount[i] -= exercisePrice * amountToBuy;
 
-                // Pay the staking user
-                (bool success,) = payable(orderedTokens[k].staker).call{value: exercisePrice * amountToBuy}('');
-                require(success, 'Unable to make payment');
+                    // Increment our total to buy
+                    totalToBuy += amountToBuy;
+                }
 
-                // Increment our total to buy
-                totalToBuy += amountToBuy;
+                // Pay the staker the amount that they requested into escrow
+                _asyncTransfer(orderedTokens[k].staker, exercisePrice * amountToBuy);
 
                 // Reduce the amount remaining against the staked 1155, deleting the stake if
                 // we have exhausted the staked amount.
