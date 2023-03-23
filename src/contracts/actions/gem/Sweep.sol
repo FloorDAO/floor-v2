@@ -25,7 +25,11 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
     event Sweep(uint ethAmount);
 
     /**
-     * ..
+     * Executes a Gem.xyz sweep to facilitate the purchase of ERC721s.
+     *
+     * @param _request GemSwap transaction bytes
+     *
+     * @return uint The amount of ETH spent on the call
      */
     function execute(bytes calldata _request) public payable returns (uint spent) {
         // Sweeps from GemSwap
@@ -50,20 +54,15 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Allows the contract to receive ERC721 tokens.
      */
-    function onERC721Received(address, /* operator */ address, /* from */ uint, /* tokenId */ bytes calldata /* data */ )
-        external
-        pure
-        returns (bytes4)
-    {
+    function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
     /**
-     * ..
+     * Allows our contract to receive dust ETH back from our Gem sweep.
      */
-    receive() external payable {
-        //
-    }
+    receive() external payable {}
+
 }

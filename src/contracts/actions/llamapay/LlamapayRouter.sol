@@ -10,13 +10,14 @@ import {ILlamaPay} from '@floor-interfaces/llamapay/LlamaPay.sol';
 import {ILlamaPayFactory} from '@floor-interfaces/llamapay/LlamaPayFactory.sol';
 
 /**
- * ..
+ * The Llamapay router acts as an intermediary contract that our Llamapay actions
+ * make their calls through. This groups common logic and handles our edge cases.
  */
 contract LlamapayRouter is Pausable {
-    /// ..
+    /// Interface for the externally deployed {LlamaPayFactory} contract.
     ILlamaPayFactory public immutable llamaPayFactory;
 
-    /// ..
+    /// The address of our {Treasyry} contract
     address public immutable treasury;
 
     /**
@@ -32,7 +33,14 @@ contract LlamapayRouter is Pausable {
     }
 
     /**
-     * ..
+     * Create and funds a token stream to a recipient.
+     *
+     * @param to Recipient of the stream
+     * @param token The token used to fund the stream
+     * @param amount The amount of token funding the stream
+     * @param amountPerSec The amount given to the recipient per second
+     *
+     * @return The closing balance of the stream
      */
     function createStream(address to, address token, uint amount, uint216 amountPerSec) public returns (uint) {
         // Determine the LlamaPay contract based on the deposit token
@@ -64,7 +72,12 @@ contract LlamapayRouter is Pausable {
     }
 
     /**
-     * ..
+     * Deposits tokens into a Llamapay pool to provide additional stream funding.
+     *
+     * @param token The token used to fund the stream
+     * @param amount The amount of token funding the stream
+     *
+     * @return The closing balance of the stream
      */
     function deposit(address token, uint amount) public returns (uint) {
         // Ensure we aren't trying to deposit a zero amount
@@ -85,7 +98,12 @@ contract LlamapayRouter is Pausable {
     }
 
     /**
-     * ..
+     * Withdraws tokens from a Llamapay pool.
+     *
+     * @param token The token used to fund the stream
+     * @param amount The amount of token funding the stream
+     *
+     * @return The closing balance of the stream
      */
     function withdraw(address token, uint amount) public returns (uint) {
         // Get our LlamaPay contract
@@ -108,6 +126,10 @@ contract LlamapayRouter is Pausable {
         return uint(llamaPay.getPayerBalance(address(this)));
     }
 
+    /**
+     * Determines the Llamapay pool based on the token and returns the interface of
+     * the LlamaPay pool for further calls.
+     */
     function _getLlamapayPool(address token) internal view returns (ILlamaPay) {
         // Determine the LlamaPay contract based on the deposit token
         (address predictedAddress, bool isDeployed) = llamaPayFactory.getLlamaPayContractByToken(token);

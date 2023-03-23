@@ -109,8 +109,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
             revert ZeroAmountReceivedFromDeposit();
         }
 
-        // TODO: Timelock our users and return veFloor
-
         // Increase the user's position and the total position for the vault
         unchecked {
             position[msg.sender] += receivedAmount;
@@ -141,8 +139,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         if (amount > position[msg.sender]) {
             revert InsufficientPosition(amount, position[msg.sender]);
         }
-
-        // TODO: Check timelock and burn veFloor
 
         // Withdraw the user's position from the strategy
         uint receivedAmount = strategy.withdraw(amount);

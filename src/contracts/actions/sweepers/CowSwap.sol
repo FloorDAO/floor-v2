@@ -78,7 +78,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
 
             OnchainSignature memory signature = OnchainSignature({scheme: OnchainSigningScheme.Eip1271, data: hex''});
 
-            emit OrderPlacement(address(instance), order, signature, ''); // TODO: 4th param is meta?
+            emit OrderPlacement(address(instance), order, signature, '');
 
             orderUid = new bytes(GPv2Order.UID_LENGTH);
             orderUid.packOrderUidParams(orderHash, address(instance), order.validTo);

@@ -10,6 +10,7 @@ import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
@@ -21,7 +22,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * ..
  */
 
-contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars, PullPayment {
+contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars, PullPayment {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
@@ -62,7 +63,7 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
     /**
      * Sets our internal contract addresses.
      */
-    constructor (address _treasury, address _veFloor) {
+    constructor (address _authority, address _treasury, address _veFloor) AuthorityControl(_authority) {
         treasury = ITreasury(_treasury);
         veFloor = VeFloorStaking(_veFloor);
     }
@@ -123,10 +124,8 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
 
     /**
      * ..
-     *
-     * TODO: Lock down to vote manager
      */
-    function revokeVotes(address account) external {
+    function revokeVotes(address account) external onlyRole(VOTE_MANAGER) {
         // Ensure a war is currently running
         require(currentWar.index != 0, 'No war currently running');
 

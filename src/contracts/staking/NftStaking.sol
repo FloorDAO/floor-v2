@@ -63,6 +63,10 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     // Allow us to waive early unstake fees
     bool public waiveUnstakeFees;
 
+    // Allows NFTX references for when receiving rewards
+    address internal inventoryStaking;
+    address internal treasury;
+
     /// Set a list of locking periods that the user can lock for
     uint8[] public LOCK_PERIODS = [uint8(0), 4, 13, 26, 52, 78, 104];
 
@@ -77,6 +81,9 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         voteDiscount = _voteDiscount;
     }
 
+    /**
+     * ..
+     */
     function collectionBoost(address _collection) external view returns (uint) {
         return this.collectionBoost(_collection, currentEpoch());
     }
@@ -280,12 +287,24 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // emit TokensUnStaked(msg.sender, _tokenId, tokenValue);
     }
 
+    /**
+     * Calculates the amount in fees it would cost the calling user to unstake.
+     *
+     * @param _collection The collection being unstaked
+     *
+     * @return The amount in fees to unstake
+     */
     function unstakeFees(address _collection) external view returns (uint) {
         return _unstakeFees(_collection, msg.sender);
     }
 
     /**
-     * ..
+     * Calculates the amount in fees for a specific address to unstake from a collection.
+     *
+     * @param _collection The collection being unstaked
+     * @param _sender The caller that is unstaking
+     *
+     * @return The amount in fees to unstake
      */
     function _unstakeFees(address _collection, address _sender) internal view returns (uint) {
         // Get our user collection hash
@@ -417,10 +436,6 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Get the corresponding vault ID of the collection
         uint vaultId = _getVaultId(_collection);
 
-        // TODO: Allow the actual NFTX inventory staking contract to be referenced
-        address inventoryStaking = address(this);
-        address treasury = address(this);
-
         // Get the amount of rewards avaialble to claim
         uint rewardsAvailable = INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
 
@@ -430,6 +445,14 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, rewardsAvailable);
             IERC20(underlyingTokenMapping[_collection]).transfer(treasury, rewardsAvailable);
         }
+    }
+
+    /**
+     * Allows us to set internal contracts that are used when claiming rewards.
+     */
+    function setContracts(address _inventoryStaking, address _treasury) external onlyOwner {
+        inventoryStaking = _inventoryStaking;
+        treasury = _treasury;
     }
 
     /**

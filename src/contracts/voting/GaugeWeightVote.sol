@@ -193,7 +193,7 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
     }
 
     /**
-     * TODO: ..
+     * ..
      */
     function votes(address _collection, uint _baseEpoch) public view returns (uint votes_) {
         CollectionVote memory collectionVote = collectionVotes[_collection];

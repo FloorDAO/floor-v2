@@ -261,8 +261,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     /**
      * ..
      */
-    // TODO: Lock down to only receive from epoch manager
-    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external {
+    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external onlyEpochManager {
         epochSweeps[epoch] = Sweep({collections: collections, amounts: amounts, allocationBlock: block.number, sweepBlock: 0, completed: false});
     }
 

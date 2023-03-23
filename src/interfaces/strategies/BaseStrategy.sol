@@ -76,7 +76,7 @@ interface IBaseStrategy {
     function registerMint(address recipient, uint amount) external;
 
     /**
-     * TODO: ..
+     * ..
      */
     function claimRewards() external returns (uint amount_);
 

@@ -51,7 +51,10 @@ contract EpochManager is IEpochManager, Ownable {
     mapping (uint => uint) internal collectionEpochs;
 
     /**
-     * ..
+     * Allows a new epoch to be set. This should, in theory, only be set to one
+     * above the existing `currentEpoch`.
+     *
+     * @param _currentEpoch The new epoch to set
      */
     function setCurrentEpoch(uint _currentEpoch) external onlyOwner {
         currentEpoch = _currentEpoch;
@@ -59,6 +62,10 @@ contract EpochManager is IEpochManager, Ownable {
 
     /**
      * Will return if the current epoch is a collection addition vote.
+     *
+     * @param epoch The epoch to check
+     *
+     * @return bool If the specified epoch is a collection addition
      */
     function isCollectionAdditionEpoch(uint epoch) external view returns (bool) {
         return collectionEpochs[epoch] != 0;
@@ -68,6 +75,9 @@ contract EpochManager is IEpochManager, Ownable {
      * Allows an epoch to be scheduled to be a collection addition vote. An index will
      * be specified to show which collection addition will be used. The index will not
      * be a zero value.
+     *
+     * @param epoch The epoch that the Collection Addition will take place in
+     * @param index The Collection Addition array index
      */
     function scheduleCollectionAddtionEpoch(uint epoch, uint index) external {
         require(msg.sender == address(floorWars), 'Invalid caller');
@@ -76,6 +86,21 @@ contract EpochManager is IEpochManager, Ownable {
 
     /**
      * Triggers an epoch to end.
+     *
+     * If the current epoch is a Collection Addition, then the floor war is ended and the
+     * winning collection is chosen. The losing collections are released to be claimed, but
+     * the winning collection remains locked for an additional epoch to allow the DAO to
+     * exercise the option(s).
+     *
+     * If the current epoch is just a gauge vote, then we look at the top voted collections
+     * and calculates the distribution of yield to each of them based on the vote amounts. This
+     * yield is then allocated to a Sweep structure that can be executed by the {Treasury}
+     * at a later date.
+     *
+     * If the epoch has successfully ended, then the `currentEpoch` value will be increased
+     * by one, and the epoch will be locked from updating again until `EPOCH_LENGTH` has
+     * passed. We will also check if a new Collection Addition is starting in the new epoch
+     * and initialise it if it is.
      */
      function endEpoch() external {
         // Ensure enough time has past since the last epoch ended
@@ -196,7 +221,12 @@ contract EpochManager is IEpochManager, Ownable {
     }
 
     /**
-     * ..
+     * Provides an estimated timestamp of when an epoch started, and also the earliest
+     * that an epoch in the future could start.
+     *
+     * @param _epoch The epoch to find the estimated timestamp of
+     *
+     * @return uint The estimated timestamp of when the specified epoch started
      */
     function epochIterationTimestamp(uint _epoch) public view returns (uint) {
         if (currentEpoch < _epoch) {
@@ -211,7 +241,8 @@ contract EpochManager is IEpochManager, Ownable {
     }
 
     /**
-     * ..
+     * Sets the contract addresses of internal contracts that are queried and used
+     * in other functions.
      */
     function setContracts(
         address _collectionRegistry,

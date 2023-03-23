@@ -73,8 +73,6 @@ interface IFloorWars {
 
     /**
      * ..
-     *
-     * TODO: Lock down to vote manager
      */
     function revokeVotes(address account) external;
 

@@ -10,10 +10,10 @@ import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
- * ..
+ * Creates and funds a stream on the Llamapay platform.
  */
 contract LlamapayCreateStream is IAction, Pausable {
-    /// ..
+    /// Our internally deployed Llamapay router
     LlamapayRouter public immutable llamapayRouter;
 
     /**
@@ -35,7 +35,14 @@ contract LlamapayCreateStream is IAction, Pausable {
     }
 
     /**
-     * ..
+     * Executes our request to create and fund a stream.
+     *
+     * @dev If the Llamapay token contract does not yet exist, then additional gas will
+     * be required to create it. For common tokens like USDC, this won't occur.
+     *
+     * @param _request Bytes to be cast to the `ActionRequest` struct
+     *
+     * @return uint Total balance currently held by the stream
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
