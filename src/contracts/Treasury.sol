@@ -24,7 +24,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
-    /// ..
+    /// Different approval types that can be specified.
     enum ApprovalType {
         NATIVE,
         ERC20,
@@ -32,9 +32,7 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         ERC1155
     }
 
-    /**
-     * ..
-     */
+    /// Stores data that allows the Treasury to action a sweep.
     struct Sweep {
         address[] collections;
         uint[] amounts;
@@ -43,18 +41,17 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
         bool completed;
     }
 
-    /// An array of sweeps that map against the epoch iteration
-    mapping(uint => Sweep) public epochSweeps;
-
-    /**
-     * ..
-     */
+    /// The data structure format that will be mapped against to define a token
+    /// approval request.
     struct ActionApproval {
         ApprovalType _type; // Token type
         address assetContract; // Used by 20, 721 and 1155
         uint tokenId; // Used by 721 tokens
         uint amount; // Used by native and 20 tokens
     }
+
+    /// An array of sweeps that map against the epoch iteration.
+    mapping(uint => Sweep) public epochSweeps;
 
     /// Holds our {StrategyRegistry} contract reference
     IStrategyRegistry public strategyRegistry;
@@ -221,7 +218,9 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Apply an action against the vault.
+     * Apply an action against the vault. If we need any tokens to be approved before the
+     * action is called, then these are approved before our call and approval is removed
+     * afterwards for 1155s.
      *
      * @param action Address of the action to apply
      * @param approvals Any tokens that need to be approved before actioning
@@ -259,14 +258,24 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * ..
+     * When an epoch ends, we have the ability to register a sweep against the {Treasury}
+     * via the {EpochManager}. This will store a DAO sweep that will need to be actioned
+     * using the `sweepEpoch` function.
+     *
+     * @param epoch The current epoch that the sweep is generated from
+     * @param collections The collections that will be swept
+     * @param amounts The amount of ETH to sweep against each collection
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external onlyEpochManager {
         epochSweeps[epoch] = Sweep({collections: collections, amounts: amounts, allocationBlock: block.number, sweepBlock: 0, completed: false});
     }
 
     /**
-     * ..
+     * Actions a sweep to be used against a contract that implements {ISweeper}. This
+     * will fulfill the sweep and we then mark the sweep as completed.
+     *
+     * @param epochIndex The index of the `epochSweeps`
+     * @param sweeper The address of the sweeper contract to be used
      */
     function sweepEpoch(uint epochIndex, address sweeper) public onlyRole(TREASURY_MANAGER) {
         // Load the stored sweep at our epoch index
@@ -280,7 +289,12 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * ..
+     * Allows the DAO to resweep an already swept "Sweep" struct, using a contract that
+     * implements {ISweeper}. This will fulfill the sweep again and keep the sweep marked
+     * as completed.
+     *
+     * @param epochIndex The index of the `epochSweeps`
+     * @param sweeper The address of the sweeper contract to be used
      */
     function resweepEpoch(uint epochIndex, address sweeper) public onlyRole(TREASURY_MANAGER) {
         // Load the stored sweep at our epoch index
@@ -293,14 +307,18 @@ contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
     }
 
     /**
-     * ..
+     * Allows us to set a minimum amount of ETH to sweep with, so that if the yield
+     * allocated to the sweep is too low to be beneficial, then the DAO can stomache
+     * the additional cost.
+     *
+     * @param _minSweepAmount The minimum amount of ETH to sweep with
      */
     function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
         minSweepAmount = _minSweepAmount;
     }
 
     /**
-     * ..
+     * Handles the logic to action a sweep.
      */
     function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep) internal {
         // Find the total amount to send to the sweeper and transfer it before the call
