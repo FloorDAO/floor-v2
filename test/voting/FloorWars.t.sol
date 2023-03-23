@@ -566,7 +566,7 @@ contract FloorWarsTest is FloorTest {
         vm.stopPrank();
 
         epochManager.endEpoch();
-        epochManager.setCurrentEpoch(2);
+        epochManager.setCurrentEpoch(3);
 
         vm.startPrank(alice);
         floorWars.reclaimCollectionNft(war, address(mock721), tokenIds);
