@@ -26,4 +26,12 @@ abstract contract EpochManaged is Ownable {
         return epochManager.currentEpoch();
     }
 
+    /**
+     * ..
+     */
+    modifier onlyEpochManager() {
+        require(msg.sender == address(epochManager));
+        _;
+    }
+
 }

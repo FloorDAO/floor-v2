@@ -5,13 +5,20 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
+import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
+
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
-import {FloorWars} from '@floor/voting/FloorWars.sol';
-import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {EpochManager} from '@floor/EpochManager.sol';
-import {Treasury} from '@floor/Treasury.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {Vault} from '@floor/vaults/Vault.sol';
+import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {FloorWars} from '@floor/voting/FloorWars.sol';
+import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
+import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
+import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {ERC1155Mock} from '../mocks/erc/ERC1155Mock.sol';
 import {ERC721Mock} from '../mocks/erc/ERC721Mock.sol';
@@ -24,8 +31,12 @@ contract FloorWarsTest is FloorTest {
     FLOOR floor;
     FloorWars floorWars;
     VeFloorStaking veFloor;
-
-    address treasury;
+    CollectionRegistry collectionRegistry;
+    StrategyRegistry strategyRegistry;
+    Treasury treasury;
+    PricingExecutorMock pricingExecutorMock;
+    GaugeWeightVote gaugeWeightVote;
+    VaultFactory vaultFactory;
 
     address alice;
     address bob;
@@ -37,27 +48,83 @@ contract FloorWarsTest is FloorTest {
     ERC1155Mock mock1155;
 
     constructor() {
-        // Deploy our FLOOR token
-        floor = new FLOOR(address(authorityRegistry));
+        // Set up our mock pricing executor
+        pricingExecutorMock = new PricingExecutorMock();
 
-        // Set up a {Treasury} mock
-        treasury = address(9);
+        // Set up our registries
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+
+        // Deploy our vault implementations
+        address vaultImplementation = address(new Vault());
+
+        // Set up our {Floor} token
+        floor = new FLOOR(address(authorityRegistry));
+        veFloor = new VeFloorStaking(floor, address(this));
+
+        // Create our {VaultFactory}
+        vaultFactory = new VaultFactory(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry),
+            vaultImplementation,
+            address(floor)
+        );
+
+        // Set up our {Treasury}
+        treasury = new Treasury(
+            address(authorityRegistry),
+            address(strategyRegistry),
+            address(floor)
+        );
+
+        // Create our Gauge Weight Vote contract
+        gaugeWeightVote = new GaugeWeightVote(
+            address(collectionRegistry),
+            address(vaultFactory),
+            address(veFloor),
+            address(authorityRegistry),
+            address(treasury)
+        );
 
         // Set up our veFloor token
-        veFloor = new VeFloorStaking(floor, treasury);
+        veFloor = new VeFloorStaking(floor, address(treasury));
 
         // Create our {FloorWars} contract
-        floorWars = new FloorWars(treasury, address(veFloor));
+        floorWars = new FloorWars(address(treasury), address(veFloor));
 
         // Create our {EpochManager} contract and assign it to required contracts
         epochManager = new EpochManager();
         floorWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
+        epochManager.setContracts(
+            address(collectionRegistry),
+            address(floorWars),
+            address(pricingExecutorMock),
+            address(treasury),
+            address(vaultFactory),
+            address(gaugeWeightVote)
+        );
+
         // Create some mock tokens
         mock721 = new ERC721Mock();
         mock1155 = new ERC1155Mock();
 
+        // Map some users to simpler addresses
+        (alice, bob, carol) = (users[0], users[1], users[2]);
+
+        // Give our test users a selection of ERC721 and ERC1155 tokens
+        for (uint i; i < 10; ++i) {
+            mock721.mint(alice, i);
+            mock1155.mint(alice, i, 10, bytes(''));
+
+            mock721.mint(carol, i + 10);
+            mock1155.mint(carol, i + 10, 10, bytes(''));
+        }
+    }
+
+    function setUp() public {
         // Set up a collections array
         address[] memory collections = new address[](5);
         collections[0] = address(1);
@@ -81,22 +148,11 @@ contract FloorWarsTest is FloorTest {
         floorPrices[4] = 0.5 ether;
 
         // Set up a war
-        war = floorWars.createFloorWar(0, collections, isErc1155, floorPrices);
+        war = floorWars.createFloorWar(1, collections, isErc1155, floorPrices);
 
-        // Map some users to simpler addresses
-        (alice, bob, carol) = (users[0], users[1], users[2]);
+        // Move to our next epoch to activate the created war at epoch 1
+        epochManager.endEpoch();
 
-        // Give our test users a selection of ERC721 and ERC1155 tokens
-        for (uint i; i < 10; ++i) {
-            mock721.mint(alice, i);
-            mock1155.mint(alice, i, 10, bytes(''));
-
-            mock721.mint(carol, i + 10);
-            mock1155.mint(carol, i + 10, 10, bytes(''));
-        }
-    }
-
-    function setUp() public {
         // Grant Alice and Bob plenty of veFLOOR tokens to play with
         floor.mint(alice, 100 ether);
         floor.mint(bob, 50 ether);
@@ -142,7 +198,7 @@ contract FloorWarsTest is FloorTest {
         assertEq(floorWars.userVotesAvailable(war + 1, carol), 0 ether);
     }
 
-    function test_CanVote() external {
+    function test_CanVote1() external {
         vm.prank(alice);
         floorWars.vote(address(1));
 
@@ -297,8 +353,8 @@ contract FloorWarsTest is FloorTest {
 
         floorWars.exerciseCollectionERC721s{value: 1.35 ether}(war, tokenIds);
 
-        assertEq(mock721.ownerOf(0), treasury);
-        assertEq(mock721.ownerOf(1), treasury);
+        assertEq(mock721.ownerOf(0), address(treasury));
+        assertEq(mock721.ownerOf(1), address(treasury));
 
         // Alice should still have the same ETH amount that she started with, but will have
         // the additional amounts awaiting her in escrow.

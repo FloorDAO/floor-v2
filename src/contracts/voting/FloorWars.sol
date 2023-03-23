@@ -29,9 +29,7 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
 
     /// Stores a collection of all the FloorWars that have been started
     FloorWar public currentWar;
-
-    /// ..
-    uint internal nextIndex = 1;
+    FloorWar[] public wars;
 
     /// ..
     mapping (uint => address) internal floorWarWinner;
@@ -205,34 +203,49 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
      * collections from a specific epoch.
      */
     function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices) external onlyOwner returns (uint) {
-        // Check if we currently have another FloorWar running
-        if (currentWar.index != 0) {
-            if (floorWarWinner[currentWar.index] == address(0)) {
-                revert('Another FloorWar is live');
-            }
+        // Ensure that the Floor War is created with enough runway
+        require(epoch > currentEpoch(), 'Floor War scheduled too soon');
 
-            // Remove the current FloorWar reference
-            delete currentWar;
-        }
+        // Check if another floor war is already scheduled for this epoch
+        require(!epochManager.isCollectionAdditionEpoch(epoch), 'Floor War already exists at this epoch');
 
-        // Create and store our FloorWar
-        currentWar = FloorWar(nextIndex, epoch, collections);
+        // Create the floor war
+        uint warIndex = wars.length + 1;
+        wars.push(FloorWar(warIndex, epoch, collections));
 
-        // Create our spot prices
+        // Create our spot prices for the collections
         uint collectionsLength = collections.length;
+        require(collectionsLength > 1, 'Insufficient collections');
+
         bytes32 collectionHash;
+        uint collectionLockEpoch = currentEpoch() + 1;
         for (uint i; i < collectionsLength;) {
-            collectionHash = keccak256(abi.encode(nextIndex, collections[i]));
+            collectionHash = keccak256(abi.encode(warIndex, collections[i]));
             collectionSpotPrice[collectionHash] = floorPrices[i];
-            collectionEpochLock[collectionHash] = currentEpoch() + 1;
+            collectionEpochLock[collectionHash] = collectionLockEpoch;
             is1155[collections[i]] = isErc1155[i];
 
             unchecked { ++i; }
         }
 
-        unchecked { ++nextIndex; }
+        // Schedule our floor war onto our {EpochManager}
+        epochManager.scheduleCollectionAddtionEpoch(epoch, warIndex);
 
-        return currentWar.index;
+        return warIndex;
+    }
+
+    /**
+     * ..
+     */
+    function startFloorWar(uint index) external onlyEpochManager {
+        // Ensure that we don't have a current war running
+        require(currentWar.index == 0, 'War currently running');
+
+        // Ensure that the index specified is scheduled to start at this epoch
+        require(wars[index - 1].startEpoch == currentEpoch(), 'Invalid war set to start');
+
+        // Set our current war
+        currentWar = wars[index - 1];
     }
 
     /**
@@ -246,7 +259,10 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
      * @dev We can't action this in one single call as we will need information about
      * the underlying NFTX token as well.
      */
-    function endFloorWar() external returns (address highestVoteCollection) {
+    function endFloorWar() external onlyEpochManager returns (address highestVoteCollection) {
+        // Ensure that we have a current war running
+        require(currentWar.index != 0, 'No war currently running');
+
         // Ensure the war has ended based on epoch
         require(currentWar.startEpoch < currentEpoch(), 'FloorWar has not ended');
 
@@ -274,6 +290,9 @@ contract FloorWars is EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWar
             // Increment our winner lock by one epoch
             ++collectionEpochLock[keccak256(abi.encode(currentWar.index, highestVoteCollection))];
         }
+
+        // Close the war
+        delete currentWar;
     }
 
     /**

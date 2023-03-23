@@ -92,6 +92,11 @@ interface IFloorWars {
     function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices) external returns (uint);
 
     /**
+     * ..
+     */
+    function startFloorWar(uint index) external;
+
+    /**
      * When the epoch has come to an end, this function will be called to finalise
      * the votes and decide which collection has won. This collection will then need
      * to be added to the {CollectionRegistry}.

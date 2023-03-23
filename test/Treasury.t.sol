@@ -99,6 +99,7 @@ contract TreasuryTest is FloorTest {
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
+            address(0),  // Floor Wars not needed for these tests
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),

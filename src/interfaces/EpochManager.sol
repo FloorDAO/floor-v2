@@ -20,7 +20,7 @@ interface IEpochManager {
     /**
      * ..
      */
-    function isCollectionAdditionEpoch() external view returns (bool);
+    function isCollectionAdditionEpoch(uint epoch) external view returns (bool);
 
     /**
      * ..
@@ -45,6 +45,6 @@ interface IEpochManager {
     /**
      * ..
      */
-    function setContracts(address _collectionRegistry, address _pricingExecutor, address _treasury, address _vaultFactory, address _voteContract) external;
+    function setContracts(address _collectionRegistry, address _floorWars, address _pricingExecutor, address _treasury, address _vaultFactory, address _voteContract) external;
 
 }

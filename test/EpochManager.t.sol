@@ -16,6 +16,7 @@ import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {FloorWars} from '@floor/voting/FloorWars.sol';
 import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
@@ -43,6 +44,7 @@ contract EpochManagerTest is FloorTest {
     StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
+    FloorWars floorWars;
     GaugeWeightVote gaugeWeightVote;
     VaultFactory vaultFactory;
 
@@ -89,9 +91,13 @@ contract EpochManagerTest is FloorTest {
             address(treasury)
         );
 
+        // Create our {FloorWars} contract
+        floorWars = new FloorWars(address(treasury), address(veFloor));
+
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
+            address(epochManager),
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
@@ -99,6 +105,7 @@ contract EpochManagerTest is FloorTest {
         );
 
         // Set our epoch manager
+        floorWars.setEpochManager(address(epochManager));
         gaugeWeightVote.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
@@ -141,31 +148,31 @@ contract EpochManagerTest is FloorTest {
     function test_CanSetContracts() external {
         epochManager.setContracts(
             address(1),  // collectionRegistry
-            address(2),  // pricingExecutor
-            address(3),  // treasury
-            address(4),  // vaultFactory
-            address(5)   // voteContract
+            address(2),  // floorWars
+            address(3),  // pricingExecutor
+            address(4),  // treasury
+            address(5),  // vaultFactory
+            address(6)   // voteContract
         );
 
         assertEq(address(epochManager.collectionRegistry()), address(1));
-        assertEq(address(epochManager.pricingExecutor()), address(2));
-        assertEq(address(epochManager.treasury()), address(3));
-        assertEq(address(epochManager.vaultFactory()), address(4));
-        assertEq(address(epochManager.voteContract()), address(5));
+        assertEq(address(epochManager.floorWars()), address(2));
+        assertEq(address(epochManager.pricingExecutor()), address(3));
+        assertEq(address(epochManager.treasury()), address(4));
+        assertEq(address(epochManager.vaultFactory()), address(5));
+        assertEq(address(epochManager.voteContract()), address(6));
     }
 
     function test_CanScheduleCollectionAdditionEpoch(uint epoch) external {
         // Prevents overflow of `epoch + 1`
         vm.assume(epoch < type(uint).max);
 
-        epochManager.setCurrentEpoch(epoch);
-        assertFalse(epochManager.isCollectionAdditionEpoch());
+        assertFalse(epochManager.isCollectionAdditionEpoch(epoch));
 
         epochManager.scheduleCollectionAddtionEpoch(epoch, 1);
-        assertTrue(epochManager.isCollectionAdditionEpoch());
+        assertTrue(epochManager.isCollectionAdditionEpoch(epoch));
 
-        epochManager.setCurrentEpoch(epoch + 1);
-        assertFalse(epochManager.isCollectionAdditionEpoch());
+        assertFalse(epochManager.isCollectionAdditionEpoch(epoch + 1));
     }
 
     /**
