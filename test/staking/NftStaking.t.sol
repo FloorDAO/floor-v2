@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
 import {NftStaking} from '@floor/staking/NftStaking.sol';
+import {NftStakingNFTXV2} from '@floor/staking/NftStakingNFTXV2.sol';
 import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
@@ -32,6 +33,7 @@ contract NftStakingTest is FloorTest {
     // Internal contract references
     EpochManager epochManager;
     NftStaking staking;
+    NftStakingNFTXV2 nftStakingStrategy;
     UniswapV3PricingExecutor pricingExecutor;
 
     constructor() forkBlock(16_692_005) {
@@ -52,12 +54,15 @@ contract NftStakingTest is FloorTest {
         // Set up our staking contract
         staking = new NftStaking(address(pricingExecutor), VOTE_DISCOUNT);
 
+        // Set up our staking strategy
+        nftStakingStrategy = new NftStakingNFTXV2(address(staking));
+
         // Set our staking zaps to the correct mainnet addresses
-        staking.setStakingZaps(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3);
+        nftStakingStrategy.setStakingZaps(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3);
 
         // Add our underlying token mappings
-        staking.setUnderlyingToken(LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
-        staking.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
+        nftStakingStrategy.setUnderlyingToken(LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
+        nftStakingStrategy.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
 
         // Set our sweep modifier
         staking.setSweepModifier(4e9);
@@ -220,7 +225,7 @@ contract NftStakingTest is FloorTest {
         // pseudo-randomness that NFTX applies will give us a consistent return.
         assertEq(IERC721(LOW_VALUE_NFT).ownerOf(5174), LOW_HOLDER_2);
         assertEq(IERC721(LOW_VALUE_NFT).ownerOf(7439), LOW_HOLDER_2);
-        assertEq(IERC20(staking.underlyingTokenMapping(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 0);
+        assertEq(IERC20(nftStakingStrategy.underlyingToken(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 0);
 
         vm.stopPrank();
     }
@@ -246,7 +251,7 @@ contract NftStakingTest is FloorTest {
         // The NFTs would normally be random, but since we are locked at a specific time, the
         // pseudo-randomness that NFTX applies will give us a consistent return.
         assertEq(IERC721(LOW_VALUE_NFT).ownerOf(5174), LOW_HOLDER_2);
-        assertEq(IERC20(staking.underlyingTokenMapping(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 499999999999999999);
+        assertEq(IERC20(nftStakingStrategy.underlyingToken(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 499999999999999999);
 
         vm.stopPrank();
     }
@@ -303,27 +308,27 @@ contract NftStakingTest is FloorTest {
     }
 
     function test_CanSetStakingZaps() external {
-        staking.setStakingZaps(address(1), address(2));
+        nftStakingStrategy.setStakingZaps(address(1), address(2));
 
-        assertEq(address(staking.stakingZap()), address(1));
-        assertEq(address(staking.unstakingZap()), address(2));
+        assertEq(address(nftStakingStrategy.stakingZap()), address(1));
+        assertEq(address(nftStakingStrategy.unstakingZap()), address(2));
     }
 
     function test_CannotSetInvalidStakingZaps() external {
         vm.expectRevert();
-        staking.setStakingZaps(address(1), address(0));
+        nftStakingStrategy.setStakingZaps(address(1), address(0));
 
         vm.expectRevert();
-        staking.setStakingZaps(address(0), address(1));
+        nftStakingStrategy.setStakingZaps(address(0), address(1));
 
         vm.expectRevert();
-        staking.setStakingZaps(address(0), address(0));
+        nftStakingStrategy.setStakingZaps(address(0), address(0));
     }
 
     function test_CannotSetStakingZapsWithoutPermission() external {
         vm.expectRevert();
         vm.prank(alice);
-        staking.setStakingZaps(address(1), address(2));
+        nftStakingStrategy.setStakingZaps(address(1), address(2));
     }
 
     function test_CanSetBoostCalculator() external {

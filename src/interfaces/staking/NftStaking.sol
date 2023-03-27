@@ -2,13 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface INftStaking {
-    function underlyingTokenMapping(address) external returns (address);
-
-    function stakingEpochStart(bytes32) external returns (uint);
-
-    function stakingEpochCount(bytes32) external returns (uint);
-
-    function userTokensStaked(bytes32) external returns (uint);
 
     function collectionStakerIndex(bytes32) external returns (uint);
 
@@ -32,13 +25,8 @@ interface INftStaking {
 
     function setPricingExecutor(address _pricingExecutor) external;
 
-    function setStakingZaps(address _stakingZap, address _unstakingZap) external;
-
-    function setUnderlyingToken(address _collection, address _token, address _xToken) external;
-
     function setBoostCalculator(address _boostCalculator) external;
 
     function claimRewards(address _collection) external;
 
-    function onERC721Received(address, address, uint, bytes memory) external returns (bytes4);
 }

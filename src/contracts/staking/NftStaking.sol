@@ -10,12 +10,9 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
-import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
-import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
-import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
-import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
+import {INftStakingStrategy} from '@floor-interfaces/staking/NftStakingStrategy.sol';
 import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
 
 /**
@@ -25,23 +22,24 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBo
 
 contract NftStaking is EpochManaged, INftStaking, Pausable {
 
-    /// Stores the equivalent ERC20 of the ERC721
-    mapping(address => address) public underlyingTokenMapping;
-    mapping(address => address) public underlyingXTokenMapping;
+    struct StakedNft {
+        uint epochStart;
+        uint epochCount;
+        uint tokensStaked;
+    }
 
-    /// Stores the epoch start time of staking, and the duration of the staking
-    mapping(bytes32 => uint) public stakingEpochStart;
-    mapping(bytes32 => uint) public stakingEpochCount;
+    /// Stores our modular NFT staking strategy
+    INftStakingStrategy public nftStakingStrategy;
+
+    /// Stores a list of all strategies that have been used
+    address[] public previousStrategies;
 
     /// Stores the boosted number of votes available to a user
-    mapping(bytes32 => uint) public userTokensStaked;
+    mapping(bytes32 => StakedNft) public stakedNfts;
 
     /// Stores an array of collections the user has currently staked NFTs for
-    mapping(address => address[]) internal collectionStakers;
+    mapping(bytes32 => address[]) internal collectionStakers;
     mapping(bytes32 => uint) public collectionStakerIndex;
-
-    /// Store a mapping of NFTX vault address to vault ID for gas savings
-    mapping(address => uint) internal cachedNftxVaultId;
 
     /// Store the amount of discount applied to voting power of staked NFT
     uint16 public voteDiscount;
@@ -53,19 +51,8 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     /// Store our boost calculator contract that will calculate our modifier
     INftStakingBoostCalculator public boostCalculator;
 
-    /// Store our NFTX staking zaps
-    INFTXStakingZap public stakingZap;
-    INFTXUnstakingInventoryZap public unstakingZap;
-
-    /// Temp. user store for ERC721 receipt
-    address private _nftReceiver;
-
     // Allow us to waive early unstake fees
-    bool public waiveUnstakeFees;
-
-    // Allows NFTX references for when receiving rewards
-    address internal inventoryStaking;
-    address internal treasury;
+    mapping(address => bool) public waiveUnstakeFees;
 
     /// Set a list of locking periods that the user can lock for
     uint8[] public LOCK_PERIODS = [uint8(0), 4, 13, 26, 52, 78, 104];
@@ -82,7 +69,9 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     }
 
     /**
-     * ..
+     * Gets the total boost value for collection, based on the amount of NFTs that have been
+     * staked, as well as the value and duration at which they staked at.
+     * @param _collection The address of the collection we are checking the boost multiplier of
      */
     function collectionBoost(address _collection) external view returns (uint) {
         return this.collectionBoost(_collection, currentEpoch());
@@ -93,41 +82,47 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      * staked, as well as the value and duration at which they staked at.
      *
      * @param _collection The address of the collection we are checking the boost multiplier of
+     * @param _epoch The epoch to get the value at
      *
      * @return uint The boost multiplier for the collection to 9 decimal places
      */
     function collectionBoost(address _collection, uint _epoch) external view returns (uint) {
         // Get the latest cached price of a collection. We need to get the number of FLOOR
         // tokens that this equates to, without the additional decimals.
-        uint cachedFloorPrice = pricingExecutor.getLatestFloorPrice(underlyingTokenMapping[_collection]);
+        uint cachedFloorPrice = pricingExecutor.getLatestFloorPrice(nftStakingStrategy.underlyingToken(_collection));
 
         // Store our some variables for use throughout the loop for gas saves
-        bytes32 userCollectionHash;
         uint sweepPower;
         uint sweepTotal;
         uint stakedSweepPower;
         uint epochModifier;
 
+        uint currentEpoch = currentEpoch();
+        bytes32 _collectionHash = collectionHash(_collection);
+        uint length = collectionStakers[_collectionHash].length;
+
+        StakedNft memory stakedNft;
+
         // Loop through all stakes against a collection and summise the sweep power based on
         // the number staked and remaining epoch duration.
-        for (uint i; i < collectionStakers[_collection].length;) {
-            userCollectionHash = keccak256(abi.encode(collectionStakers[_collection][i], _collection));
+        for (uint i; i < length;) {
+            stakedNft = stakedNfts[this.hash(collectionStakers[_collectionHash][i], _collection)];
 
             unchecked {
                 // Get the remaining power of the stake based on remaining epochs
-                if (currentEpoch() < stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+                if (currentEpoch < stakedNft.epochStart + stakedNft.epochCount) {
                     // Determine our staked sweep power by calculating our epoch discount
                     stakedSweepPower = (
-                        ((userTokensStaked[userCollectionHash] * cachedFloorPrice * voteDiscount) / 10000)
-                            * stakingEpochCount[userCollectionHash]
+                        ((stakedNft.tokensStaked * cachedFloorPrice * voteDiscount) / 10000)
+                            * stakedNft.epochCount
                     ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-                    epochModifier = ((_epoch - stakingEpochStart[userCollectionHash]) * 1e9) / stakingEpochCount[userCollectionHash];
+                    epochModifier = ((_epoch - stakedNft.epochStart) * 1e9) / stakedNft.epochCount;
 
                     // Add the staked sweep power to our collection total
                     sweepPower += stakedSweepPower - ((stakedSweepPower * epochModifier) / 1e9);
 
                     // Tally up our quantity total
-                    sweepTotal += userTokensStaked[userCollectionHash];
+                    sweepTotal += stakedNft.tokensStaked;
                 }
 
                 ++i;
@@ -151,12 +146,9 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Validate the number of epochs staked
         require(_epochCount < LOCK_PERIODS.length, 'Invalid epoch index');
 
-        // Ensure we have a mapped underlying token
-        require(underlyingTokenMapping[_collection] != address(0), 'Underlying token not found');
-
         // Convert our user and collection to a bytes32 reference, creating a smaller 1d mapping,
         // as opposed to an otherwise 2d address mapping.
-        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
+        bytes32 userCollectionHash = this.hash(msg.sender, _collection);
 
         // Get the number of tokens we will be transferring
         uint tokensLength = _tokenId.length;
@@ -166,7 +158,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             // Handle Punk specific logic
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
                 IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
-                IERC721(_collection).approve(address(stakingZap), _tokenId[i]);
+                IERC721(_collection).approve(nftStakingStrategy.stakingTarget(), _tokenId[i]);
             } else {
                 // Confirm that the PUNK belongs to the caller
                 bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
@@ -179,7 +171,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
                 require(success, string(result));
 
                 // Approve the staking zap to buy for zero value
-                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(stakingZap));
+                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, nftStakingStrategy.stakingTarget());
                 (success, result) = address(_collection).call(data);
                 require(success, string(result));
             }
@@ -190,27 +182,32 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         }
 
         // Find the current value of the token
-        uint tokenValue = pricingExecutor.getFloorPrice(underlyingTokenMapping[_collection]);
+        uint tokenValue = pricingExecutor.getFloorPrice(nftStakingStrategy.underlyingToken(_collection));
         require(tokenValue != 0, 'Unknown token price');
+
+        StakedNft memory stakedNft = stakedNfts[userCollectionHash];
+        bytes32 _collectionHash = collectionHash(_collection);
 
         // If we don't currently have any tokens stored for the collection, then we need to push
         // the collection address onto our list of user's collections.
-        if (userTokensStaked[userCollectionHash] == 0) {
-            collectionStakerIndex[userCollectionHash] = collectionStakers[_collection].length;
-            collectionStakers[_collection].push(msg.sender);
+        if (stakedNft.tokensStaked == 0) {
+            collectionStakerIndex[userCollectionHash] = collectionStakers[_collectionHash].length;
+            collectionStakers[_collectionHash].push(msg.sender);
         }
 
         // Update the number of tokens that our user has staked
         unchecked {
-            userTokensStaked[userCollectionHash] += tokensLength;
+            stakedNft.tokensStaked += tokensLength;
         }
 
-        // Stake the token into NFTX vault
-        stakingZap.provideInventory721(_getVaultId(_collection), _tokenId);
+        // Stake the token into our staking strategy
+        nftStakingStrategy.stake(_collection, _tokenId);
 
         // Store the epoch starting epoch and the duration it is being staked for
-        stakingEpochStart[userCollectionHash] = currentEpoch();
-        stakingEpochCount[userCollectionHash] = LOCK_PERIODS[_epochCount];
+        stakedNft.epochStart = currentEpoch();
+        stakedNft.epochCount = LOCK_PERIODS[_epochCount];
+
+        stakedNfts[userCollectionHash] = stakedNft;
 
         // Fire an event to show staked tokens
         // emit TokensStaked(msg.sender, _tokenId, tokenValue, currentEpoch, epochCount);
@@ -223,11 +220,20 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      * @param _collection The collection to unstake
      */
     function unstake(address _collection) external {
+        _unstake(_collection, address(nftStakingStrategy));
+    }
+
+    function unstake(address _collection, address _nftStakingStrategy) external {
+        _unstake(_collection, _nftStakingStrategy);
+    }
+
+    function _unstake(address _collection, address _nftStakingStrategy) internal {
         // Get our user collection hash
-        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection));
+        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection, _nftStakingStrategy));
+        StakedNft memory stakedNft = stakedNfts[userCollectionHash];
 
         // Ensure that our user has staked tokens
-        require(userTokensStaked[userCollectionHash] != 0, 'No tokens staked');
+        require(stakedNft.tokensStaked != 0, 'No tokens staked');
 
         // Determine the number of full NFTs that we can receive when unstaking, as well as any
         // dust remaining afterwards. These amounts will vary depending on the remaining period
@@ -238,7 +244,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // our returned value. We can then divide this by `1 ether` to find the number of whole
         // tokens that can be withdrawn. This will leave the `remainingPortionToUnstake` with just
         // the dust allocation.
-        uint remainingPortionToUnstake = (userTokensStaked[userCollectionHash] * 1 ether) - _unstakeFees(_collection, msg.sender);
+        uint remainingPortionToUnstake = (stakedNft.tokensStaked * 1 ether) - _unstakeFees(_nftStakingStrategy, _collection, msg.sender);
 
         // We can now iterate over our whole tokens to determine the number of full ERC721s we can
         // withdraw, and how much will be left as ERC20.
@@ -249,39 +255,14 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             }
         }
 
-        // Approve the max usage of the underlying token against the unstaking zap
-        IERC20(underlyingXTokenMapping[_collection]).approve(address(unstakingZap), type(uint).max);
-
-        // Set our NFT receiver so that our callback function can hook into the correct
-        // recipient. We have to do this as NFTX doesn't allow a recipient to be specified
-        // when calling the unstaking zap. This only needs to be done if we expect to
-        // receive an NFT.
-        if (numNfts != 0) {
-            _nftReceiver = msg.sender;
-        }
-
-        // Unstake all inventory for the user for the collection. This forked version of the
-        // NFTX unstaking zap allows us to specify the recipient, so we don't need to handle
-        // any additional transfers.
-        unstakingZap.unstakeInventory(_getVaultId(_collection), numNfts, remainingPortionToUnstake);
-
-        // Transfer our remaining portion to the user
-        IERC20(underlyingTokenMapping[_collection]).transfer(
-            _nftReceiver, IERC20(underlyingTokenMapping[_collection]).balanceOf(address(this))
-        );
-
-        // After our NFTs have been unstaked, we want to make sure we delete the receiver
-        delete _nftReceiver;
+        // Unstake the NFTs and remaining portion to our sender
+        nftStakingStrategy.unstake(msg.sender, _collection, numNfts, remainingPortionToUnstake);
 
         // Remove our number of staked tokens for the collection
-        userTokensStaked[userCollectionHash] = 0;
+        delete stakedNfts[userCollectionHash];
 
         // Delete the collection from our user's collection array
-        delete collectionStakers[_collection][collectionStakerIndex[userCollectionHash]];
-
-        // Delete epoch information for the user collection hash
-        delete stakingEpochStart[userCollectionHash];
-        delete stakingEpochCount[userCollectionHash];
+        delete collectionStakers[collectionHash(_collection, _nftStakingStrategy)][collectionStakerIndex[userCollectionHash]];
 
         // Fire an event to show unstaked tokens
         // emit TokensUnStaked(msg.sender, _tokenId, tokenValue);
@@ -295,7 +276,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      * @return The amount in fees to unstake
      */
     function unstakeFees(address _collection) external view returns (uint) {
-        return _unstakeFees(_collection, msg.sender);
+        return _unstakeFees(address(nftStakingStrategy), _collection, msg.sender);
     }
 
     /**
@@ -306,27 +287,35 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      *
      * @return The amount in fees to unstake
      */
-    function _unstakeFees(address _collection, address _sender) internal view returns (uint) {
-        // Get our user collection hash
-        bytes32 userCollectionHash = keccak256(abi.encode(_sender, _collection));
-
+    function _unstakeFees(address _strategy, address _collection, address _sender) internal view returns (uint) {
         // If we are waiving fees, then nothing to pay
-        if (waiveUnstakeFees) {
+        if (waiveUnstakeFees[_strategy]) {
             return 0;
         }
 
+        // Get our user collection hash
+        StakedNft memory stakedNft = stakedNfts[this.hash(_sender, _collection, _strategy)];
+
         // If the user has no tokens staked, then no fees
-        uint tokens = userTokensStaked[userCollectionHash] * 1 ether;
-        if (tokens == 0) {
+        if (stakedNft.tokensStaked == 0) {
             return 0;
         }
 
         // If we have passed the full duration of the epoch staking, then no fees
-        if (currentEpoch() >= stakingEpochStart[userCollectionHash] + stakingEpochCount[userCollectionHash]) {
+        uint currentEpoch = currentEpoch();
+        if (currentEpoch >= stakedNft.epochStart + stakedNft.epochCount) {
             return 0;
         }
 
-        return tokens - ((tokens * (currentEpoch() - stakingEpochStart[userCollectionHash])) / stakingEpochCount[userCollectionHash]);
+        uint tokens = stakedNft.tokensStaked * 1 ether;
+        return tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount);
+    }
+
+    /**
+     * Allows rewards to be claimed from the staked NFT inventory positions.
+     */
+    function claimRewards(address _collection) external {
+        nftStakingStrategy.claimRewards(_collection);
     }
 
     /**
@@ -365,33 +354,12 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     }
 
     /**
-     * Sets the NFTX staking zaps that we will be interacting with.
+     * Allows the contract to waive early unstaking fees.
      *
-     * @param _stakingZap The {NFTXStakingZap} contract address
-     * @param _unstakingZap The {NFTXUnstakingInventoryZap} contract address
+     * @param _waiveUnstakeFees New value
      */
-    function setStakingZaps(address _stakingZap, address _unstakingZap) external onlyOwner {
-        require(_stakingZap != address(0));
-        require(_unstakingZap != address(0));
-
-        stakingZap = INFTXStakingZap(_stakingZap);
-        unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
-    }
-
-    /**
-     * Maps a collection address to an underlying NFTX token address. This will allow us to assign
-     * a corresponding NFTX vault against our collection.
-     *
-     * @param _collection Our approved collection address
-     * @param _token The underlying token (the NFTX vault contract address)
-     */
-    function setUnderlyingToken(address _collection, address _token, address _xToken) external onlyOwner {
-        require(_collection != address(0));
-        require(_token != address(0));
-
-        // Map our collection to the underlying token
-        underlyingTokenMapping[_collection] = _token;
-        underlyingXTokenMapping[_collection] = _xToken;
+    function setWaiveUnstakeFees(address _strategy, bool _waiveUnstakeFees) external onlyOwner {
+        waiveUnstakeFees[_strategy] = _waiveUnstakeFees;
     }
 
     /**
@@ -405,63 +373,45 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     }
 
     /**
-     * Calculates the NFTX vault ID of a collection address and then stores it to a local cache
-     * as this value will not change.
-     *
-     * @param _collection The address of the collection being checked
-     *
-     * @return Numeric NFTX vault ID
+     * ..
      */
-    function _getVaultId(address _collection) internal returns (uint) {
-        // As we need to check a 0 value in our mapping to determine if it is not set, I have
-        // hardcoded the vault collection that actually has a 0 ID to prevent any false positives.
-        if (_collection == 0x269616D549D7e8Eaa82DFb17028d0B212D11232A) {
-            return 0;
+    function setStakingStrategy(address _nftStakingStrategy) external onlyOwner {
+        if (_nftStakingStrategy == address(nftStakingStrategy)) {
+            return;
         }
 
-        // If we have a cached mapping, then we can just return this directly
-        if (cachedNftxVaultId[_collection] != 0) {
-            return cachedNftxVaultId[_collection];
+        if (address(nftStakingStrategy) != address(0)) {
+            previousStrategies.push(address(nftStakingStrategy));
         }
 
-        // Using the NFTX vault interface, reference the ERC20 which is also the vault address
-        // to get the vault ID.
-        return cachedNftxVaultId[_collection] = INFTXVault(underlyingTokenMapping[_collection]).vaultId();
+        nftStakingStrategy = INftStakingStrategy(_nftStakingStrategy);
     }
 
     /**
-     * Allows rewards to be claimed from the staked NFT inventory positions.
+     * Creates a hash for the user collection referencing the current NFT staking strategy.
      */
-    function claimRewards(address _collection) external {
-        // Get the corresponding vault ID of the collection
-        uint vaultId = _getVaultId(_collection);
-
-        // Get the amount of rewards avaialble to claim
-        uint rewardsAvailable = INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
-
-        // If we have rewards available, then we want to claim them from the vault and transfer it
-        // into our {Treasury}.
-        if (rewardsAvailable != 0) {
-            INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, rewardsAvailable);
-            IERC20(underlyingTokenMapping[_collection]).transfer(treasury, rewardsAvailable);
-        }
+    function hash(address _user, address _collection) external view returns (bytes32) {
+        return keccak256(abi.encode(_user, _collection, address(nftStakingStrategy)));
     }
 
     /**
-     * Allows us to set internal contracts that are used when claiming rewards.
+     * Creates a hash for the user collection referencing a custom NFT staking strategy.
      */
-    function setContracts(address _inventoryStaking, address _treasury) external onlyOwner {
-        inventoryStaking = _inventoryStaking;
-        treasury = _treasury;
+    function hash(address _user, address _collection, address _strategy) external pure returns (bytes32) {
+        return keccak256(abi.encode(_user, _collection, _strategy));
     }
 
     /**
-     * Allows the contract to receive ERC721 tokens from our {Treasury}.
+     * ..
      */
-    function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
-        if (_nftReceiver != address(0)) {
-            IERC721(msg.sender).safeTransferFrom(address(this), _nftReceiver, tokenId);
-        }
-        return this.onERC721Received.selector;
+    function collectionHash(address _collection) internal view returns (bytes32) {
+        return keccak256(abi.encode(_collection, address(nftStakingStrategy)));
+    }
+
+    /**
+     * ..
+     */
+    function collectionHash(address _collection, address _strategy) internal pure returns (bytes32) {
+        return keccak256(abi.encode(_collection, _strategy));
     }
 }
