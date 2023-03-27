@@ -29,7 +29,7 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
      *
      * @param _request GemSwap transaction bytes
      *
-     * @return uint The amount of ETH spent on the call
+     * @return spent The amount of ETH spent on the call
      */
     function execute(bytes calldata _request) public payable returns (uint spent) {
         // Sweeps from GemSwap

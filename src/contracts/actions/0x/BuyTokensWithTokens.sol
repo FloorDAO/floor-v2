@@ -46,7 +46,7 @@ contract BuyTokensWithTokens is IAction {
      *
      * @param _request Bytes to be cast to the `ActionRequest` struct
      *
-     * @return uint The amount of tokens bought
+     * @return received_ The amount of tokens bought
      */
     function execute(bytes calldata _request) public payable returns (uint received_) {
         // Unpack the request bytes data into individual variables, as mapping it directly

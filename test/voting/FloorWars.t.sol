@@ -91,7 +91,7 @@ contract FloorWarsTest is FloorTest {
         veFloor = new VeFloorStaking(floor, address(treasury));
 
         // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(treasury), address(veFloor));
+        floorWars = new FloorWars(address(authorityRegistry), address(treasury), address(veFloor));
 
         // Create our {EpochManager} contract and assign it to required contracts
         epochManager = new EpochManager();

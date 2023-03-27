@@ -9,6 +9,7 @@ import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from '@floor/utils/Errors.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
@@ -23,7 +24,7 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
 /**
  * The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, ERC1155Holder, ITreasury {
+contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /// Different approval types that can be specified.
     enum ApprovalType {
         NATIVE,

@@ -92,7 +92,7 @@ contract EpochManagerTest is FloorTest {
         );
 
         // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(treasury), address(veFloor));
+        floorWars = new FloorWars(address(authorityRegistry), address(treasury), address(veFloor));
 
         epochManager = new EpochManager();
         epochManager.setContracts(
