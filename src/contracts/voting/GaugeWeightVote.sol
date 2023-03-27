@@ -246,6 +246,8 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
         bytes32 collectionHash;
         uint userCollectionVotes;
 
+        uint epoch = currentEpoch();
+
         // Iterate over our collections to revoke the user's vote amounts
         for (uint i; i < length;) {
             collectionHash = keccak256(abi.encode(_account, _collections[i]));
@@ -261,7 +263,6 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
                 CollectionVote memory collectionVote = collectionVotes[_collections[i]];
 
                 // Update the power and power burn based on the new amount added
-                uint epoch = currentEpoch();
                 unchecked {
                     collectionVote.power -= veFloor.votingPowerOfAt(_account, uint88(userCollectionVotes), epoch);
                     collectionVote.powerBurn -= userCollectionVotes / 104;

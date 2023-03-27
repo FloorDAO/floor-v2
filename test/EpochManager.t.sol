@@ -8,6 +8,7 @@ import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
+import {ManualSweeper} from '@floor/actions/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -32,6 +33,8 @@ contract EpochManagerTest is FloorTest {
 
     address approvedStrategy;
     address approvedCollection;
+
+    address manualSweeper;
 
     // Track our internal contract addresses
     FLOOR floor;
@@ -97,7 +100,7 @@ contract EpochManagerTest is FloorTest {
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
-            address(epochManager),
+            address(floorWars),
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
@@ -107,6 +110,7 @@ contract EpochManagerTest is FloorTest {
         // Set our epoch manager
         floorWars.setEpochManager(address(epochManager));
         gaugeWeightVote.setEpochManager(address(epochManager));
+        treasury.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
@@ -119,6 +123,9 @@ contract EpochManagerTest is FloorTest {
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        // Set our manual sweeper
+        manualSweeper = address(new ManualSweeper());
     }
 
     /**
@@ -169,7 +176,9 @@ contract EpochManagerTest is FloorTest {
 
         assertFalse(epochManager.isCollectionAdditionEpoch(epoch));
 
+        vm.prank(address(floorWars));
         epochManager.scheduleCollectionAddtionEpoch(epoch, 1);
+
         assertTrue(epochManager.isCollectionAdditionEpoch(epoch));
 
         assertFalse(epochManager.isCollectionAdditionEpoch(epoch + 1));
@@ -253,18 +262,39 @@ contract EpochManagerTest is FloorTest {
             }
         }
 
+        // Set our block to a specific one
+        vm.roll(12);
+
         // Trigger our epoch end and pray to the gas gods
         epochManager.endEpoch();
 
         // We can now confirm the distribution of ETH going to the top collections by
         // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
         // are not included in read attempts as we cannot get the information accurately.
-        (uint allocationBlock, uint sweepBlock, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch());
+        // The epoch will have incremented in `endEpoch`, so we minus 1.
+        (uint allocationBlock, uint sweepBlock, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        assertEq(allocationBlock, block.number);
+        assertEq(allocationBlock, 12);
         assertEq(sweepBlock, 0);
         assertEq(completed, false);
         assertEq(message, '');
+
+        vm.roll(23);
+
+        // Move some funds to the Treasury
+        payable(treasury).transfer(500 ether);
+
+        // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
+        // as complete).
+        treasury.sweepEpoch(0, manualSweeper, 'Test sweep');
+
+        // Get our updated epoch information
+        (allocationBlock, sweepBlock, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
+
+        assertEq(allocationBlock, 12);
+        assertEq(sweepBlock, 23);
+        assertEq(completed, true);
+        assertEq(message, 'Test sweep');
     }
 
 }
