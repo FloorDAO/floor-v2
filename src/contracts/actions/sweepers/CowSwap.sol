@@ -11,7 +11,12 @@ import {GPv2Order} from '@floor-interfaces/cowswap/GPv2Order.sol';
 import {ICoWSwapOnchainOrders} from '@floor-interfaces/cowswap/CoWSwapOnchainOrders.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
-/// https://github.com/nlordell/dappcon-2022-smart-orders
+/**
+ * Interacts with the CowSwap protocol to fulfill a sweep order.
+ *
+ * Based on codebase:
+ * https://github.com/nlordell/dappcon-2022-smart-orders
+ */
 contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
     using GPv2Order for *;
 
@@ -27,7 +32,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         bytes meta;
     }
 
-    bytes32 public constant APP_DATA = keccak256('smart orders are cool');
+    bytes32 public constant APP_DATA = keccak256('floordao');
 
     ICoWSwapSettlement public immutable settlement;
     bytes32 public immutable domainSeparator;
@@ -43,12 +48,14 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         weth = IWETH(weth_);
     }
 
-    function execute(address[] calldata collections, uint[] calldata amounts) external payable override returns (bytes memory orderUid) {
+    function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata /* data */) external payable override returns (string memory) {
         // Wrap out msg.value into WETH
         weth.deposit{value: msg.value}();
 
         // Loop through our collections
-        for (uint i; i < collections.length; ++i) {
+        uint length = collections.length;
+        for (uint i; i < length;) {
+            // Generate our order data for the collection
             GPv2Order.Data memory order = GPv2Order.Data({
                 sellToken: weth,
                 buyToken: IERC20(collections[i]),
@@ -64,8 +71,10 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
                 buyTokenBalance: GPv2Order.BALANCE_ERC20
             });
 
+            // Hash our order, based on our `domainSeparator`
             bytes32 orderHash = order.hash(domainSeparator);
 
+            // Create our order instance
             GATOrder instance = new GATOrder{salt: bytes32('salt')}(
                 address(this),
                 order.sellToken,
@@ -74,15 +83,22 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
                 settlement
             );
 
+            // Transfer our sell token to CowSwap to cover the sell amount and the fee required
             order.sellToken.transferFrom(address(this), address(instance), order.sellAmount + order.feeAmount);
 
+            // Generate our signature being used for the sweep
             OnchainSignature memory signature = OnchainSignature({scheme: OnchainSigningScheme.Eip1271, data: hex''});
 
             emit OrderPlacement(address(instance), order, signature, '');
 
-            orderUid = new bytes(GPv2Order.UID_LENGTH);
-            orderUid.packOrderUidParams(orderHash, address(instance), order.validTo);
+            // bytes memory orderUid = new bytes(GPv2Order.UID_LENGTH);
+            // orderUid.packOrderUidParams(orderHash, address(instance), order.validTo);
+
+            unchecked { ++i; }
         }
+
+        // Return an empty string as no message to store
+        return '';
     }
 }
 

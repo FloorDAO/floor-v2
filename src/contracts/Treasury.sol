@@ -40,7 +40,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         uint allocationBlock;
         uint sweepBlock;
         bool completed;
-        bytes32 message;
+        string message;
     }
 
     /// The data structure format that will be mapped against to define a token
@@ -351,7 +351,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         // Action our sweep. If we don't hold enough ETH to supply the message value then
         // we expect this call to revert. This call may optionally return a message that
         // will be stored against the struct.
-        bytes32 message = ISweeper(sweeper).execute{value: msgValue}(
+        string memory message = ISweeper(sweeper).execute{value: msgValue}(
             epochSweep.collections,
             epochSweep.amounts,
             data
@@ -362,9 +362,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         epochSweep.sweepBlock = block.number;
 
         // If we returned a message, then we write it to our sweep
-        if (message != '') {
-            epochSweep.message = message;
-        }
+        epochSweep.message = message;
 
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;

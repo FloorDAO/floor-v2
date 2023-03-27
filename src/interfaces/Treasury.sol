@@ -93,12 +93,12 @@ interface ITreasury {
     /**
      * ..
      */
-    function sweepEpoch(uint epochIndex, address sweeper) external;
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data) external;
 
     /**
      * ..
      */
-    function resweepEpoch(uint epochIndex, address sweeper) external;
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data) external;
 
     /**
      * ..

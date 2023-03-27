@@ -40,13 +40,12 @@ contract CowSwapSweepTest is FloorTest {
         amounts[1] = 5 ether;
 
         // Action our trade
-        bytes memory orderUid = action.execute{value: 15 ether}(collections, amounts);
+        string memory orderUid = action.execute{value: 15 ether}(collections, amounts, '');
 
-        // The action should now be added into the pool, with a UID returned for the
-        // order. As we have queried on a specific block, with specific data, we should
-        // be able to assert the specific order UID.
-        assertEq(
-            orderUid, hex'341706193578f583c8ce8f3c715b01a9c044f8fd4eca7dc4f9bb5db184aa9e8482cf76d9b692a66a0dc5f8e0e4b65ca8451a649c6390f4eb'
-        );
+        // The action(s) should now be added into the pool; but because we generate a UID for
+        // each collection sent, we can't assert a specific UID value. So for this reason we
+        // just return an empty string as there is no additional content needed. The individual
+        // UIDs will be sent as events from the sweep itself.
+        assertEq(orderUid, '');
     }
 }

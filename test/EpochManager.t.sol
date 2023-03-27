@@ -259,11 +259,12 @@ contract EpochManagerTest is FloorTest {
         // We can now confirm the distribution of ETH going to the top collections by
         // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
         // are not included in read attempts as we cannot get the information accurately.
-        (uint allocationBlock, uint sweepBlock, bool completed) = treasury.epochSweeps(epochManager.currentEpoch());
+        (uint allocationBlock, uint sweepBlock, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch());
 
         assertEq(allocationBlock, block.number);
         assertEq(sweepBlock, 0);
         assertEq(completed, false);
+        assertEq(message, '');
     }
 
 }
