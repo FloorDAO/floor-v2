@@ -22,6 +22,11 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBo
 
 contract NftStaking is EpochManaged, INftStaking, Pausable {
 
+    struct TempSweep {
+        uint power;
+        uint total;
+    }
+
     struct StakedNft {
         uint epochStart;
         uint epochCount;
@@ -94,42 +99,59 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Store our some variables for use throughout the loop for gas saves
         uint sweepPower;
         uint sweepTotal;
-        uint stakedSweepPower;
-        uint epochModifier;
 
         uint currentEpoch = currentEpoch();
         bytes32 _collectionHash = collectionHash(_collection);
         uint length = collectionStakers[_collectionHash].length;
 
-        StakedNft memory stakedNft;
-
         // Loop through all stakes against a collection and summise the sweep power based on
         // the number staked and remaining epoch duration.
         for (uint i; i < length;) {
-            stakedNft = stakedNfts[this.hash(collectionStakers[_collectionHash][i], _collection)];
+            (uint _sweepPower, uint _sweepTotal) = _calculateStakePower(
+                collectionStakers[_collectionHash][i],
+                _collection,
+                cachedFloorPrice,
+                currentEpoch,
+                _epoch
+            );
 
             unchecked {
-                // Get the remaining power of the stake based on remaining epochs
-                if (currentEpoch < stakedNft.epochStart + stakedNft.epochCount) {
-                    // Determine our staked sweep power by calculating our epoch discount
-                    stakedSweepPower = (
-                        ((stakedNft.tokensStaked * cachedFloorPrice * voteDiscount) / 10000)
-                            * stakedNft.epochCount
-                    ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-                    epochModifier = ((_epoch - stakedNft.epochStart) * 1e9) / stakedNft.epochCount;
-
-                    // Add the staked sweep power to our collection total
-                    sweepPower += stakedSweepPower - ((stakedSweepPower * epochModifier) / 1e9);
-
-                    // Tally up our quantity total
-                    sweepTotal += stakedNft.tokensStaked;
-                }
+                sweepPower += _sweepPower;
+                sweepTotal += _sweepTotal;
 
                 ++i;
             }
         }
 
         return boostCalculator.calculate(sweepPower, sweepTotal, sweepModifier);
+    }
+
+    function _calculateStakePower(
+        address _user,
+        address _collection,
+        uint cachedFloorPrice,
+        uint currentEpoch,
+        uint targetEpoch
+    ) internal view returns (uint sweepPower, uint sweepTotal) {
+        // Load our user's staked NFTs
+        StakedNft memory stakedNft = stakedNfts[this.hash(_user, _collection)];
+
+        unchecked {
+            // Get the remaining power of the stake based on remaining epochs
+            if (currentEpoch < stakedNft.epochStart + stakedNft.epochCount) {
+                // Determine our staked sweep power by calculating our epoch discount
+                uint stakedSweepPower = (
+                    ((stakedNft.tokensStaked * cachedFloorPrice * voteDiscount) / 10000)
+                        * stakedNft.epochCount
+                ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+
+                // Add the staked sweep power to our collection total
+                sweepPower = stakedSweepPower - ((stakedSweepPower * (((targetEpoch - stakedNft.epochStart) * 1e9) / stakedNft.epochCount)) / 1e9);
+
+                // Tally up our quantity total
+                sweepTotal = stakedNft.tokensStaked;
+            }
+        }
     }
 
     /**
