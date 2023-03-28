@@ -111,10 +111,6 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
             ++nextID;
         }
 
-        // Calculate our reward amount per epoch by taking the total amount and dividing
-        // it by the number of epochs requested.
-        uint rewardPerEpoch = totalRewardAmount / numberOfEpochs;
-
         // Create our Bribe object at the new ID index
         bribes.push(
             Bribe({
