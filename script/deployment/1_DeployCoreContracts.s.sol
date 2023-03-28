@@ -12,7 +12,6 @@ import {UniswapV3PricingExecutor} from '../../src/contracts/pricing/UniswapV3Pri
 import {VeFloorStaking} from '../../src/contracts/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
 import {NFTXLiquidityStakingStrategy} from '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
-import {StrategyRegistry} from '../../src/contracts/strategies/StrategyRegistry.sol';
 import {FLOOR} from '../../src/contracts/tokens/Floor.sol';
 import {Vault} from '../../src/contracts/vaults/Vault.sol';
 import {VaultFactory} from '../../src/contracts/vaults/VaultFactory.sol';
@@ -45,7 +44,6 @@ contract DeployCoreContracts is Script {
 
         // Deploy our registry contracts
         CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        StrategyRegistry strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our {Vault} implementation
         Vault vaultImplementation = new Vault();
@@ -66,16 +64,13 @@ contract DeployCoreContracts is Script {
         VaultFactory vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            address(vaultImplementation),
-            address(floor)
+            address(vaultImplementation)
         );
 
         // Deploy our {Treasury}
         Treasury treasury = new Treasury(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
             address(vaultFactory),
             address(floor)
         );

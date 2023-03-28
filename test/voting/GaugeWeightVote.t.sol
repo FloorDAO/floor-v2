@@ -8,7 +8,6 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {IVault, Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
@@ -26,7 +25,6 @@ contract GaugeWeightVoteTest is FloorTest {
     EpochManager epochManager;
     FLOOR floor;
     GaugeWeightVote gaugeWeightVote;
-    StrategyRegistry strategyRegistry;
     Treasury treasury;
     Vault vaultImplementation;
     VaultFactory vaultFactory;
@@ -53,9 +51,6 @@ contract GaugeWeightVoteTest is FloorTest {
     mapping(address => uint) votePower;
 
     constructor() {
-        // Create our {StrategyRegistry}
-        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
-
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
@@ -69,15 +64,12 @@ contract GaugeWeightVoteTest is FloorTest {
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            address(vaultImplementation),
-            address(floor)
+            address(vaultImplementation)
         );
 
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(strategyRegistry),
             address(floor)
         );
 
@@ -102,9 +94,6 @@ contract GaugeWeightVoteTest is FloorTest {
 
         // Define our strategy implementations
         approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-
-        // Approve our test strategy implementation
-        strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve our test collection
         collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);

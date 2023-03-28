@@ -184,28 +184,19 @@ contract EpochManager is IEpochManager, Ownable {
             }
 
             if (ethRewards != 0) {
-                // Confirm we are not retaining all yield
-                uint retainedTreasuryYieldPercentage = treasury.retainedTreasuryYieldPercentage();
-                if (retainedTreasuryYieldPercentage != 10000) {
-                    // Determine the total amount of snapshot tokens. This should be calculated as all
-                    // of the `publicFloorYield`, as well as {100 - `retainedTreasuryYieldPercentage`}%
-                    // of the treasuryFloorYield.
-                    uint sweepAmount = (ethRewards * (10000 - retainedTreasuryYieldPercentage)) / 10000;
-
-                    // We want the ability to set a minimum sweep amount, so that when we are first
-                    // starting out the sweeps aren't pathetic.
-                    uint minSweepAmount = treasury.minSweepAmount();
-                    if (minSweepAmount != 0 && sweepAmount < minSweepAmount) {
-                        sweepAmount = minSweepAmount;
-                    }
-
-                    // Process the snapshot, which will reward xTokens holders directly
-                    (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(sweepAmount, currentEpoch);
-
-                    // Now that we have the results of the snapshot we can register them against our
-                    // pending sweeps.
-                    treasury.registerSweep(currentEpoch, collections, amounts);
+                // We want the ability to set a minimum sweep amount, so that when we are first
+                // starting out the sweeps aren't pathetic.
+                uint minSweepAmount = treasury.minSweepAmount();
+                if (minSweepAmount != 0 && ethRewards < minSweepAmount) {
+                    ethRewards = minSweepAmount;
                 }
+
+                // Process the snapshot, which will reward xTokens holders directly
+                (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(ethRewards, currentEpoch);
+
+                // Now that we have the results of the snapshot we can register them against our
+                // pending sweeps.
+                treasury.registerSweep(currentEpoch, collections, amounts);
             }
         }
 

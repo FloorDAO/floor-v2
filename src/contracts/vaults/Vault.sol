@@ -59,8 +59,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
     /**
      * Maintain a list of active positions held by depositing users.
      */
-    mapping(address => uint) public position;
-    uint public totalPosition;
+    uint public position;
 
     /**
      * The amount of rewards claimed in the last claim call.
@@ -111,8 +110,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
 
         // Increase the user's position and the total position for the vault
         unchecked {
-            position[msg.sender] += receivedAmount;
-            totalPosition += receivedAmount;
+            position += receivedAmount;
         }
 
         // Fire events to stalkers
@@ -136,8 +134,8 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         }
 
         // Ensure our user has sufficient position to withdraw from
-        if (amount > position[msg.sender]) {
-            revert InsufficientPosition(amount, position[msg.sender]);
+        if (amount > position) {
+            revert InsufficientPosition(amount, position);
         }
 
         // Withdraw the user's position from the strategy
@@ -155,8 +153,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         // We can now reduce the users position and total position held by the
         // vault.
         unchecked {
-            position[msg.sender] -= amount;
-            totalPosition -= amount;
+            position -= amount;
         }
 
         // Return the amount of underlying token returned from staking withdrawal
@@ -195,20 +192,4 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         else _unpause();
     }
 
-    /**
-     * Returns the percentage share that the user holds of the vault. This will, in
-     * turn, represent the share of rewards that the user is entitled to when the next
-     * epoch ends.
-     *
-     * @param user Address of user to find share of
-     *
-     * @return Percentage share holding of vault
-     */
-    function share(address user) public view returns (uint) {
-        if (totalPosition == 0) {
-            return 0;
-        }
-
-        return (position[user] * 10000) / totalPosition;
-    }
 }

@@ -13,7 +13,6 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
@@ -44,7 +43,6 @@ contract EpochManagerTest is FloorTest {
     ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
-    StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     FloorWars floorWars;
@@ -60,7 +58,6 @@ contract EpochManagerTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our vault implementations
         address vaultImplementation = address(new Vault());
@@ -73,15 +70,12 @@ contract EpochManagerTest is FloorTest {
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            vaultImplementation,
-            address(floor)
+            vaultImplementation
         );
 
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(strategyRegistry),
             address(floor)
         );
 
@@ -118,7 +112,6 @@ contract EpochManagerTest is FloorTest {
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-        strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -226,7 +219,6 @@ contract EpochManagerTest is FloorTest {
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
         gaugeWeightVote.setSampleSize(5);
-        treasury.setRetainedTreasuryYieldPercentage(5000);
 
         // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));

@@ -4,17 +4,15 @@ pragma solidity ^0.8.0;
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
-import {CollectionNotApproved, StrategyNotApproved, VaultFactory, VaultNameCannotBeEmpty} from '@floor/vaults/VaultFactory.sol';
+import {CollectionNotApproved, VaultFactory, VaultNameCannotBeEmpty} from '@floor/vaults/VaultFactory.sol';
 
 import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract VaultFactoryTest is FloorTest {
     CollectionRegistry collectionRegistry;
-    StrategyRegistry strategyRegistry;
     VaultFactory vaultFactory;
     Vault vaultImplementation;
 
@@ -37,15 +35,9 @@ contract VaultFactoryTest is FloorTest {
      * can reference in numerous tests.
      */
     function setUp() public {
-        // Create our {StrategyRegistry}
-        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
-
         // Define our strategy implementations
         approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
         strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy')));
-
-        // Approve our test strategy implementation
-        strategyRegistry.approveStrategy(approvedStrategy);
 
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
@@ -63,16 +55,11 @@ contract VaultFactoryTest is FloorTest {
         // Deploy our vault implementation
         vaultImplementation = new Vault();
 
-        // Deploy our FLOOR token
-        FLOOR floor = new FLOOR(address(authorityRegistry));
-
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            address(vaultImplementation),
-            address(floor)
+            address(vaultImplementation)
         );
     }
 
@@ -149,17 +136,6 @@ contract VaultFactoryTest is FloorTest {
     function test_CannotCreateVaultWithEmptyName() public {
         vm.expectRevert(VaultNameCannotBeEmpty.selector);
         vaultFactory.createVault('', approvedStrategy, _strategyInitBytes(), approvedCollection);
-    }
-
-    /**
-     * We should not be able to create a vault if we have referenced a strategy
-     * that has not been approved. This should cause a revert.
-     *
-     * This should not emit {VaultCreated}.
-     */
-    function test_CannotCreateVaultWithUnapprovedStrategy() public {
-        vm.expectRevert(abi.encodeWithSelector(StrategyNotApproved.selector, strategy));
-        vaultFactory.createVault('Test Vault', strategy, _strategyInitBytes(), approvedCollection);
     }
 
     /**

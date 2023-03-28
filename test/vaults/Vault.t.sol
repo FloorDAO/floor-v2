@@ -7,7 +7,6 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {Vault, InsufficientPosition} from '@floor/vaults/Vault.sol';
@@ -41,14 +40,8 @@ contract VaultTest is FloorTest {
      * subsequently test against.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Create our {StrategyRegistry}
-        StrategyRegistry strategyRegistry = new StrategyRegistry(address(authorityRegistry));
-
         // Set up an inventory staking strategy
         strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK'));
-
-        // Approve our test strategy implementation
-        strategyRegistry.approveStrategy(address(strategy));
 
         // Create our {CollectionRegistry}
         CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
@@ -70,9 +63,7 @@ contract VaultTest is FloorTest {
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            vaultImplementation,
-            address(floor)
+            vaultImplementation
         );
 
         // Set up our Vault with authority
@@ -108,7 +99,7 @@ contract VaultTest is FloorTest {
      * applied to the vault, not the strategy contract address passed.
      */
     function test_CanGetStrategyAddress() public {
-        assertEq(address(vault.strategy()), 0xcb3E70C6E6Bd8112951D06adf3DCe0bE8A8aa749);
+        assertEq(address(vault.strategy()), 0x8B592afD1A473607C9d7d3E7ac49A788d8e261e8);
     }
 
     /**
@@ -146,8 +137,7 @@ contract VaultTest is FloorTest {
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
         // We should currently hold a 0% share of the vault
-        assertEq(vault.position(PUNK_HOLDER), 0);
-        assertEq(vault.share(PUNK_HOLDER), 0);
+        assertEq(vault.position(), 0);
 
         vm.startPrank(PUNK_HOLDER);
 
@@ -166,8 +156,7 @@ contract VaultTest is FloorTest {
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
-        assertEq(vault.position(PUNK_HOLDER), receivedAmount);
-        assertEq(vault.share(PUNK_HOLDER), 10000);
+        assertEq(vault.position(), receivedAmount);
     }
 
     /**
@@ -186,8 +175,7 @@ contract VaultTest is FloorTest {
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
         // Our helper calls should show empty also
-        assertEq(vault.position(PUNK_HOLDER), 0);
-        assertEq(vault.share(PUNK_HOLDER), 0);
+        assertEq(vault.position(), 0);
 
         vm.startPrank(PUNK_HOLDER);
 
@@ -197,10 +185,10 @@ contract VaultTest is FloorTest {
         // Make 2 varied size deposits into our user's position. The second deposit will
         // return the cumulative user's position that includes both deposit returns.
         uint receivedAmount1 = vault.deposit(amount1);
-        assertEq(vault.position(PUNK_HOLDER), receivedAmount1);
+        assertEq(vault.position(), receivedAmount1);
 
         uint receivedAmount2 = vault.deposit(amount2);
-        assertEq(vault.position(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
+        assertEq(vault.position(), receivedAmount1 + receivedAmount2);
 
         vm.stopPrank();
 
@@ -211,8 +199,7 @@ contract VaultTest is FloorTest {
         assertEq(IERC20(vault.collection()).balanceOf(address(vault)), 0);
 
         // We should now see our user's position
-        assertEq(vault.position(PUNK_HOLDER), receivedAmount1 + receivedAmount2);
-        assertEq(vault.share(PUNK_HOLDER), 10000);
+        assertEq(vault.position(), receivedAmount1 + receivedAmount2);
     }
 
     /**
@@ -292,8 +279,7 @@ contract VaultTest is FloorTest {
 
         // The holders position should be their entire balance, minus the amount that
         // was withdrawn. This will still leave our holder with a 100% vault share.
-        assertEq(vault.position(PUNK_HOLDER), depositAmount - amount);
-        assertEq(vault.share(PUNK_HOLDER), 10000);
+        assertEq(vault.position(), depositAmount - amount);
     }
 
     /**
@@ -327,8 +313,7 @@ contract VaultTest is FloorTest {
         assertEq(IERC20(vault.collection()).balanceOf(address(strategy)), 0);
 
         // Our user should hold no position, nor share
-        assertEq(vault.position(PUNK_HOLDER), 0);
-        assertEq(vault.share(PUNK_HOLDER), 0);
+        assertEq(vault.position(), 0);
 
         vm.stopPrank();
     }
@@ -366,11 +351,7 @@ contract VaultTest is FloorTest {
 
         // Our user's remaining position should be calculated by the amount deposited,
         // minus the amount withdrawn (done twice).
-        assertEq(vault.position(PUNK_HOLDER), depositAmount - amount - amount);
-
-        // Since we left at least some dust in the position, we can assert that the
-        // holder as 100% of the share.
-        assertEq(vault.share(PUNK_HOLDER), 10000);
+        assertEq(vault.position(), depositAmount - amount - amount);
     }
 
     /**
@@ -397,68 +378,6 @@ contract VaultTest is FloorTest {
         vault.withdraw(1000000);
 
         vm.stopPrank();
-    }
-
-    /**
-     * We need to make sure that as multiple users deposit into our vault, that we
-     * continue to calculate the position and share values correctly.
-     */
-    function test_ShareCalculation() public {
-        address ALT_USER = 0x069C3cB6EeA06cEf1B70Dc8e0A691F3a1C2789aD;
-        address LATE_USER = 0x408D22eA33555CadaF9BA59e070Cf6f3Dc3Fd3cB;
-
-        // Make a deposit across different holders
-        vm.startPrank(PUNK_HOLDER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
-        vault.deposit(100000);
-        vm.stopPrank();
-
-        vm.startPrank(ALT_USER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
-        vault.deposit(200000);
-        vm.stopPrank();
-
-        // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(PUNK_HOLDER), 3333);
-        assertEq(vault.share(ALT_USER), 6666);
-        assertEq(vault.share(LATE_USER), 0);
-
-        assertEq(vault.position(PUNK_HOLDER), 96778);
-        assertEq(vault.position(ALT_USER), 193556);
-        assertEq(vault.position(LATE_USER), 0);
-
-        // Make another deposit from a new user to confirm it is recalculated
-        vm.startPrank(LATE_USER);
-        IERC20(vault.collection()).approve(address(vault), type(uint).max);
-        vault.deposit(300000);
-        vm.stopPrank();
-
-        // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(PUNK_HOLDER), 1666);
-        assertEq(vault.share(ALT_USER), 3333);
-        assertEq(vault.share(LATE_USER), 5000);
-
-        assertEq(vault.position(PUNK_HOLDER), 96778);
-        assertEq(vault.position(ALT_USER), 193556);
-        assertEq(vault.position(LATE_USER), 290334);
-
-        // To pass the deposit lock we need to manipulate the block timestamp to set
-        // it after our lock would have expired.
-        vm.warp(block.timestamp + 10 days);
-
-        // Withdraw fully from one of the user positions
-        vm.startPrank(ALT_USER);
-        vault.withdraw(193556);
-        vm.stopPrank();
-
-        // Confirm our shares and positions are returned as expected
-        assertEq(vault.share(PUNK_HOLDER), 2500);
-        assertEq(vault.share(ALT_USER), 0);
-        assertEq(vault.share(LATE_USER), 7500);
-
-        assertEq(vault.position(PUNK_HOLDER), 96778);
-        assertEq(vault.position(ALT_USER), 0);
-        assertEq(vault.position(LATE_USER), 290334);
     }
 
     function test_CanPause() public {
