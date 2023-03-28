@@ -82,6 +82,9 @@ contract EpochManager is IEpochManager, Ownable {
     function scheduleCollectionAddtionEpoch(uint epoch, uint index) external {
         require(msg.sender == address(floorWars), 'Invalid caller');
         collectionEpochs[epoch] = index;
+
+        // Handle Vote Market epoch increments
+        voteMarket.extendBribes();
     }
 
     /**
@@ -250,7 +253,8 @@ contract EpochManager is IEpochManager, Ownable {
         address _pricingExecutor,
         address _treasury,
         address _vaultFactory,
-        address _voteContract
+        address _voteContract,
+        address _voteMarket
     ) external onlyOwner {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         floorWars = IFloorWars(_floorWars);
@@ -258,6 +262,7 @@ contract EpochManager is IEpochManager, Ownable {
         treasury = ITreasury(_treasury);
         vaultFactory = IVaultFactory(_vaultFactory);
         voteContract = IGaugeWeightVote(_voteContract);
+        voteMarket = IVoteMarket(_voteMarket);
     }
 
 }

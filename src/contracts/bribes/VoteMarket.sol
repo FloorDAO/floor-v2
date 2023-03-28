@@ -7,13 +7,20 @@ import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
-contract VoteMarket is IVoteMarket, Ownable, Pausable {
-    event BribeCreated(
-        uint bribeId, address rewardToken, uint numberOfEpochs, uint maxRewardPerVote, uint rewardPerEpoch, uint totalRewardAmount
-    );
+import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
+import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
+
+contract VoteMarket is EpochManaged, IVoteMarket, Ownable, Pausable {
+
+    /// Fired when a new bribe is created
+    event BribeCreated(uint bribeId);
+
+    /// Fired when a user claims their bribe allocation
     event Claimed(address account, address rewardToken, uint bribeId, uint amount, uint epoch);
+
+    /// Fired when a new claim allocation is assigned for an epoch
     event ClaimRegistered(uint epoch, bytes32 merkleRoot);
 
     /// Minimum number of epochs for a Bribe
@@ -52,7 +59,11 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
     /// Oracle wallet that has permission to write merkles
     address public oracleWallet;
 
-    constructor(address _oracleWallet, address _feeCollector) {
+    /// Store our collection registry
+    ICollectionRegistry public immutable collectionRegistry;
+
+    constructor(address _collectionRegistry, address _oracleWallet, address _feeCollector) {
+        collectionRegistry = ICollectionRegistry(_collectionRegistry);
         oracleWallet = _oracleWallet;
         feeCollector = _feeCollector;
     }
@@ -84,6 +95,11 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         // of epochs.
         require(numberOfEpochs >= MINIMUM_EPOCHS, 'Invalid number of epochs');
 
+        // If new collection epoch, force the number of epochs to be 1
+        if (collectionRegistry.isApproved(collection)) {
+            require(numberOfEpochs == 1, 'New collection bribes can only last 1 epoch');
+        }
+
         // Ensure that we have > 0 reward input
         require(totalRewardAmount != 0 && maxRewardPerVote != 0, 'Invalid amounts');
 
@@ -99,7 +115,6 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         // Calculate our reward amount per epoch by taking the total amount and dividing
         // it by the number of epochs requested.
         uint rewardPerEpoch = totalRewardAmount / numberOfEpochs;
-        uint currentEpoch = 0;
 
         // Create our Bribe object at the new ID index
         bribes.push(
@@ -107,7 +122,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
                 bribeId: newBribeID,
                 collection: collection,
                 rewardToken: rewardToken,
-                startEpoch: currentEpoch,
+                startEpoch: currentEpoch(),
                 numberOfEpochs: numberOfEpochs,
                 maxRewardPerVote: maxRewardPerVote,
                 totalRewardAmount: totalRewardAmount,
@@ -119,7 +134,7 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         collectionBribes[collection].push(newBribeID);
 
         // Emit our Bribe creation event
-        emit BribeCreated(newBribeID, rewardToken, numberOfEpochs, maxRewardPerVote, rewardPerEpoch, totalRewardAmount);
+        emit BribeCreated(newBribeID);
 
         // Add the addresses to the blacklist.
         uint length = blacklist.length;
@@ -131,6 +146,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
     }
 
+    /**
+     * ..
+     */
     function claim(
         address account,
         uint[] calldata epoch,
@@ -153,6 +171,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
     }
 
+    /**
+     * ..
+     */
     function claimAll(
         address account,
         uint[] calldata epoch,
@@ -176,6 +197,9 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         }
     }
 
+    /**
+     * ..
+     */
     function _claim(uint bribeId, address account, uint epoch, address collection, uint votes, bytes32[] calldata merkleProof) internal {
         // Check that the user has not already successfully claimed against this collection
         // at the specified epoch.
@@ -235,18 +259,50 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         emit Claimed(account, bribe.rewardToken, bribeId, amount, epoch);
     }
 
+    /**
+     * ..
+     */
+    function extendBribes() external onlyEpochManager {
+        // Loop through approved collections
+        address[] calldata approvedCollections = collectionRegistry.approvedCollections();
+        uint collectionsLength = approvedCollections.length;
+
+        uint k;
+
+        for (uint i; i < collectionsLength;) {
+            // Find all bribes that have been assigned
+            uint bribesLength = collectionBribes[approvedCollections[i]].length;
+            for (k = 0; k < bribesLength;) {
+                unchecked {
+                    // Increment the number of epochs that the bribe will last by 1, as
+                    // we have essentially removed an epoch that they can be effective.
+                    collectionBribes[approvedCollections[i]][k].numberOfEpochs += 1;
+                    ++k;
+                }
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
+     * ..
+     */
     function hasUserClaimed(uint bribeId, uint epoch) external view returns (bool) {
         return userClaimed[_claimHash(bribeId, epoch)];
     }
 
+    /**
+     * ..
+     */
     function _claimHash(uint bribeId, uint epoch) internal pure returns (bytes32) {
         return keccak256(abi.encode(bribeId, bytes('_'), epoch));
     }
 
-    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external {
-        // Ensure that only our oracle wallet can call this function
-        require(msg.sender == oracleWallet, 'Unauthorized caller');
-
+    /**
+     * ..
+     */
+    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external onlyOracle {
         // Ensure that a merkleRoot has not already been set to this epoch
         require(epochMerkles[epoch] == '', 'merkleRoot already set');
 
@@ -265,16 +321,19 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
         emit ClaimRegistered(epoch, merkleRoot);
     }
 
+    /**
+     * ..
+     */
     function setOracleWallet(address _oracleWallet) external onlyOwner {
         // We don't validate our oracle wallet address, we just assume the caller
         // isn't an idiot.
         oracleWallet = _oracleWallet;
     }
 
-    function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external {
-        // Ensure that only our oracle wallet can call this function
-        require(msg.sender == oracleWallet, 'Unauthorized caller');
-
+    /**
+     * ..
+     */
+    function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external onlyOracle {
         // Delete bribes based on the collection and index. This does not delete the
         // bribe structure, but instead just deletes the collection mapping so it is
         // no longner included in calculations or claims.
@@ -286,5 +345,13 @@ contract VoteMarket is IVoteMarket, Ownable, Pausable {
                 ++i;
             }
         }
+    }
+
+    /**
+     * Ensure that only our oracle wallet can call this function
+     */
+    modifier onlyOracle {
+        require(msg.sender == oracleWallet, 'Unauthorized caller');
+        _;
     }
 }
