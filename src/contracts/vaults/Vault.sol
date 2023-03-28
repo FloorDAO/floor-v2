@@ -52,11 +52,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
     IBaseStrategy public strategy;
 
     /**
-     * Gets the contract address for the vault factory that created it.
-     */
-    address public vaultFactory;
-
-    /**
      * Maintain a list of active positions held by depositing users.
      */
     uint public position;
@@ -67,25 +62,32 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
     uint public lastEpochRewards;
 
     /**
+     * ..
+     */
+    address public treasury;
+
+    /**
      * Set up our vault information.
      *
      * @param _name Human-readable name of the vault
      * @param _collection The address of the collection attached to the vault
      * @param _strategy The strategy implemented by the vault
-     * @param _vaultFactory The address of the {VaultFactory} that created the vault
      */
-    function initialize(string calldata _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory)
-        public
-        initializer
-    {
+    function initialize(
+        string calldata _name,
+        uint _vaultId,
+        address _collection,
+        address _strategy,
+        address _treasury
+    ) public initializer {
         __Ownable_init();
         __Pausable_init();
 
         collection = _collection;
         name = _name;
-        vaultId = _vaultId;
         strategy = IBaseStrategy(_strategy);
-        vaultFactory = _vaultFactory;
+        treasury = _treasury;
+        vaultId = _vaultId;
     }
 
     /**
@@ -128,6 +130,9 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      * @return The amount of tokens returned to the user
      */
     function withdraw(uint amount) external nonReentrant returns (uint) {
+        // Ensure only the {Treasury} can call this function
+        require(msg.sender == treasury);
+
         // Ensure we are withdrawing something
         if (amount == 0) {
             revert InsufficientAmount();
