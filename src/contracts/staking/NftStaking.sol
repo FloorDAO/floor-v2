@@ -175,7 +175,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             // Handle Punk specific logic
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
                 IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
-                IERC721(_collection).approve(nftStakingStrategy.stakingTarget(), _tokenId[i]);
+                IERC721(_collection).approve(address(nftStakingStrategy), _tokenId[i]);
             } else {
                 // Confirm that the PUNK belongs to the caller
                 bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
@@ -188,7 +188,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
                 require(success, string(result));
 
                 // Approve the staking zap to buy for zero value
-                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, nftStakingStrategy.stakingTarget());
+                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(nftStakingStrategy));
                 (success, result) = address(_collection).call(data);
                 require(success, string(result));
             }
@@ -246,7 +246,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
 
     function _unstake(address _collection, address _nftStakingStrategy) internal {
         // Get our user collection hash
-        bytes32 userCollectionHash = keccak256(abi.encode(msg.sender, _collection, _nftStakingStrategy));
+        bytes32 userCollectionHash = this.hash(msg.sender, _collection, _nftStakingStrategy);
         StakedNft memory stakedNft = stakedNfts[userCollectionHash];
 
         // Ensure that our user has staked tokens
@@ -431,4 +431,12 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     function collectionHash(address _collection, address _strategy) internal pure returns (bytes32) {
         return keccak256(abi.encode(_collection, _strategy));
     }
+
+    /**
+     * Allows the contract to receive ERC721 tokens.
+     */
+    function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
 }

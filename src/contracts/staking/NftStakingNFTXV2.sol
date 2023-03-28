@@ -57,6 +57,32 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
      * @param _tokenId[] Token IDs to be staked
      */
     function stake(address _collection, uint[] calldata _tokenId) external onlyNftStaking {
+        uint length = _tokenId.length;
+        for (uint i; i < length;) {
+            // Approve the staking zap to handle the collection tokens
+            if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+                IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
+                IERC721(_collection).approve(address(stakingZap), _tokenId[i]);
+            } else {
+                // Confirm that the PUNK belongs to the caller
+                bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
+                (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
+                require(success && abi.decode(result, (address)) == msg.sender, 'Not the NFT owner');
+
+                // Buy our PUNK for zero value
+                bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
+                (success, result) = address(_collection).call(data);
+                require(success, string(result));
+
+                // Approve the staking zap to buy for zero value
+                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(stakingZap));
+                (success, result) = address(_collection).call(data);
+                require(success, string(result));
+            }
+
+            unchecked { ++i; }
+        }
+
         // Stake the token into NFTX vault
         stakingZap.provideInventory721(_getVaultId(_collection), _tokenId);
     }
@@ -106,13 +132,12 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
         }
     }
 
+    /**
+     * ..
+     */
     function underlyingToken(address _collection) external view returns (address) {
         require(underlyingTokenMapping[_collection] != address(0), 'Unmapped collection');
         return underlyingTokenMapping[_collection];
-    }
-
-    function stakingTarget() external view returns (address) {
-        return address(stakingZap);
     }
 
     /**
@@ -179,7 +204,7 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     }
 
     /**
-     * Allows the contract to receive ERC721 tokens from our {Treasury}.
+     * Allows the contract to receive ERC721 tokens.
      */
     function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
         if (_nftReceiver != address(0)) {
@@ -188,6 +213,9 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
         return this.onERC721Received.selector;
     }
 
+    /**
+     * ..
+     */
     modifier onlyNftStaking {
         require(msg.sender == nftStaking, 'Invalid caller');
         _;

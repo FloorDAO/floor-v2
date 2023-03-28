@@ -58,6 +58,9 @@ contract NftStakingTest is FloorTest {
         // Set up our staking strategy
         nftStakingStrategy = new NftStakingNFTXV2(address(staking));
 
+        // Assign the NFT staking strategy to our staking contract
+        staking.setStakingStrategy(address(nftStakingStrategy));
+
         // Set our staking zaps to the correct mainnet addresses
         nftStakingStrategy.setStakingZaps(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3);
 
