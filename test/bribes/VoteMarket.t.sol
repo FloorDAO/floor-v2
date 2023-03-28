@@ -46,7 +46,7 @@ contract VoteMarketTest is FloorTest {
         (alice, feeCollector, oracle) = (users[0], users[1], users[2]);
 
         // Deploy our {VoteMarket} contract
-        voteMarket = new VoteMarket(oracle, feeCollector);
+        voteMarket = new VoteMarket(address(0), oracle, feeCollector);
 
         // Create an empty blacklist
         emptyBlacklist = new address[](0);

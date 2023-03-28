@@ -6,6 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
+import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
@@ -46,6 +47,7 @@ contract EpochManager is IEpochManager, Ownable {
     IGaugeWeightVote public voteContract;
     ITreasury public treasury;
     IVaultFactory public vaultFactory;
+    IVoteMarket public voteMarket;
 
     /// Stores a mapping of an epoch to a collection
     mapping (uint => uint) internal collectionEpochs;
@@ -62,6 +64,15 @@ contract EpochManager is IEpochManager, Ownable {
 
     /**
      * Will return if the current epoch is a collection addition vote.
+     *
+     * @return bool If the current epoch is a collection addition
+     */
+    function isCollectionAdditionEpoch() external view returns (bool) {
+        return collectionEpochs[currentEpoch] != 0;
+    }
+
+    /**
+     * Will return if the specified epoch is a collection addition vote.
      *
      * @param epoch The epoch to check
      *
@@ -84,7 +95,7 @@ contract EpochManager is IEpochManager, Ownable {
         collectionEpochs[epoch] = index;
 
         // Handle Vote Market epoch increments
-        voteMarket.extendBribes();
+        voteMarket.extendBribes(epoch);
     }
 
     /**
@@ -202,7 +213,7 @@ contract EpochManager is IEpochManager, Ownable {
                         sweepAmount = minSweepAmount;
                     }
 
-                    // Process the snapshot, which will reward xTokens holders directly
+                    // Process the snapshot
                     (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(sweepAmount, currentEpoch);
 
                     // Now that we have the results of the snapshot we can register them against our

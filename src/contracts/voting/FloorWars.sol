@@ -217,6 +217,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         require(collectionsLength > 1, 'Insufficient collections');
 
         bytes32 collectionHash;
+        // TODO: y?
         uint collectionLockEpoch = currentEpoch() + 1;
         for (uint i; i < collectionsLength;) {
             collectionHash = keccak256(abi.encode(warIndex, collections[i]));

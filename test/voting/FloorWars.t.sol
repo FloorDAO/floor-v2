@@ -104,7 +104,8 @@ contract FloorWarsTest is FloorTest {
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
-            address(gaugeWeightVote)
+            address(gaugeWeightVote),
+            address(0)  // Vote Market not needed for these tests
         );
 
         // Create some mock tokens

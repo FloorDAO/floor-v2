@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
@@ -12,7 +11,7 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 
-contract VoteMarket is EpochManaged, IVoteMarket, Ownable, Pausable {
+contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
 
     /// Fired when a new bribe is created
     event BribeCreated(uint bribeId);
@@ -96,7 +95,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Ownable, Pausable {
         require(numberOfEpochs >= MINIMUM_EPOCHS, 'Invalid number of epochs');
 
         // If new collection epoch, force the number of epochs to be 1
-        if (collectionRegistry.isApproved(collection)) {
+        if (epochManager.isCollectionAdditionEpoch()) {
             require(numberOfEpochs == 1, 'New collection bribes can only last 1 epoch');
         }
 
@@ -262,23 +261,25 @@ contract VoteMarket is EpochManaged, IVoteMarket, Ownable, Pausable {
     /**
      * ..
      */
-    function extendBribes() external onlyEpochManager {
+    function extendBribes(uint epoch) external onlyEpochManager {
         // Loop through approved collections
-        address[] calldata approvedCollections = collectionRegistry.approvedCollections();
+        address[] memory approvedCollections = collectionRegistry.approvedCollections();
         uint collectionsLength = approvedCollections.length;
-
-        uint k;
 
         for (uint i; i < collectionsLength;) {
             // Find all bribes that have been assigned
             uint bribesLength = collectionBribes[approvedCollections[i]].length;
-            for (k = 0; k < bribesLength;) {
-                unchecked {
+            for (uint k; k < bribesLength;) {
+                Bribe memory bribe = bribes[collectionBribes[approvedCollections[i]][k]];
+
+                // Check if the bribe falls over the epoch that we are inserting
+                if (bribe.startEpoch + bribe.numberOfEpochs > epoch) {
                     // Increment the number of epochs that the bribe will last by 1, as
                     // we have essentially removed an epoch that they can be effective.
-                    collectionBribes[approvedCollections[i]][k].numberOfEpochs += 1;
-                    ++k;
+                    bribes[collectionBribes[approvedCollections[i]][k]].numberOfEpochs += 1;
                 }
+
+                unchecked { ++k; }
             }
 
             unchecked { ++i; }

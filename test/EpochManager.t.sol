@@ -104,7 +104,8 @@ contract EpochManagerTest is FloorTest {
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
-            address(gaugeWeightVote)
+            address(gaugeWeightVote),
+            address(0)
         );
 
         // Set our epoch manager
@@ -159,7 +160,8 @@ contract EpochManagerTest is FloorTest {
             address(3),  // pricingExecutor
             address(4),  // treasury
             address(5),  // vaultFactory
-            address(6)   // voteContract
+            address(6),  // voteContract,
+            address(7)   // voteMarket
         );
 
         assertEq(address(epochManager.collectionRegistry()), address(1));
@@ -168,6 +170,7 @@ contract EpochManagerTest is FloorTest {
         assertEq(address(epochManager.treasury()), address(4));
         assertEq(address(epochManager.vaultFactory()), address(5));
         assertEq(address(epochManager.voteContract()), address(6));
+        assertEq(address(epochManager.voteMarket()), address(7));
     }
 
     function test_CanScheduleCollectionAdditionEpoch(uint epoch) external {

@@ -93,5 +93,7 @@ interface IVoteMarket {
 
     function setOracleWallet(address _oracleWallet) external;
 
+    function extendBribes(uint epoch) external;
+
     function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external;
 }
