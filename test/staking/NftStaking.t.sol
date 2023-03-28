@@ -100,7 +100,17 @@ contract NftStakingTest is FloorTest {
      * would result in all votes being nullified.
      */
     function test_CanGetCollectionBoostWhenZero() external {
-        assertEq(staking.collectionBoost(alice), 1000000000);
+        assertEq(staking.collectionBoost(LOW_VALUE_NFT), 1000000000);
+    }
+
+    /**
+     * When we have no staked NFTs, we still receive a multiplier amount of 100% as this
+     * means that we aren't increase the base value by any amount. A returned value of 0
+     * would result in all votes being nullified.
+     */
+    function test_CannotGetCollectionBoostOfUnknownCollection() external {
+        vm.expectRevert('Unmapped collection');
+        staking.collectionBoost(alice);
     }
 
     function test_CanGetVoteBoost() external {
@@ -188,9 +198,13 @@ contract NftStakingTest is FloorTest {
         uint[] memory tokens = new uint[](1);
         tokens[0] = 992;
 
-        vm.expectRevert('Underlying token not found');
-        vm.prank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
+        vm.startPrank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
+        IERC721(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a).setApprovalForAll(address(staking), true);
+
+        vm.expectRevert('Unmapped collection');
         staking.stake(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a, tokens, 6);
+
+        vm.stopPrank();
     }
 
     function test_CannotStakeNftForInvalidEpochCount() external {

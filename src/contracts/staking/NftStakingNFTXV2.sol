@@ -105,10 +105,19 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
             _nftReceiver = recipient;
         }
 
+        // Approve the max usage of the underlying token against the unstaking zap
+        IERC20(underlyingXTokenMapping[_collection]).approve(address(unstakingZap), type(uint).max);
+
         // Unstake all inventory for the user for the collection. This forked version of the
         // NFTX unstaking zap allows us to specify the recipient, so we don't need to handle
         // any additional transfers.
         unstakingZap.unstakeInventory(_getVaultId(_collection), numNfts, remainingPortionToUnstake);
+
+        // Transfer our remaining portion to the user
+        if (remainingPortionToUnstake != 0) {
+            // We minus 1 from the amount sent due to a small rounding error in NFTX calculations
+            IERC20(underlyingTokenMapping[_collection]).transfer(_nftReceiver, remainingPortionToUnstake - 1);
+        }
 
         // After our NFTs have been unstaked, we want to make sure we delete the receiver
         delete _nftReceiver;

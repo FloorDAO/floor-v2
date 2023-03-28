@@ -435,7 +435,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     /**
      * Allows the contract to receive ERC721 tokens.
      */
-    function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
+    function onERC721Received(address, address, uint, bytes memory) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
