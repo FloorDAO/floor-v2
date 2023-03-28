@@ -14,6 +14,7 @@ import {EpochManager} from '@floor/EpochManager.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingTest is FloorTest {
+
     address constant LOW_VALUE_NFT = 0x524cAB2ec69124574082676e6F654a18df49A048;
     address constant HIGH_VALUE_NFT = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
 

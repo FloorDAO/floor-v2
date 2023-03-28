@@ -22,11 +22,6 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBo
 
 contract NftStaking is EpochManaged, INftStaking, Pausable {
 
-    struct TempSweep {
-        uint power;
-        uint total;
-    }
-
     struct StakedNft {
         uint epochStart;
         uint epochCount;
