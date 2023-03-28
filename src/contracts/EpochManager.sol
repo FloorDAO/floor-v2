@@ -200,8 +200,10 @@ contract EpochManager is IEpochManager, Ownable {
             }
         }
 
-        ++currentEpoch;
-        lastEpoch = block.timestamp;
+        unchecked {
+            ++currentEpoch;
+            lastEpoch += EPOCH_LENGTH;
+        }
 
         // If we have a floor war ready to start, then action it
         if (collectionEpochs[currentEpoch] != 0) {

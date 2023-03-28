@@ -274,7 +274,7 @@ contract EpochManagerTest is FloorTest {
         vm.roll(23);
 
         // Move some funds to the Treasury
-        payable(treasury).transfer(500 ether);
+        deal(address(treasury), 1000 ether);
 
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
         // as complete).
