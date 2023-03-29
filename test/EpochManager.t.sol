@@ -10,6 +10,7 @@ import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
 import {ManualSweeper} from '@floor/actions/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
+import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
@@ -48,6 +49,7 @@ contract EpochManagerTest is FloorTest {
     FloorWars floorWars;
     GaugeWeightVote gaugeWeightVote;
     VaultFactory vaultFactory;
+    VoteMarket voteMarket;
 
     constructor () {
         // Create our test users
@@ -91,6 +93,9 @@ contract EpochManagerTest is FloorTest {
         // Create our {FloorWars} contract
         floorWars = new FloorWars(address(authorityRegistry), address(treasury), address(veFloor));
 
+        // Deploy our {VoteMarket} contract
+        voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
+
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
@@ -99,13 +104,14 @@ contract EpochManagerTest is FloorTest {
             address(treasury),
             address(vaultFactory),
             address(gaugeWeightVote),
-            address(0)
+            address(voteMarket)
         );
 
         // Set our epoch manager
         floorWars.setEpochManager(address(epochManager));
         gaugeWeightVote.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
+        voteMarket.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
@@ -180,9 +186,6 @@ contract EpochManagerTest is FloorTest {
         assertFalse(epochManager.isCollectionAdditionEpoch(epoch + 1));
     }
 
-    /**
-     * This will be quite a large test. Brace yourselves!
-     */
     function test_CanEndEpoch() public {
         assertEq(epochManager.lastEpoch(), 0);
         assertEq(epochManager.currentEpoch(), 0);

@@ -216,7 +216,11 @@ contract EpochManager is IEpochManager, Ownable {
 
         unchecked {
             ++currentEpoch;
-            lastEpoch += EPOCH_LENGTH;
+
+            // If our lastEpoch is zero, then this is the first epoch ended and we want
+            // to set it to the specific block timestamp. Otherwise, we just increase it
+            // by the length of the epoch to avoid epoch creep.
+            lastEpoch += (lastEpoch == 0) ? block.timestamp : EPOCH_LENGTH;
         }
 
         // If we have a floor war ready to start, then action it
