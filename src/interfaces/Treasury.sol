@@ -85,12 +85,6 @@ interface ITreasury {
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
-     * Sets the percentage of treasury rewards yield to be retained by the treasury, with
-     * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
-     */
-    function setRetainedTreasuryYieldPercentage(uint percent) external;
-
-    /**
      * ..
      */
     function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data) external;
@@ -104,11 +98,6 @@ interface ITreasury {
      * ..
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external;
-
-    /**
-     * ..
-     */
-    function retainedTreasuryYieldPercentage() external returns (uint);
 
     /**
      * ..

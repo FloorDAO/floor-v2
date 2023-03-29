@@ -18,9 +18,8 @@ interface IVault {
      * @param _vaultId The vault index ID assigned during creation
      * @param _collection The address of the collection attached to the vault
      * @param _strategy The strategy implemented by the vault
-     * @param _vaultFactory The address of the {VaultFactory} that created the vault
      */
-    function initialize(string calldata _name, uint _vaultId, address _collection, address _strategy, address _vaultFactory) external;
+    function initialize(string calldata _name, uint _vaultId, address _collection, address _strategy) external;
 
     /**
      * Gets the contract address for the vault collection. Only assets from this contract
@@ -32,11 +31,6 @@ interface IVault {
      * Gets the contract address for the strategy implemented by the vault.
      */
     function strategy() external view returns (IBaseStrategy);
-
-    /**
-     * Gets the contract address for the vault factory that created it
-     */
-    function vaultFactory() external view returns (address);
 
     /**
      * The numerical ID of the vault that acts as an index for the {VaultFactory}

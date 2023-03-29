@@ -12,7 +12,6 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
@@ -31,7 +30,6 @@ contract TreasuryTest is FloorTest {
     address bob;
     address carol;
 
-    address approvedStrategy;
     address approvedCollection;
 
     // Track our internal contract addresses
@@ -42,7 +40,6 @@ contract TreasuryTest is FloorTest {
     ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
-    StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     GaugeWeightVote gaugeWeightVote;
@@ -65,7 +62,6 @@ contract TreasuryTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our vault implementations
         address vaultImplementation = address(new Vault());
@@ -74,15 +70,12 @@ contract TreasuryTest is FloorTest {
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            vaultImplementation,
-            address(floor)
+            vaultImplementation
         );
 
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(strategyRegistry),
             address(floor)
         );
 
@@ -113,10 +106,6 @@ contract TreasuryTest is FloorTest {
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
         collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
-
-        // Approve a strategy
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-        strategyRegistry.approveStrategy(approvedStrategy);
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -522,32 +511,6 @@ contract TreasuryTest is FloorTest {
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
-    }
-
-    /**
-     * Retained Treasury Yield Percentage get/set.
-     */
-    function test_CanSetRetainedTreasuryYieldPercentage(uint percentage) public {
-        vm.assume(percentage <= 10000);
-
-        assertEq(treasury.retainedTreasuryYieldPercentage(), 0);
-
-        treasury.setRetainedTreasuryYieldPercentage(percentage);
-        assertEq(treasury.retainedTreasuryYieldPercentage(), percentage);
-    }
-
-    function test_CannotSetRetainedTreasuryYieldPercentageOverOneHundredPercent(uint percentage) public {
-        // Ensure our test amount is over 100%
-        vm.assume(percentage > 10000);
-
-        vm.expectRevert(abi.encodeWithSelector(PercentageTooHigh.selector, 10000));
-        treasury.setRetainedTreasuryYieldPercentage(percentage);
-    }
-
-    function test_CannotSetRetainedTreasuryYieldPercentageWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
-        vm.prank(alice);
-        treasury.setRetainedTreasuryYieldPercentage(0);
     }
 
 }

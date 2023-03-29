@@ -2,15 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-// import {AccessControl} from '@openzeppelin/contracts/access/AccessControl.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
-import {AuthorityControl} from '../authorities/AuthorityControl.sol';
-import {CollectionNotApproved, StrategyNotApproved} from '../utils/Errors.sol';
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 
@@ -18,14 +17,12 @@ import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 error VaultNameCannotBeEmpty();
 
 /**
- * Allows for vaults to be created, pairing them with a {Strategy} and an approved
- * collection. The vault creation script needs to be as highly optimised as possible
- * to ensure that the gas costs are kept down.
+ * Allows for vaults to be created, pairing them with an approved collection. The vault
+ * creation script needs to be as highly optimised as possible to ensure that the gas
+ * costs are kept down.
  *
  * This factory will keep an index of created vaults and secondary information to ensure
  * that external applications can display and maintain a list of available vaults.
- *
- * Question: Can anyone create a vault?
  */
 contract VaultFactory is AuthorityControl, IVaultFactory {
     /// Maintains an array of all vaults created
@@ -33,7 +30,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
     /// Contract mappings to our internal registries
     ICollectionRegistry public immutable collectionRegistry;
-    IStrategyRegistry public immutable strategyRegistry;
 
     /// Implementation addresses that will be cloned
     address public immutable vaultImplementation;
@@ -42,30 +38,19 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     mapping(uint => address) private vaultIds;
     mapping(address => address[]) private collectionVaults;
 
-    /// Internal contract references
-    address public floor;
-
     /**
      * Store our registries, mapped to their interfaces.
      *
      * @param _authority {AuthorityRegistry} contract address
      * @param _collectionRegistry Address of our {CollectionRegistry}
-     * @param _strategyRegistry Address of our {StrategyRegistry}
      * @param _vaultImplementation Address of our deployed {Vault} to clone
-     * @param _floor Address of our {FLOOR}
      */
-    constructor(address _authority, address _collectionRegistry, address _strategyRegistry, address _vaultImplementation, address _floor)
-        AuthorityControl(_authority)
-    {
+    constructor(address _authority, address _collectionRegistry, address _vaultImplementation) AuthorityControl(_authority) {
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-        strategyRegistry = IStrategyRegistry(_strategyRegistry);
 
         // Store our implementation addresses
         vaultImplementation = _vaultImplementation;
-
-        // Store our FLOOR token address
-        floor = _floor;
     }
 
     /**
@@ -102,7 +87,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     }
 
     /**
-     * Creates a vault with an approved strategy and collection.
+     * Creates a vault with an approved collection.
      *
      * @param _name Human-readable name of the vault
      * @param _strategy The strategy implemented by the vault
@@ -122,11 +107,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
             revert VaultNameCannotBeEmpty();
         }
 
-        // Make sure strategy is approved
-        if (!strategyRegistry.isApproved(_strategy)) {
-            revert StrategyNotApproved(_strategy);
-        }
-
         // Make sure the collection is approved
         if (!collectionRegistry.isApproved(_collection)) {
             revert CollectionNotApproved(_collection);
@@ -142,7 +122,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
 
         // Create our {Vault} with provided information
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
+        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy);
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
@@ -156,6 +136,13 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
         // Finally we can emit our event to notify watchers of a new vault
         emit VaultCreated(vaultId_, vaultAddr_, _collection);
+    }
+
+    /**
+     * ..
+     */
+    function withdraw(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
+        return IVault(vaultIds[_vaultId]).withdraw(_amount);
     }
 
     /**

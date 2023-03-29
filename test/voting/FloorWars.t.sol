@@ -11,7 +11,6 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
@@ -32,7 +31,6 @@ contract FloorWarsTest is FloorTest {
     FloorWars floorWars;
     VeFloorStaking veFloor;
     CollectionRegistry collectionRegistry;
-    StrategyRegistry strategyRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     GaugeWeightVote gaugeWeightVote;
@@ -53,7 +51,6 @@ contract FloorWarsTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our vault implementations
         address vaultImplementation = address(new Vault());
@@ -66,15 +63,12 @@ contract FloorWarsTest is FloorTest {
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
             address(collectionRegistry),
-            address(strategyRegistry),
-            vaultImplementation,
-            address(floor)
+            vaultImplementation
         );
 
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(strategyRegistry),
             address(floor)
         );
 

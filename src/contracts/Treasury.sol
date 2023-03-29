@@ -16,7 +16,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
@@ -55,15 +54,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
-    /// Holds our {StrategyRegistry} contract reference
-    IStrategyRegistry public strategyRegistry;
-
     /// Holds our {FLOOR} contract reference
     FLOOR public floor;
-
-    /// The amount of our {Treasury} reward yield that is retained. Any remaining percentage
-    /// amount will be distributed to the top voted collections via our {GaugeWeightVote} contract.
-    uint public retainedTreasuryYieldPercentage;
 
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
@@ -74,11 +66,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * trusted source.
      *
      * @param _authority {AuthorityRegistry} contract address
-     * @param _strategyRegistry Address of our {StrategyRegistry}
      * @param _floor Address of our {FLOOR}
      */
-    constructor(address _authority, address _strategyRegistry, address _floor) AuthorityControl(_authority) {
-        strategyRegistry = IStrategyRegistry(_strategyRegistry);
+    constructor(address _authority, address _floor) AuthorityControl(_authority) {
         floor = FLOOR(_floor);
     }
 
@@ -203,20 +193,6 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
         IERC1155(token).safeTransferFrom(address(this), recipient, tokenId, amount, '');
         emit WithdrawERC1155(token, tokenId, amount, recipient);
-    }
-
-    /**
-     * Sets the percentage of treasury rewards yield to be retained by the treasury, with
-     * the remaining percetange distributed to non-treasury vault stakers based on the GWV.
-     *
-     * @param percent New treasury yield percentage value
-     */
-    function setRetainedTreasuryYieldPercentage(uint percent) external onlyRole(TREASURY_MANAGER) {
-        if (percent > 10000) {
-            revert PercentageTooHigh(10000);
-        }
-
-        retainedTreasuryYieldPercentage = percent;
     }
 
     /**
