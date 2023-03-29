@@ -3,6 +3,8 @@
 pragma solidity ^0.8.0;
 
 import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
+import {EpochManager} from '@floor/EpochManager.sol';
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
@@ -45,8 +47,17 @@ contract VoteMarketTest is FloorTest {
         // Set up a small pool of test users
         (alice, feeCollector, oracle) = (users[0], users[1], users[2]);
 
+        // ..
+        CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+
         // Deploy our {VoteMarket} contract
-        voteMarket = new VoteMarket(address(0), oracle, feeCollector);
+        voteMarket = new VoteMarket(address(collectionRegistry), oracle, feeCollector);
+
+        // Create our Epoch Manager
+        EpochManager epochManager = new EpochManager();
+
+        // Set our Epoch Manager
+        voteMarket.setEpochManager(address(epochManager));
 
         // Create an empty blacklist
         emptyBlacklist = new address[](0);
