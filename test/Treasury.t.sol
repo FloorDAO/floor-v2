@@ -63,14 +63,10 @@ contract TreasuryTest is FloorTest {
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Deploy our vault implementations
-        address vaultImplementation = address(new Vault());
-
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
-            address(collectionRegistry),
-            vaultImplementation
+            address(collectionRegistry)
         );
 
         // Set up our {Treasury}

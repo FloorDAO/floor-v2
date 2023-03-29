@@ -45,9 +45,6 @@ contract DeployCoreContracts is Script {
         // Deploy our registry contracts
         CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Deploy our {Vault} implementation
-        Vault vaultImplementation = new Vault();
-
         // Deploy our tokens
         FLOOR floor = new FLOOR(address(authorityRegistry));
         // VeFloorStaking veFloor = new VeFloorStaking();

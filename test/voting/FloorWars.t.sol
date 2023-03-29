@@ -52,9 +52,6 @@ contract FloorWarsTest is FloorTest {
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Deploy our vault implementations
-        address vaultImplementation = address(new Vault());
-
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
         veFloor = new VeFloorStaking(floor, address(this));
@@ -62,8 +59,7 @@ contract FloorWarsTest is FloorTest {
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
-            address(collectionRegistry),
-            vaultImplementation
+            address(collectionRegistry)
         );
 
         // Set up our {Treasury}

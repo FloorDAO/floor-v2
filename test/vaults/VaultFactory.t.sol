@@ -14,7 +14,6 @@ import {FloorTest} from '../utilities/Environments.sol';
 contract VaultFactoryTest is FloorTest {
     CollectionRegistry collectionRegistry;
     VaultFactory vaultFactory;
-    Vault vaultImplementation;
 
     address approvedCollection;
     address approvedStrategy;
@@ -52,14 +51,10 @@ contract VaultFactoryTest is FloorTest {
         // Approve our test collection
         collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-        // Deploy our vault implementation
-        vaultImplementation = new Vault();
-
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
-            address(collectionRegistry),
-            address(vaultImplementation)
+            address(collectionRegistry)
         );
     }
 

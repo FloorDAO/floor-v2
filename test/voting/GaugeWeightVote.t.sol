@@ -26,7 +26,6 @@ contract GaugeWeightVoteTest is FloorTest {
     FLOOR floor;
     GaugeWeightVote gaugeWeightVote;
     Treasury treasury;
-    Vault vaultImplementation;
     VaultFactory vaultFactory;
     VeFloorStaking veFloor;
 
@@ -54,17 +53,13 @@ contract GaugeWeightVoteTest is FloorTest {
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Deploy our vault implementation
-        vaultImplementation = new Vault();
-
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
 
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
-            address(collectionRegistry),
-            address(vaultImplementation)
+            address(collectionRegistry)
         );
 
         // Set up our {Treasury}

@@ -53,17 +53,13 @@ contract VaultTest is FloorTest {
         // Approve our test collection
         collectionRegistry.approveCollection(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-        // Deploy our vault implementation
-        address vaultImplementation = address(new Vault());
-
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
 
         // Create our {VaultFactory}
         vaultFactory = new VaultFactory(
             address(authorityRegistry),
-            address(collectionRegistry),
-            vaultImplementation
+            address(collectionRegistry)
         );
 
         // Set up our Vault with authority
