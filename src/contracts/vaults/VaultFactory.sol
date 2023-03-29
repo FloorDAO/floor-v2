@@ -6,6 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {Vault} from '@floor/vaults/Vault.sol';
 import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
@@ -31,9 +32,6 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /// Contract mappings to our internal registries
     ICollectionRegistry public immutable collectionRegistry;
 
-    /// Implementation addresses that will be cloned
-    address public immutable vaultImplementation;
-
     /// Mappings to aide is discoverability
     mapping(uint => address) private vaultIds;
     mapping(address => address[]) private collectionVaults;
@@ -43,14 +41,10 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      *
      * @param _authority {AuthorityRegistry} contract address
      * @param _collectionRegistry Address of our {CollectionRegistry}
-     * @param _vaultImplementation Address of our deployed {Vault} to clone
      */
-    constructor(address _authority, address _collectionRegistry, address _vaultImplementation) AuthorityControl(_authority) {
+    constructor(address _authority, address _collectionRegistry) AuthorityControl(_authority) {
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-
-        // Store our implementation addresses
-        vaultImplementation = _vaultImplementation;
     }
 
     /**
@@ -118,11 +112,8 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         // Deploy a new {Strategy} instance using the clone mechanic
         address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
 
-        // Determine our deployed addresses
-        vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
-
         // Create our {Vault} with provided information
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy);
+        vaultAddr_ = address(new Vault(_name, vaultId_, _collection, strategy));
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);

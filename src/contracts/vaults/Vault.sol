@@ -4,9 +4,8 @@ pragma solidity ^0.8.0;
 
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
-import {OwnableUpgradeable} from '@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol';
-import {PausableUpgradeable} from '@openzeppelin-upgradeable/contracts/security/PausableUpgradeable.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {InsufficientAmount} from '../utils/Errors.sol';
 
@@ -29,7 +28,7 @@ error InsufficientPosition(uint amount, uint position);
  * to staking and withdrawal. Each vault will have a registered {Strategy} and
  * {Collection} that it will subsequently interact with and maintain.
  */
-contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuard {
+contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
     /**
      * The human-readable name of the vault.
      */
@@ -38,18 +37,18 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
     /**
      * The numerical ID of the vault that acts as an index for the {VaultFactory}
      */
-    uint public vaultId;
+    uint public immutable vaultId;
 
     /**
      * Gets the contract address for the vault collection. Only assets from this contract
      * will be able to be deposited into the contract.
      */
-    address public collection;
+    address public immutable collection;
 
     /**
      * Gets the contract address for the strategy implemented by the vault.
      */
-    IBaseStrategy public strategy;
+    IBaseStrategy public immutable strategy;
 
     /**
      * Maintain a list of active positions held by depositing users.
@@ -65,22 +64,15 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      * Set up our vault information.
      *
      * @param _name Human-readable name of the vault
+     * @param _vaultId The deterministic ID assigned to the vault on creation
      * @param _collection The address of the collection attached to the vault
      * @param _strategy The strategy implemented by the vault
      */
-    function initialize(
-        string calldata _name,
-        uint _vaultId,
-        address _collection,
-        address _strategy
-    ) public initializer {
-        __Ownable_init();
-        __Pausable_init();
-
-        collection = _collection;
+    constructor(string memory _name, uint _vaultId, address _collection, address _strategy) {
         name = _name;
-        strategy = IBaseStrategy(_strategy);
         vaultId = _vaultId;
+        collection = _collection;
+        strategy = IBaseStrategy(_strategy);
     }
 
     /**
