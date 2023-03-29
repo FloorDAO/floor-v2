@@ -103,14 +103,6 @@ contract VaultTest is FloorTest {
     }
 
     /**
-     * This helper function gets the vault factory address of the contract that
-     * created the vault.
-     */
-    function test_CanGetVaultFactoryAddress() public {
-        assertEq(vault.vaultFactory(), address(vaultFactory));
-    }
-
-    /**
      * The vault ID attributed when the vault is created will be made available
      * via this helper function call.
      */

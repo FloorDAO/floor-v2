@@ -42,6 +42,8 @@ interface IVaultFactory {
         external
         returns (uint vaultId_, address vaultAddr_);
 
+    function withdraw(uint _vaultId, uint _amount) external returns (uint);
+
     function pause(uint _vaultId, bool _paused) external;
 
     function claimRewards(uint _vaultId) external returns (uint);

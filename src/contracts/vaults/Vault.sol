@@ -62,11 +62,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
     uint public lastEpochRewards;
 
     /**
-     * ..
-     */
-    address public treasury;
-
-    /**
      * Set up our vault information.
      *
      * @param _name Human-readable name of the vault
@@ -77,8 +72,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         string calldata _name,
         uint _vaultId,
         address _collection,
-        address _strategy,
-        address _treasury
+        address _strategy
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
@@ -86,7 +80,6 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
         collection = _collection;
         name = _name;
         strategy = IBaseStrategy(_strategy);
-        treasury = _treasury;
         vaultId = _vaultId;
     }
 
@@ -129,10 +122,7 @@ contract Vault is IVault, OwnableUpgradeable, PausableUpgradeable, ReentrancyGua
      *
      * @return The amount of tokens returned to the user
      */
-    function withdraw(uint amount) external nonReentrant returns (uint) {
-        // Ensure only the {Treasury} can call this function
-        require(msg.sender == treasury);
-
+    function withdraw(uint amount) external nonReentrant onlyOwner returns (uint) {
         // Ensure we are withdrawing something
         if (amount == 0) {
             revert InsufficientAmount();

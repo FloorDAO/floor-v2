@@ -122,7 +122,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         vaultAddr_ = Clones.cloneDeterministic(vaultImplementation, bytes32(vaultId_));
 
         // Create our {Vault} with provided information
-        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy, address(this));
+        IVault(vaultAddr_).initialize(_name, vaultId_, _collection, strategy);
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
@@ -136,6 +136,13 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
 
         // Finally we can emit our event to notify watchers of a new vault
         emit VaultCreated(vaultId_, vaultAddr_, _collection);
+    }
+
+    /**
+     * ..
+     */
+    function withdraw(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
+        return IVault(vaultIds[_vaultId]).withdraw(_amount);
     }
 
     /**
