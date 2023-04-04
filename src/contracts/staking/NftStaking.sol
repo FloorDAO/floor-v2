@@ -302,9 +302,9 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      * @param _collection The collection being unstaked
      * @param _sender The caller that is unstaking
      *
-     * @return The amount in fees to unstake
+     * @return fees The amount in fees to unstake
      */
-    function _unstakeFees(address _strategy, address _collection, address _sender) internal view returns (uint) {
+    function _unstakeFees(address _strategy, address _collection, address _sender) internal view returns (uint fees) {
         // If we are waiving fees, then nothing to pay
         if (waiveUnstakeFees[_strategy]) {
             return 0;
@@ -324,8 +324,15 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             return 0;
         }
 
+        // Get our base early exit fee and determine the linear decline of the exit fees
         uint tokens = stakedNft.tokensStaked * 1 ether;
-        return tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount);
+        fees = tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount);
+
+        // Reduce the penalty by the modifier against the NFT sweep power. The modifier is
+        // accurate to 9 decimal places, so we will need to account for that.
+        if (sweepModifier != 0) {
+            fees = (fees * (10e9 - sweepModifier)) / 10e9;
+        }
     }
 
     /**
