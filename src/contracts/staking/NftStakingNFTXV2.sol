@@ -93,8 +93,8 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
      *
      * @param recipient The recipient of the unstaked NFT
      * @param _collection The collection to unstake
-     * @param _collection The number of NFTs to unstake
-     * @param _collection The dust of NFT to unstake
+     * @param numNfts The number of NFTs to unstake
+     * @param remainingPortionToUnstake The dust of NFT to unstake
      */
     function unstake(address recipient, address _collection, uint numNfts, uint remainingPortionToUnstake) external onlyNftStaking {
         // Set our NFT receiver so that our callback function can hook into the correct
