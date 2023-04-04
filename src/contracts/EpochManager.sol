@@ -95,7 +95,9 @@ contract EpochManager is IEpochManager, Ownable {
         collectionEpochs[epoch] = index;
 
         // Handle Vote Market epoch increments
-        voteMarket.extendBribes(epoch);
+        if (address(voteMarket) != address(0)) {
+            voteMarket.extendBribes(epoch);
+        }
     }
 
     /**

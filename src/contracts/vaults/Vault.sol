@@ -114,7 +114,7 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
      *
      * @return The amount of tokens returned to the user
      */
-    function withdraw(uint amount) external nonReentrant onlyOwner returns (uint) {
+    function withdraw(address recipient, uint amount) external nonReentrant onlyOwner returns (uint) {
         // Ensure we are withdrawing something
         if (amount == 0) {
             revert InsufficientAmount();
@@ -132,10 +132,10 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
         }
 
         // Transfer the tokens to the user
-        IERC20(collection).transfer(msg.sender, receivedAmount);
+        IERC20(collection).transfer(recipient, receivedAmount);
 
         // Fire events to stalkers
-        emit VaultWithdrawal(msg.sender, collection, receivedAmount);
+        emit VaultWithdrawal(recipient, collection, receivedAmount);
 
         // We can now reduce the users position and total position held by the
         // vault.

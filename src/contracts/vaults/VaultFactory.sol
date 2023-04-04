@@ -133,7 +133,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      * ..
      */
     function withdraw(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
-        return IVault(vaultIds[_vaultId]).withdraw(_amount);
+        return IVault(vaultIds[_vaultId]).withdraw(msg.sender, _amount);
     }
 
     /**

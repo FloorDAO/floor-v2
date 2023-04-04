@@ -79,6 +79,10 @@ contract VaultTest is FloorTest {
         vm.label(vaultAddress, 'Test Vault');
         vm.label(address(vault.strategy()), 'Test Vault Strategy');
         vm.label(vault.collection(), 'Test Vault Collection');
+
+        // Add our PUNK_HOLDER account to be a TREASURY_MANAGER role, as we need to
+        // test that they can withdraw.
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), PUNK_HOLDER);
     }
 
     /**
@@ -95,7 +99,7 @@ contract VaultTest is FloorTest {
      * applied to the vault, not the strategy contract address passed.
      */
     function test_CanGetStrategyAddress() public {
-        assertEq(address(vault.strategy()), 0x8B592afD1A473607C9d7d3E7ac49A788d8e261e8);
+        assertEq(address(vault.strategy()), 0x7c407d9Cb19e7aDC478e726aAf72eF416cd80b92);
     }
 
     /**
@@ -257,7 +261,7 @@ contract VaultTest is FloorTest {
 
         // Process a withdrawal of a partial amount against our position
         vm.startPrank(PUNK_HOLDER);
-        uint withdrawalAmount = vault.withdraw(amount);
+        uint withdrawalAmount = vaultFactory.withdraw(vault.vaultId(), amount);
         vm.stopPrank();
 
         // Our holder should now have just the withdrawn amount back in their wallet
@@ -291,7 +295,7 @@ contract VaultTest is FloorTest {
         vm.warp(block.timestamp + 10 days);
 
         // Withdraw the same amount that we depositted
-        uint withdrawalAmount = vault.withdraw(depositAmount);
+        uint withdrawalAmount = vaultFactory.withdraw(vault.vaultId(), depositAmount);
 
         // We need to take our base balance, minus the dust lost during the deposit
         assertEq(IERC20(vault.collection()).balanceOf(PUNK_HOLDER), PUNK_BALANCE - amount + withdrawalAmount);
@@ -326,8 +330,8 @@ contract VaultTest is FloorTest {
 
         // Process 2 vault withdrawals
         vm.startPrank(PUNK_HOLDER);
-        uint withdrawalAmount1 = vault.withdraw(amount);
-        uint withdrawalAmount2 = vault.withdraw(amount);
+        uint withdrawalAmount1 = vaultFactory.withdraw(vault.vaultId(), amount);
+        uint withdrawalAmount2 = vaultFactory.withdraw(vault.vaultId(), amount);
         vm.stopPrank();
 
         // Our user should now have the twice withdrawn amount in their balance
@@ -362,8 +366,9 @@ contract VaultTest is FloorTest {
 
         // Expect our call to be reverted as we are trying to withdraw twice the amount
         // that we deposited.
+        uint vaultId = vault.vaultId();
         vm.expectRevert(abi.encodeWithSelector(InsufficientPosition.selector, 1000000, 483890));
-        vault.withdraw(1000000);
+        vaultFactory.withdraw(vaultId, 1000000);
 
         vm.stopPrank();
     }

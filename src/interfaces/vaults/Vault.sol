@@ -46,7 +46,7 @@ interface IVault {
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(uint amount) external returns (uint);
+    function withdraw(address recipient, uint amount) external returns (uint);
 
     /**
      * Pauses deposits from being made into the vault. This should only be called by
