@@ -98,7 +98,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
         uint length = _tokenIds.length;
         require(numNfts == length, 'Cannot unstake portion');
 
-        for (uint i; i < length; ++i) {
+        for (uint i; i < length;) {
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
                 IERC721(_collection).safeTransferFrom(address(this), recipient, _tokenIds[i], bytes(''));
             } else {
@@ -110,6 +110,8 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
 
             // Unlock the token
             tokensLocked[_collection][msg.sender] = false;
+
+            unchecked { ++i; }
         }
     }
 

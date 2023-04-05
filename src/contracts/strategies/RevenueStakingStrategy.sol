@@ -114,10 +114,12 @@ contract RevenueStakingStrategy is IBaseStrategy, Initializable {
      * Harvest possible rewards from strategy.
      */
     function claimRewards() public view returns (address[] memory, uint[] memory) {
-        uint[] memory amount = new uint[](_tokens.length);
+        uint length = _tokens.length;
+        uint[] memory amount = new uint[](length);
 
-        for (uint i; i < _tokens.length; ++i) {
+        for (uint i; i < length;) {
             amount[i] = this.unmintedRewards(_tokens[i]);
+             unchecked { ++i; }
         }
 
         return (_tokens, amount);

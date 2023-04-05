@@ -142,12 +142,17 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
     function claimRewards() external onlyOwner returns (address[] memory tokens, uint[] memory amounts) {
         // Claim any unharvested rewards from the strategy
         (tokens, amounts) = strategy.claimRewards();
-        for (uint i; i < tokens.length; ++i) {
+
+        // This will likely only be a single element array, so we just determine the
+        // length inline.
+        for (uint i; i < tokens.length;) {
             lastEpochRewards[tokens[i]] = amounts[i];
 
             // After claiming the rewards we can get a count of how many reward tokens
             // are unminted in the strategy. We can also reuse the existing memory array.
             amounts[i] = strategy.unmintedRewards(tokens[i]);
+
+            unchecked { ++i; }
         }
     }
 
@@ -174,11 +179,13 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
         bool valid = false;
         address[] memory validTokens = strategy.tokens();
 
-        for (uint i; i < validTokens.length; ++i) {
+        for (uint i; i < validTokens.length;) {
             if (validTokens[i] == token) {
                 valid = true;
                 break;
             }
+
+            unchecked { ++i; }
         }
 
         require(valid, 'Invalid token');
