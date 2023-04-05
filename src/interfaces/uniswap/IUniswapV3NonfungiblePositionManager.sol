@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-abstract contract IUniswapV3NonfungiblePositionManager {
+interface IUniswapV3NonfungiblePositionManager {
     struct MintParams {
         address token0;
         address token1;
@@ -19,7 +19,6 @@ abstract contract IUniswapV3NonfungiblePositionManager {
     function mint(MintParams calldata params)
         external
         payable
-        virtual
         returns (uint tokenId, uint128 liquidity, uint amount0, uint amount1);
 
     struct IncreaseLiquidityParams {
@@ -34,7 +33,6 @@ abstract contract IUniswapV3NonfungiblePositionManager {
     function increaseLiquidity(IncreaseLiquidityParams calldata params)
         external
         payable
-        virtual
         returns (uint128 liquidity, uint amount0, uint amount1);
 
     struct DecreaseLiquidityParams {
@@ -45,7 +43,7 @@ abstract contract IUniswapV3NonfungiblePositionManager {
         uint deadline;
     }
 
-    function decreaseLiquidity(DecreaseLiquidityParams calldata params) external payable virtual returns (uint amount0, uint amount1);
+    function decreaseLiquidity(DecreaseLiquidityParams calldata params) external payable returns (uint amount0, uint amount1);
 
     struct CollectParams {
         uint tokenId;
@@ -54,12 +52,11 @@ abstract contract IUniswapV3NonfungiblePositionManager {
         uint128 amount1Max;
     }
 
-    function collect(CollectParams calldata params) external payable virtual returns (uint amount0, uint amount1);
+    function collect(CollectParams calldata params) external payable returns (uint amount0, uint amount1);
 
     function positions(uint tokenId)
         external
         view
-        virtual
         returns (
             uint96 nonce,
             address operator,
@@ -74,9 +71,9 @@ abstract contract IUniswapV3NonfungiblePositionManager {
             uint128 tokensOwed0,
             uint128 tokensOwed1
         );
-    function balanceOf(address owner) external view virtual returns (uint balance);
-    function tokenOfOwnerByIndex(address owner, uint index) external view virtual returns (uint tokenId);
-    function approve(address to, uint tokenId) public virtual;
+    function balanceOf(address owner) external view returns (uint balance);
+    function tokenOfOwnerByIndex(address owner, uint index) external view returns (uint tokenId);
+    function approve(address to, uint tokenId) external;
 
     /// @notice Creates a new pool if it does not exist, then initializes if not initialized
     /// @dev This method can be bundled with others via IMulticall for the first action (e.g. mint) performed against a pool
@@ -88,6 +85,21 @@ abstract contract IUniswapV3NonfungiblePositionManager {
     function createAndInitializePoolIfNecessary(address token0, address token1, uint24 fee, uint160 sqrtPriceX96)
         external
         payable
-        virtual
         returns (address pool);
+
+    /**
+     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
+     * are aware of the ERC721 protocol to prevent tokens from being forever locked.
+     *
+     * Requirements:
+     *
+     * - `from` cannot be the zero address.
+     * - `to` cannot be the zero address.
+     * - `tokenId` token must exist and be owned by `from`.
+     * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
+     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
+     *
+     * Emits a {Transfer} event.
+     */
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
