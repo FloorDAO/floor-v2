@@ -193,9 +193,7 @@ contract RevenueStakingStrategy is IBaseStrategy, Initializable {
      * Allows us to restrict calls to only be made by the connected vaultId.
      */
     modifier onlyVault() {
-        if (msg.sender != vaultAddr) {
-            revert SenderIsNotVault(msg.sender);
-        }
+        if (msg.sender != vaultAddr) revert SenderIsNotVault(msg.sender);
         _;
     }
 }
