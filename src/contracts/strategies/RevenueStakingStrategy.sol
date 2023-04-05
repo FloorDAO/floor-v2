@@ -7,7 +7,6 @@ import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.s
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
 
-import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 /// If the contract was unable to transfer tokens when registering the mint
@@ -20,16 +19,14 @@ error UnableToTransferTokens(address recipient, uint amount);
 error SenderIsNotVault(address sender);
 
 /**
- * Supports an Inventory Staking position against a single NFTX vault. This strategy
- * will hold the corresponding xToken against deposits.
+ * Supports manual staking of "yield" from an authorised sender. This allows manual
+ * yield management from external sources and products that cannot be strictly enforced
+ * on-chain otherwise.
  *
  * The contract will extend the {BaseStrategy} to ensure it conforms to the required
- * logic and functionality. Only functions that have varied internal logic have been
- * included in this interface with function documentation to explain.
- *
- * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
+ * logic and functionality.
  */
-contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
+contract RevenueStakingStrategy is IBaseStrategy, Initializable {
     /// The human-readable name of the inventory strategy
     bytes32 public immutable name;
 
@@ -39,20 +36,14 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
     /// The address of the vault the strategy is attached to
     address public vaultAddr;
 
-    /// The underlying token will be the same as the address of the NFTX vault.
-    address public underlyingToken;
-
-    /// The reward yield will be a vault xToken as defined by the InventoryStaking contract.
-    address public yieldToken;
-
-    /// Address of the NFTX Inventory Staking contract
-    address public inventoryStaking;
+    /// An array of tokens supported by the strategy
+    address[] private _tokens;
 
     /**
      * This will return the internally tracked value of tokens that have been minted into
      * FLOOR by the {Treasury}.
      *
-     * This value is stored in terms of the `yieldToken`.
+     * This value is stored in terms of ETH.
      */
     mapping (address => uint) public mintedRewards;
 
@@ -62,14 +53,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      *
      * This value is stored in terms of the `yieldToken`.
      */
-    uint private lifetimeRewards;
-
-    /**
-     * This will return the internally tracked value of all deposits made into the strategy.
-     *
-     * This value is stored in terms of the `yieldToken`.
-     */
-    uint public deposits;
+    mapping (address => uint) private lifetimeRewards;
 
     /**
      * Sets our strategy name.
@@ -88,107 +72,55 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * @param initData Encoded data to be decoded
      */
     function initialize(uint _vaultId, address _vaultAddr, bytes calldata initData) public initializer {
-        (address _underlyingToken, address _yieldToken, address _inventoryStaking) = abi.decode(initData, (address, address, address));
+        (address[] memory validTokens) = abi.decode(initData, (address[]));
 
-        underlyingToken = _underlyingToken;
-        yieldToken = _yieldToken;
         vaultId = _vaultId;
         vaultAddr = _vaultAddr;
-
-        inventoryStaking = _inventoryStaking;
+        _tokens = validTokens;
     }
 
     /**
      * Deposit underlying token or yield token to corresponding strategy.
      *
-     * Requirements:
-     *  - Caller should make sure the token is already transfered into the strategy contract.
-     *  - Caller should make sure the deposit amount is greater than zero.
-     *
-     * - Get the vault ID from the underlying address (vault address)
-     * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
-     *   - This deposit will be timelocked
-     * - We receive xToken back to the strategy
-     *
      * @param amount Amount of underlying token to deposit
      *
      * @return amount_ Amount of yield token returned from NFTX
      */
-    function deposit(address /* token */, uint amount) external onlyVault returns (uint amount_) {
+    function deposit(address token, uint amount) external onlyVault returns (uint amount_) {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
         }
 
-        // Capture our starting balance
-        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
-
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
 
-        // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(inventoryStaking, amount);
-
-        // Deposit the token into the NFTX contract
-        INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
-
-        // Determine the amount of yield token returned from our deposit
-        amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
-        deposits += amount_;
+        // ..
+        amount_ = IERC20(token).balanceOf(address(this));
+        lifetimeRewards[token] += amount;
 
         // Emit our event to followers
-        emit Deposit(underlyingToken, amount, msg.sender);
+        emit Harvest(token, amount);
     }
 
     /**
-     * Withdraws an amount of our position from the NFTX strategy.
-     *
-     * @param amount Amount of yield token to withdraw
-     *
-     * @return amount_ Amount of the underlying token returned
+     * Withdraws an amount of our position from the strategy.
      */
-    function withdraw(address /* token */, uint amount) external onlyVault returns (uint amount_) {
-        // Prevent users from trying to claim nothing
-        if (amount == 0) {
-            revert CannotWithdrawZeroAmount();
-        }
-
-        // Capture our starting balance
-        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
-
-        // Process our withdrawal against the NFTX contract
-        INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
-
-        // Determine the amount of `underlyingToken` received
-        amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
-
-        // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(msg.sender, amount_);
-
-        // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(underlyingToken, amount_, msg.sender);
+    function withdraw(address /* token */, uint /* amount */) external onlyVault returns (uint) {
+        //
     }
 
     /**
      * Harvest possible rewards from strategy.
-     *
-     * @return amount_ Amount of rewards claimed
      */
-    function claimRewards() public returns (address[] memory, uint[] memory) {
-        address[] memory tokens_ = new address[](1);
-        tokens_[0] = underlyingToken;
+    function claimRewards() public view returns (address[] memory, uint[] memory) {
+        uint[] memory amount = new uint[](_tokens.length);
 
-        uint[] memory amount_ = new uint[](1);
-        amount_[0] = this.rewardsAvailable(underlyingToken);
-
-        if (amount_[0] != 0) {
-            bool success = INFTXInventoryStaking(underlyingToken).receiveRewards(vaultId, amount_[0]);
-            if (!success) revert NoRewardsAvailableToClaim();
+        for (uint i; i < _tokens.length; ++i) {
+            amount[i] = this.unmintedRewards(_tokens[i]);
         }
 
-        lifetimeRewards += amount_[0];
-
-        return (tokens_, amount_);
+        return (_tokens, amount);
     }
 
     /**
@@ -201,8 +133,8 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      *
      * @return The available rewards to be claimed
      */
-    function rewardsAvailable(address /* token */) external view returns (uint) {
-        return INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
+    function rewardsAvailable(address /* token */) external pure returns (uint) {
+        return 0;
     }
 
     /**
@@ -213,7 +145,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * @return Total rewards generated by strategy
      */
     function totalRewardsGenerated(address token) external view returns (uint) {
-        return this.rewardsAvailable(token) + lifetimeRewards;
+        return lifetimeRewards[token];
     }
 
     /**
@@ -239,12 +171,12 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      *
      * @param amount Amount of token to be registered as minted
      */
-    function registerMint(address recipient, address /* token */, uint amount) external onlyVault {
-        bool success = IERC20(yieldToken).transfer(recipient, amount);
+    function registerMint(address recipient, address token, uint amount) external onlyVault {
+        bool success = IERC20(token).transfer(recipient, amount);
         if (!success) revert UnableToTransferTokens(recipient, amount);
 
         unchecked {
-            mintedRewards[yieldToken] += amount;
+            mintedRewards[token] += amount;
         }
     }
 
@@ -252,9 +184,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * Returns an array of tokens that the strategy supports.
      */
     function tokens() external view returns (address[] memory) {
-        address[] memory tokens_ = new address[](1);
-        tokens_[0] = underlyingToken;
-        return tokens_;
+        return _tokens;
     }
 
     /**

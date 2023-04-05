@@ -244,8 +244,17 @@ contract EpochManagerTest is FloorTest {
             // Deploy our vault
             (, vaults[i]) = vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
 
+            address[] memory tokens = new address[](1);
+            tokens[0] = collection;
+            uint[] memory amounts = new uint[](1);
+            amounts[0] = 1 ether;
+
             // Set up a mock that will set rewards to be a static amount of ether
-            vm.mockCall(vaults[i], abi.encodeWithSelector(Vault.claimRewards.selector), abi.encode(uint(1 ether)));
+            vm.mockCall(
+                vaults[i],
+                abi.encodeWithSelector(Vault.claimRewards.selector),
+                abi.encode(tokens, amounts)
+            );
 
             // Each staker will then deposit and vote
             for (uint j; j < stakerCount; ++j) {

@@ -113,7 +113,7 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
 
         // Create our {Vault} with provided information
-        vaultAddr_ = address(new Vault(_name, vaultId_, _collection, strategy));
+        vaultAddr_ = address(new Vault(_name, vaultId_, strategy));
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
@@ -132,8 +132,8 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * ..
      */
-    function withdraw(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
-        return IVault(vaultIds[_vaultId]).withdraw(msg.sender, _amount);
+    function withdraw(uint _vaultId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
+        return IVault(vaultIds[_vaultId]).withdraw(msg.sender, _token, _amount);
     }
 
     /**
@@ -152,14 +152,14 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * ..
      */
-    function claimRewards(uint _vaultId) public returns (uint) {
+    function claimRewards(uint _vaultId) public returns (address[] memory, uint[] memory) {
         return IVault(vaultIds[_vaultId]).claimRewards();
     }
 
     /**
      * ..
      */
-    function registerMint(uint _vaultId, uint _amount) public onlyRole(TREASURY_MANAGER) {
-        IVault(vaultIds[_vaultId]).registerMint(msg.sender, _amount);
+    function registerMint(uint _vaultId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) {
+        IVault(vaultIds[_vaultId]).registerMint(msg.sender, _token, _amount);
     }
 }

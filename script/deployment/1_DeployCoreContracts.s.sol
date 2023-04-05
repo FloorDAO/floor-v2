@@ -11,7 +11,6 @@ import {MigrateFloorToken} from '../../src/contracts/migrations/MigrateFloorToke
 import {UniswapV3PricingExecutor} from '../../src/contracts/pricing/UniswapV3PricingExecutor.sol';
 import {VeFloorStaking} from '../../src/contracts/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '../../src/contracts/strategies/NFTXInventoryStakingStrategy.sol';
-import {NFTXLiquidityStakingStrategy} from '../../src/contracts/strategies/NFTXLiquidityStakingStrategy.sol';
 import {FLOOR} from '../../src/contracts/tokens/Floor.sol';
 import {Vault} from '../../src/contracts/vaults/Vault.sol';
 import {VaultFactory} from '../../src/contracts/vaults/VaultFactory.sol';
@@ -38,68 +37,7 @@ contract DeployCoreContracts is Script {
         // depth only) create transactions that can later be signed and sent onchain.
         vm.startBroadcast();
 
-        // Deploy our {AuthorityRegistry}; our authority roles will be deployed in a
-        // subsequent script.
-        AuthorityRegistry authorityRegistry = new AuthorityRegistry();
-
-        // Deploy our registry contracts
-        CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-
-        // Deploy our tokens
-        FLOOR floor = new FLOOR(address(authorityRegistry));
-        // VeFloorStaking veFloor = new VeFloorStaking();
-
-        /*
-        // Deploy our NFTX staking strategies
-        NFTXInventoryStakingStrategy inventoryStakingStrategy = new NFTXInventoryStakingStrategy('NFTX Inventory Staking');
-        NFTXLiquidityStakingStrategy liquidityStakingStrategy = new NFTXLiquidityStakingStrategy('NFTX Liquitity Staking');
-
-        // Deploy our pricing executor
-        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0x1F98431c8aD98523631AE4a59f267346ea31F984, address(floor));
-
-        // Deploy our {VaultFactory}
-        VaultFactory vaultFactory = new VaultFactory(
-            address(authorityRegistry),
-            address(collectionRegistry),
-            address(vaultImplementation)
-        );
-
-        // Deploy our {Treasury}
-        Treasury treasury = new Treasury(
-            address(authorityRegistry),
-            address(collectionRegistry),
-            address(vaultFactory),
-            address(floor)
-        );
-
-        // Deploy our {GaugeWeightVote}
-        GaugeWeightVote gaugeWeightVote = new GaugeWeightVote(
-            address(collectionRegistry),
-            address(vaultFactory),
-            address(veFloor),
-            address(authorityRegistry)
-        );
-
-        // Deploy our Staking contract(s)
-        VeFloorStaking veFloorStaking = new VeFloorStaking(
-            address(authorityRegistry),
-            floor,
-            veFloor,
-            gaugeWeightVote,
-            1 ether,
-            1 ether,
-            5,
-            50,
-            20000
-        );
-
-        // Deploy our {Treasury} actions
-        NFTXSellNFTForETH nftxSellNFTForETH = new NFTXSellNFTForETH(0x941A6d105802CCCaa06DE58a13a6F49ebDCD481C, address(treasury));
-        UniswapSellTokensForETH uniswapSellTokensForETH = new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564, address(treasury));
-
-        // Deploy our migrations
-        MigrateFloorToken migrateFloorToken = new MigrateFloorToken(address(floor));
-        */
+        // ..
 
         // Stop collecting onchain transactions
         vm.stopBroadcast();

@@ -42,11 +42,11 @@ interface IVaultFactory {
         external
         returns (uint vaultId_, address vaultAddr_);
 
-    function withdraw(uint _vaultId, uint _amount) external returns (uint);
+    function withdraw(uint _vaultId, address _token, uint _amount) external returns (uint);
 
     function pause(uint _vaultId, bool _paused) external;
 
-    function claimRewards(uint _vaultId) external returns (uint);
+    function claimRewards(uint _vaultId) external returns (address[] memory, uint[] memory);
 
-    function registerMint(uint _vaultId, uint _amount) external;
+    function registerMint(uint _vaultId, address _token, uint _amount) external;
 }

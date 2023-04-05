@@ -19,6 +19,7 @@ contract FloorDepositIntoVault is IAction {
      */
     struct ActionRequest {
         address vault;
+        address token;
         uint amount;
     }
 
@@ -32,8 +33,9 @@ contract FloorDepositIntoVault is IAction {
         // Ensure that we have an amount sent
         require(request.amount != 0, 'Invalid amount');
 
-        // ..
-        return IVault(request.vault).deposit(request.amount);
+        // Deposit the requested token into the vault. This assumes that the {Treasury}
+        // has already approved the asset to be deposited.
+        return IVault(request.vault).deposit(request.token, request.amount);
     }
 
 }

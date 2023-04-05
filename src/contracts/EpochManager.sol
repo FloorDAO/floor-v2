@@ -170,7 +170,6 @@ contract EpochManager is IEpochManager, Ownable {
             // Create our variables that we will reallocate during our loop to save gas
             IVault vault;
             uint vaultId;
-            uint vaultYield;
 
             // Iterate over vaults
             uint vaultLength = vaults.length;
@@ -180,18 +179,22 @@ contract EpochManager is IEpochManager, Ownable {
 
                 // Pull out rewards and transfer into the {Treasury}
                 vaultId = vault.vaultId();
-                vaultYield = vaultFactory.claimRewards(vaultId);
+                (address[] memory tokens, uint[] memory amounts) = vaultFactory.claimRewards(vaultId);
 
-                if (vaultYield != 0) {
-                    // Calculate the reward yield in FLOOR token terms
+                // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
+                for (uint k; k < tokens.length; ++k) {
+                    if (amounts[k] == 0) {
+                        continue;
+                    }
+
                     unchecked {
-                        ethRewards += tokenEthPrice[vault.collection()] * vaultYield;
+                        ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
                     }
 
                     // Now that the {Treasury} has knowledge of the reward tokens and has minted
                     // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
                     // the {Treasury}.
-                    vaultFactory.registerMint(vaultId, vaultYield);
+                    vaultFactory.registerMint(vaultId, tokens[k], amounts[k]);
                 }
 
                 unchecked {

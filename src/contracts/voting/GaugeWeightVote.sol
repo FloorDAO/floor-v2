@@ -437,19 +437,6 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
     }
 
     /**
-     * Returns a reward weighting for the vault, allowing us to segment the collection rewards
-     * yield to holders based on this value. A vault with a higher indicator value will receive
-     * a higher percentage of rewards allocated to the collection it implements.
-     *
-     * @param vault Address of the vault
-     *
-     * @return Reward weighting
-     */
-    function _getCollectionVaultRewardsIndicator(address vault) internal returns (uint) {
-        return IVault(vault).lastEpochRewards();
-    }
-
-    /**
      * Allows our {CollectionRegistry} to provide us with collections that will be stored
      * internally to save having to pull this information each epoch.
      */

@@ -70,10 +70,6 @@ contract GaugeWeightVoteMock {
         return approvedCollections;
     }
 
-    function _getCollectionVaultRewardsIndicator(address /* vault */ ) internal pure returns (uint) {
-        return 1 ether;
-    }
-
     function addCollection(address _collection) public {
         require(msg.sender == address(collectionRegistry), 'Caller not CollectionRegistry');
         approvedCollections.push(_collection);

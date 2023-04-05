@@ -12,12 +12,6 @@ interface IVault {
     event VaultWithdrawal(address withdrawer, address token, uint amount);
 
     /**
-     * Gets the contract address for the vault collection. Only assets from this contract
-     * will be able to be deposited into the contract.
-     */
-    function collection() external view returns (address);
-
-    /**
      * Gets the contract address for the strategy implemented by the vault.
      */
     function strategy() external view returns (IBaseStrategy);
@@ -30,23 +24,23 @@ interface IVault {
     /**
      * Allows the {Treasury} to claim rewards from the vault's strategy.
      */
-    function claimRewards() external returns (uint);
+    function claimRewards() external returns (address[] memory tokens, uint[] memory amounts);
 
     /**
      * The amount of yield token generated in the last epoch by the vault.
      */
-    function lastEpochRewards() external returns (uint);
+    function lastEpochRewards(address) external returns (uint);
 
     /**
      * Allows the user to deposit an amount of tokens that the approved {Collection} and
      * passes it to the {Strategy} to be staked.
      */
-    function deposit(uint amount) external returns (uint);
+    function deposit(address token, uint amount) external returns (uint);
 
     /**
      * Allows the user to exit their position either entirely or partially.
      */
-    function withdraw(address recipient, uint amount) external returns (uint);
+    function withdraw(address recipient, address token, uint amount) external returns (uint);
 
     /**
      * Pauses deposits from being made into the vault. This should only be called by
@@ -57,5 +51,6 @@ interface IVault {
     /**
      * ..
      */
-    function registerMint(address recipient, uint amount) external;
+    function registerMint(address recipient, address token, uint amount) external;
+
 }

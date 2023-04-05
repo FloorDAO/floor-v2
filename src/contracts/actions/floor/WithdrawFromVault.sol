@@ -7,7 +7,6 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 
 /**
@@ -22,6 +21,7 @@ contract FloorWithdrawFromVault is AuthorityControl, IAction {
      */
     struct ActionRequest {
         address vaultFactory;
+        address token;
         uint vaultId;
         uint amount;
     }
@@ -55,14 +55,11 @@ contract FloorWithdrawFromVault is AuthorityControl, IAction {
         // Ensure that we have an amount sent
         require(request.amount != 0, 'Invalid amount');
 
-        IVaultFactory vaultFactory = IVaultFactory(request.vaultFactory);
-        address vault = vaultFactory.vault(request.vaultId);
-
-        // ..
-        received = vaultFactory.withdraw(request.vaultId, request.amount);
+        // Action the token to be withdrawn from the vault
+        received = IVaultFactory(request.vaultFactory).withdraw(request.vaultId, request.token, request.amount);
 
         // Transfer the tokens to the {Treasury}
-        IERC20(IVault(vault).collection()).transfer(treasury, received);
+        IERC20(request.token).transfer(treasury, received);
     }
 
 }

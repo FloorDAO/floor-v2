@@ -21,7 +21,7 @@ error ZeroAmountReceivedFromWithdraw();
 /// If the caller has an insufficient position to withdraw from
 /// @param amount The amount requested to withdraw
 /// @param position The amount available to withdraw for the caller
-error InsufficientPosition(uint amount, uint position);
+error InsufficientPosition(address token, uint amount, uint position);
 
 /**
  * Vaults are responsible for handling end-user token transactions with regards
@@ -40,12 +40,6 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
     uint public immutable vaultId;
 
     /**
-     * Gets the contract address for the vault collection. Only assets from this contract
-     * will be able to be deposited into the contract.
-     */
-    address public immutable collection;
-
-    /**
      * Gets the contract address for the strategy implemented by the vault.
      */
     IBaseStrategy public immutable strategy;
@@ -53,25 +47,23 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
     /**
      * Maintain a list of active positions held by depositing users.
      */
-    uint public position;
+    mapping (address => uint) public position;
 
     /**
      * The amount of rewards claimed in the last claim call.
      */
-    uint public lastEpochRewards;
+    mapping (address => uint) public lastEpochRewards;
 
     /**
      * Set up our vault information.
      *
      * @param _name Human-readable name of the vault
      * @param _vaultId The deterministic ID assigned to the vault on creation
-     * @param _collection The address of the collection attached to the vault
      * @param _strategy The strategy implemented by the vault
      */
-    constructor(string memory _name, uint _vaultId, address _collection, address _strategy) {
+    constructor(string memory _name, uint _vaultId, address _strategy) {
         name = _name;
         vaultId = _vaultId;
-        collection = _collection;
         strategy = IBaseStrategy(_strategy);
     }
 
@@ -81,30 +73,27 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
      *
      * @param amount Amount of tokens to be deposited by the user
      *
-     * @return The amount of xToken received from the deposit
+     * @return receivedAmount The amount of xToken received from the deposit
      */
-    function deposit(uint amount) external nonReentrant whenNotPaused returns (uint) {
+    function deposit(address token, uint amount) external nonReentrant whenNotPaused onlyValidToken(token) returns (uint receivedAmount) {
         // Transfer tokens from our user to the vault
-        IERC20(collection).transferFrom(msg.sender, address(this), amount);
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
 
         // Deposit the tokens into the strategy. This returns the amount of xToken
         // moved into the position for the address.
-        IERC20(collection).approve(address(strategy), amount);
-        uint receivedAmount = strategy.deposit(amount);
+        IERC20(token).approve(address(strategy), amount);
+        receivedAmount = strategy.deposit(token, amount);
         if (receivedAmount == 0) {
             revert ZeroAmountReceivedFromDeposit();
         }
 
         // Increase the user's position and the total position for the vault
         unchecked {
-            position += receivedAmount;
+            position[token] += receivedAmount;
         }
 
         // Fire events to stalkers
-        emit VaultDeposit(msg.sender, collection, receivedAmount);
-
-        // Return the amount of yield token returned from staking
-        return receivedAmount;
+        emit VaultDeposit(msg.sender, token, receivedAmount);
     }
 
     /**
@@ -112,60 +101,61 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
      *
      * @param amount Amount to withdraw
      *
-     * @return The amount of tokens returned to the user
+     * @return receivedAmount The amount of tokens returned to the user
      */
-    function withdraw(address recipient, uint amount) external nonReentrant onlyOwner returns (uint) {
+    function withdraw(address recipient, address token, uint amount) external nonReentrant onlyOwner onlyValidToken(token) returns (uint receivedAmount) {
         // Ensure we are withdrawing something
         if (amount == 0) {
             revert InsufficientAmount();
         }
 
         // Ensure our user has sufficient position to withdraw from
-        if (amount > position) {
-            revert InsufficientPosition(amount, position);
+        if (amount > position[token]) {
+            revert InsufficientPosition(token, amount, position[token]);
         }
 
         // Withdraw the user's position from the strategy
-        uint receivedAmount = strategy.withdraw(amount);
+        receivedAmount = strategy.withdraw(token, amount);
         if (receivedAmount == 0) {
             revert ZeroAmountReceivedFromWithdraw();
         }
 
         // Transfer the tokens to the user
-        IERC20(collection).transfer(recipient, receivedAmount);
+        IERC20(token).transfer(recipient, receivedAmount);
 
         // Fire events to stalkers
-        emit VaultWithdrawal(recipient, collection, receivedAmount);
+        emit VaultWithdrawal(recipient, token, receivedAmount);
 
         // We can now reduce the users position and total position held by the
         // vault.
         unchecked {
-            position -= amount;
+            position[token] -= amount;
         }
-
-        // Return the amount of underlying token returned from staking withdrawal
-        return receivedAmount;
     }
 
     /**
      * Allows the {Treasury} to claim rewards from the vault's strategy.
      *
-     * @return The amount of rewards waiting to be minted into {FLOOR}
+     * @return tokens Tokens
+     * @return amounts The amount of rewards earned in the epoch
      */
-    function claimRewards() external onlyOwner returns (uint) {
+    function claimRewards() external onlyOwner returns (address[] memory tokens, uint[] memory amounts) {
         // Claim any unharvested rewards from the strategy
-        lastEpochRewards = strategy.claimRewards();
+        (tokens, amounts) = strategy.claimRewards();
+        for (uint i; i < tokens.length; ++i) {
+            lastEpochRewards[tokens[i]] = amounts[i];
 
-        // After claiming the rewards we can get a count of how many reward tokens
-        // are unminted in the strategy.
-        return strategy.unmintedRewards();
+            // After claiming the rewards we can get a count of how many reward tokens
+            // are unminted in the strategy. We can also reuse the existing memory array.
+            amounts[i] = strategy.unmintedRewards(tokens[i]);
+        }
     }
 
     /**
      * ..
      */
-    function registerMint(address recipient, uint _amount) external onlyOwner {
-        strategy.registerMint(recipient, _amount);
+    function registerMint(address recipient, address token, uint amount) external onlyOwner {
+        strategy.registerMint(recipient, token, amount);
     }
 
     /**
@@ -177,6 +167,22 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
     function pause(bool _p) external onlyOwner {
         if (_p) _pause();
         else _unpause();
+    }
+
+    modifier onlyValidToken(address token) {
+        // Validate that the token is valid
+        bool valid = false;
+        address[] memory validTokens = strategy.tokens();
+
+        for (uint i; i < validTokens.length; ++i) {
+            if (validTokens[i] == token) {
+                valid = true;
+                break;
+            }
+        }
+
+        require(valid, 'Invalid token');
+        _;
     }
 
 }
