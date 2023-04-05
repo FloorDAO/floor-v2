@@ -36,6 +36,9 @@ interface ITreasury {
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
 
+    /// @dev: ..
+    event SweepAction(uint sweepEpoch);
+
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this

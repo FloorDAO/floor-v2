@@ -204,10 +204,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address payable action, ActionApproval[] calldata approvals, bytes calldata data)
-        external
-        onlyRole(TREASURY_MANAGER)
-    {
+    function processAction(
+        address payable action,
+        ActionApproval[] calldata approvals,
+        bytes calldata data,
+        uint sweepEpoch
+    ) external onlyRole(TREASURY_MANAGER) {
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == ApprovalType.NATIVE) {
                 (bool sent,) = payable(action).call{value: approvals[i].amount}('');
@@ -226,6 +228,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         }
 
         IAction(action).execute(data);
+
+        // If we have a sweep epoch index, then we can emit an event that will link the transaction
+        // to the epoch. This won't work for epoch 0, but we basically skip that one.
+        if (sweepEpoch > 0) {
+            emit SweepAction(sweepEpoch);
+        }
 
         // Remove ERC1155 global approval after execution
         for (uint i; i < approvals.length;) {
