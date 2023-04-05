@@ -36,7 +36,7 @@ interface ITreasury {
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
 
-    /// @dev: ..
+    /// @dev ..
     event SweepAction(uint sweepEpoch);
 
     /**

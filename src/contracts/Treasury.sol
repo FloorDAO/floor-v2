@@ -208,7 +208,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         address payable action,
         ActionApproval[] calldata approvals,
         bytes calldata data,
-        uint sweepEpoch
+        uint linkedSweepEpoch
     ) external onlyRole(TREASURY_MANAGER) {
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == ApprovalType.NATIVE) {
@@ -231,8 +231,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
         // If we have a sweep epoch index, then we can emit an event that will link the transaction
         // to the epoch. This won't work for epoch 0, but we basically skip that one.
-        if (sweepEpoch > 0) {
-            emit SweepAction(sweepEpoch);
+        if (linkedSweepEpoch > 0) {
+            emit SweepAction(linkedSweepEpoch);
         }
 
         // Remove ERC1155 global approval after execution
