@@ -98,6 +98,8 @@ contract EpochManager is IEpochManager, Ownable {
         if (address(voteMarket) != address(0)) {
             voteMarket.extendBribes(epoch);
         }
+
+        emit CollectionAdditionWarScheduled(epoch, index);
     }
 
     /**
@@ -237,7 +239,7 @@ contract EpochManager is IEpochManager, Ownable {
             floorWars.startFloorWar(collectionEpochs[currentEpoch]);
         }
 
-        // emit EpochEnded(lastEpoch);
+        emit EpochEnded(currentEpoch - 1, lastEpoch);
     }
 
     /**

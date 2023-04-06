@@ -7,6 +7,9 @@ pragma solidity ^0.8.0;
  */
 interface IEpochManager {
 
+    event EpochEnded(uint epoch, uint timestamp);
+    event CollectionAdditionWarScheduled(uint epoch, uint index);
+
     /**
      * ..
      */

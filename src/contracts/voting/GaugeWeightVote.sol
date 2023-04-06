@@ -185,7 +185,7 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
         // SSTORE our updated collectionVote
         collectionVotes[_collection] = collectionVote;
 
-        // emit VoteCast(msg.sender, _collection, _amount);
+        emit VoteCast(msg.sender, _collection, _amount);
     }
 
     function votes(address _collection) public view returns (uint) {
@@ -277,12 +277,12 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
                 collectionVotes[_collections[i]] = collectionVote;
             }
 
+            emit VotesRevoked(_account, _collections[i]);
+
             unchecked {
                 ++i;
             }
         }
-
-        // emit VotesRevoked();
     }
 
     /**
@@ -342,8 +342,6 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
             unchecked {
                 remainingTokens -= amounts[i];
             }
-
-            // emit SweepAmountAllocated(collections[i], amounts[i]);
 
             unchecked {
                 ++i;

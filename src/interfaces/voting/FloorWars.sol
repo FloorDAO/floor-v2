@@ -33,6 +33,27 @@ interface IFloorWars {
         address[] collections;
     }
 
+    /// Sent when a user casts a vote
+    event VoteCast(address sender, address collection, uint userVotes, uint collectionVotes);
+
+    /// Sent when a collection vote is revoked
+    event VoteRevoked(address sender, address collection, uint collectionVotes);
+
+    /// Sent when a collection NFT is staked to vote
+    event NftVoteCast(address sender, address collection, uint tokenIds, uint collectionVotes, uint collectionNftVotes);
+
+    /// Sent when a Collection Addition War is created
+    event CollectionAdditionWarCreated(uint epoch, address[] collections, uint[] floorPrices);
+
+    /// Sent when a Collection Addition War is started
+    event CollectionAdditionWarStarted(uint warIndex);
+
+    /// Sent when a Collection Addition War ends
+    event CollectionAdditionWarEnded(uint warIndex);
+
+    /// Sent when Collection Addition War NFTs are exercised
+    event CollectionExercised(uint warIndex, address collection, uint value, uint[] tokenIds);
+
     /// Stores the number of votes a user has placed against a war collection
     function userVotes(bytes32) external view returns (uint);
 

@@ -121,7 +121,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             userVotes[warUser] += votesAvailable;
         }
 
-        // emit VoteCast();
+        emit VoteCast(msg.sender, collection, userVotes[warUser], collectionVotes[warCollection]);
     }
 
     /**
@@ -145,9 +145,9 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
                 collectionVotes[warCollection] -= userVotes[warUser];
                 userVotes[warUser] = 0;
             }
-        }
 
-        // emit VoteRevoked();
+            emit VoteRevoked(msg.sender, collection, collectionVotes[warCollection]);
+        }
     }
 
     /**
@@ -200,7 +200,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             unchecked { ++i; }
         }
 
-        // emit NftVoteCast();
+        emit NftVoteCast(msg.sender, collection, tokenIds.length, collectionVotes[warCollection], collectionNftVotes[warCollection]);
     }
 
     /**
@@ -223,8 +223,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         require(collectionsLength > 1, 'Insufficient collections');
 
         bytes32 collectionHash;
-        // TODO: y?
-        uint collectionLockEpoch = currentEpoch() + 1;
+        uint collectionLockEpoch = epoch + 1;
         for (uint i; i < collectionsLength;) {
             collectionHash = keccak256(abi.encode(warIndex, collections[i]));
             collectionSpotPrice[collectionHash] = floorPrices[i];
@@ -237,7 +236,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         // Schedule our floor war onto our {EpochManager}
         epochManager.scheduleCollectionAddtionEpoch(epoch, warIndex);
 
-        // emit FloorWarCreated();
+        emit CollectionAdditionWarCreated(epoch, collections, floorPrices);
 
         return warIndex;
     }
@@ -255,7 +254,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         // Set our current war
         currentWar = wars[index - 1];
 
-        // emit FloorWarStarted();
+        emit CollectionAdditionWarStarted(index);
     }
 
     /**
@@ -295,10 +294,10 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             ++collectionEpochLock[keccak256(abi.encode(currentWar.index, highestVoteCollection))];
         }
 
+        emit CollectionAdditionWarEnded(currentWar.index);
+
         // Close the war
         delete currentWar;
-
-        // emit FloorWarEnded();
     }
 
     /**
@@ -335,7 +334,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             unchecked { ++i; }
         }
 
-        // emit CollectionExercised();
+        emit CollectionExercised(war, collection, msg.value, tokenIds);
     }
 
     /**
@@ -442,7 +441,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             unchecked { ++i; }
         }
 
-        // emit CollectionExercised();
+        emit CollectionExercised(war, collection, msg.value, tokenIds);
     }
 
     /**
@@ -457,7 +456,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     function reclaimCollectionNft(uint war, address collection, uint[] calldata tokenIds) external {
         // Check that the war has ended and that the requested collection is a timelocked token
         require(floorWarWinner[war] != address(0), 'FloorWar has not ended');
-        require(currentEpoch() > collectionEpochLock[keccak256(abi.encode(war, collection))], 'Currently timelocked');
+        require(currentEpoch() >= collectionEpochLock[keccak256(abi.encode(war, collection))], 'Currently timelocked');
 
         bytes32 warCollectionToken;
 

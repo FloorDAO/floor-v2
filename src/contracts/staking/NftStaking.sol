@@ -227,7 +227,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         stakedNfts[userCollectionHash] = stakedNft;
 
         // Fire an event to show staked tokens
-        emit TokensStaked(msg.sender, _tokenId, tokenValue, currentEpoch, epochCount);
+        emit TokensStaked(msg.sender, _tokenId.length, tokenValue, stakedNft.epochStart, LOCK_PERIODS[_epochCount]);
     }
 
     /**
@@ -283,7 +283,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         delete collectionStakers[collectionHash(_collection, _nftStakingStrategy)][collectionStakerIndex[userCollectionHash]];
 
         // Fire an event to show unstaked tokens
-        emit TokensUnstaked(msg.sender, _tokenId, tokenValue, fees);
+        emit TokensUnstaked(msg.sender, numNfts, remainingPortionToUnstake, fees);
     }
 
     /**

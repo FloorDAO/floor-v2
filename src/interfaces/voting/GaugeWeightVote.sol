@@ -14,10 +14,10 @@ pragma solidity ^0.8.0;
 interface IGaugeWeightVote {
 
     /// Sent when a user casts or revokes their vote
-    event VoteCast(address collection, uint amount);
+    event VoteCast(address sender, address collection, uint amount);
 
-    /// Sent when a snapshot is generated
-    event SnapshotCreated(address[] vault, uint[] tokens);
+    /// Sent when a user has revoked their vote, or it is revoked on their behalf
+    event VotesRevoked(address account, address collection);
 
     /**
      * ..

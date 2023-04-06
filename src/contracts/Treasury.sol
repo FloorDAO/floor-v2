@@ -229,12 +229,6 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
         IAction(action).execute(data);
 
-        // If we have a sweep epoch index, then we can emit an event that will link the transaction
-        // to the epoch. This won't work for epoch 0, but we basically skip that one.
-        if (linkedSweepEpoch > 0) {
-            emit SweepAction(linkedSweepEpoch);
-        }
-
         // Remove ERC1155 global approval after execution
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == ApprovalType.ERC1155) {
@@ -242,7 +236,13 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
-        // emit ActionProcessed();
+        emit ActionProcessed(action, data);
+
+        // If we have a sweep epoch index, then we can emit an event that will link the transaction
+        // to the epoch. This won't work for epoch 0, but we basically skip that one.
+        if (linkedSweepEpoch > 0) {
+            emit SweepAction(linkedSweepEpoch);
+        }
     }
 
     /**
@@ -268,7 +268,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             message: ''
         });
 
-        // emit SweepRegistered();
+        emit SweepRegistered(epoch);
     }
 
     /**
@@ -355,7 +355,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;
 
-        // emit EpochSwept(epochIndex);
+        emit EpochSwept(epochIndex);
     }
 
     /**

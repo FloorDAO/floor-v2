@@ -36,8 +36,17 @@ interface ITreasury {
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
 
-    /// @dev ..
+    /// @dev When a {Treasury} action is processed
+    event ActionProcessed(address action, bytes data);
+
+    /// @dev When a sweep is registered against an epoch
+    event SweepRegistered(uint epochIndex);
+
+    /// @dev When an action is assigned to a sweep epoch
     event SweepAction(uint sweepEpoch);
+
+    /// @dev When an epoch is swept
+    event EpochSwept(uint epochIndex);
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
