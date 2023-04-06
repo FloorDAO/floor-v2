@@ -2,13 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-
-import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
+import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
 
 /**
  * Creates a Uniswap liquidity pool for 2 tokens if there is not currently a pool
@@ -16,7 +10,7 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  *
  * @author Twade
  */
-contract UniswapCreatePool is IAction, Ownable, Pausable {
+contract UniswapCreatePool is UniswapActionBase {
 
     /// @param token0 Address of the first token
     /// @param token1 Address of the second token
@@ -29,14 +23,14 @@ contract UniswapCreatePool is IAction, Ownable, Pausable {
         uint160 sqrtPriceX96;
     }
 
-    /// ..
-    IUniswapV3NonfungiblePositionManager public immutable positionManager;
-
     /**
-     * ..
+     * Assigns our Uniswap V3 position manager contract that will be called at
+     * various points to interact with the platform.
+     *
+     * @param _positionManager The address of the UV3 position manager contract
      */
     constructor(address _positionManager) {
-        positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
+        _setPositionManager(_positionManager);
     }
 
     /**
@@ -44,7 +38,7 @@ contract UniswapCreatePool is IAction, Ownable, Pausable {
      * already present with the fee amount specified. If the pool does already exist,
      * then the existing pool address will be returned in the call anyway.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
@@ -55,15 +49,14 @@ contract UniswapCreatePool is IAction, Ownable, Pausable {
         }
 
         // Create our Uniswap pool if it does not already exist
-        positionManager.createAndInitializePoolIfNecessary(
+        address pool = positionManager.createAndInitializePoolIfNecessary(
             request.token0,
             request.token1,
             request.fee,
             request.sqrtPriceX96
         );
 
-        // Empty return value, as we will need to pull the newly created pool address
-        // from the transaction.
-        return 0;
+        // We cast the pool address to an integer so that it can be returned
+        return uint(uint160(pool));
     }
 }

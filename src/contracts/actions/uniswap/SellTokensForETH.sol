@@ -76,8 +76,8 @@ contract UniswapSellTokensForETH is IAction {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
-        // Transfer the specified amount of token0 to this contract from the {Treasury}
-        TransferHelper.safeTransferFrom(request.token0, treasury, address(this), request.amountIn);
+        // Transfer the specified amount of token0 to this contract from the sender
+        TransferHelper.safeTransferFrom(request.token0, msg.sender, address(this), request.amountIn);
 
         // Approve the router to spend the desired token
         TransferHelper.safeApprove(request.token0, address(swapRouter), request.amountIn);

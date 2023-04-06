@@ -2,13 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
+import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-
-import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
@@ -17,25 +12,25 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  *
  * @author Twade
  */
-contract UniswapCreatePool is IAction, Ownable, Pausable {
+contract UniswapClaimPoolRewards is UniswapActionBase {
 
     /// @param tokenId The id of the erc721 token
-    /// @return amount0 The amount of fees collected in token0
-    /// @return amount1 The amount of fees collected in token1
+    /// @return amount0 The max amount of fees collected in token0
+    /// @return amount1 The max amount of fees collected in token1
     struct ActionRequest {
         uint tokenId;
         uint128 amount0;
         uint128 amount1;
     }
 
-    /// ..
-    IUniswapV3NonfungiblePositionManager public immutable positionManager;
-
     /**
-     * ..
+     * Assigns our Uniswap V3 position manager contract that will be called at
+     * various points to interact with the platform.
+     *
+     * @param _positionManager The address of the UV3 position manager contract
      */
     constructor(address _positionManager) {
-        positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
+        _setPositionManager(_positionManager);
     }
 
     /**
@@ -43,31 +38,25 @@ contract UniswapCreatePool is IAction, Ownable, Pausable {
      *
      * @dev The contract must hold the erc721 token before it can collect fees.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
+        return _execute(request);
+    }
 
-        // Call to safeTransfer will trigger `onERC721Received` which must return the selector else transfer will fail
-        positionManager.safeTransferFrom(msg.sender, address(this), request.tokenId);
-
+    function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
+        // Collect fees from the pool
         positionManager.collect(
             IUniswapV3NonfungiblePositionManager.CollectParams({
                 tokenId: request.tokenId,
                 recipient: msg.sender,
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
+                amount0Max: request.amount0,
+                amount1Max: request.amount1
             })
         );
 
-        // Return the token back to the treasury
-        positionManager.safeTransferFrom(address(this), msg.sender, request.tokenId);
-
-        // Empty return value, as we will need to pull the newly created pool address
-        // from the transaction.
+        // Empty return value, as we have 2 forms of fees returned
         return 0;
     }
 
-    function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
-        return IERC721Receiver.onERC721Received.selector;
-    }
 }

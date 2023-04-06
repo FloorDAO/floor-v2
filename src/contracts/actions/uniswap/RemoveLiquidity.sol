@@ -1,45 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
+import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
-import {TokenUtils} from '@floor/utils/TokenUtils.sol';
-
-/// @title Decreases liquidity from a position represented by tokenID, and collects tokensOwed from position to recipient
-contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
-    using TokenUtils for address;
+/**
+ * Decreases liquidity from a position represented by tokenID.
+ */
+contract UniswapRemoveLiquidity is UniswapActionBase {
 
     /// @param tokenId - The ID of the token for which liquidity is being decreased
     /// @param liquidity -The amount by which liquidity will be decreased,
     /// @param amount0Min - The minimum amount of token0 that should be accounted for the burned liquidity,
     /// @param amount1Min - The minimum amount of token1 that should be accounted for the burned liquidity,
     /// @param deadline - The time by which the transaction must be included to effect the change
-    /// @param recipient - accounts to receive the tokens
-    /// @param amount0Max - The maximum amount of token0 to collect
-    /// @param amount1Max - The maximum amount of token1 to collect
     struct ActionRequest {
         uint tokenId;
         uint128 liquidity;
         uint amount0Min;
         uint amount1Min;
         uint deadline;
-        address recipient;
-        uint128 amount0Max;
-        uint128 amount1Max;
     }
 
-    /// ..
-    IUniswapV3NonfungiblePositionManager positionManager;
-
     /**
-     * ..
+     * Assigns our Uniswap V3 position manager contract that will be called at
+     * various points to interact with the platform.
+     *
+     * @param _positionManager The address of the UV3 position manager contract
      */
     constructor(address _positionManager) {
-        positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
+        _setPositionManager(_positionManager);
     }
 
     /**
@@ -48,7 +39,16 @@ contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
+        return _execute(request);
+    }
 
+    /**
+     * ..
+     *
+     * @dev To collect the liquidity generated, we will need to subsequently call `collect`
+     * on the pool using the {UniswapClaimPoolRewards} action.
+     */
+    function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
         positionManager.decreaseLiquidity(
@@ -61,16 +61,6 @@ contract UniswapRemoveLiquidity is IAction, Ownable, Pausable {
             })
         );
 
-        // Collects from tokensOwed on position, sends to recipient, up to amountMax
-        (uint amount0,) = positionManager.collect(
-            IUniswapV3NonfungiblePositionManager.CollectParams({
-                tokenId: request.tokenId,
-                recipient: request.recipient,
-                amount0Max: request.amount0Max,
-                amount1Max: request.amount1Max
-            })
-        );
-
-        return amount0;
+        return 0;
     }
 }
