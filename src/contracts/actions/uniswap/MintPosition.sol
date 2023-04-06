@@ -54,8 +54,6 @@ contract UniswapMintPosition is UniswapActionBase {
         request.token0.approveToken(address(positionManager), request.amount0Desired);
         request.token1.approveToken(address(positionManager), request.amount1Desired);
 
-        // {"token0":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48","token1":"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2","fee":"500","tickLower":"-887272","tickUpper":"887272","amount0Desired":"10000000","amount1Desired":"5000000000000000","amount0Min":"0","amount1Min":"0","recipient":"0x0f294726A2E3817529254F81e0C195b6cd0C834f","deadline":"1680777083"}
-
         // Create our ERC721 and fund it with an initial desired amount of each token
         (uint tokenId, , uint amount0, uint amount1) = positionManager.mint(
             IUniswapV3NonfungiblePositionManager.MintParams({
