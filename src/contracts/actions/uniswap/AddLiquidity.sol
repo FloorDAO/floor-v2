@@ -8,7 +8,7 @@ import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
- * ..
+ * Adds liquidity against an existing Uniswap ERC721 position.
  *
  * @author Twade
  */
@@ -16,14 +16,13 @@ contract UniswapAddLiquidity is UniswapActionBase {
     using TokenUtils for address;
 
     /// @param tokenId - The ID of the token for which liquidity is being increased
+    /// @param token0 - address of the first token
+    /// @param token1 - address of the second token
     /// @param amount0Desired - The desired amount of token0 that should be supplied,
     /// @param amount1Desired - The desired amount of token1 that should be supplied,
     /// @param amount0Min - The minimum amount of token0 that should be supplied,
     /// @param amount1Min - The minimum amount of token1 that should be supplied,
     /// @param deadline - The time by which the transaction must be included to effect the change
-    /// @param from - account to take amounts from
-    /// @param token0 - address of the first token
-    /// @param token1 - address of the second token
     struct ActionRequest {
         // @dev If the tokenId is set to 0, then a new token will be minted
         uint tokenId;
@@ -47,16 +46,13 @@ contract UniswapAddLiquidity is UniswapActionBase {
     }
 
     /**
-     * ..
+     * Adds liquidity to an existing ERC721 position.
      */
     function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
         return _execute(abi.decode(_request, (ActionRequest)));
     }
 
-    /**
-     * ..
-     */
     function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
         // Fetch tokens from address
         uint amount0Pulled = request.token0.pullTokensIfNeeded(msg.sender, request.amount0Desired);

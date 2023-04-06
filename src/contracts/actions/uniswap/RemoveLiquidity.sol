@@ -34,7 +34,10 @@ contract UniswapRemoveLiquidity is UniswapActionBase {
     }
 
     /**
-     * ..
+     * Removes liquidity from an existing ERC721 position.
+     *
+     * @dev To collect the liquidity generated, we will need to subsequently call `collect`
+     * on the pool using the {UniswapClaimPoolRewards} action.
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
@@ -42,12 +45,6 @@ contract UniswapRemoveLiquidity is UniswapActionBase {
         return _execute(request);
     }
 
-    /**
-     * ..
-     *
-     * @dev To collect the liquidity generated, we will need to subsequently call `collect`
-     * on the pool using the {UniswapClaimPoolRewards} action.
-     */
     function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).

@@ -8,7 +8,9 @@ import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
- * ..
+ * Mints a position against a Uniswap pool, minting an ERC721 that will be
+ * passed to the sender. This ERC721 will referenced by subsequent Uniswap
+ * actions to allow liquidity management and reward collection.
  *
  * @author Twade
  */
@@ -40,7 +42,7 @@ contract UniswapMintPosition is UniswapActionBase {
     }
 
     /**
-     * ..
+     * Mints an ERC721 position against a pool and provides initial liquidity.
      */
     function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
