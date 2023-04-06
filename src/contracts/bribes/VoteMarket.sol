@@ -13,15 +13,6 @@ import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegis
 
 contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
 
-    /// Fired when a new bribe is created
-    event BribeCreated(uint bribeId);
-
-    /// Fired when a user claims their bribe allocation
-    event Claimed(address account, address rewardToken, uint bribeId, uint amount, uint epoch);
-
-    /// Fired when a new claim allocation is assigned for an epoch
-    event ClaimRegistered(uint epoch, bytes32 merkleRoot);
-
     /// Minimum number of epochs for a Bribe
     uint8 public constant MINIMUM_EPOCHS = 1;
 
@@ -68,7 +59,11 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * Create a new bribe.
+     * Create a new bribe that can be applied to either a New Collection War or
+     * Sweep War.
+     *
+     * @dev If a New Collection War bribe is being created, then the
+     * `numberOfEpochs` value must be `1`.
      *
      * @param collection Address of the target collection.
      * @param rewardToken Address of the ERC20 used or rewards.
@@ -142,7 +137,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Claims against any bribes for a user.
      */
     function claim(
         address account,
@@ -167,7 +162,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Claims against all bribes in a collection for a user.
      */
     function claimAll(
         address account,
@@ -193,7 +188,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Handles the internal logic to process a claim against a bribe.
      */
     function _claim(uint bribeId, address account, uint epoch, address collection, uint votes, bytes32[] calldata merkleProof) internal {
         // Check that the user has not already successfully claimed against this collection
@@ -255,7 +250,10 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Allows our platform to increase the length of any sweep war bribes.
+     *
+     * @dev This will be called by the {EpochManager} when a New Collection War is created
+     * to extend the duration any Sweep War bribes that would be active at that epoch.
      */
     function extendBribes(uint epoch) external onlyEpochManager {
         // Loop through approved collections
@@ -283,21 +281,22 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Checks if the user has already claimed against a bribe at an epoch.
      */
     function hasUserClaimed(uint bribeId, uint epoch) external view returns (bool) {
         return userClaimed[_claimHash(bribeId, epoch)];
     }
 
     /**
-     * ..
+     * Calculates our claim has for a bribe at an epoch.
      */
     function _claimHash(uint bribeId, uint epoch) internal pure returns (bytes32) {
         return keccak256(abi.encode(bribeId, bytes('_'), epoch));
     }
 
     /**
-     * ..
+     * Allows our oracle wallet to upload a merkle root to define claims available against
+     * a bribe when the epoch ends.
      */
     function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external onlyOracle {
         // Ensure that a merkleRoot has not already been set to this epoch
@@ -319,7 +318,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Sets our authorised oracle wallet that will upload bribe claims.
      */
     function setOracleWallet(address _oracleWallet) external onlyOwner {
         // We don't validate our oracle wallet address, we just assume the caller
@@ -328,7 +327,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * ..
+     * Allows our oracle wallet to expire collection bribes when they have expired.
      */
     function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external onlyOracle {
         // Delete bribes based on the collection and index. This does not delete the
@@ -345,7 +344,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     }
 
     /**
-     * Ensure that only our oracle wallet can call this function
+     * Ensure that only our oracle wallet can call this function.
      */
     modifier onlyOracle {
         require(msg.sender == oracleWallet, 'Unauthorized caller');

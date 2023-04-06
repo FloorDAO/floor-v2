@@ -11,6 +11,9 @@ interface IVault {
     /// @dev Emitted when a user withdraws
     event VaultWithdrawal(address withdrawer, address token, uint amount);
 
+    /// @dev Emitted when a mint is registered
+    event MintRegistered(address recipient, address token, uint amount);
+
     /**
      * Gets the contract address for the strategy implemented by the vault.
      */

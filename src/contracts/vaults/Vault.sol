@@ -161,6 +161,7 @@ contract Vault is IVault, Ownable, Pausable, ReentrancyGuard {
      */
     function registerMint(address recipient, address token, uint amount) external onlyOwner {
         strategy.registerMint(recipient, token, amount);
+        emit MintRegistered(recipient, token, amount);
     }
 
     /**

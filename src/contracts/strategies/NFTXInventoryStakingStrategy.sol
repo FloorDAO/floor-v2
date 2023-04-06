@@ -188,6 +188,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
 
         lifetimeRewards += amount_[0];
 
+        emit Harvest(underlyingToken, amount_[0]);
         return (tokens_, amount_);
     }
 

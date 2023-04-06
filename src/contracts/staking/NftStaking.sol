@@ -227,7 +227,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         stakedNfts[userCollectionHash] = stakedNft;
 
         // Fire an event to show staked tokens
-        // emit TokensStaked(msg.sender, _tokenId, tokenValue, currentEpoch, epochCount);
+        emit TokensStaked(msg.sender, _tokenId, tokenValue, currentEpoch, epochCount);
     }
 
     /**
@@ -261,7 +261,8 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // our returned value. We can then divide this by `1 ether` to find the number of whole
         // tokens that can be withdrawn. This will leave the `remainingPortionToUnstake` with just
         // the dust allocation.
-        uint remainingPortionToUnstake = (stakedNft.tokensStaked * 1 ether) - _unstakeFees(_nftStakingStrategy, _collection, msg.sender);
+        uint fees = _unstakeFees(_nftStakingStrategy, _collection, msg.sender);
+        uint remainingPortionToUnstake = (stakedNft.tokensStaked * 1 ether) - fees;
 
         // We can now iterate over our whole tokens to determine the number of full ERC721s we can
         // withdraw, and how much will be left as ERC20.
@@ -282,7 +283,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         delete collectionStakers[collectionHash(_collection, _nftStakingStrategy)][collectionStakerIndex[userCollectionHash]];
 
         // Fire an event to show unstaked tokens
-        // emit TokensUnStaked(msg.sender, _tokenId, tokenValue);
+        emit TokensUnstaked(msg.sender, _tokenId, tokenValue, fees);
     }
 
     /**
@@ -397,7 +398,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     }
 
     /**
-     * ..
+     * Allows our staking strategy to be updated.
      */
     function setStakingStrategy(address _nftStakingStrategy) external onlyOwner {
         if (_nftStakingStrategy == address(nftStakingStrategy)) {
@@ -426,14 +427,14 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     }
 
     /**
-     * ..
+     * Calculates the hash for a collection and the current strategy.
      */
     function collectionHash(address _collection) internal view returns (bytes32) {
         return keccak256(abi.encode(_collection, address(nftStakingStrategy)));
     }
 
     /**
-     * ..
+     * Calculates the has for a collection and a specific strategy.
      */
     function collectionHash(address _collection, address _strategy) internal pure returns (bytes32) {
         return keccak256(abi.encode(_collection, _strategy));

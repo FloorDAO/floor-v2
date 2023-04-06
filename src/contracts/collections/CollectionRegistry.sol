@@ -87,7 +87,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         // If we haven't already got this collection added, then store it internally
         if (!collections[contractAddr]) {
             // Validate the liquidity of the collection before we can add it
-            if (address(pricingExecutor) != address(0)) {
+            if (address(pricingExecutor) != address(0) && liquidityThreshold != 0) {
                 require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
             }
 
@@ -103,21 +103,21 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     }
 
     /**
-     * ..
+     * Sets our {GaugeWeightVote} contract address.
      */
     function setGaugeWeightVoteContract(address _gaugeWeightVote) external onlyRole(COLLECTION_MANAGER) {
         gaugeWeightVote = IGaugeWeightVote(_gaugeWeightVote);
     }
 
     /**
-     * ..
+     * Sets our {PricingExecutor} contract address.
      */
     function setPricingExecutor(address _pricingExecutor) external onlyRole(COLLECTION_MANAGER) {
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
     }
 
     /**
-     * ..
+     * Sets our collection liqudity threshold value.
      */
     function setCollectionLiquidityThreshold(uint _liquidityThreshold) external onlyRole(COLLECTION_MANAGER) {
         liquidityThreshold = _liquidityThreshold;

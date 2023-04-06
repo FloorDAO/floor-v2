@@ -142,7 +142,7 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     }
 
     /**
-     * ..
+     * Gets the underlying token for a collection.
      */
     function underlyingToken(address _collection) external view returns (address) {
         require(underlyingTokenMapping[_collection] != address(0), 'Unmapped collection');
@@ -223,7 +223,7 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     }
 
     /**
-     * ..
+     * Ensures that only the {NftStaking} contract can call the function.
      */
     modifier onlyNftStaking {
         require(msg.sender == nftStaking, 'Invalid caller');

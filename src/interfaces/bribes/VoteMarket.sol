@@ -23,6 +23,15 @@ interface IVoteMarket {
         address[] blacklist;
     }
 
+    /// Fired when a new bribe is created
+    event BribeCreated(uint bribeId);
+
+    /// Fired when a user claims their bribe allocation
+    event Claimed(address account, address rewardToken, uint bribeId, uint amount, uint epoch);
+
+    /// Fired when a new claim allocation is assigned for an epoch
+    event ClaimRegistered(uint epoch, bytes32 merkleRoot);
+
     /// Minimum number of epochs for a Bribe
     function MINIMUM_EPOCHS() external returns (uint8);
 

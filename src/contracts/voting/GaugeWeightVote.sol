@@ -281,6 +281,8 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
                 ++i;
             }
         }
+
+        // emit VotesRevoked();
     }
 
     /**

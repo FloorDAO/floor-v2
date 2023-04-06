@@ -3,6 +3,12 @@ pragma solidity ^0.8.0;
 
 interface INftStaking {
 
+    /// Emitted when a token is staked
+    event TokensStaked(address sender, uint tokenId, uint tokenValue, uint currentEpoch, uint8 epochCount);
+
+    /// Emitted when a token is unstaked
+    event TokensUnstaked(address sender, uint tokenId, uint tokenValue, uint fees);
+
     function collectionStakerIndex(bytes32) external returns (uint);
 
     function voteDiscount() external returns (uint16);

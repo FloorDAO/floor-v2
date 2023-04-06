@@ -241,6 +241,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
             }
         }
+
+        // emit ActionProcessed();
     }
 
     /**
@@ -265,6 +267,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             completed: false,
             message: ''
         });
+
+        // emit SweepRegistered();
     }
 
     /**

@@ -116,14 +116,13 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
     }
 
     /**
-     * Allows rewards to be claimed from the staked NFT inventory positions.
+     * We don't have any rewards as we only deposit and withdraw a 1:1 mapping
+     * of tokens and their amounts. No rewards are generated.
      */
-    function claimRewards(address _collection) external {
-        // ..
-    }
+    function claimRewards(address _collection) external {}
 
     /**
-     * ..
+     * Gets the underlying token for a collection.
      */
     function underlyingToken(address _collection) external view returns (address) {
         require(underlyingTokenMapping[_collection] != address(0), 'Unmapped collection');
@@ -152,7 +151,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
     }
 
     /**
-     * ..
+     * Ensures that only the {NftStaking} contract can call the function.
      */
     modifier onlyNftStaking {
         require(msg.sender == nftStaking, 'Invalid caller');

@@ -174,14 +174,15 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * ..
+     * Gets the latest Floor price returned. This won't make an external call and should
+     * only be used in reference when live data is not required.
      */
     function getLatestFloorPrice(address token) external view returns (uint) {
         return floorPriceCache[token];
     }
 
     /**
-     * ..
+     * Retrieves the liquidity of a Uniswap pool.
      */
     function getLiquidity(address token) external returns (uint) {
         return IUniswapV3Pool(_poolAddress(token)).liquidity();
@@ -291,6 +292,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         return (decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96) * 99000) / 100000;
     }
 
+    /**
+     * Decodes the `SqrtPriceX96` value.
+     */
     function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
         if (uint160(underlying) < uint160(WETH)) {
             price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2 ** (96 * 2)) / 1e18) / underlyingDecimalsScaler;

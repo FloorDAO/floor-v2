@@ -36,6 +36,9 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
     event MinLockPeriodRatioSet(uint ratio);
     event FeeReceiverSet(address receiver);
 
+    event Deposit(address account, uint amount);
+    event Withdraw(address sender, uint amount);
+
     error ApproveDisabled();
     error TransferDisabled();
     error UnlockTimeHasNotCome();
@@ -237,6 +240,8 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
             floor.safeTransferFrom(msg.sender, address(this), amount);
             _mint(account, amount);
         }
+
+        emit Deposit(account, amount);
     }
 
     /**
@@ -347,6 +352,8 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
         }
 
         _burn(msg.sender, balance);
+
+        emit Withdraw(msg.sender, depositor.amount);
     }
 
     /**
