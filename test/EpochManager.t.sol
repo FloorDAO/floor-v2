@@ -24,6 +24,7 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} f
 
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
 
@@ -275,8 +276,15 @@ contract EpochManagerTest is FloorTest {
         // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
         // are not included in read attempts as we cannot get the information accurately.
         // The epoch will have incremented in `endEpoch`, so we minus 1.
-        (uint allocationBlock, uint sweepBlock, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
+        (
+            TreasuryEnums.SweepType sweepType,
+            uint allocationBlock,
+            uint sweepBlock,
+            bool completed,
+            string memory message
+        ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
+        // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
         assertEq(allocationBlock, 12);
         assertEq(sweepBlock, 0);
         assertEq(completed, false);
@@ -289,11 +297,18 @@ contract EpochManagerTest is FloorTest {
 
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
         // as complete).
-        treasury.sweepEpoch(0, manualSweeper, 'Test sweep');
+        treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
         // Get our updated epoch information
-        (allocationBlock, sweepBlock, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
+        (
+            sweepType,
+            allocationBlock,
+            sweepBlock,
+            completed,
+            message
+        ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
+        // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
         assertEq(allocationBlock, 12);
         assertEq(sweepBlock, 23);
         assertEq(completed, true);

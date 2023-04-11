@@ -161,4 +161,8 @@ interface IFloorWars {
      * ..
      */
     function updateCollectionFloorPrice(address collection, uint floorPrice) external;
+
+    function getErc721TokenIds(uint war, uint amount) external view returns (uint[] memory);
+
+    function currentWarIndex() external view returns (uint);
 }

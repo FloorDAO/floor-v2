@@ -56,7 +56,11 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     mapping (bytes32 => StakedCollectionERC721) public stakedERC721s;
     mapping (bytes32 => StakedCollectionERC1155[]) public stakedERC1155s;
 
-    // Stores the number of ERC1155 tokens stored by each user, for each war collection
+    /// Stores the token IDs staked against a war collection, grouped by discount
+    mapping (bytes32 => uint) public totalStakedERC721TokenIds;
+    mapping (bytes32 => mapping(uint => uint[])) public stakedERC721TokenIds;
+
+    /// Stores the number of ERC1155 tokens stored by each user, for each war collection
     mapping (bytes32 => uint) internal erc1155Stakers;
 
     /**
@@ -164,18 +168,19 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         uint votingPower;
 
         // Loop through our tokens
-        for (uint i; i < tokenIds.length;) {
+        uint tokenIdsLength = tokenIds.length;
+        for (uint i; i < tokenIdsLength;) {
             // Ensure that our exercise price is equal to, or less than, the floor price for
             // the collection.
             require(exercisePercents[i] < 101, 'Exercise percent above 100%');
+
+            bytes32 warCollectionToken = keccak256(abi.encode(currentWar.index, collection, tokenIds[i]));
 
             // Transfer the NFT into our contract
             if (is1155[collection]) {
                 IERC1155(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i], amounts[i], '');
 
-                stakedERC1155s[keccak256(abi.encode(currentWar.index, collection, tokenIds[i]))].push(
-                    StakedCollectionERC1155(msg.sender, exercisePercents[i], amounts[i])
-                );
+                stakedERC1155s[warCollectionToken].push(StakedCollectionERC1155(msg.sender, exercisePercents[i], amounts[i]));
 
                 unchecked {
                     erc1155Stakers[keccak256(abi.encode(currentWar.index, collection, tokenIds[i], msg.sender))] += amounts[i];
@@ -184,7 +189,9 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             }
             else {
                 IERC721(collection).transferFrom(msg.sender, address(this), tokenIds[i]);
-                stakedERC721s[keccak256(abi.encode(currentWar.index, collection, tokenIds[i]))] = StakedCollectionERC721(msg.sender, exercisePercents[i]);
+
+                stakedERC721s[warCollectionToken] = StakedCollectionERC721(msg.sender, exercisePercents[i]);
+                stakedERC721TokenIds[warCollection][exercisePercents[i]].push(tokenIds[i]);
 
                 unchecked {
                     votingPower = this.nftVotingPower(collectionSpotPrice[warCollection], uint(exercisePercents[i]));
@@ -200,7 +207,13 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             unchecked { ++i; }
         }
 
-        emit NftVoteCast(msg.sender, collection, tokenIds.length, collectionVotes[warCollection], collectionNftVotes[warCollection]);
+        if (!is1155[collection]) {
+            unchecked {
+                totalStakedERC721TokenIds[warCollection] += tokenIdsLength;
+            }
+        }
+
+        emit NftVoteCast(msg.sender, collection, tokenIdsLength, collectionVotes[warCollection], collectionNftVotes[warCollection]);
     }
 
     /**
@@ -304,7 +317,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
      * Allows an approved user to exercise the staked NFT at the price that it was
      * listed at by the staking user.
      */
-    function exerciseCollectionERC721s(uint war, uint[] calldata tokenIds) external payable onlyOwner {
+    function exerciseCollectionERC721s(uint war, uint[] calldata tokenIds) external payable {
         // Get the collection that will be exercised based on the winner of the war
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
@@ -371,7 +384,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
      * Allows an approved user to exercise the staked NFT at the price that it was
      * listed at by the staking user.
      */
-    function exerciseCollectionERC1155s(uint war, uint[] calldata tokenIds, uint[] memory amount) external payable onlyOwner {
+    function exerciseCollectionERC1155s(uint war, uint[] calldata tokenIds, uint[] memory amount) external payable {
         // Get the collection that will be exercised based on the winner of the war
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
@@ -584,6 +597,59 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
 
     function supportsInterface(bytes4) external pure returns (bool) {
         return true;
+    }
+
+    /**
+     * Allows an approved user to exercise the staked NFT at the price that it was
+     * listed at by the staking user.
+     */
+    function getErc721TokenIds(uint war, uint amount) external view returns (uint[] memory) {
+        // Get the collection that will be exercised based on the winner of the war
+        address collection = floorWarWinner[war];
+
+        bytes32 warCollection = keccak256(abi.encode(war, collection));
+        uint exerciseBasePrice = collectionSpotPrice[warCollection];
+
+        uint totalStakedTokenIds = totalStakedERC721TokenIds[warCollection];
+        uint[] memory tokenIds = new uint[](totalStakedTokenIds);
+        uint index;
+        uint newSize;
+
+        for (uint exercisePercent; exercisePercent <= 100;) {
+            for (uint i; i < stakedERC721TokenIds[warCollection][exercisePercent].length;) {
+                uint exercisePrice = (exerciseBasePrice * exercisePercent) / 100;
+                if (exercisePrice > amount) {
+                    // Reduce the size of the `tokenIds` to match data allocation
+                    newSize = totalStakedTokenIds - index;
+                    assembly { mstore(tokenIds, sub(mload(tokenIds), newSize)) }
+
+                    return tokenIds;
+                }
+
+                // Add the token ID that will be exercised to our returned array
+                tokenIds[index] = stakedERC721TokenIds[warCollection][exercisePercent][i];
+
+                unchecked {
+                    amount -= exercisePrice;
+                    ++index;
+                    ++i;
+                }
+            }
+
+            unchecked {
+                 ++exercisePercent;
+            }
+        }
+
+        // Reduce the size of the `tokenIds` to match data allocation
+        newSize = totalStakedTokenIds - index;
+        assembly { mstore(tokenIds, sub(mload(tokenIds), newSize)) }
+
+        return tokenIds;
+    }
+
+    function currentWarIndex() public view returns (uint) {
+        return currentWar.index;
     }
 
 }

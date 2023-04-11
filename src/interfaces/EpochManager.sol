@@ -15,6 +15,8 @@ interface IEpochManager {
      */
     function currentEpoch() external view returns (uint);
 
+    function collectionEpochs(uint) external view returns (uint);
+
     /**
      * ..
      */

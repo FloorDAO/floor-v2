@@ -2,10 +2,49 @@
 
 pragma solidity ^0.8.0;
 
+
+library TreasuryEnums {
+    /// Different sweep types that can be specified.
+    enum SweepType {
+        COLLECTION_ADDITION,
+        FLOOR_WAR
+    }
+
+    /// Different approval types that can be specified.
+    enum ApprovalType {
+        NATIVE,
+        ERC20,
+        ERC721,
+        ERC1155
+    }
+}
+
+
 /**
  * @dev The Treasury will hold all assets.
  */
 interface ITreasury {
+
+    /// Stores data that allows the Treasury to action a sweep.
+    struct Sweep {
+        TreasuryEnums.SweepType sweepType;
+        address[] collections;
+        uint[] amounts;
+        uint allocationBlock;
+        uint sweepBlock;
+        bool completed;
+        string message;
+    }
+
+    /// The data structure format that will be mapped against to define a token
+    /// approval request.
+    struct ActionApproval {
+        TreasuryEnums.ApprovalType _type; // Token type
+        address assetContract; // Used by 20, 721 and 1155
+        uint tokenId; // Used by 721 tokens
+        uint amount; // Used by native and 20 tokens
+    }
+
     /// @dev When native network token is withdrawn from the Treasury
     event Deposit(uint amount);
 
@@ -99,20 +138,30 @@ interface ITreasury {
     /**
      * ..
      */
-    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data) external;
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external payable;
 
     /**
      * ..
      */
-    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data) external;
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external payable;
 
     /**
      * ..
      */
-    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts) external;
+    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType) external;
 
     /**
      * ..
      */
     function minSweepAmount() external returns (uint);
+
+    /**
+     * ..
+     */
+    function mercSweeper() external returns (address);
+
+    /**
+     * ..
+     */
+    function setMercenarySweeper(address _mercSweeper) external;
 }

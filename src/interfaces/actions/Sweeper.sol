@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.0;
 
+/**
+ * Used by sweepers.
+ */
 abstract contract ISweeper {
 
     function execute(
@@ -11,3 +14,14 @@ abstract contract ISweeper {
     ) external payable virtual returns (string memory);
 
 }
+
+
+/**
+ * Used by mercenary sweepers.
+ */
+abstract contract IMercenarySweeper {
+
+    function execute(uint warIndex, uint amount) external payable virtual returns (uint);
+
+}
+

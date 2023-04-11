@@ -7,6 +7,7 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 
+import {MercenarySweeper} from '@floor/actions/sweepers/Mercenary.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -21,6 +22,7 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} f
 
 import {ERC1155Mock} from '../mocks/erc/ERC1155Mock.sol';
 import {ERC721Mock} from '../mocks/erc/ERC721Mock.sol';
+import {SweeperMock} from '../mocks/Sweeper.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract FloorWarsTest is FloorTest {
@@ -87,6 +89,8 @@ contract FloorWarsTest is FloorTest {
         epochManager = new EpochManager();
         floorWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
+        gaugeWeightVote.setEpochManager(address(epochManager));
+        treasury.setEpochManager(address(epochManager));
 
         epochManager.setContracts(
             address(collectionRegistry),
@@ -192,7 +196,7 @@ contract FloorWarsTest is FloorTest {
         assertEq(floorWars.userVotesAvailable(war + 1, carol), 0 ether);
     }
 
-    function test_CanVote1() external {
+    function test_CanVote() external {
         vm.prank(alice);
         floorWars.vote(address(1));
 
@@ -346,6 +350,89 @@ contract FloorWarsTest is FloorTest {
         floorWars.withdrawPayments(payable(alice));
         assertEq(address(alice).balance, aliceStartAmount + 0.60 ether + 0.75 ether);
         assertEq(floorWars.payments(address(alice)), 0);
+    }
+
+    function test_CanExerciseStakedNft721ViaSweeper() external {
+        /**
+         * Create and stake 10 tokens at varying discounts.
+         */
+        uint[] memory tokenIds = new uint[](10);
+        for (uint i; i < 10; ++i) {
+            tokenIds[i] = i;
+        }
+
+        uint40[] memory amounts = new uint40[](10);
+        for (uint i; i < 10; ++i) {
+            amounts[i] = 1;
+        }
+
+        uint56[] memory exercisePercents = new uint56[](10);
+        exercisePercents[0] = 20;
+        exercisePercents[1] = 20;
+        exercisePercents[2] = 30;
+        exercisePercents[3] = 30;
+        exercisePercents[4] = 100;
+        exercisePercents[5] = 100;
+        exercisePercents[6] = 0;
+        exercisePercents[7] = 20;
+        exercisePercents[8] = 40;
+        exercisePercents[9] = 40;
+
+        // Set approval for our all of our tokens and stake them
+        vm.startPrank(alice);
+        mock721.setApprovalForAll(address(floorWars), true);
+        floorWars.voteWithCollectionNft(address(mock721), tokenIds, amounts, exercisePercents);
+        vm.stopPrank();
+
+        // Set our minimum sweep amount in the Treasury to ensure we have a sweep
+        // amount allocation saved against the epoch sweep.
+        treasury.setMinSweepAmount(2 ether);
+
+        // End our epoch, which should create
+        epochManager.endEpoch();
+
+        // Make direct calls to the function call to determine which tokens would
+        // be captured. This allows us to sense check what will be swept with different
+        // allocated amounts.
+        uint[] memory tokenIds1 = floorWars.getErc721TokenIds(war, 0 ether);
+        uint[] memory tokenIds2 = floorWars.getErc721TokenIds(war, 0.5 ether);
+        uint[] memory tokenIds3 = floorWars.getErc721TokenIds(war, 1 ether);
+        uint[] memory tokenIds4 = floorWars.getErc721TokenIds(war, 5 ether);
+
+        assertEq(tokenIds1.length, 1);
+        assertEq(tokenIds2.length, 4);
+        assertEq(tokenIds3.length, 6);
+        assertEq(tokenIds4.length, 10);
+
+        // Try and sweep the wrong epoch and it should fail
+        vm.expectRevert('Merc Sweep only available for collection additions');
+        treasury.sweepEpoch{value: 5 ether}(0, address(0), '', 3 ether);
+
+        // Try and sweep above the sweep amount and it should fail
+        vm.expectRevert('Merc Sweep cannot be higher than msg.value');
+        treasury.sweepEpoch{value: 5 ether}(1, address(0), '', 3 ether);
+
+        // Set up our Mercenary sweeper contract and assign it to our {Treasury}
+        treasury.setMercenarySweeper(address(new MercenarySweeper(address(floorWars))));
+
+        // Now make a sweep call directly via the Treasury to confirm that
+        // our implementation is correctly run. We pass a sweeper mock to
+        // prevent any exceptions during later sweeping.
+        treasury.sweepEpoch{value: 5 ether}(1, address(new SweeperMock()), '', 1 ether);
+
+        // The successful mercenary sweep will have purchased specific tokens
+        // and moved them into the {Treasury}. We should now own:
+        // [6, 0, 1, 7, 2, 3, 8, 9]
+        assertEq(IERC721(mock721).ownerOf(0), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(1), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(2), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(3), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(4), address(floorWars));
+        assertEq(IERC721(mock721).ownerOf(5), address(floorWars));
+        assertEq(IERC721(mock721).ownerOf(6), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(7), address(treasury));
+        assertEq(IERC721(mock721).ownerOf(8), address(floorWars));
+        assertEq(IERC721(mock721).ownerOf(9), address(floorWars));
     }
 
     function test_CannotExerciseStakedNft721WithInsufficientMsgValue() external {
@@ -745,5 +832,11 @@ contract FloorWarsTest is FloorTest {
         assertEq(floorWars.nftVotingPower(1 ether, 190), 0.00 ether);
         assertEq(floorWars.nftVotingPower(1 ether, 200), 0.00 ether);
     }
+
+
+    /**
+     * Allows our contract to receive dust ETH back from sweeps.
+     */
+    receive() external payable {}
 
 }

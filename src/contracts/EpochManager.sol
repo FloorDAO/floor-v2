@@ -14,7 +14,7 @@ import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
 import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
 import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
-import {ITreasury} from '@floor-interfaces/Treasury.sol';
+import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 /// If the epoch is currently timelocked and insufficient time has passed.
 /// @param timelockExpiry The timestamp at which the epoch can next be run
@@ -50,7 +50,7 @@ contract EpochManager is IEpochManager, Ownable {
     IVoteMarket public voteMarket;
 
     /// Stores a mapping of an epoch to a collection
-    mapping (uint => uint) internal collectionEpochs;
+    mapping (uint => uint) public collectionEpochs;
 
     /**
      * Allows a new epoch to be set. This should, in theory, only be set to one
@@ -126,103 +126,119 @@ contract EpochManager is IEpochManager, Ownable {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
+        // Get our vaults
+        address[] memory vaults = vaultFactory.vaults();
+
+        /**
+         * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
+         * as user rewards.
+         *
+         * The vault will handle its own internal price calculation and stale caching logic based
+         * on a {VaultPricingStrategy} tied to the vault.
+         *
+         * @dev Our FLOOR ETH price is determined by:
+         * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
+         *
+         * Our token ETH price is determined by (e.g. PUNK):
+         * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
+         */
+        if (address(pricingExecutor) == address(0)) {
+            revert NoPricingExecutorSet();
+        }
+
+        // Get our approved collections
+        address[] memory approvedCollections = collectionRegistry.approvedCollections();
+
+        // Query our pricing executor to get our floor price equivalent
+        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(approvedCollections);
+
+        // Iterate through our list and store it to our internal mapping
+        for (uint i; i < tokenEthPrices.length;) {
+            tokenEthPrice[approvedCollections[i]] = tokenEthPrices[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Store the amount of rewards generated in ETH
+        uint ethRewards;
+
+        // Create our variables that we will reallocate during our loop to save gas
+        IVault vault;
+        uint vaultId;
+        uint tokensLength;
+
+        // Iterate over vaults
+        uint vaultLength = vaults.length;
+        for (uint i; i < vaultLength;) {
+            // Parse our vault address into the Vault interface
+            vault = IVault(vaults[i]);
+
+            // Pull out rewards and transfer into the {Treasury}
+            vaultId = vault.vaultId();
+            (address[] memory tokens, uint[] memory amounts) = vaultFactory.claimRewards(vaultId);
+
+            // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
+            tokensLength = tokens.length;
+            for (uint k; k < tokensLength;) {
+                if (amounts[k] == 0) {
+                    continue;
+                }
+
+                unchecked {
+                    ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
+                }
+
+                // Now that the {Treasury} has knowledge of the reward tokens and has minted
+                // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
+                // the {Treasury}.
+                vaultFactory.registerMint(vaultId, tokens[k], amounts[k]);
+
+                 unchecked { ++k; }
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // We want the ability to set a minimum sweep amount, so that when we are first
+        // starting out the sweeps aren't pathetic.
+        uint minSweepAmount = treasury.minSweepAmount();
+        if (ethRewards < minSweepAmount) {
+            ethRewards = minSweepAmount;
+        }
+
         // If we are currently looking at a new collection addition, rather than a gauge weight
         // vote, then we can bypass additional logic and just end of Floor War.
         if (this.isCollectionAdditionEpoch(currentEpoch)) {
-            floorWars.endFloorWar();
+            // At this point we still need to calculate yield, but just attribute it to
+            // the winner of the Floor War instead. This will be allocated the full yield amount.
+            address collection = floorWars.endFloorWar();
+
+            // Format the collection and amount into the array format that our sweep
+            // registration is expecting.
+            address[] memory sweepCollections = new address[](1);
+            sweepCollections[0] = collection;
+
+            // Allocate the full yield rewards into the single collection
+            uint[] memory sweepAmounts = new uint[](1);
+            sweepAmounts[0] = ethRewards;
+
+            // Now that we have the results of the new collection addition we can register them
+            // against our a pending sweep. This will need to be assigned a "sweep type" to show
+            // that it is a Floor War and that we can additionally include "mercenary sweep
+            // amounts" in the call.
+            treasury.registerSweep(currentEpoch, sweepCollections, sweepAmounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
         }
         else {
-            // Get our vaults
-            address[] memory vaults = vaultFactory.vaults();
+            // Process the snapshot to find the floor war collection winners and the allocated amount
+            // of the sweep.
+            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(ethRewards, currentEpoch);
 
-            /**
-             * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
-             * as user rewards.
-             *
-             * The vault will handle its own internal price calculation and stale caching logic based
-             * on a {VaultPricingStrategy} tied to the vault.
-             *
-             * @dev Our FLOOR ETH price is determined by:
-             * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-             *
-             * Our token ETH price is determined by (e.g. PUNK):
-             * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
-             */
-            if (address(pricingExecutor) == address(0)) {
-                revert NoPricingExecutorSet();
-            }
-
-            // Get our approved collections
-            address[] memory approvedCollections = collectionRegistry.approvedCollections();
-
-            // Query our pricing executor to get our floor price equivalent
-            uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(approvedCollections);
-
-            // Iterate through our list and store it to our internal mapping
-            for (uint i; i < tokenEthPrices.length;) {
-                tokenEthPrice[approvedCollections[i]] = tokenEthPrices[i];
-                unchecked {
-                    ++i;
-                }
-            }
-
-            // Store the amount of rewards generated in ETH
-            uint ethRewards;
-
-            // Create our variables that we will reallocate during our loop to save gas
-            IVault vault;
-            uint vaultId;
-            uint tokensLength;
-
-            // Iterate over vaults
-            uint vaultLength = vaults.length;
-            for (uint i; i < vaultLength;) {
-                // Parse our vault address into the Vault interface
-                vault = IVault(vaults[i]);
-
-                // Pull out rewards and transfer into the {Treasury}
-                vaultId = vault.vaultId();
-                (address[] memory tokens, uint[] memory amounts) = vaultFactory.claimRewards(vaultId);
-
-                // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
-                tokensLength = tokens.length;
-                for (uint k; k < tokensLength;) {
-                    if (amounts[k] == 0) {
-                        continue;
-                    }
-
-                    unchecked {
-                        ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
-                    }
-
-                    // Now that the {Treasury} has knowledge of the reward tokens and has minted
-                    // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
-                    // the {Treasury}.
-                    vaultFactory.registerMint(vaultId, tokens[k], amounts[k]);
-
-                     unchecked { ++k; }
-                }
-
-                unchecked {
-                    ++i;
-                }
-            }
-
-            if (ethRewards != 0) {
-                // We want the ability to set a minimum sweep amount, so that when we are first
-                // starting out the sweeps aren't pathetic.
-                uint minSweepAmount = treasury.minSweepAmount();
-                if (minSweepAmount != 0 && ethRewards < minSweepAmount) {
-                    ethRewards = minSweepAmount;
-                }
-
-                // Process the snapshot
-                (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(ethRewards, currentEpoch);
-
-                // Now that we have the results of the snapshot we can register them against our
-                // pending sweeps.
-                treasury.registerSweep(currentEpoch, collections, amounts);
-            }
+            // Now that we have the results of the snapshot we can register them against our
+            // pending sweeps.
+            treasury.registerSweep(currentEpoch, collections, amounts, TreasuryEnums.SweepType.FLOOR_WAR);
         }
 
         unchecked {
