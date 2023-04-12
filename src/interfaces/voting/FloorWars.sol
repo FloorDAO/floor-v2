@@ -5,6 +5,15 @@ pragma solidity ^0.8.0;
 interface IFloorWars {
 
     /**
+     * Stores information about a user's option.
+     */
+    struct Option {
+        uint tokenId;   // 256 / 256
+        address user;   // 416 / 512
+        uint96 amount;  // 512 / 512
+    }
+
+    /**
      * Stores information about the NFT that has been staked. This allows either
      * the DAO to exercise the NFT, or for the initial staker to reclaim it.
      */
@@ -156,5 +165,8 @@ interface IFloorWars {
      */
     function updateCollectionFloorPrice(address collection, uint floorPrice) external;
 
+    /**
+     * ..
+     */
     function currentWarIndex() external view returns (uint);
 }

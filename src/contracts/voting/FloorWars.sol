@@ -25,14 +25,6 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  */
 contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars, PullPayment {
 
-    /// Stores information about a user's option
-    struct Option {
-        uint tokenId;
-        address user;
-        uint exercisePercent;
-        uint amount;
-    }
-
     /// Internal contract mappings
     ITreasury immutable public treasury;
     VeFloorStaking immutable public veFloor;
@@ -74,6 +66,13 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     constructor (address _authority, address _treasury, address _veFloor) AuthorityControl(_authority) {
         treasury = ITreasury(_treasury);
         veFloor = VeFloorStaking(_veFloor);
+    }
+
+    /**
+     * Gets the index of the current war, returning 0 if none are set.
+     */
+    function currentWarIndex() public view returns (uint) {
+        return currentWar.index;
     }
 
     /**
@@ -189,12 +188,15 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             optionHash = keccak256(abi.encode(currentWar.index, collection, exercisePercents[i]));
 
             // Store our option with the token ID, plus the amount being staked against it
+            /**
+             * INITIAL GAS: 316378 - 95406 = 220972 ($40~)
+             * NEW GAS: 227530 - 95406 = 132124 ($22~)
+             */
             stakedTokens[optionHash].push(
                 Option({
                     tokenId: tokenIds[i],
                     user: msg.sender,
-                    exercisePercent: exercisePercents[i],
-                    amount: amounts[i]
+                    amount: uint96(amounts[i])
                 })
             );
 
@@ -351,7 +353,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
                     // have been exercised. This will mean that the data stays on chain, but if
                     // we try to resweep the epoch then we won't try to purchase nonexistant
                     // tokens.
-                    option.amount -= quantity;
+                    option.amount -= uint96(quantity);
 
                     // Reduce our available amount by the exercise price
                     amount -= exercisePrice;
@@ -554,10 +556,6 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
 
     function supportsInterface(bytes4) external pure returns (bool) {
         return true;
-    }
-
-    function currentWarIndex() public view returns (uint) {
-        return currentWar.index;
     }
 
 }
