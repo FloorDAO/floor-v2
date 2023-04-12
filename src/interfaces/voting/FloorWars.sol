@@ -40,7 +40,7 @@ interface IFloorWars {
     event VoteRevoked(address sender, address collection, uint collectionVotes);
 
     /// Sent when a collection NFT is staked to vote
-    event NftVoteCast(address sender, address collection, uint tokenIds, uint collectionVotes, uint collectionNftVotes);
+    event NftVoteCast(address sender, address collection, uint index, uint collectionVotes, uint collectionNftVotes);
 
     /// Sent when a Collection Addition War is created
     event CollectionAdditionWarCreated(uint epoch, address[] collections, uint[] floorPrices);
@@ -52,7 +52,7 @@ interface IFloorWars {
     event CollectionAdditionWarEnded(uint warIndex);
 
     /// Sent when Collection Addition War NFTs are exercised
-    event CollectionExercised(uint warIndex, address collection, uint value, uint[] tokenIds);
+    event CollectionExercised(uint warIndex, address collection, uint value);
 
     /// Stores the number of votes a user has placed against a war collection
     function userVotes(bytes32) external view returns (uint);
@@ -102,7 +102,18 @@ interface IFloorWars {
      * gain additional voting power based on the floor price attached to the
      * collection in the FloorWar.
      */
-    function voteWithCollectionNft(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercent) external;
+    function createOption(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents) external;
+
+    /**
+     * If the FloorWar has not yet ended, or the NFT timelock has expired, then the
+     * user reclaim the staked NFT and return it to their wallet.
+     *
+     *  start    current
+     *  0        0         < locked
+     *  0        1         < locked if won
+     *  0        2         < free
+     */
+    function reclaimOptions(uint war, address collection, uint56[] calldata exercisePercents, uint[][] calldata indexes) external;
 
     /**
      * Allow an authorised user to create a new floor war to start with a range of
@@ -132,24 +143,7 @@ interface IFloorWars {
      * Allows an approved user to exercise the staked NFT at the price that it was
      * listed at by the staking user.
      */
-    function exerciseCollectionERC721s(uint war, uint[] calldata tokenIds) external payable;
-
-    /**
-     * Allows an approved user to exercise the staked NFT at the price that it was
-     * listed at by the staking user.
-     */
-    function exerciseCollectionERC1155s(uint war, uint[] calldata tokenIds, uint[] memory amount) external payable;
-
-    /**
-     * If the FloorWar has not yet ended, or the NFT timelock has expired, then the
-     * user reclaim the staked NFT and return it to their wallet.
-     *
-     *  start    current
-     *  0        0         < locked
-     *  0        1         < locked if won
-     *  0        2         < free
-     */
-    function reclaimCollectionNft(uint war, address collection, uint[] calldata tokenIds) external;
+    function exerciseOptions(uint war, uint amount) external payable;
 
     /**
      * Determines the voting power given by a staked NFT based on the requested
@@ -161,8 +155,6 @@ interface IFloorWars {
      * ..
      */
     function updateCollectionFloorPrice(address collection, uint floorPrice) external;
-
-    function getErc721TokenIds(uint war, uint amount) external view returns (uint[] memory);
 
     function currentWarIndex() external view returns (uint);
 }

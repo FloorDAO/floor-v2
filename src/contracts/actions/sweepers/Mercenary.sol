@@ -32,13 +32,7 @@ contract MercenarySweeper is IMercenarySweeper {
         uint startBalance = address(this).balance;
 
         // Find the token IDs that we intend to buy with
-        uint[] memory tokenIds = floorWars.getErc721TokenIds(warIndex, amount);
-
-        // Check amount to spend is over 0
-        if (tokenIds.length > 0) {
-            // Exercise the specified token IDs
-            floorWars.exerciseCollectionERC721s{value: msg.value}(warIndex, tokenIds);
-        }
+        floorWars.exerciseOptions{value: msg.value}(warIndex, amount);
 
         // Return the amount spent as a string
         return startBalance - address(this).balance;
