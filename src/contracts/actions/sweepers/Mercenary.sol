@@ -6,7 +6,9 @@ import {IMercenarySweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
 
 /**
- *
+ * Acts as an interface to allow Optioned Mercenaries to be swept after a collection
+ * addition war. This will take a flat amount and sweep as many as it can for the
+ * amount provided, prioritised by discount first, then staking order (oldest first).
  *
  * @dev This sweeper makes the assumption that only one collection and amount will
  * be passed through as this is used for the Collection Addition War which, at time
@@ -14,18 +16,21 @@ import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
  */
 contract MercenarySweeper is IMercenarySweeper {
 
-    /// ..
+    /// Contract reference to our active {FloorWars} contract
     IFloorWars public immutable floorWars;
 
     /**
-     * ..
+     * Sets our immutable {FloorWars} contract reference and casts it's interface.
      */
     constructor (address _floorWars) {
         floorWars = IFloorWars(_floorWars);
     }
 
     /**
-     * ..
+     * Actions our Mercenary sweep.
+     *
+     * @param warIndex The index of the war being executed
+     * @param amount The amount allocated to the transaction
      */
     function execute(uint warIndex, uint amount) external payable override returns (uint) {
         // Keep track of the amount spent
