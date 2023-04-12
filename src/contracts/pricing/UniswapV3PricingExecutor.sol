@@ -198,11 +198,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * @return The amount of FLOOR returned if one token sold
      */
     function _calculateFloorPrice(uint tokenPrice, uint floorPrice) internal pure returns (uint) {
-        if (floorPrice > tokenPrice) {
-            return ((tokenPrice * 1e18) / floorPrice);
-        }
+        unchecked {
+            if (floorPrice > tokenPrice) {
+                return ((tokenPrice * 1e18) / floorPrice);
+            }
 
-        return ((tokenPrice * 1e18) / floorPrice) / 1e18;
+            return ((tokenPrice * 1e18) / floorPrice) / 1e18;
+        }
     }
 
     /**

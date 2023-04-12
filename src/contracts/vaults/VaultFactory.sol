@@ -83,6 +83,9 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     /**
      * Creates a vault with an approved collection.
      *
+     * @dev The vault is not created using Clones as there are complications when allocated
+     * roles and permissions.
+     *
      * @param _name Human-readable name of the vault
      * @param _strategy The strategy implemented by the vault
      * @param _strategyInitData Bytes data required by the {Strategy} for initialization

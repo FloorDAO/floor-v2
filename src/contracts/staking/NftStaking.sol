@@ -28,7 +28,9 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         uint tokensStaked;
     }
 
-    /// Stores our modular NFT staking strategy
+    /// Stores our modular NFT staking strategy.
+    /// @dev When tokens are approved to be staked, it should call the `approvalAddress`
+    /// on this contract to show the address to be approved.
     INftStakingStrategy public nftStakingStrategy;
 
     /// Stores a list of all strategies that have been used
@@ -170,34 +172,6 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Get the number of tokens we will be transferring
         uint tokensLength = _tokenId.length;
 
-        // Transfer the token into the contract and approve the staking zap to use them
-        for (uint i; i < tokensLength;) {
-            // Handle Punk specific logic
-            if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
-                IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
-                IERC721(_collection).approve(address(nftStakingStrategy), _tokenId[i]);
-            } else {
-                // Confirm that the PUNK belongs to the caller
-                bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
-                (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
-                require(success && abi.decode(result, (address)) == msg.sender, 'Not the NFT owner');
-
-                // Buy our PUNK for zero value
-                bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
-                (success, result) = address(_collection).call(data);
-                require(success, string(result));
-
-                // Approve the staking zap to buy for zero value
-                data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(nftStakingStrategy));
-                (success, result) = address(_collection).call(data);
-                require(success, string(result));
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
         // Find the current value of the token
         uint tokenValue = pricingExecutor.getFloorPrice(nftStakingStrategy.underlyingToken(_collection));
         require(tokenValue != 0, 'Unknown token price');
@@ -218,7 +192,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         }
 
         // Stake the token into our staking strategy
-        nftStakingStrategy.stake(_collection, _tokenId);
+        nftStakingStrategy.stake(msg.sender, _collection, _tokenId);
 
         // Store the epoch starting epoch and the duration it is being staked for
         stakedNft.epochStart = currentEpoch();

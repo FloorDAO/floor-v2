@@ -48,26 +48,37 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     }
 
     /**
+     * Shows the address that should be approved by a staking user.
+     *
+     * @dev NFTX zap does not allow tokens to be sent from anyone other than caller.
+     */
+    function approvalAddress() external view returns (address) {
+        return address(this);
+    }
+
+    /**
      * Stakes an approved collection NFT into the contract and provides a boost based on
      * the price of the underlying ERC20.
      *
      * @dev This can only be called when the contract is not paused.
      *
+     * @param _user Address of the user staking their tokens
      * @param _collection Approved collection contract
      * @param _tokenId[] Token IDs to be staked
      */
-    function stake(address _collection, uint[] calldata _tokenId) external onlyNftStaking {
+    function stake(address _user, address _collection, uint[] calldata _tokenId) external onlyNftStaking {
+        IERC721 collection = IERC721(_collection);
+
         uint length = _tokenId.length;
         for (uint i; i < length;) {
             // Approve the staking zap to handle the collection tokens
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
-                IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
-                IERC721(_collection).approve(address(stakingZap), _tokenId[i]);
+                collection.safeTransferFrom(_user, address(this), _tokenId[i], bytes(''));
             } else {
                 // Confirm that the PUNK belongs to the caller
                 bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
                 (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
-                require(success && abi.decode(result, (address)) == msg.sender, 'Not the NFT owner');
+                require(success && abi.decode(result, (address)) == _user, 'Not the NFT owner');
 
                 // Buy our PUNK for zero value
                 bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
@@ -81,6 +92,14 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
             }
 
             unchecked { ++i; }
+        }
+
+        // Approve all tokens for our collection. This increases gas for our first call,
+        // but subsequent calls against the same token contract will save.
+        if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
+            if (!collection.isApprovedForAll(address(this), address(stakingZap))) {
+                collection.setApprovalForAll(address(stakingZap), true);
+            }
         }
 
         // Stake the token into NFTX vault

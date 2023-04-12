@@ -6,7 +6,9 @@ import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecuto
 
 interface INftStakingStrategy {
 
-    function stake(address _collection, uint[] calldata _tokenId) external;
+    function approvalAddress() external view returns (address);
+
+    function stake(address _user, address _collection, uint[] calldata _tokenId) external;
     function unstake(address recipient, address _collection, uint numNfts, uint remainingPortionToUnstake) external;
     function claimRewards(address _collection) external;
 

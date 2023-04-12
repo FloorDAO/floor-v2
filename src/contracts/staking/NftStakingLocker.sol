@@ -38,29 +38,37 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
     }
 
     /**
+     * Shows the address that should be approved by a staking user.
+     */
+    function approvalAddress() external view returns (address) {
+        return address(this);
+    }
+
+    /**
      * Stakes an approved collection NFT into the contract and provides a boost based on
      * the price of the underlying ERC20.
      *
      * @dev This can only be called when the contract is not paused.
      *
+     * @param _user Address of the user staking their tokens
      * @param _collection Approved collection contract
      * @param _tokenId[] Token IDs to be staked
      */
-    function stake(address _collection, uint[] calldata _tokenId) external onlyNftStaking {
+    function stake(address _user, address _collection, uint[] calldata _tokenId) external onlyNftStaking {
         uint length = _tokenId.length;
         for (uint i; i < length;) {
             // Match the user as holding the collection token in our locker
-            tokensLocked[_collection][msg.sender] = true;
-            tokenIds[_collection][msg.sender].push(_tokenId[i]);
+            tokensLocked[_collection][_user] = true;
+            tokenIds[_collection][_user].push(_tokenId[i]);
 
             // Approve the staking zap to handle the collection tokens
             if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
-                IERC721(_collection).safeTransferFrom(msg.sender, address(this), _tokenId[i], bytes(''));
+                IERC721(_collection).safeTransferFrom(_user, address(this), _tokenId[i], bytes(''));
             } else {
                 // Confirm that the PUNK belongs to the caller
                 bytes memory punkIndexToAddress = abi.encodeWithSignature('punkIndexToAddress(uint256)', _tokenId[i]);
                 (bool success, bytes memory result) = address(_collection).staticcall(punkIndexToAddress);
-                require(success && abi.decode(result, (address)) == msg.sender, 'Not the NFT owner');
+                require(success && abi.decode(result, (address)) == _user, 'Not the NFT owner');
 
                 // Buy our PUNK for zero value
                 bytes memory data = abi.encodeWithSignature('buyPunk(uint256)', _tokenId[i]);
@@ -86,13 +94,13 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
         require(remainingPortionToUnstake == 0, 'Cannot unstake portion');
 
         // Confirm that our user has the rights to unstake
-        require(tokensLocked[_collection][msg.sender], 'Token not locked');
+        require(tokensLocked[_collection][recipient], 'Token not locked');
 
         // Get a list of staked token IDs
-        uint[] memory _tokenIds = tokenIds[_collection][msg.sender];
+        uint[] memory _tokenIds = tokenIds[_collection][recipient];
 
         // Remove all tokens from the user's stake
-        delete tokenIds[_collection][msg.sender];
+        delete tokenIds[_collection][recipient];
 
         // Unstake all inventory for the user for the collection
         uint length = _tokenIds.length;
@@ -109,7 +117,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
             }
 
             // Unlock the token
-            tokensLocked[_collection][msg.sender] = false;
+            tokensLocked[_collection][recipient] = false;
 
             unchecked { ++i; }
         }

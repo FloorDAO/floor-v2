@@ -138,21 +138,23 @@ contract NftStakingTest is FloorTest {
         uint[] memory highTokens1 = new uint[](1);
         highTokens1[0] = 6827;
 
+        address approvalAddress = staking.nftStakingStrategy().approvalAddress();
+
         // User 1 stakes 5 NFT for 104 epochs
         vm.startPrank(LOW_HOLDER_1);
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
         staking.stake(LOW_VALUE_NFT, lowTokens1, 6);
         vm.stopPrank();
 
         // User 2 stakes 2 NFT for 52 epochs
         vm.startPrank(LOW_HOLDER_2);
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
         staking.stake(LOW_VALUE_NFT, lowTokens2, 4);
         vm.stopPrank();
 
         // User 3 stakes 8 NFT for 26 epochs
         vm.startPrank(LOW_HOLDER_3);
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
         staking.stake(LOW_VALUE_NFT, lowTokens3, 3);
         vm.stopPrank();
 
@@ -162,7 +164,7 @@ contract NftStakingTest is FloorTest {
         // User 4 stakes 1 high value NFT for 104 epochs
         vm.startPrank(HIGH_HOLDER_1);
         (bool success,) = address(HIGH_VALUE_NFT).call(
-            abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', highTokens1[0], 0, address(staking))
+            abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', highTokens1[0], 0, approvalAddress)
         );
         require(success, 'Failed to offer PUNK');
         staking.stake(HIGH_VALUE_NFT, highTokens1, 6);
@@ -199,7 +201,7 @@ contract NftStakingTest is FloorTest {
         tokens[0] = 992;
 
         vm.startPrank(0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96);
-        IERC721(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a).setApprovalForAll(address(staking), true);
+        IERC721(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a).setApprovalForAll(staking.nftStakingStrategy().approvalAddress(), true);
 
         vm.expectRevert('Unmapped collection');
         staking.stake(0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a, tokens, 6);
@@ -213,7 +215,7 @@ contract NftStakingTest is FloorTest {
         tokens[1] = 5710;
 
         vm.startPrank(LOW_HOLDER_2);
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(staking.nftStakingStrategy().approvalAddress(), true);
 
         vm.expectRevert('Invalid epoch index');
         staking.stake(LOW_VALUE_NFT, tokens, 7);
@@ -227,7 +229,7 @@ contract NftStakingTest is FloorTest {
 
         vm.startPrank(LOW_HOLDER_2);
         // Stake 2 tokens
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(address(staking), true);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(staking.nftStakingStrategy().approvalAddress(), true);
         staking.stake(LOW_VALUE_NFT, tokens, 6);
         vm.stopPrank();
 
