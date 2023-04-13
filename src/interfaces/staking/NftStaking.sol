@@ -19,9 +19,11 @@ interface INftStaking {
 
     function collectionBoost(address _collection, uint _epoch) external view returns (uint boost_);
 
-    function stake(address _collection, uint[] calldata _tokenId, uint8 _epochCount) external;
+    function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155) external;
 
-    function unstake(address _collection) external;
+    function unstake(address _collection, bool _is1155) external;
+
+    function unstake(address _collection, address _nftStakingStrategy, bool _is1155) external;
 
     function unstakeFees(address _collection) external returns (uint);
 

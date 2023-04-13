@@ -159,9 +159,16 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      *
      * @param _collection Approved collection contract
      * @param _tokenId[] Token ID to be staked
+     * @param _amount[] The number of each token to stake
      * @param _epochCount The number of epochs to stake for
      */
-    function stake(address _collection, uint[] calldata _tokenId, uint8 _epochCount) external whenNotPaused {
+    function stake(
+        address _collection,
+        uint[] calldata _tokenId,
+        uint[] calldata _amount,
+        uint8 _epochCount,
+        bool _is1155
+    ) external whenNotPaused {
         // Validate the number of epochs staked
         require(_epochCount < LOCK_PERIODS.length, 'Invalid epoch index');
 
@@ -187,12 +194,15 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         }
 
         // Update the number of tokens that our user has staked
-        unchecked {
-            stakedNft.tokensStaked += tokensLength;
+        for (uint i; i < tokensLength;) {
+            unchecked {
+                stakedNft.tokensStaked += uint128(_amount[i]);
+                ++i;
+            }
         }
 
         // Stake the token into our staking strategy
-        nftStakingStrategy.stake(msg.sender, _collection, _tokenId);
+        nftStakingStrategy.stake(msg.sender, _collection, _tokenId, _amount, _is1155);
 
         // Store the epoch starting epoch and the duration it is being staked for
         stakedNft.epochStart = currentEpoch();
@@ -210,15 +220,15 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      *
      * @param _collection The collection to unstake
      */
-    function unstake(address _collection) external {
-        _unstake(_collection, address(nftStakingStrategy));
+    function unstake(address _collection, bool _is1155) external {
+        _unstake(_collection, address(nftStakingStrategy), _is1155);
     }
 
-    function unstake(address _collection, address _nftStakingStrategy) external {
-        _unstake(_collection, _nftStakingStrategy);
+    function unstake(address _collection, address _nftStakingStrategy, bool _is1155) external {
+        _unstake(_collection, _nftStakingStrategy, _is1155);
     }
 
-    function _unstake(address _collection, address _nftStakingStrategy) internal {
+    function _unstake(address _collection, address _nftStakingStrategy, bool _is1155) internal {
         // Get our user collection hash
         bytes32 userCollectionHash = this.hash(msg.sender, _collection, _nftStakingStrategy);
         StakedNft memory stakedNft = stakedNfts[userCollectionHash];
@@ -248,7 +258,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         }
 
         // Unstake the NFTs and remaining portion to our sender
-        nftStakingStrategy.unstake(msg.sender, _collection, numNfts, remainingPortionToUnstake);
+        nftStakingStrategy.unstake(msg.sender, _collection, numNfts, remainingPortionToUnstake, _is1155);
 
         // Remove our number of staked tokens for the collection
         delete stakedNfts[userCollectionHash];
@@ -412,13 +422,6 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      */
     function collectionHash(address _collection, address _strategy) internal pure returns (bytes32) {
         return keccak256(abi.encode(_collection, _strategy));
-    }
-
-    /**
-     * Allows the contract to receive ERC721 tokens.
-     */
-    function onERC721Received(address, address, uint, bytes memory) public virtual returns (bytes4) {
-        return this.onERC721Received.selector;
     }
 
 }
