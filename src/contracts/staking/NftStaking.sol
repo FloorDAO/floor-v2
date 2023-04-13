@@ -23,9 +23,9 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBo
 contract NftStaking is EpochManaged, INftStaking, Pausable {
 
     struct StakedNft {
-        uint epochStart;
-        uint epochCount;
-        uint tokensStaked;
+        uint epochStart;       // 256 / 256
+        uint128 epochCount;    // 384 / 512
+        uint128 tokensStaked;  // 512 / 512
     }
 
     /// Stores our modular NFT staking strategy.
@@ -170,7 +170,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         bytes32 userCollectionHash = this.hash(msg.sender, _collection);
 
         // Get the number of tokens we will be transferring
-        uint tokensLength = _tokenId.length;
+        uint128 tokensLength = uint128(_tokenId.length);
 
         // Find the current value of the token
         uint tokenValue = pricingExecutor.getFloorPrice(nftStakingStrategy.underlyingToken(_collection));
