@@ -514,6 +514,31 @@ contract NftStakingTest is FloorTest {
         vm.stopPrank();
     }
 
+    function test_CanStressTestStaking() external {
+        // Define the number of results we want
+        uint results = 50;  // Must be <= 231
+        assertLe(results, 231);
+
+        // Load our token IDs from our text file into a uint array
+        uint[] memory tokens = vm.parseJsonUintArray(
+            vm.readFile('test/data/lilking-tokens.json'),
+            '.tokenIds'
+        );
+
+        // Set our array length
+        uint deleted = 231 - results;
+        assembly { mstore(tokens, sub(mload(tokens), deleted)) }
+
+        // Get the approval address for our staking strategy
+        address approvalAddress = staking.nftStakingStrategy().approvalAddress();
+
+        // User 1 stakes their NFTs for 104 epochs
+        vm.startPrank(LOW_HOLDER_1);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
+        staking.stake(LOW_VALUE_NFT, tokens, _singleAmountArray(tokens.length), 6, false);
+        vm.stopPrank();
+    }
+
     function test_CanClaimRewards() external {
         // TODO: ..
     }
