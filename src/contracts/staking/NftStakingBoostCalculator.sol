@@ -22,6 +22,8 @@ contract NftStakingBoostCalculator is INftStakingBoostCalculator {
      * ```
      * (LOG(sweepPower, sweepTotal) * (SQRT(sweepTotal) - 1)) / sweepModifier
      * ```
+     *
+     * @dev If a value of uint56 is passed, then we may get overflow results
      */
     function calculate(uint sweepPower, uint sweepTotal, uint sweepModifier) external pure returns (uint boost_) {
         // If we don't have any power, then our multiplier will just be 1
