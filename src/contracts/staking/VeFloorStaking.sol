@@ -6,6 +6,8 @@ import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import {ERC20Votes} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
@@ -26,8 +28,10 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * - Add lock
  * - earlyWithdrawal
  * - penalty math
+ *
+ * @dev Based on staked 1inch (St1inch :: 0x9A0C8Ff858d273f57072D714bca7411D717501D7)
  */
-contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
+contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloorStaking, IVotable {
 
     using SafeERC20 for IERC20;
 
@@ -84,7 +88,7 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
      * @param floor_ The token to be staked
      * @param treasury_ The treasury contract address
      */
-    constructor(IERC20 floor_, address treasury_) ERC20('veFLOOR', 'veFLOOR') {
+    constructor(IERC20 floor_, address treasury_) ERC20('veFLOOR', 'veFLOOR') ERC20Permit('veFLOOR') {
         floor = floor_;
         treasury = ITreasury(treasury_);
         setFeeReceiver(treasury_);
@@ -415,4 +419,19 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
     function decreaseAllowance(address, uint) public pure override returns (bool) {
         revert ApproveDisabled();
     }
+
+    // The following functions are overrides required by Solidity.
+
+    function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+        super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
+        super._burn(account, amount);
+    }
+
 }
