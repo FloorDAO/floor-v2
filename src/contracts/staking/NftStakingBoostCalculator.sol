@@ -32,20 +32,17 @@ contract NftStakingBoostCalculator is INftStakingBoostCalculator {
         // Determine our logarithm base. When we only have one token, we get a zero result which
         // would lead to a zero division error. To avoid this, we ensure that we set a minimum
         // value of 1.
-        uint _voteModifier = sweepModifier;
         if (sweepTotal == 1) {
-            _voteModifier = (sweepModifier * 125) / 100;
+            sweepModifier = (sweepModifier * 125) / 100;
             sweepTotal = 2;
         }
 
-        // Apply our modifiers to our calculations to determine our final multiplier
-        boost_ = (
-            (
-                (ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6) * 1e9)
-                    / (ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6))
-            ) * ((ABDKMath64x64.toUInt(ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9)) - 1e9)
-        ) / _voteModifier;
+        uint x = ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepPower)) * 1e6) * 1e9;
+        uint y = ABDKMath64x64.toUInt(ABDKMath64x64.ln(ABDKMath64x64.fromUInt(sweepTotal)) * 1e6);
+        uint z = ABDKMath64x64.toUInt(ABDKMath64x64.sqrt(ABDKMath64x64.fromUInt(sweepTotal)) * 1e9) - 1e9;
 
+        // Apply our modifiers to our calculations to determine our final multiplier
+        boost_ = ((x / y) * z) / sweepModifier;
         if (boost_ < 1e9) {
             boost_ = 1e9;
         }
