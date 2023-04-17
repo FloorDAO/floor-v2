@@ -11,3 +11,4 @@ forge-std/=lib/forge-std/src/
 @1inch/=lib/
 @floor/=src/contracts/
 @floor-interfaces/=src/interfaces/
+@floor-scripts/=script/
