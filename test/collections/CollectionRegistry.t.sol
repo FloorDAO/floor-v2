@@ -39,9 +39,6 @@ contract CollectionRegistryTest is FloorTest {
     function setUp() public {
         alice = users[0];
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-
-        // Set an arbritrary GWV contract to prevent errors
-        collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
     }
 
     /**

@@ -112,7 +112,6 @@ contract EpochManagerTest is FloorTest {
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
-        collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));

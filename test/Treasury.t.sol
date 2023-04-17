@@ -101,7 +101,6 @@ contract TreasuryTest is FloorTest {
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
-        collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;

@@ -114,5 +114,4 @@ interface IGaugeWeightVote {
      */
     function snapshot(uint tokens, uint epoch) external returns (address[] memory collections, uint[] memory amounts);
 
-    function addCollection(address _collection) external;
 }

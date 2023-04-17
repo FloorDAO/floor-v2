@@ -82,9 +82,6 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
     mapping(bytes32 => uint) private userVotes;
     mapping(address => uint) private totalUserVotes;
 
-    /// Store a storage array of collections
-    address[] internal approvedCollections;
-
     /**
      * Sets up our contract parameters.
      *
@@ -101,9 +98,6 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
         veFloor = VeFloorStaking(_veFloor);
 
         treasury = ITreasury(_treasury);
-
-        // Add our FLOOR token vote option
-        approvedCollections.push(FLOOR_TOKEN_VOTE);
     }
 
     /**
@@ -237,7 +231,7 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
      * @param _account The user having their votes revoked
      */
     function revokeAllUserVotes(address _account) external onlyRole(VOTE_MANAGER) {
-        _revokeVotes(_account, approvedCollections);
+        _revokeVotes(_account, this.voteOptions());
     }
 
     function _revokeVotes(address _account, address[] memory _collections) internal {
@@ -367,7 +361,9 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
 
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
-        for (uint i; i < approvedCollections.length;) {
+        address[] memory approvedCollections = this.voteOptions();
+        uint length = approvedCollections.length;
+        for (uint i; i < length;) {
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
             for (j = 0; j < sampleSize && j <= i;) {
@@ -433,15 +429,7 @@ contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
      * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
      */
     function voteOptions() external view returns (address[] memory) {
-        return approvedCollections;
+        return collectionRegistry.approvedCollections();
     }
 
-    /**
-     * Allows our {CollectionRegistry} to provide us with collections that will be stored
-     * internally to save having to pull this information each epoch.
-     */
-    function addCollection(address _collection) public {
-        require(msg.sender == address(collectionRegistry), 'Caller not CollectionRegistry');
-        approvedCollections.push(_collection);
-    }
 }

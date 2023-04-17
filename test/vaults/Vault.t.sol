@@ -48,10 +48,6 @@ contract VaultTest is FloorTest {
         // Create our {CollectionRegistry}
         CollectionRegistry collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // We need to set a GWV contract association to the {CollectionRegistry}, even if we
-        // don't need it to hit correctly.
-        collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
-
         // Approve our test collection
         collectionRegistry.approveCollection(0x269616D549D7e8Eaa82DFb17028d0B212D11232A, SUFFICIENT_LIQUIDITY_COLLECTION);
 

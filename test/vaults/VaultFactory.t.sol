@@ -41,9 +41,6 @@ contract VaultFactoryTest is FloorTest {
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Set an arbritrary GWV contract to prevent errors
-        collectionRegistry.setGaugeWeightVoteContract(address(new GaugeWeightVoteMock(address(collectionRegistry), address(2))));
-
         // Define our collections (DAI and USDC)
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         collection = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;

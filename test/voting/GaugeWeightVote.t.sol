@@ -85,8 +85,6 @@ contract GaugeWeightVoteTest is FloorTest {
         gaugeWeightVote.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
-        collectionRegistry.setGaugeWeightVoteContract(address(gaugeWeightVote));
-
         // Define our strategy implementations
         approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
 
