@@ -2,7 +2,11 @@
 auto_detect_solc = false
 bytecode_hash = "none"
 ffi = true
-fs_permissions = [{ access = "read", path = "./test/data/"}]
+fs_permissions = [
+  { access = "read", path = "./.seedphrase" },
+  { access = "read", path = "./test/data/" },
+  { access = "read-write", path = "./script/deployment/" }
+]
 fuzz_runs = 256
 gas_reports = ["*"]
 libs = ["lib"]
