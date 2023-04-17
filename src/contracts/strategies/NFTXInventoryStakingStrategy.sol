@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
@@ -134,7 +136,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
 
         // Determine the amount of yield token returned from our deposit
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
-        deposits += amount_;
+        deposits += amount;
 
         // Emit our event to followers
         emit Deposit(underlyingToken, amount, msg.sender);
@@ -165,6 +167,13 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
         // Transfer the received token to the caller
         IERC20(underlyingToken).transfer(msg.sender, amount_);
 
+        console.log(deposits);
+        console.log(amount_);
+
+        unchecked {
+            deposits -= amount_;
+        }
+
         // Fire an event to show amount of token claimed and the recipient
         emit Withdraw(underlyingToken, amount_, msg.sender);
     }
@@ -182,11 +191,12 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
         amount_[0] = this.rewardsAvailable(underlyingToken);
 
         if (amount_[0] != 0) {
-            bool success = INFTXInventoryStaking(underlyingToken).receiveRewards(vaultId, amount_[0]);
-            if (!success) revert NoRewardsAvailableToClaim();
-        }
+            INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount_[0]);
 
-        lifetimeRewards += amount_[0];
+            unchecked {
+                lifetimeRewards += amount_[0];
+            }
+        }
 
         emit Harvest(underlyingToken, amount_[0]);
         return (tokens_, amount_);
@@ -203,7 +213,25 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
      * @return The available rewards to be claimed
      */
     function rewardsAvailable(address /* token */) external view returns (uint) {
-        return INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
+        // Get the amount of rewards avaialble to claim
+        uint userTokens = deposits;
+
+        // Get the xToken balance held by the strategy
+        uint xTokenUserBal = IERC20(yieldToken).balanceOf(address(this));
+
+         // Get the number of vTokens valued per xToken in wei
+        uint shareValue = INFTXInventoryStaking(inventoryStaking).xTokenShareValue(vaultId);
+        uint reqXTokens = (userTokens * 1e18) / shareValue;
+
+        // If we require more xTokens than are held to allow our users to withdraw their
+        // staked NFTs (NFTX dust issue) then we need to catch this and return zero.
+        if (reqXTokens > xTokenUserBal) {
+            return 0;
+        }
+
+        // Get the total rewards available above what would be required for a user
+        // to mint their tokens back out of the vault.
+        return xTokenUserBal - reqXTokens;
     }
 
     /**

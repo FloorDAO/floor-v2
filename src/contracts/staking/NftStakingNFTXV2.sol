@@ -37,10 +37,13 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     /// Temp. user store for ERC721 receipt
     address private _nftReceiver;
 
-    // Allows NFTX references for when receiving rewards
+    /// Allows NFTX references for when receiving rewards
     address internal inventoryStaking;
     address internal treasury;
     address internal immutable nftStaking;
+
+    /// Keep track of the number of token deposits to calculate rewards available
+    uint internal tokensStaked;
 
     /**
      * Sets up our immutable contract addresses.
@@ -80,9 +83,14 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
         // If we have an 1155 collection, then we can use batch transfer
         if (_is1155) {
             IERC1155(_collection).safeBatchTransferFrom(_user, address(this), _tokenId, _amount, '');
-        } else {
-            uint length = _tokenId.length;
-            for (uint i; i < length;) {
+        }
+
+        uint length = _tokenId.length;
+        for (uint i; i < length;) {
+            if (!_is1155) {
+                // A non-1155 should always have an amount of 1
+                require(_amount[i] == 1);
+
                 // Approve the staking zap to handle the collection tokens
                 if (_collection != 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB) {
                     IERC721(_collection).safeTransferFrom(_user, address(this), _tokenId[i], bytes(''));
@@ -102,8 +110,12 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
                     (success, result) = address(_collection).call(data);
                     require(success, string(result));
                 }
+            }
 
-                unchecked { ++i; }
+            unchecked {
+                // Increase our internal tally of staked tokens
+                tokensStaked += _amount[i];
+                ++i;
             }
         }
 
@@ -131,13 +143,15 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
      *
      * @param recipient The recipient of the unstaked NFT
      * @param _collection The collection to unstake
-     * @param numNfts The number of NFTs to unstake
+     * @param numNfts The number of NFTs to unstake for the recipient
+     * @param baseNfts The number of NFTs that this unstaking represents
      * @param remainingPortionToUnstake The dust of NFT to unstake
      */
     function unstake(
         address recipient,
         address _collection,
         uint numNfts,
+        uint baseNfts,
         uint remainingPortionToUnstake,
         bool /* _is1155 */
     ) external onlyNftStaking {
@@ -163,25 +177,57 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
             IERC20(underlyingTokenMapping[_collection]).transfer(recipient, remainingPortionToUnstake - 1);
         }
 
+        unchecked {
+            tokensStaked -= baseNfts;
+        }
+
         // After our NFTs have been unstaked, we want to make sure we delete the receiver
         delete _nftReceiver;
     }
 
     /**
-     * Allows rewards to be claimed from the staked NFT inventory positions.
+     * Determines the amount of rewards available to be collected.
      */
-    function claimRewards(address _collection) external {
+    function rewardsAvailable(address _collection) external returns (uint) {
         // Get the corresponding vault ID of the collection
         uint vaultId = _getVaultId(_collection);
 
         // Get the amount of rewards avaialble to claim
-        uint rewardsAvailable = INFTXInventoryStaking(inventoryStaking).balanceOf(vaultId, address(this));
+        uint userTokens = tokensStaked * 1e18;
+
+        // Get the xToken balance held by the strategy
+        uint xTokenUserBal = IERC20(INFTXInventoryStaking(inventoryStaking).xTokenAddr(underlyingTokenMapping[_collection])).balanceOf(address(this));
+
+         // Get the number of vTokens valued per xToken in wei
+        uint shareValue = INFTXInventoryStaking(inventoryStaking).xTokenShareValue(vaultId);
+        uint reqXTokens = (userTokens * 1e18) / shareValue;
+
+        // If we require more xTokens than are held to allow our users to withdraw their
+        // staked NFTs (NFTX dust issue) then we need to catch this and return zero.
+        if (reqXTokens > xTokenUserBal) {
+            return 0;
+        }
+
+        // Get the total rewards available above what would be required for a user
+        // to mint their tokens back out of the vault.
+        return xTokenUserBal - reqXTokens;
+    }
+
+    /**
+     * Allows rewards to be claimed from the staked NFT inventory positions.
+     */
+    function claimRewards(address _collection) external returns (uint rewardsAvailable_) {
+        // Get the corresponding vault ID of the collection
+        uint vaultId = _getVaultId(_collection);
+
+        // Get the amount of rewards available to be claimed
+        rewardsAvailable_ = this.rewardsAvailable(_collection);
 
         // If we have rewards available, then we want to claim them from the vault and transfer it
         // into our {Treasury}.
-        if (rewardsAvailable != 0) {
-            INFTXInventoryStaking(inventoryStaking).receiveRewards(vaultId, rewardsAvailable);
-            IERC20(underlyingTokenMapping[_collection]).transfer(treasury, rewardsAvailable);
+        if (rewardsAvailable_ != 0) {
+            INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, rewardsAvailable_);
+            IERC20(underlyingTokenMapping[_collection]).transfer(treasury, rewardsAvailable_);
         }
     }
 

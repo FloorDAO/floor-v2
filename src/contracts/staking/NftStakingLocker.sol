@@ -114,6 +114,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
         address recipient,
         address _collection,
         uint numNfts,
+        uint /* baseNfts */,
         uint remainingPortionToUnstake,
         bool _is1155
     ) external onlyNftStaking {
@@ -164,8 +165,16 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
      * We don't have any rewards as we only deposit and withdraw a 1:1 mapping
      * of tokens and their amounts. No rewards are generated.
      */
-    function claimRewards(address _collection) external {
-        //
+    function rewardsAvailable(address /* _collection */) external pure returns (uint) {
+        return 0;
+    }
+
+    /**
+     * We don't have any rewards as we only deposit and withdraw a 1:1 mapping
+     * of tokens and their amounts. No rewards are generated.
+     */
+    function claimRewards(address /* _collection */) external pure returns (uint) {
+        return 0;
     }
 
     /**

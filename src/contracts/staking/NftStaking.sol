@@ -258,7 +258,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         }
 
         // Unstake the NFTs and remaining portion to our sender
-        nftStakingStrategy.unstake(msg.sender, _collection, numNfts, remainingPortionToUnstake, _is1155);
+        nftStakingStrategy.unstake(msg.sender, _collection, numNfts, stakedNft.tokensStaked, remainingPortionToUnstake, _is1155);
 
         // Remove our number of staked tokens for the collection
         delete stakedNfts[userCollectionHash];

@@ -12,6 +12,8 @@ import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculato
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 
+import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
+
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingTest is FloorTest {
@@ -90,6 +92,12 @@ contract NftStakingTest is FloorTest {
         nftStakingStrategy.setUnderlyingToken(LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
         nftStakingStrategy.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
         nftStakingStrategy.setUnderlyingToken(ERC1155_NFT, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, 0xf80ffB0699B8d97E9fD198cCBc367A47b77a9d1C);
+
+        // Set our {InventoryStaking} and {Treasury} contract addresses
+        nftStakingStrategy.setContracts(
+            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,
+            users[1]
+        );
 
         // Set our sweep modifier
         staking.setSweepModifier(4e9);
@@ -540,7 +548,55 @@ contract NftStakingTest is FloorTest {
     }
 
     function test_CanClaimRewards() external {
-        // TODO: ..
+        // Select our tokens to stake into the vault
+        uint[] memory tokens = new uint[](5);
+        tokens[0] = 16543;
+        tokens[1] = 1672;
+        tokens[2] = 4774;
+        tokens[3] = 4818;
+        tokens[4] = 5587;
+
+        // Get our approval address
+        address approvalAddress = staking.nftStakingStrategy().approvalAddress();
+        address underlyingToken = staking.nftStakingStrategy().underlyingToken(LOW_VALUE_NFT);
+
+        // Set some NFTX variables
+        IERC20 xToken = IERC20(0xEB07C09A72F40818704a70F059D1d2c82cC54327);
+
+        // User 1 stakes 5 NFT for 104 epochs
+        vm.startPrank(LOW_HOLDER_1);
+        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
+        staking.stake(LOW_VALUE_NFT, tokens, _singleAmountArray(tokens.length), 6, false);
+        vm.stopPrank();
+
+        // Skip some time for the NFTX lock to expire
+        skip(NFTX_LOCK_LENGTH);
+
+        // Check the balance directly that should be claimable
+        uint startRewardsAvailable = staking.nftStakingStrategy().rewardsAvailable(LOW_VALUE_NFT);
+        assertEq(startRewardsAvailable, 0);
+
+        // Generate some rewards by dealing xToken to our user
+        deal(address(xToken), address(staking.nftStakingStrategy()), 6 ether);
+
+        // Check the balance directly that should be claimable
+        uint rewardsAvailable = staking.nftStakingStrategy().rewardsAvailable(LOW_VALUE_NFT);
+        assertEq(rewardsAvailable, 1726865950363757461);
+
+        // Get the {Treasury} starting balance of the reward token
+        uint treasuryStartBalance = IERC20(underlyingToken).balanceOf(users[1]);
+        assertEq(treasuryStartBalance, 0);
+
+        // Claim our rewards
+        staking.nftStakingStrategy().claimRewards(LOW_VALUE_NFT);
+
+        // Check the balance directly that should be claimable
+        uint newRewardsAvailable = staking.nftStakingStrategy().rewardsAvailable(LOW_VALUE_NFT);
+        assertEq(newRewardsAvailable, 0);
+
+        // Confirm that the {Treasury} has received the rewards
+        uint treasuryEndBalance = IERC20(underlyingToken).balanceOf(users[1]);
+        assertEq(treasuryEndBalance, 1726865950363757461);
     }
 
     function _singleAmountArray(uint length) internal pure returns (uint[] memory amounts) {

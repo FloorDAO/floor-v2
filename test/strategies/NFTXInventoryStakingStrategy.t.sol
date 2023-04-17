@@ -199,7 +199,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      *
      * This will be done via the vault.
      */
-    function testCannotExitBeyondPosition() public {}
+    function test_CannotExitBeyondPosition() public {}
 
     /**
      * If we don't have a stake in the {InventoryStaking} contract and
@@ -208,20 +208,57 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      *
      * This will be done via the vault.
      */
-    function testCannotExitPositionWithZeroStake() public {}
+    function test_CannotExitPositionWithZeroStake() public {}
 
     /**
      * When we have rewards available we want to be able to determine
      * the token amount without needing to process a write call. This
      * will mean a much lower gas usage.
      */
-    function testCanDetermineRewardsAvailable() public {}
+    function test_CanDetermineRewardsAvailableAndClaim() public {
+        vm.startPrank(testUser);
+
+        // Deposit using the underlying token to receive xToken into the strategy
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 5 ether);
+        strategy.deposit(strategy.underlyingToken(), 5 ether);
+
+        // Skip some time for the NFTX lock to expire
+        skip(2592001);
+
+        // Check the balance directly that should be claimable
+        uint startRewardsAvailable = strategy.rewardsAvailable(strategy.underlyingToken());
+        assertEq(startRewardsAvailable, 0);
+
+        // Generate some rewards by dealing xToken to our user
+        deal(strategy.yieldToken(), address(strategy), 8 ether);
+
+        // Check the balance directly that should be claimable
+        uint rewardsAvailable = strategy.rewardsAvailable(strategy.underlyingToken());
+        assertEq(rewardsAvailable, 1726865950363757461);
+
+        // Get the {Treasury} starting balance of the reward token
+        uint treasuryStartBalance = IERC20(strategy.underlyingToken()).balanceOf(users[1]);
+        assertEq(treasuryStartBalance, 0);
+
+        // Claim our rewards
+        strategy.claimRewards();
+
+        // Check the balance directly that should be claimable
+        uint newRewardsAvailable = strategy.rewardsAvailable(strategy.underlyingToken());
+        assertEq(newRewardsAvailable, 0);
+
+        // Confirm that the {Treasury} has received the rewards
+        uint treasuryEndBalance = IERC20(strategy.underlyingToken()).balanceOf(users[1]);
+        assertEq(treasuryEndBalance, 1726865950363757461);
+
+        vm.stopPrank();
+    }
 
     /**
      * Even when we have no rewards pending to be claimed, we don't want
      * the transaction to be reverted, but instead just return zero.
      */
-    function testCanDetermineRewardsAvailableWhenZero() public {
+    function test_CanDetermineRewardsAvailableWhenZero() public {
         assertEq(strategy.rewardsAvailable(strategy.underlyingToken()), 0);
     }
 
@@ -229,7 +266,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * When we have generated yield we want to be sure that our helper
      * function returns the correct value.
      */
-    function testCanCalculateTotalRewardsGenerated() public {
+    function test_CanCalculateTotalRewardsGenerated() public {
         assertEq(strategy.totalRewardsGenerated(strategy.underlyingToken()), 0);
     }
 }
