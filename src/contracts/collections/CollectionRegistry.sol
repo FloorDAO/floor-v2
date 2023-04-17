@@ -6,7 +6,6 @@ import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
 
 /// If a zero address strategy tries to be approved
 error CannotApproveNullCollection();
@@ -24,11 +23,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     /// Maintains an internal array of approved collections for iteration
     address[] internal _approvedCollections;
 
-    /// Maintains a contract mapping to our gaugeWeightVote contract to allow us
-    /// to keep a sync of approved collections for gas saving.
-    IGaugeWeightVote public gaugeWeightVote;
-
-    /// ..
+    /// Store our pricing executor to validate liquidity before collection addition
     IBasePricingExecutor public pricingExecutor;
 
     /// Stores a minimum liquidity threshold that is enforced before a collection can
@@ -80,10 +75,6 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
             revert CannotApproveNullCollection();
         }
 
-        // Ensure that we have a linked GWV contract as we need to ensure that collections
-        // are synced.
-        require(address(gaugeWeightVote) != address(0), 'No GaugeWeightVote contract set');
-
         // If we haven't already got this collection added, then store it internally
         if (!collections[contractAddr]) {
             // Validate the liquidity of the collection before we can add it
@@ -95,18 +86,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
             collections[contractAddr] = true;
             _approvedCollections.push(contractAddr);
             emit CollectionApproved(contractAddr);
-
-            // Send the newly approved collection to our {GaugeWeightVote} contract for
-            // epoch related gas saves.
-            gaugeWeightVote.addCollection(contractAddr);
         }
-    }
-
-    /**
-     * Sets our {GaugeWeightVote} contract address.
-     */
-    function setGaugeWeightVoteContract(address _gaugeWeightVote) external onlyRole(COLLECTION_MANAGER) {
-        gaugeWeightVote = IGaugeWeightVote(_gaugeWeightVote);
     }
 
     /**
