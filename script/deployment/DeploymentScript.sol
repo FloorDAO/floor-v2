@@ -33,7 +33,7 @@ contract DeploymentScript is Script {
      *
      * @return The address of the deployed contract
      */
-    function requireDeployment(string memory key) internal returns (address) {
+    function requireDeployment(string memory key) internal view returns (address) {
         // @dev This will raise an error if it cannot be read
         bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), 'deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
@@ -116,7 +116,7 @@ contract DeploymentScript is Script {
      * Converts an address into a string representation of the address. This allows us
      * to concatenate it against an existing string to write to JSON.
      *
-     * @param address The raw address
+     * @param _address The raw address
      *
      * @return string The address in string format
      */
