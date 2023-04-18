@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
@@ -196,10 +195,6 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
             optionHash = keccak256(abi.encode(currentWar.index, collection, exercisePercents[i]));
 
             // Store our option with the token ID, plus the amount being staked against it
-            /**
-             * INITIAL GAS: 316378 - 95406 = 220972 ($40~)
-             * NEW GAS: 227530 - 95406 = 132124 ($22~)
-             */
             stakedTokens[optionHash].push(
                 Option({
                     tokenId: tokenIds[i],
@@ -389,7 +384,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
      * Allows a Floor NFT token holder to exercise a staked NFT at the price that it
      * was listed at by the staking user.
      */
-    function holderExerciseOptions(uint war, uint tokenId, uint exercisePercent, uint stakeIndex) external payable {
+    function holderExerciseOptions(uint war, uint tokenId, uint56 exercisePercent, uint stakeIndex) external payable {
         // Get the collection that will be exercised based on the winner of the war
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
@@ -398,11 +393,13 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         bytes32 warCollection = keccak256(abi.encode(war, collection));
         require(collectionEpochLock[warCollection] - 1 == currentEpoch(), 'Outside exercise window');
 
-        // Lock our token
-        ERC721Lockable(floorNft).lock(msg.sender, tokenId, uint96(block.timestamp + 7 days));
-
+        // Ensure that a token exists at the index requested
+        require(stakedTokens[keccak256(abi.encode(war, collection, exercisePercent))].length > stakeIndex, 'Nothing staked at index');
         Option memory option = stakedTokens[keccak256(abi.encode(war, collection, exercisePercent))][stakeIndex];
         require(option.amount != 0, 'Nothing staked at index');
+
+        // Lock our token
+        ERC721Lockable(floorNft).lock(msg.sender, tokenId, uint96(block.timestamp + 7 days));
 
         // Determine the quantity that we want to exercise. This will always be 1 for holders.
         uint exercisePrice = (collectionSpotPrice[warCollection] * exercisePercent) / 100;

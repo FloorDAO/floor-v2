@@ -769,6 +769,83 @@ contract FloorWarsTest is FloorTest {
         floorWars.updateCollectionFloorPrice(address(6), 1 ether);
     }
 
+    function test_CanExerciseNftAsFloorNftHolder() external {
+        // Unpause the floor nft minting
+        floorNft.setPaused(false);
+        floorNft.setPresale(false);
+
+        // Create a range of options with varied percents
+        uint[] memory tokenIds = new uint[](2);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+
+        uint40[] memory amounts = new uint40[](2);
+        amounts[0] = 1;
+        amounts[1] = 1;
+
+        uint56[] memory exercisePercents = new uint56[](2);
+        exercisePercents[0] = 80;
+        exercisePercents[1] = 100;
+
+        vm.startPrank(alice);
+        mock721.setApprovalForAll(address(floorWars), true);
+        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        vm.stopPrank();
+
+        // Mint an NFT to one of our test users
+        vm.prank(alice);
+        floorNft.mint{value: 0.05 ether}(1);
+
+        // Attempt to exercise without a winning collection
+        vm.expectRevert('FloorWar has not ended');
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+
+        // End the war and enter the DAO epoch window
+        epochManager.endEpoch();
+
+        // Attempt to exercise as a holder before the correct window has opened
+        vm.expectRevert('Outside exercise window');
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+
+        // Move to the holder epoch window
+        vm.warp(block.timestamp + 7 days);
+        epochManager.endEpoch();
+
+        // Approve our locker
+        vm.prank(alice);
+        floorNft.approveLocker(address(floorWars), 0);
+
+        // Attempt to exercise an option that does not exist
+        vm.expectRevert('Nothing staked at index');
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 1);
+
+        // Exercise as a holder
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+
+        // Attempt to exercise again as a holder
+        vm.expectRevert('Token is already locked');
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+
+        // Attempt to exercise as a non-holder
+        vm.expectRevert('User is not owner, nor currently staked with an approved staker');
+        vm.prank(bob);
+        floorWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
+
+        // Move forward another epoch to exit the holder epoch window
+        vm.warp(block.timestamp + 7 days);
+        epochManager.endEpoch();
+
+        // Attempt to exercise outside the window, in the future
+        vm.expectRevert('Outside exercise window');
+        vm.prank(alice);
+        floorWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
+    }
+
     function test_CanCalculateNftVotingPower() external {
         assertEq(floorWars.nftVotingPower(1 ether, 0),   2.00 ether);
         assertEq(floorWars.nftVotingPower(1 ether, 10),  1.90 ether);
