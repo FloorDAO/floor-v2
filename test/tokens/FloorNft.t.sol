@@ -389,16 +389,112 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         assertEq(floorNft.heldStakes(0), alice);
     }
 
-    function test_CannotUnlockIfNotCurrentlyOwnedByCaller() public {}
+    function test_CannotUnlockIfNotCurrentlyOwnedByCaller() public {
+        // Mint the NFT and approve the locker, but don't lock the NFT
+        vm.startPrank(alice);
+        floorNft.mint{value: 0.05 ether}(1);
+        floorNft.transferFrom(alice, validStaker, 0);
+        floorNft.approveLocker(locker, 0);
+        vm.stopPrank();
 
-    function test_CanDeleteStakeOnTransferBackToOriginalOwner() public {}
-    function test_CanPersistStakeOnTransferToApprovedContract() public {}
-    function test_CanDeleteStakeOnTransferToUnpprovedContract() public {}
+        vm.prank(locker);
+        floorNft.unlock(0);
+    }
 
-    function test_CanSetApprovedStaker() public {}
-    function test_CanRemoveApprovedStaker() public {}
-    function test_CannotApproveStakerThatIsAlreadyApproved() public {}
-    function test_CannotRemoveApprovedStakerThatIsNotApproved() public {}
+    function test_CanDeleteHeldStakeOnTransferBackToOriginalOwner() public {
+        // Mint the NFT and approve the locker, but don't lock the NFT
+        vm.startPrank(alice);
+        floorNft.mint{value: 0.05 ether}(1);
+        floorNft.transferFrom(alice, validStaker, 0);
+        floorNft.approveLocker(locker, 0);
+        vm.stopPrank();
+
+        // ..
+        vm.prank(locker);
+        floorNft.lock(alice, 0, uint96(block.timestamp + 3600));
+
+        assertEq(floorNft.heldStakes(0), alice);
+
+        vm.prank(validStaker);
+        floorNft.transferFrom(validStaker, alice, 0);
+
+        assertEq(floorNft.heldStakes(0), address(0));
+    }
+
+    function test_CanPersistStakeOnTransferToApprovedContract() public {
+        // Mint the NFT and approve the locker, but don't lock the NFT
+        vm.startPrank(alice);
+        floorNft.mint{value: 0.05 ether}(1);
+        floorNft.transferFrom(alice, validStaker, 0);
+        floorNft.approveLocker(locker, 0);
+        vm.stopPrank();
+
+        // ..
+        vm.prank(locker);
+        floorNft.lock(alice, 0, uint96(block.timestamp + 3600));
+
+        assertEq(floorNft.heldStakes(0), alice);
+
+        // Set Bob to be a secondary approved staker
+        floorNft.setApprovedStaker(bob, true);
+
+        vm.prank(validStaker);
+        floorNft.transferFrom(validStaker, bob, 0);
+
+        assertEq(floorNft.heldStakes(0), alice);
+    }
+
+    function test_CanDeleteStakeOnTransferToUnpprovedContract() public {
+        // Mint the NFT and approve the locker, but don't lock the NFT
+        vm.startPrank(alice);
+        floorNft.mint{value: 0.05 ether}(1);
+        floorNft.transferFrom(alice, validStaker, 0);
+        floorNft.approveLocker(locker, 0);
+        vm.stopPrank();
+
+        // ..
+        vm.prank(locker);
+        floorNft.lock(alice, 0, uint96(block.timestamp + 3600));
+
+        assertEq(floorNft.heldStakes(0), alice);
+
+        vm.prank(validStaker);
+        floorNft.transferFrom(validStaker, bob, 0);
+
+        assertEq(floorNft.heldStakes(0), address(0));
+    }
+
+    function test_CanSetApprovedStaker() public {
+        // We start with a single approved staker, so the 0 address will return it
+        assertEq(floorNft.approvedStakers(0), validStaker);
+
+        // The first index will not return an address as none set
+        vm.expectRevert();
+        floorNft.approvedStakers(1);
+
+        // Set our new approved staker
+        floorNft.setApprovedStaker(bob, true);
+        assertEq(floorNft.approvedStakers(1), bob);
+    }
+
+    function test_CanRemoveApprovedStaker() public {
+        // We start with a single approved staker, so the 0 address will return it
+        assertEq(floorNft.approvedStakers(0), validStaker);
+
+        // Remove our valid staker
+        floorNft.setApprovedStaker(validStaker, false);
+        assertEq(floorNft.approvedStakers(0), address(0));
+    }
+
+    function test_CannotApproveStakerThatIsAlreadyApproved() public {
+        vm.expectRevert('Staker invalid state');
+        floorNft.setApprovedStaker(validStaker, true);
+    }
+
+    function test_CannotRemoveApprovedStakerThatIsNotApproved() public {
+        vm.expectRevert('Staker invalid state');
+        floorNft.setApprovedStaker(bob, false);
+    }
 
     function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;

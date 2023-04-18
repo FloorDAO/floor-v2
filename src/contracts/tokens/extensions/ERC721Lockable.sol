@@ -123,11 +123,12 @@ abstract contract ERC721Lockable is ERC721, Ownable {
 
         // Search our array to find an existing approved staker
         for (uint i; i < approvedStakers.length;) {
-            console.log('Testing');
             if (staker == approvedStakers[i]) {
                 found = true;
                 index = i;
             }
+
+            unchecked { ++i; }
         }
 
         // Check if we have an incompatible state for the request
