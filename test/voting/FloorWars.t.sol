@@ -11,6 +11,7 @@ import {MercenarySweeper} from '@floor/actions/sweepers/Mercenary.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
@@ -30,6 +31,7 @@ contract FloorWarsTest is FloorTest {
     // Contract references to be deployed
     EpochManager epochManager;
     FLOOR floor;
+    FloorNft floorNft;
     FloorWars floorWars;
     VeFloorStaking veFloor;
     CollectionRegistry collectionRegistry;
@@ -84,8 +86,16 @@ contract FloorWarsTest is FloorTest {
         // Set up our veFloor token
         veFloor = new VeFloorStaking(floor, address(treasury));
 
+        // Create our Floor NFT
+        floorNft = new FloorNft(
+            'Floor NFT',  // _name
+            'nftFloor',   // _symbol
+            250,          // _maxSupply
+            5             // _maxMintAmountPerTx
+        );
+
         // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(authorityRegistry), address(treasury), address(veFloor));
+        floorWars = new FloorWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
 
         // Create our {EpochManager} contract and assign it to required contracts
         epochManager = new EpochManager();
@@ -562,15 +572,11 @@ contract FloorWarsTest is FloorTest {
         vm.stopPrank();
 
         epochManager.endEpoch();
-        epochManager.setCurrentEpoch(3);
-
-        emit log('AAA');
+        epochManager.setCurrentEpoch(4);
 
         // Set our exercise percent
         uint56[] memory claimPercents = new uint56[](1);
         claimPercents[0] = 100;
-
-        emit log('BBB');
 
         // Set our indexes against the exercise percents
         uint[] memory index = new uint[](2);
@@ -578,13 +584,9 @@ contract FloorWarsTest is FloorTest {
         index[1] = 1;
         indexes.push(index);
 
-        emit log('CCC');
-
         vm.startPrank(alice);
         floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
         vm.stopPrank();
-
-        emit log('DDD');
 
         assertEq(mock721.ownerOf(0), alice);
         assertEq(mock721.ownerOf(1), alice);
@@ -672,10 +674,10 @@ contract FloorWarsTest is FloorTest {
         assertEq(mock721.ownerOf(0), address(floorWars));
         assertEq(mock721.ownerOf(1), address(floorWars));
 
-        // Skip forward so that epoch is unlocked
-        vm.warp(block.timestamp + 7 days);
-
-        // Now that an additional epoch has ended, it will now be claimable
+        // Now that an additional 2 epoches have ended, it will now be claimable (one for
+        // the DAO to exercise and one for Floor NFT holders to exercise).
+        vm.warp(block.timestamp + 14 days);
+        epochManager.endEpoch();
         epochManager.endEpoch();
 
         vm.prank(alice);

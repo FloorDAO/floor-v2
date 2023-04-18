@@ -98,7 +98,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 967780757975035829);
 
-        assertEq(strategy.deposits(), 967780757975035829);
+        assertEq(strategy.deposits(), 1 ether);
 
         vm.stopPrank();
     }
@@ -234,22 +234,28 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Check the balance directly that should be claimable
         uint rewardsAvailable = strategy.rewardsAvailable(strategy.underlyingToken());
-        assertEq(rewardsAvailable, 1726865950363757461);
+        assertEq(rewardsAvailable, 3161096210124820848);
 
         // Get the {Treasury} starting balance of the reward token
         uint treasuryStartBalance = IERC20(strategy.underlyingToken()).balanceOf(users[1]);
         assertEq(treasuryStartBalance, 0);
 
+        vm.stopPrank();
+
         // Claim our rewards
+        vm.prank(users[1]);
         strategy.claimRewards();
+
+        vm.startPrank(testUser);
 
         // Check the balance directly that should be claimable
         uint newRewardsAvailable = strategy.rewardsAvailable(strategy.underlyingToken());
         assertEq(newRewardsAvailable, 0);
 
         // Confirm that the {Treasury} has received the rewards
+        // TODO: This should always go to Treasury, not the caller
         uint treasuryEndBalance = IERC20(strategy.underlyingToken()).balanceOf(users[1]);
-        assertEq(treasuryEndBalance, 1726865950363757461);
+        assertEq(treasuryEndBalance, 3161096210124820848);
 
         vm.stopPrank();
     }

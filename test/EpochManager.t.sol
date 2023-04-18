@@ -13,6 +13,7 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
@@ -45,6 +46,7 @@ contract EpochManagerTest is FloorTest {
     ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
+    FloorNft floorNft;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     FloorWars floorWars;
@@ -87,8 +89,16 @@ contract EpochManagerTest is FloorTest {
             address(treasury)
         );
 
+        // Create our Floor NFT
+        floorNft = new FloorNft(
+            'Floor NFT',  // _name
+            'nftFloor',   // _symbol
+            250,          // _maxSupply
+            5             // _maxMintAmountPerTx
+        );
+
         // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(authorityRegistry), address(treasury), address(veFloor));
+        floorWars = new FloorWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
 
         // Deploy our {VoteMarket} contract
         voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);

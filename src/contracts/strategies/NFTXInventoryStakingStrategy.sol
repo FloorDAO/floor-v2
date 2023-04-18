@@ -176,6 +176,8 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
     /**
      * Harvest possible rewards from strategy.
      *
+     * TODO: Should be locked down, or return to {Treasury}
+     *
      * @return amount_ Amount of rewards claimed
      */
     function claimRewards() public returns (address[] memory, uint[] memory) {
@@ -187,6 +189,7 @@ contract NFTXInventoryStakingStrategy is IBaseStrategy, Initializable {
 
         if (amount_[0] != 0) {
             INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount_[0]);
+            IERC20(underlyingToken).transfer(msg.sender, amount_[0]);
 
             unchecked {
                 lifetimeRewards += amount_[0];

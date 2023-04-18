@@ -88,7 +88,7 @@ contract VaultTest is FloorTest {
      * applied to the vault, not the strategy contract address passed.
      */
     function test_CanGetStrategyAddress() public {
-        assertEq(address(vault.strategy()), 0x7c407d9Cb19e7aDC478e726aAf72eF416cd80b92);
+        assertEq(address(vault.strategy()), 0x48CA68A79754E3E58B82495f018C549e3E803203);
     }
 
     /**

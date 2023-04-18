@@ -13,6 +13,7 @@ import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Re
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 
 import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
@@ -26,6 +27,9 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     /// Internal contract mappings
     ITreasury immutable public treasury;
     VeFloorStaking immutable public veFloor;
+
+    /// Internal floor NFT mapping
+    address immutable public floorNft;
 
     /// Stores a collection of all the FloorWars that have been started
     FloorWar public currentWar;
@@ -61,7 +65,13 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     /**
      * Sets our internal contract addresses.
      */
-    constructor (address _authority, address _treasury, address _veFloor) AuthorityControl(_authority) {
+    constructor (
+        address _authority,
+        address _floorNft,
+        address _treasury,
+        address _veFloor
+    ) AuthorityControl(_authority) {
+        floorNft = _floorNft;
         treasury = ITreasury(_treasury);
         veFloor = VeFloorStaking(_veFloor);
     }
@@ -284,11 +294,14 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         address collection = floorWarWinner[war];
         require(collection != address(0), 'FloorWar has not ended');
 
-        // Store our starting balance for event emit
-        uint startBalance = amount;
-
         // Get our warCollection hash and our base price for exercising
         bytes32 warCollection = keccak256(abi.encode(war, collection));
+
+        // Check exercise window matches for DAO
+        require(collectionEpochLock[warCollection] - 2 == currentEpoch(), 'Outside exercise window');
+
+        // Store our starting balance for event emit
+        uint startBalance = amount;
         uint exerciseBasePrice = collectionSpotPrice[warCollection];
 
         // Since we cannot double break in Solidity, we need to track our internal break
@@ -370,6 +383,49 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         }
 
         emit CollectionExercised(war, collection, startBalance - amount);
+    }
+
+    /**
+     * Allows a Floor NFT token holder to exercise a staked NFT at the price that it
+     * was listed at by the staking user.
+     */
+    function holderExerciseOptions(uint war, uint tokenId, uint exercisePercent, uint stakeIndex) external payable {
+        // Get the collection that will be exercised based on the winner of the war
+        address collection = floorWarWinner[war];
+        require(collection != address(0), 'FloorWar has not ended');
+
+        // Check exercise window matches for floor NFT holders
+        bytes32 warCollection = keccak256(abi.encode(war, collection));
+        require(collectionEpochLock[warCollection] - 1 == currentEpoch(), 'Outside exercise window');
+
+        // Lock our token
+        ERC721Lockable(floorNft).lock(msg.sender, tokenId, uint96(block.timestamp + 7 days));
+
+        Option memory option = stakedTokens[keccak256(abi.encode(war, collection, exercisePercent))][stakeIndex];
+        require(option.amount != 0, 'Nothing staked at index');
+
+        // Determine the quantity that we want to exercise. This will always be 1 for holders.
+        uint exercisePrice = (collectionSpotPrice[warCollection] * exercisePercent) / 100;
+
+        // Pay the staker the amount that they requested into escrow
+        _asyncTransfer(option.user, exercisePrice);
+
+        // Transfer the NFT to the claiming user
+        if (is1155[collection]) {
+            IERC1155(collection).safeTransferFrom(address(this), msg.sender, option.tokenId, 1, '');
+        } else {
+            IERC721(collection).transferFrom(address(this), msg.sender, option.tokenId);
+        }
+
+        unchecked {
+            // Update the staked token's amount to reflect the amount of quantity that
+            // have been exercised. This will mean that the data stays on chain, but if
+            // we try to resweep the epoch then we won't try to purchase nonexistant
+            // tokens.
+            option.amount -= 1;
+        }
+
+        emit CollectionExercised(war, collection, exercisePrice);
     }
 
     /**
@@ -459,8 +515,9 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
         floorWarWinner[currentWar.index] = highestVoteCollection;
 
         unchecked {
-            // Increment our winner lock by one epoch
-            ++collectionEpochLock[keccak256(abi.encode(currentWar.index, highestVoteCollection))];
+            // Increment our winner lock by two epochs. One to allow the DAO to exercise, and the
+            // second to allow Floor NFT holders to exercise.
+            collectionEpochLock[keccak256(abi.encode(currentWar.index, highestVoteCollection))] += 2;
         }
 
         emit CollectionAdditionWarEnded(currentWar.index);
