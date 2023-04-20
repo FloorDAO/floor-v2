@@ -11,7 +11,7 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {IVault, Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
-import {CannotVoteWithZeroAmount, CollectionNotApproved, GaugeWeightVote, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/GaugeWeightVote.sol';
+import {CannotVoteWithZeroAmount, CollectionNotApproved, SweepWars, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
@@ -19,12 +19,12 @@ import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract GaugeWeightVoteTest is FloorTest {
+contract SweepWarsTest is FloorTest {
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
     FLOOR floor;
-    GaugeWeightVote gaugeWeightVote;
+    SweepWars sweepWars;
     Treasury treasury;
     VaultFactory vaultFactory;
     VeFloorStaking veFloor;
@@ -71,8 +71,8 @@ contract GaugeWeightVoteTest is FloorTest {
         // Set up our veFloor token
         veFloor = new VeFloorStaking(floor, address(treasury));
 
-        // Now that we have all our dependencies, we can deploy our {GaugeWeightVote} contract
-        gaugeWeightVote = new GaugeWeightVote(
+        // Now that we have all our dependencies, we can deploy our {SweepWars} contract
+        sweepWars = new SweepWars(
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
@@ -82,7 +82,7 @@ contract GaugeWeightVoteTest is FloorTest {
 
         // Create our {EpochManager} and assign the contract to our test contracts
         epochManager = new EpochManager();
-        gaugeWeightVote.setEpochManager(address(epochManager));
+        sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
         // Define our strategy implementations
@@ -132,11 +132,11 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.assume(unknown != alice && unknown != bob);
 
         // All other addresses should have 0 balance
-        assertEq(gaugeWeightVote.userVotingPower(unknown), 0);
+        assertEq(sweepWars.userVotingPower(unknown), 0);
     }
 
     function test_canGetVotingPowerWithVeFloorBalance() public {
-        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
+        assertEq(sweepWars.userVotingPower(alice), votePower[alice]);
     }
 
     function test_canGetVotesAvailableWithNoBalanceOrVotes(address unknown) public {
@@ -145,106 +145,106 @@ contract GaugeWeightVoteTest is FloorTest {
         vm.assume(unknown != alice && unknown != bob);
 
         // All other addresses should have 0 balance
-        assertEq(gaugeWeightVote.userVotesAvailable(unknown), 0);
+        assertEq(sweepWars.userVotesAvailable(unknown), 0);
     }
 
     function test_canGetVotesAvailableWithVeBalanceAndZeroVotes() public {
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice]);
     }
 
     function test_canGetVotesAvailableWithVeBalanceAndVotesCast(uint voteAmount) public {
         vm.assume(voteAmount > 0);
         vm.assume(voteAmount <= veFloor.balanceOf(alice));
 
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice]);
 
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, voteAmount);
+        sweepWars.vote(approvedCollection1, voteAmount);
 
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice] - voteAmount);
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice] - voteAmount);
     }
 
     function test_cannotVoteWithZeroBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 1 ether, 0));
         vm.prank(address(0));
-        gaugeWeightVote.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection1, 1 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
+        assertEq(sweepWars.votes(approvedCollection1), 0);
     }
 
     function test_cannotVoteWithMoreTokensThanBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 101 ether, votePower[alice]));
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 101 ether);
+        sweepWars.vote(approvedCollection1, 101 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
+        assertEq(sweepWars.votes(approvedCollection1), 0);
     }
 
     function test_cannotVoteWithMoreTokensThanUnvoted() public {
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 80 ether);
+        sweepWars.vote(approvedCollection1, 80 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 80 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 80 ether);
 
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 21 ether, votePower[alice] - 80 ether));
 
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 21 ether);
+        sweepWars.vote(approvedCollection1, 21 ether);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 80 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 80 ether);
     }
 
     function test_cannotVoteOnUnapprovedCollection() public {
         vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, unapprovedCollection1));
         vm.prank(alice);
-        gaugeWeightVote.vote(unapprovedCollection1, 1 ether);
+        sweepWars.vote(unapprovedCollection1, 1 ether);
 
-        assertEq(gaugeWeightVote.votes(unapprovedCollection1), 0);
+        assertEq(sweepWars.votes(unapprovedCollection1), 0);
     }
 
     function test_cannotVoteWithZeroAmount() public {
         vm.expectRevert(CannotVoteWithZeroAmount.selector);
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 0);
+        sweepWars.vote(approvedCollection1, 0);
     }
 
     function test_canVote() public {
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 10 ether);
 
         // Check how many votes we will have at current epoch when vote was cast
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 10 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 10 ether);
 
         // Check how many votes we will have at a specific epoch (half way)
-        assertAlmostEqual(gaugeWeightVote.votes(approvedCollection1, 52), 5 ether, 1e2);
+        assertAlmostEqual(sweepWars.votes(approvedCollection1, 52), 5 ether, 1e2);
     }
 
     function test_canVoteOnFloorTokenAddress() public {
         vm.prank(alice);
-        gaugeWeightVote.vote(floorTokenCollection, 1 ether);
+        sweepWars.vote(floorTokenCollection, 1 ether);
 
-        assertEq(gaugeWeightVote.votes(floorTokenCollection), 1 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), 1 ether);
     }
 
     function test_canVoteMultipleTimesOnSameCollection() public {
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
-        gaugeWeightVote.vote(approvedCollection1, 5 ether);
+        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 5 ether);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 15 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 15 ether);
     }
 
     function test_canVoteOnMultipleApprovedCollections() public {
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
-        gaugeWeightVote.vote(approvedCollection2, 5 ether);
-        gaugeWeightVote.vote(approvedCollection3, 15 ether);
+        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection2, 5 ether);
+        sweepWars.vote(approvedCollection3, 15 ether);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 10 ether);
-        assertEq(gaugeWeightVote.votes(approvedCollection2), 5 ether);
-        assertEq(gaugeWeightVote.votes(approvedCollection3), 15 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 10 ether);
+        assertEq(sweepWars.votes(approvedCollection2), 5 ether);
+        assertEq(sweepWars.votes(approvedCollection3), 15 ether);
     }
 
     function test_canRevokeVoteOnUnvotedCollection() public {
@@ -252,14 +252,14 @@ contract GaugeWeightVoteTest is FloorTest {
         collections[0] = approvedCollection1;
 
         vm.prank(alice);
-        gaugeWeightVote.revokeVotes(collections);
+        sweepWars.revokeVotes(collections);
     }
 
     function test_canRevokeWithNoCollections() public {
         address[] memory collections = new address[](0);
 
         vm.prank(alice);
-        gaugeWeightVote.revokeVotes(collections);
+        sweepWars.revokeVotes(collections);
     }
 
     function test_canFullyRevokeVotes() public {
@@ -267,11 +267,11 @@ contract GaugeWeightVoteTest is FloorTest {
         collections[0] = approvedCollection1;
 
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
-        gaugeWeightVote.revokeVotes(collections);
+        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.revokeVotes(collections);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
+        assertEq(sweepWars.votes(approvedCollection1), 0);
     }
 
     function test_canRevokeVotesFromMultipleCollections() public {
@@ -280,87 +280,87 @@ contract GaugeWeightVoteTest is FloorTest {
         collections[1] = approvedCollection2;
 
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
-        gaugeWeightVote.vote(approvedCollection2, 5 ether);
-        gaugeWeightVote.revokeVotes(collections);
+        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection2, 5 ether);
+        sweepWars.revokeVotes(collections);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
-        assertEq(gaugeWeightVote.votes(approvedCollection2), 0);
+        assertEq(sweepWars.votes(approvedCollection1), 0);
+        assertEq(sweepWars.votes(approvedCollection2), 0);
     }
 
     function test_canRevokeAllUserVotesWithoutAnyVotes() public {
-        gaugeWeightVote.revokeAllUserVotes(alice);
+        sweepWars.revokeAllUserVotes(alice);
     }
 
     function test_canRevokeAllUserVotes() public {
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 1 ether);
-        gaugeWeightVote.vote(approvedCollection2, 2 ether);
-        gaugeWeightVote.vote(approvedCollection3, 3 ether);
-        gaugeWeightVote.vote(floorTokenCollection, 4 ether);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection2, 2 ether);
+        sweepWars.vote(approvedCollection3, 3 ether);
+        sweepWars.vote(floorTokenCollection, 4 ether);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice] - 10 ether);
+        assertEq(sweepWars.userVotingPower(alice), votePower[alice]);
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice] - 10 ether);
 
-        gaugeWeightVote.revokeAllUserVotes(alice);
+        sweepWars.revokeAllUserVotes(alice);
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 0);
-        assertEq(gaugeWeightVote.votes(approvedCollection2), 0);
-        assertEq(gaugeWeightVote.votes(approvedCollection3), 0);
-        assertEq(gaugeWeightVote.votes(floorTokenCollection), 0);
+        assertEq(sweepWars.votes(approvedCollection1), 0);
+        assertEq(sweepWars.votes(approvedCollection2), 0);
+        assertEq(sweepWars.votes(approvedCollection3), 0);
+        assertEq(sweepWars.votes(floorTokenCollection), 0);
 
-        assertEq(gaugeWeightVote.userVotingPower(alice), votePower[alice]);
-        assertEq(gaugeWeightVote.userVotesAvailable(alice), votePower[alice]);
+        assertEq(sweepWars.userVotingPower(alice), votePower[alice]);
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice]);
     }
 
     function test_cannotSetSampleSizeWithoutPermission() public {
-        assertEq(gaugeWeightVote.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), 5);
 
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.VOTE_MANAGER()));
         vm.prank(alice);
-        gaugeWeightVote.setSampleSize(10);
+        sweepWars.setSampleSize(10);
 
-        assertEq(gaugeWeightVote.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), 5);
     }
 
     function test_cannotSetSampleSizeToZero() public {
-        assertEq(gaugeWeightVote.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), 5);
 
         vm.expectRevert(SampleSizeCannotBeZero.selector);
-        gaugeWeightVote.setSampleSize(0);
+        sweepWars.setSampleSize(0);
 
-        assertEq(gaugeWeightVote.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), 5);
     }
 
     function test_canSetSampleSize() public {
-        assertEq(gaugeWeightVote.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), 5);
 
-        gaugeWeightVote.setSampleSize(10);
+        sweepWars.setSampleSize(10);
 
-        assertEq(gaugeWeightVote.sampleSize(), 10);
+        assertEq(sweepWars.sampleSize(), 10);
     }
 
     function test_canTakeSnapshot() public {
         vm.startPrank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 2 ether);
-        gaugeWeightVote.vote(approvedCollection2, 10 ether);
-        gaugeWeightVote.vote(approvedCollection3, 6 ether);
-        gaugeWeightVote.vote(floorTokenCollection, 5 ether);
+        sweepWars.vote(approvedCollection1, 2 ether);
+        sweepWars.vote(approvedCollection2, 10 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, 5 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        gaugeWeightVote.vote(approvedCollection3, 2 ether);
-        gaugeWeightVote.vote(floorTokenCollection, 10 ether);
+        sweepWars.vote(approvedCollection3, 2 ether);
+        sweepWars.vote(floorTokenCollection, 10 ether);
         vm.stopPrank();
 
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 2 ether);
-        assertEq(gaugeWeightVote.votes(approvedCollection2), 10 ether);
-        assertEq(gaugeWeightVote.votes(approvedCollection3), 8 ether);
-        assertEq(gaugeWeightVote.votes(floorTokenCollection), 15 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 2 ether);
+        assertEq(sweepWars.votes(approvedCollection2), 10 ether);
+        assertEq(sweepWars.votes(approvedCollection3), 8 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), 15 ether);
 
-        gaugeWeightVote.setSampleSize(3);
+        sweepWars.setSampleSize(3);
 
         // Create a vault for our collections
         address vault1 = _createCollectionVault(approvedCollection1, 'Vault 1');
@@ -379,7 +379,7 @@ contract GaugeWeightVoteTest is FloorTest {
         _mockVaultStrategyRewardsGenerated(vault4, 6 ether);
 
         vm.startPrank(address(treasury));
-        (address[] memory collections, uint[] memory amounts) = gaugeWeightVote.snapshot(10000 ether, 0);
+        (address[] memory collections, uint[] memory amounts) = sweepWars.snapshot(10000 ether, 0);
         vm.stopPrank();
 
         assertEq(collections.length, 3);
@@ -399,27 +399,27 @@ contract GaugeWeightVoteTest is FloorTest {
     function test_CanImplementNftStakingBoost() external {
         // Set an arbritrary NFT Staking contract address that we will mock
         address nftStaking = address(2);
-        gaugeWeightVote.setNftStaking(nftStaking);
+        sweepWars.setNftStaking(nftStaking);
 
         // Create a vault for our collections
         _createCollectionVault(approvedCollection2, 'Vault');
 
         // Cast votes
         vm.prank(alice);
-        gaugeWeightVote.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 10 ether);
         vm.prank(bob);
-        gaugeWeightVote.vote(approvedCollection1, 5 ether);
+        sweepWars.vote(approvedCollection1, 5 ether);
 
         // We need to calculate our selector manually as it uses an overloaded function
         bytes4 _selector = bytes4(keccak256('collectionBoost(address,uint256)'));
 
         // Mock modifier calculation to return 1.00 and confirm multiplier has been applied
         vm.mockCall(nftStaking, abi.encodeWithSelector(_selector, approvedCollection1, 0), abi.encode(1e9));
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 15 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 15 ether);
 
         // Mock modifier calculation to return 1.50 and confirm effect
         vm.mockCall(nftStaking, abi.encodeWithSelector(_selector, approvedCollection1, 0), abi.encode(1500000000));
-        assertEq(gaugeWeightVote.votes(approvedCollection1), 22.5 ether);
+        assertEq(sweepWars.votes(approvedCollection1), 22.5 ether);
     }
 
     /**

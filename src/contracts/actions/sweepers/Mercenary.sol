@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {IMercenarySweeper} from '@floor-interfaces/actions/Sweeper.sol';
-import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
+import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 
 /**
  * Acts as an interface to allow Optioned Mercenaries to be swept after a collection
@@ -16,14 +16,14 @@ import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
  */
 contract MercenarySweeper is IMercenarySweeper {
 
-    /// Contract reference to our active {FloorWars} contract
-    IFloorWars public immutable floorWars;
+    /// Contract reference to our active {NewCollectionWars} contract
+    INewCollectionWars public immutable newCollectionWars;
 
     /**
-     * Sets our immutable {FloorWars} contract reference and casts it's interface.
+     * Sets our immutable {NewCollectionWars} contract reference and casts it's interface.
      */
-    constructor (address _floorWars) {
-        floorWars = IFloorWars(_floorWars);
+    constructor (address _newCollectionWars) {
+        newCollectionWars = INewCollectionWars(_newCollectionWars);
     }
 
     /**
@@ -37,7 +37,7 @@ contract MercenarySweeper is IMercenarySweeper {
         uint startBalance = address(this).balance;
 
         // Find the token IDs that we intend to buy with
-        floorWars.exerciseOptions{value: msg.value}(warIndex, amount);
+        newCollectionWars.exerciseOptions{value: msg.value}(warIndex, amount);
 
         // Return the amount spent as a string
         return startBalance - address(this).balance;

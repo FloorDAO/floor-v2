@@ -55,6 +55,6 @@ interface IEpochManager {
     /**
      * ..
      */
-    function setContracts(address _collectionRegistry, address _floorWars, address _pricingExecutor, address _treasury, address _vaultFactory, address _voteContract, address _voteMarket) external;
+    function setContracts(address _collectionRegistry, address _newCollectionWars, address _pricingExecutor, address _treasury, address _vaultFactory, address _voteContract, address _voteMarket) external;
 
 }

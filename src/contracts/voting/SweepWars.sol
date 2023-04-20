@@ -14,7 +14,7 @@ import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /// If a vote with a zero amount is sent
@@ -39,7 +39,7 @@ error SampleSizeCannotBeZero();
 /**
  * ..
  */
-contract GaugeWeightVote is AuthorityControl, EpochManaged, IGaugeWeightVote {
+contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
     /// ..
     struct CollectionVote {

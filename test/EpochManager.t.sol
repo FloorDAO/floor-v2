@@ -18,13 +18,13 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
-import {FloorWars} from '@floor/voting/FloorWars.sol';
-import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
+import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
+import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
@@ -49,8 +49,8 @@ contract EpochManagerTest is FloorTest {
     FloorNft floorNft;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
-    FloorWars floorWars;
-    GaugeWeightVote gaugeWeightVote;
+    NewCollectionWars newCollectionWars;
+    SweepWars sweepWars;
     VaultFactory vaultFactory;
     VoteMarket voteMarket;
 
@@ -81,7 +81,7 @@ contract EpochManagerTest is FloorTest {
         );
 
         // Create our Gauge Weight Vote contract
-        gaugeWeightVote = new GaugeWeightVote(
+        sweepWars = new SweepWars(
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
@@ -97,8 +97,8 @@ contract EpochManagerTest is FloorTest {
             5             // _maxMintAmountPerTx
         );
 
-        // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
+        // Create our {NewCollectionWars} contract
+        newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
 
         // Deploy our {VoteMarket} contract
         voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
@@ -106,17 +106,17 @@ contract EpochManagerTest is FloorTest {
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
-            address(floorWars),
+            address(newCollectionWars),
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
-            address(gaugeWeightVote),
+            address(sweepWars),
             address(voteMarket)
         );
 
         // Set our epoch manager
-        floorWars.setEpochManager(address(epochManager));
-        gaugeWeightVote.setEpochManager(address(epochManager));
+        newCollectionWars.setEpochManager(address(epochManager));
+        sweepWars.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
         voteMarket.setEpochManager(address(epochManager));
 
@@ -161,7 +161,7 @@ contract EpochManagerTest is FloorTest {
     function test_CanSetContracts() external {
         epochManager.setContracts(
             address(1),  // collectionRegistry
-            address(2),  // floorWars
+            address(2),  // newCollectionWars
             address(3),  // pricingExecutor
             address(4),  // treasury
             address(5),  // vaultFactory
@@ -170,7 +170,7 @@ contract EpochManagerTest is FloorTest {
         );
 
         assertEq(address(epochManager.collectionRegistry()), address(1));
-        assertEq(address(epochManager.floorWars()), address(2));
+        assertEq(address(epochManager.newCollectionWars()), address(2));
         assertEq(address(epochManager.pricingExecutor()), address(3));
         assertEq(address(epochManager.treasury()), address(4));
         assertEq(address(epochManager.vaultFactory()), address(5));
@@ -184,7 +184,7 @@ contract EpochManagerTest is FloorTest {
 
         assertFalse(epochManager.isCollectionAdditionEpoch(epoch));
 
-        vm.prank(address(floorWars));
+        vm.prank(address(newCollectionWars));
         epochManager.scheduleCollectionAddtionEpoch(epoch, 1);
 
         assertTrue(epochManager.isCollectionAdditionEpoch(epoch));
@@ -230,14 +230,14 @@ contract EpochManagerTest is FloorTest {
         uint stakerCount = 100;
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
-        gaugeWeightVote.setSampleSize(5);
+        sweepWars.setSampleSize(5);
 
         // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
         vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(
-            address(gaugeWeightVote), abi.encodeWithSelector(GaugeWeightVote.userVotesAvailable.selector), abi.encode(type(uint).max)
+            address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max)
         );
 
         // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
@@ -270,7 +270,7 @@ contract EpochManagerTest is FloorTest {
             for (uint j; j < stakerCount; ++j) {
                 // Cast votes from this user against the vault collection
                 vm.startPrank(stakers[i]);
-                gaugeWeightVote.vote(collection, 1 ether);
+                sweepWars.vote(collection, 1 ether);
                 vm.stopPrank();
             }
         }

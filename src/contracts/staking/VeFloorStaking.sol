@@ -15,8 +15,8 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {IVeFloorStaking, Depositor} from '@floor-interfaces/staking/VeFloorStaking.sol';
 import {IERC20, IVotable} from '@floor-interfaces/tokens/Votable.sol';
-import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
+import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 /**
@@ -66,8 +66,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
     /// Our internal contracts
     ITreasury public immutable treasury;
-    IFloorWars public floorWars;
-    IGaugeWeightVote public gaugeWeightVote;
+    INewCollectionWars public newCollectionWars;
+    ISweepWars public sweepWars;
 
     /// Allow some addresses to be exempt from early withdraw fees
     mapping(address => bool) public earlyWithdrawFeeExemptions;
@@ -347,12 +347,12 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         depositor.amount = 0;
         depositors[msg.sender] = depositor; // SSTORE
 
-        if (address(floorWars) != address(0)) {
-            floorWars.revokeVotes(msg.sender);
+        if (address(newCollectionWars) != address(0)) {
+            newCollectionWars.revokeVotes(msg.sender);
         }
 
-        if (address(gaugeWeightVote) != address(0)) {
-            gaugeWeightVote.revokeAllUserVotes(msg.sender);
+        if (address(sweepWars) != address(0)) {
+            sweepWars.revokeAllUserVotes(msg.sender);
         }
 
         _burn(msg.sender, balance);
@@ -363,9 +363,9 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     /**
      * ..
      */
-    function setVotingContracts(address _floorWars, address _gaugeWeightVote) external onlyOwner {
-        floorWars = IFloorWars(_floorWars);
-        gaugeWeightVote = IGaugeWeightVote(_gaugeWeightVote);
+    function setVotingContracts(address _newCollectionWars, address _sweepWars) external onlyOwner {
+        newCollectionWars = INewCollectionWars(_newCollectionWars);
+        sweepWars = ISweepWars(_sweepWars);
     }
 
     /**

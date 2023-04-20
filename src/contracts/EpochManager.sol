@@ -11,8 +11,8 @@ import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegis
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
-import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
+import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
@@ -43,8 +43,8 @@ contract EpochManager is IEpochManager, Ownable {
     /// Holds our internal contract references
     IBasePricingExecutor public pricingExecutor;
     ICollectionRegistry public collectionRegistry;
-    IFloorWars public floorWars;
-    IGaugeWeightVote public voteContract;
+    INewCollectionWars public newCollectionWars;
+    ISweepWars public voteContract;
     ITreasury public treasury;
     IVaultFactory public vaultFactory;
     IVoteMarket public voteMarket;
@@ -91,7 +91,7 @@ contract EpochManager is IEpochManager, Ownable {
      * @param index The Collection Addition array index
      */
     function scheduleCollectionAddtionEpoch(uint epoch, uint index) external {
-        require(msg.sender == address(floorWars), 'Invalid caller');
+        require(msg.sender == address(newCollectionWars), 'Invalid caller');
         collectionEpochs[epoch] = index;
 
         // Handle Vote Market epoch increments
@@ -214,7 +214,7 @@ contract EpochManager is IEpochManager, Ownable {
         if (this.isCollectionAdditionEpoch(currentEpoch)) {
             // At this point we still need to calculate yield, but just attribute it to
             // the winner of the Floor War instead. This will be allocated the full yield amount.
-            address collection = floorWars.endFloorWar();
+            address collection = newCollectionWars.endFloorWar();
 
             // Format the collection and amount into the array format that our sweep
             // registration is expecting.
@@ -252,7 +252,7 @@ contract EpochManager is IEpochManager, Ownable {
 
         // If we have a floor war ready to start, then action it
         if (collectionEpochs[currentEpoch] != 0) {
-            floorWars.startFloorWar(collectionEpochs[currentEpoch]);
+            newCollectionWars.startFloorWar(collectionEpochs[currentEpoch]);
         }
 
         emit EpochEnded(currentEpoch - 1, lastEpoch);
@@ -284,7 +284,7 @@ contract EpochManager is IEpochManager, Ownable {
      */
     function setContracts(
         address _collectionRegistry,
-        address _floorWars,
+        address _newCollectionWars,
         address _pricingExecutor,
         address _treasury,
         address _vaultFactory,
@@ -292,11 +292,11 @@ contract EpochManager is IEpochManager, Ownable {
         address _voteMarket
     ) external onlyOwner {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-        floorWars = IFloorWars(_floorWars);
+        newCollectionWars = INewCollectionWars(_newCollectionWars);
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         treasury = ITreasury(_treasury);
         vaultFactory = IVaultFactory(_vaultFactory);
-        voteContract = IGaugeWeightVote(_voteContract);
+        voteContract = ISweepWars(_voteContract);
         voteMarket = IVoteMarket(_voteMarket);
     }
 

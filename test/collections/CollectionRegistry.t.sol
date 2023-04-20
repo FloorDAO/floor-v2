@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {CannotApproveNullCollection, CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 
-import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
+import {SweepWarsMock} from '../mocks/SweepWars.sol';
 import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';

@@ -16,8 +16,8 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
-import {FloorWars} from '@floor/voting/FloorWars.sol';
-import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
+import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
+import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
@@ -26,18 +26,18 @@ import {ERC721Mock} from '../mocks/erc/ERC721Mock.sol';
 import {SweeperMock} from '../mocks/Sweeper.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract FloorWarsTest is FloorTest {
+contract NewCollectionWarsTest is FloorTest {
 
     // Contract references to be deployed
     EpochManager epochManager;
     FLOOR floor;
     FloorNft floorNft;
-    FloorWars floorWars;
+    NewCollectionWars newCollectionWars;
     VeFloorStaking veFloor;
     CollectionRegistry collectionRegistry;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
-    GaugeWeightVote gaugeWeightVote;
+    SweepWars sweepWars;
     VaultFactory vaultFactory;
 
     address alice;
@@ -75,7 +75,7 @@ contract FloorWarsTest is FloorTest {
         );
 
         // Create our Gauge Weight Vote contract
-        gaugeWeightVote = new GaugeWeightVote(
+        sweepWars = new SweepWars(
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
@@ -94,23 +94,23 @@ contract FloorWarsTest is FloorTest {
             5             // _maxMintAmountPerTx
         );
 
-        // Create our {FloorWars} contract
-        floorWars = new FloorWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
+        // Create our {NewCollectionWars} contract
+        newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
 
         // Create our {EpochManager} contract and assign it to required contracts
         epochManager = new EpochManager();
-        floorWars.setEpochManager(address(epochManager));
+        newCollectionWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
-        gaugeWeightVote.setEpochManager(address(epochManager));
+        sweepWars.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         epochManager.setContracts(
             address(collectionRegistry),
-            address(floorWars),
+            address(newCollectionWars),
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
-            address(gaugeWeightVote),
+            address(sweepWars),
             address(0)  // Vote Market not needed for these tests
         );
 
@@ -155,7 +155,7 @@ contract FloorWarsTest is FloorTest {
         floorPrices[4] = 0.5 ether;
 
         // Set up a war
-        war = floorWars.createFloorWar(1, collections, isErc1155, floorPrices);
+        war = newCollectionWars.createFloorWar(1, collections, isErc1155, floorPrices);
 
         // Move to our next epoch to activate the created war at epoch 1
         epochManager.endEpoch();
@@ -179,57 +179,57 @@ contract FloorWarsTest is FloorTest {
     }
 
     function test_CanGetUserVotingPower() external {
-        assertEq(floorWars.userVotingPower(alice), 100 ether);
-        assertEq(floorWars.userVotingPower(bob), 50 ether);
-        assertEq(floorWars.userVotingPower(carol), 0 ether);
+        assertEq(newCollectionWars.userVotingPower(alice), 100 ether);
+        assertEq(newCollectionWars.userVotingPower(bob), 50 ether);
+        assertEq(newCollectionWars.userVotingPower(carol), 0 ether);
 
         vm.prank(alice);
-        floorWars.vote(address(1));
+        newCollectionWars.vote(address(1));
 
-        assertEq(floorWars.userVotingPower(alice), 100 ether);
-        assertEq(floorWars.userVotingPower(bob), 50 ether);
-        assertEq(floorWars.userVotingPower(carol), 0 ether);
+        assertEq(newCollectionWars.userVotingPower(alice), 100 ether);
+        assertEq(newCollectionWars.userVotingPower(bob), 50 ether);
+        assertEq(newCollectionWars.userVotingPower(carol), 0 ether);
     }
 
     function test_CanGetUserVotesAvailable() external {
-        assertEq(floorWars.userVotesAvailable(war, alice), 100 ether);
-        assertEq(floorWars.userVotesAvailable(war, bob), 50 ether);
-        assertEq(floorWars.userVotesAvailable(war, carol), 0 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 100 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, bob), 50 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, carol), 0 ether);
 
         vm.prank(alice);
-        floorWars.vote(address(1));
+        newCollectionWars.vote(address(1));
 
-        assertEq(floorWars.userVotesAvailable(war, alice), 0 ether);
-        assertEq(floorWars.userVotesAvailable(war, bob), 50 ether);
-        assertEq(floorWars.userVotesAvailable(war, carol), 0 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 0 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, bob), 50 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war, carol), 0 ether);
 
-        assertEq(floorWars.userVotesAvailable(war + 1, alice), 100 ether);
-        assertEq(floorWars.userVotesAvailable(war + 1, bob), 50 ether);
-        assertEq(floorWars.userVotesAvailable(war + 1, carol), 0 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war + 1, alice), 100 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war + 1, bob), 50 ether);
+        assertEq(newCollectionWars.userVotesAvailable(war + 1, carol), 0 ether);
     }
 
     function test_CanVote() external {
         vm.prank(alice);
-        floorWars.vote(address(1));
+        newCollectionWars.vote(address(1));
 
         vm.prank(bob);
-        floorWars.vote(address(mock721));
+        newCollectionWars.vote(address(mock721));
 
         vm.prank(carol);
-        floorWars.vote(address(mock1155));
+        newCollectionWars.vote(address(mock1155));
     }
 
     function test_CanRevote() external {
         vm.startPrank(alice);
-        floorWars.vote(address(mock721));
-        floorWars.vote(address(mock1155));
+        newCollectionWars.vote(address(mock721));
+        newCollectionWars.vote(address(mock1155));
         vm.stopPrank();
     }
 
     function test_CannotVoteOnInvalidWarCollection() external {
         vm.expectRevert('Invalid collection');
         vm.prank(alice);
-        floorWars.vote(address(10));
+        newCollectionWars.vote(address(10));
     }
 
     function test_CanVoteWithCollectionNft721() external {
@@ -246,12 +246,12 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        assertEq(mock721.ownerOf(0), address(floorWars));
-        assertEq(mock721.ownerOf(1), address(floorWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWars));
+        assertEq(mock721.ownerOf(1), address(newCollectionWars));
         assertEq(mock721.ownerOf(2), alice);
     }
 
@@ -269,13 +269,13 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock1155.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock1155), tokenIds, amounts, exercisePercents);
+        mock1155.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock1155), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        assertEq(mock1155.balanceOf(address(floorWars), 0), 5);
-        assertEq(mock1155.balanceOf(address(floorWars), 1), 3);
-        assertEq(mock1155.balanceOf(address(floorWars), 2), 0);
+        assertEq(mock1155.balanceOf(address(newCollectionWars), 0), 5);
+        assertEq(mock1155.balanceOf(address(newCollectionWars), 1), 3);
+        assertEq(mock1155.balanceOf(address(newCollectionWars), 2), 0);
 
         assertEq(mock1155.balanceOf(alice, 0), 5);
         assertEq(mock1155.balanceOf(alice, 1), 7);
@@ -293,10 +293,10 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[0] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
 
         vm.expectRevert('ERC721: caller is not token owner or approved');
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         assertEq(mock721.ownerOf(10), carol);
@@ -313,7 +313,7 @@ contract FloorWarsTest is FloorTest {
         epochManager.setCurrentEpoch(currentEpoch);
 
         vm.prank(address(epochManager));
-        floorWars.endFloorWar();
+        newCollectionWars.endFloorWar();
     }
 
     function test_CannotEndFloorWarThatDoesNotExist() external {
@@ -323,7 +323,7 @@ contract FloorWarsTest is FloorTest {
         // We then try to end another floor war, but none should exist
         vm.expectRevert('No war currently running');
         vm.prank(address(epochManager));
-        floorWars.endFloorWar();
+        newCollectionWars.endFloorWar();
     }
 
     function test_CanExerciseStakedNft721() external {
@@ -342,13 +342,13 @@ contract FloorWarsTest is FloorTest {
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         epochManager.endEpoch();
 
-        floorWars.exerciseOptions{value: 1.35 ether}(war, 1.35 ether);
+        newCollectionWars.exerciseOptions{value: 1.35 ether}(war, 1.35 ether);
 
         assertEq(mock721.ownerOf(0), address(treasury));
         assertEq(mock721.ownerOf(1), address(treasury));
@@ -356,12 +356,12 @@ contract FloorWarsTest is FloorTest {
         // Alice should still have the same ETH amount that she started with, but will have
         // the additional amounts awaiting her in escrow.
         assertEq(address(alice).balance, aliceStartAmount);
-        assertEq(floorWars.payments(address(alice)), 0.60 ether + 0.75 ether);
+        assertEq(newCollectionWars.payments(address(alice)), 0.60 ether + 0.75 ether);
 
         // Confirm that Alice can then withdraw the payment
-        floorWars.withdrawPayments(payable(alice));
+        newCollectionWars.withdrawPayments(payable(alice));
         assertEq(address(alice).balance, aliceStartAmount + 0.60 ether + 0.75 ether);
-        assertEq(floorWars.payments(address(alice)), 0);
+        assertEq(newCollectionWars.payments(address(alice)), 0);
     }
 
     function test_CanExerciseStakedNft721ViaSweeper() external {
@@ -392,8 +392,8 @@ contract FloorWarsTest is FloorTest {
 
         // Set approval for our all of our tokens and stake them
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         // Set our minimum sweep amount in the Treasury to ensure we have a sweep
@@ -412,7 +412,7 @@ contract FloorWarsTest is FloorTest {
         treasury.sweepEpoch{value: 5 ether}(1, address(0), '', 3 ether);
 
         // Set up our Mercenary sweeper contract and assign it to our {Treasury}
-        treasury.setMercenarySweeper(address(new MercenarySweeper(address(floorWars))));
+        treasury.setMercenarySweeper(address(new MercenarySweeper(address(newCollectionWars))));
 
         // Now make a sweep call directly via the Treasury to confirm that
         // our implementation is correctly run. We pass a sweeper mock to
@@ -426,12 +426,12 @@ contract FloorWarsTest is FloorTest {
         assertEq(IERC721(mock721).ownerOf(1), address(treasury));
         assertEq(IERC721(mock721).ownerOf(2), address(treasury));
         assertEq(IERC721(mock721).ownerOf(3), address(treasury));
-        assertEq(IERC721(mock721).ownerOf(4), address(floorWars));
-        assertEq(IERC721(mock721).ownerOf(5), address(floorWars));
+        assertEq(IERC721(mock721).ownerOf(4), address(newCollectionWars));
+        assertEq(IERC721(mock721).ownerOf(5), address(newCollectionWars));
         assertEq(IERC721(mock721).ownerOf(6), address(treasury));
         assertEq(IERC721(mock721).ownerOf(7), address(treasury));
-        assertEq(IERC721(mock721).ownerOf(8), address(floorWars));
-        assertEq(IERC721(mock721).ownerOf(9), address(floorWars));
+        assertEq(IERC721(mock721).ownerOf(8), address(newCollectionWars));
+        assertEq(IERC721(mock721).ownerOf(9), address(newCollectionWars));
     }
 
     function test_CannotExerciseStakedNft721WithInsufficientMsgValue() external {
@@ -448,14 +448,14 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         epochManager.endEpoch();
 
         vm.expectRevert();  // Throws "EvmError: OutOfFund"
-        floorWars.exerciseOptions{value: 0.1 ether}(war, 1 ether);
+        newCollectionWars.exerciseOptions{value: 0.1 ether}(war, 1 ether);
     }
 
     function test_CanExerciseStakedNft1155() external {
@@ -477,8 +477,8 @@ contract FloorWarsTest is FloorTest {
         uint aliceStartAmount = address(alice).balance;
 
         vm.startPrank(alice);
-        mock1155.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock1155), tokenIds, amounts, exercisePercents);
+        mock1155.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock1155), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         epochManager.endEpoch();
@@ -493,10 +493,10 @@ contract FloorWarsTest is FloorTest {
          * 2e then we should get 5x token #0, 2x token #1 and 0.05e in dust.
          */
 
-        floorWars.exerciseOptions{value: 2 ether}(war, 2 ether);
+        newCollectionWars.exerciseOptions{value: 2 ether}(war, 2 ether);
 
-        assertEq(mock1155.balanceOf(address(floorWars), 0), 0);
-        assertEq(mock1155.balanceOf(address(floorWars), 1), 3);
+        assertEq(mock1155.balanceOf(address(newCollectionWars), 0), 0);
+        assertEq(mock1155.balanceOf(address(newCollectionWars), 1), 3);
 
         assertEq(mock1155.balanceOf(address(treasury), 0), 5);
         assertEq(mock1155.balanceOf(address(treasury), 1), 2);
@@ -504,12 +504,12 @@ contract FloorWarsTest is FloorTest {
         // Alice should still have the same ETH amount that she started with, but will have
         // the additional amounts awaiting her in escrow.
         assertEq(address(alice).balance, aliceStartAmount);
-        assertEq(floorWars.payments(address(alice)), 1.95 ether);
+        assertEq(newCollectionWars.payments(address(alice)), 1.95 ether);
 
         // Confirm that Alice can then withdraw the payment
-        floorWars.withdrawPayments(payable(alice));
+        newCollectionWars.withdrawPayments(payable(alice));
         assertEq(address(alice).balance, aliceStartAmount + 1.95 ether);
-        assertEq(floorWars.payments(address(alice)), 0);
+        assertEq(newCollectionWars.payments(address(alice)), 0);
     }
 
     function test_CannotReclaimStakedNftInSameEpoch() external {
@@ -529,11 +529,11 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        assertEq(floorWars.collectionVotes(keccak256(abi.encode(war, address(mock721)))), 1.5 ether);
+        assertEq(newCollectionWars.collectionVotes(keccak256(abi.encode(war, address(mock721)))), 1.5 ether);
 
         // Set our exercise percent
         uint56[] memory claimPercents = new uint56[](1);
@@ -547,10 +547,10 @@ contract FloorWarsTest is FloorTest {
 
         vm.expectRevert('Currently timelocked');
         vm.prank(alice);
-        floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
+        newCollectionWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
 
-        assertEq(mock721.ownerOf(0), address(floorWars));
-        assertEq(mock721.ownerOf(1), address(floorWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWars));
+        assertEq(mock721.ownerOf(1), address(newCollectionWars));
     }
 
     function test_CanReclaimStakedNft() external {
@@ -567,8 +567,8 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         epochManager.endEpoch();
@@ -585,7 +585,7 @@ contract FloorWarsTest is FloorTest {
         indexes.push(index);
 
         vm.startPrank(alice);
-        floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
+        newCollectionWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
         vm.stopPrank();
 
         assertEq(mock721.ownerOf(0), alice);
@@ -594,7 +594,7 @@ contract FloorWarsTest is FloorTest {
 
     function test_CanReclaimStakedNftThatDidNotWinWithinTimelock() external {
         vm.prank(bob);
-        floorWars.vote(address(1));
+        newCollectionWars.vote(address(1));
 
         uint[] memory tokenIds = new uint[](2);
         tokenIds[0] = 0;
@@ -609,8 +609,8 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         epochManager.endEpoch();
@@ -627,7 +627,7 @@ contract FloorWarsTest is FloorTest {
         indexes.push(index);
 
         vm.startPrank(alice);
-        floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
+        newCollectionWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
         vm.stopPrank();
 
         assertEq(mock721.ownerOf(0), address(alice));
@@ -648,8 +648,8 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         // Should only be reclaimable from epoch 2
@@ -668,11 +668,11 @@ contract FloorWarsTest is FloorTest {
 
         vm.startPrank(alice);
         vm.expectRevert('Currently timelocked');
-        floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
+        newCollectionWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
         vm.stopPrank();
 
-        assertEq(mock721.ownerOf(0), address(floorWars));
-        assertEq(mock721.ownerOf(1), address(floorWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWars));
+        assertEq(mock721.ownerOf(1), address(newCollectionWars));
 
         // Now that an additional 2 epoches have ended, it will now be claimable (one for
         // the DAO to exercise and one for Floor NFT holders to exercise).
@@ -681,7 +681,7 @@ contract FloorWarsTest is FloorTest {
         epochManager.endEpoch();
 
         vm.prank(alice);
-        floorWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
+        newCollectionWars.reclaimOptions(war, address(mock721), claimPercents, indexes);
 
         assertEq(mock721.ownerOf(0), address(alice));
         assertEq(mock721.ownerOf(1), address(alice));
@@ -700,10 +700,10 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[0] = exercisePercent;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
 
         vm.expectRevert('Exercise percent above 100%');
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
     }
 
@@ -711,7 +711,7 @@ contract FloorWarsTest is FloorTest {
         // Cast some base votes that should not be manipulated. Bob will cast
         // `50 ether` votes from this transaction.
         vm.prank(bob);
-        floorWars.vote(address(mock721));
+        newCollectionWars.vote(address(mock721));
 
         // Cast some NFT votes that should be manipulated
         uint[] memory tokenIds = new uint[](2);
@@ -727,46 +727,46 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         bytes32 warCollection = keccak256(abi.encode(war, address(mock721)));
 
         // Check our collection vote counts with our initial 0.75e token price
-        assertEq(floorWars.collectionVotes(warCollection), 50 ether + ((0.75 ether * 125) / 100) + 0.75 ether);
-        assertEq(floorWars.collectionNftVotes(warCollection), ((0.75 ether * 125) / 100) + 0.75 ether);
+        assertEq(newCollectionWars.collectionVotes(warCollection), 50 ether + ((0.75 ether * 125) / 100) + 0.75 ether);
+        assertEq(newCollectionWars.collectionNftVotes(warCollection), ((0.75 ether * 125) / 100) + 0.75 ether);
 
         // 0.75 ether => 1 ether
-        floorWars.updateCollectionFloorPrice(address(mock721), 1 ether);
+        newCollectionWars.updateCollectionFloorPrice(address(mock721), 1 ether);
 
         // Check our collection vote counts
-        assertAlmostEqual(floorWars.collectionVotes(warCollection), 50 ether + ((1 ether * 125) / 100) + 1 ether, 1);
-        assertAlmostEqual(floorWars.collectionNftVotes(warCollection), ((1 ether * 125) / 100) + 1 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionVotes(warCollection), 50 ether + ((1 ether * 125) / 100) + 1 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionNftVotes(warCollection), ((1 ether * 125) / 100) + 1 ether, 1);
 
         // 1 ether => 0.5 ether
-        floorWars.updateCollectionFloorPrice(address(mock721), 1 ether);
+        newCollectionWars.updateCollectionFloorPrice(address(mock721), 1 ether);
 
         // Check our collection vote counts
-        assertAlmostEqual(floorWars.collectionVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
-        assertAlmostEqual(floorWars.collectionNftVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionNftVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
 
         // 0.5 ether => 0.5 ether
-        floorWars.updateCollectionFloorPrice(address(mock721), 0.5 ether);
+        newCollectionWars.updateCollectionFloorPrice(address(mock721), 0.5 ether);
 
         // Check our collection vote counts
-        assertAlmostEqual(floorWars.collectionVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
-        assertAlmostEqual(floorWars.collectionNftVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
+        assertAlmostEqual(newCollectionWars.collectionNftVotes(warCollection), ((0.5 ether * 125) / 100) + 0.5 ether, 1);
     }
 
     function test_CannotUpdateCollectionFloorPriceToZero() external {
         vm.expectRevert('Invalid floor price');
-        floorWars.updateCollectionFloorPrice(address(mock721), 0);
+        newCollectionWars.updateCollectionFloorPrice(address(mock721), 0);
     }
 
     function test_CannotUpdateCollectionFloorPriceToUnknownCollection() external {
         vm.expectRevert('Invalid collection');
-        floorWars.updateCollectionFloorPrice(address(6), 1 ether);
+        newCollectionWars.updateCollectionFloorPrice(address(6), 1 ether);
     }
 
     function test_CanExerciseNftAsFloorNftHolder() external {
@@ -788,8 +788,8 @@ contract FloorWarsTest is FloorTest {
         exercisePercents[1] = 100;
 
         vm.startPrank(alice);
-        mock721.setApprovalForAll(address(floorWars), true);
-        floorWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
+        mock721.setApprovalForAll(address(newCollectionWars), true);
+        newCollectionWars.createOption(address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
         // Mint an NFT to one of our test users
@@ -799,7 +799,7 @@ contract FloorWarsTest is FloorTest {
         // Attempt to exercise without a winning collection
         vm.expectRevert('FloorWar has not ended');
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+        newCollectionWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
 
         // End the war and enter the DAO epoch window
         epochManager.endEpoch();
@@ -807,7 +807,7 @@ contract FloorWarsTest is FloorTest {
         // Attempt to exercise as a holder before the correct window has opened
         vm.expectRevert('Outside exercise window');
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+        newCollectionWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
 
         // Move to the holder epoch window
         vm.warp(block.timestamp + 7 days);
@@ -815,26 +815,26 @@ contract FloorWarsTest is FloorTest {
 
         // Approve our locker
         vm.prank(alice);
-        floorNft.approveLocker(address(floorWars), 0);
+        floorNft.approveLocker(address(newCollectionWars), 0);
 
         // Attempt to exercise an option that does not exist
         vm.expectRevert('Nothing staked at index');
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 1);
+        newCollectionWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 1);
 
         // Exercise as a holder
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+        newCollectionWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
 
         // Attempt to exercise again as a holder
         vm.expectRevert('Token is already locked');
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
+        newCollectionWars.holderExerciseOptions{value: 0.8 ether}(war, 0, exercisePercents[0], 0);
 
         // Attempt to exercise as a non-holder
         vm.expectRevert('User is not owner, nor currently staked with an approved staker');
         vm.prank(bob);
-        floorWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
+        newCollectionWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
 
         // Move forward another epoch to exit the holder epoch window
         vm.warp(block.timestamp + 7 days);
@@ -843,31 +843,31 @@ contract FloorWarsTest is FloorTest {
         // Attempt to exercise outside the window, in the future
         vm.expectRevert('Outside exercise window');
         vm.prank(alice);
-        floorWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
+        newCollectionWars.holderExerciseOptions{value: 1 ether}(war, 0, exercisePercents[1], 0);
     }
 
     function test_CanCalculateNftVotingPower() external {
-        assertEq(floorWars.nftVotingPower(1 ether, 0),   2.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 10),  1.90 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 20),  1.80 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 30),  1.70 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 40),  1.60 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 50),  1.50 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 60),  1.40 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 70),  1.30 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 80),  1.20 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 90),  1.10 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 100), 1.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 110), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 120), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 130), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 140), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 150), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 160), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 170), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 180), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 190), 0.00 ether);
-        assertEq(floorWars.nftVotingPower(1 ether, 200), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 0),   2.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 10),  1.90 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 20),  1.80 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 30),  1.70 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 40),  1.60 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 50),  1.50 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 60),  1.40 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 70),  1.30 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 80),  1.20 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 90),  1.10 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 100), 1.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 110), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 120), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 130), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 140), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 150), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 160), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 170), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 180), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 190), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(1 ether, 200), 0.00 ether);
     }
 
 

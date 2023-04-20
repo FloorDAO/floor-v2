@@ -14,14 +14,14 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 
-import {IFloorWars} from '@floor-interfaces/voting/FloorWars.sol';
+import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
 
 /**
  * ..
  */
-contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721Receiver, IFloorWars, PullPayment {
+contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721Receiver, INewCollectionWars, PullPayment {
 
     /// Internal contract mappings
     ITreasury immutable public treasury;
@@ -30,7 +30,7 @@ contract FloorWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721R
     /// Internal floor NFT mapping
     address immutable public floorNft;
 
-    /// Stores a collection of all the FloorWars that have been started
+    /// Stores a collection of all the NewCollectionWars that have been started
     FloorWar public currentWar;
     FloorWar[] public wars;
 

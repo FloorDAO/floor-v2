@@ -8,7 +8,7 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {CollectionNotApproved, VaultFactory, VaultNameCannotBeEmpty} from '@floor/vaults/VaultFactory.sol';
 
-import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
+import {SweepWarsMock} from '../mocks/SweepWars.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract VaultFactoryTest is FloorTest {

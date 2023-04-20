@@ -11,7 +11,7 @@ pragma solidity ^0.8.0;
  * At point of development this can take influence from:
  * https://github.com/saddle-finance/saddle-contract/blob/master/contracts/tokenomics/gauges/GaugeController.vy
  */
-interface IGaugeWeightVote {
+interface ISweepWars {
 
     /// Sent when a user casts or revokes their vote
     event VoteCast(address sender, address collection, uint amount);

@@ -14,7 +14,7 @@ import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
-import {GaugeWeightVoteMock} from '../mocks/GaugeWeightVote.sol';
+import {SweepWarsMock} from '../mocks/SweepWars.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract VaultTest is FloorTest {

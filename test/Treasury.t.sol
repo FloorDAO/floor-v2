@@ -15,12 +15,12 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {Vault} from '@floor/vaults/Vault.sol';
 import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
-import {GaugeWeightVote} from '@floor/voting/GaugeWeightVote.sol';
+import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IGaugeWeightVote} from '@floor-interfaces/voting/GaugeWeightVote.sol';
+import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
 
@@ -42,7 +42,7 @@ contract TreasuryTest is FloorTest {
     EpochManager epochManager;
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
-    GaugeWeightVote gaugeWeightVote;
+    SweepWars sweepWars;
     VaultFactory vaultFactory;
 
     constructor() {
@@ -76,7 +76,7 @@ contract TreasuryTest is FloorTest {
         );
 
         // Create our Gauge Weight Vote contract
-        gaugeWeightVote = new GaugeWeightVote(
+        sweepWars = new SweepWars(
             address(collectionRegistry),
             address(vaultFactory),
             address(veFloor),
@@ -92,12 +92,12 @@ contract TreasuryTest is FloorTest {
             address(pricingExecutorMock),
             address(treasury),
             address(vaultFactory),
-            address(gaugeWeightVote),
+            address(sweepWars),
             address(0)  // Vote Market not needed for these tests
         );
 
         // Set our epoch manager
-        gaugeWeightVote.setEpochManager(address(epochManager));
+        sweepWars.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
