@@ -7,24 +7,14 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 
 /**
- * Deploys our contracts and validates them on Etherscan.
- *
- * This should be run in the following command:
- *
- * ```
- * forge script script/deployment/1_DeployCoreContracts.s.sol:DeployCoreContracts \
- *      --rpc-url [RPC URL] \
- *      --broadcast \
- *      --verify \
- *      -vvvv \
- *      --private-key [PRIVATE KEY]
- * ```
+ * Deploys our collection registry and approves our default collections
  */
 contract DeployCoreContracts is DeploymentScript {
 
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         address authorityRegistry = requireDeployment('AuthorityRegistry');
+        address floorNft = requireDeployment('FloorNft');
 
         // Deploy our {CollectionRegistry} contract
         CollectionRegistry collectionRegistry = new CollectionRegistry(authorityRegistry);
@@ -69,10 +59,10 @@ contract DeployCoreContracts is DeploymentScript {
             0xD3D9ddd0CF0A5F0BFB8f7fcEAe075DF687eAEBaB,
             0xa35Bd2246978Dfbb1980DFf8Ff0f5834335dFdbc
         );
-        // collectionRegistry.approveCollection(  // FLOOR
-        //    ,
-        //
-        // );
+        collectionRegistry.approveCollection(  // FLOOR
+            floorNft,
+            address(0)
+        );
     }
 
 }

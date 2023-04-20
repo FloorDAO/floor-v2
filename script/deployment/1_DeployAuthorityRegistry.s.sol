@@ -7,18 +7,7 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 
 /**
- * Deploys our contracts and validates them on Etherscan.
- *
- * This should be run in the following command:
- *
- * ```
- * forge script script/deployment/1_DeployCoreContracts.s.sol:DeployCoreContracts \
- *      --rpc-url [RPC URL] \
- *      --broadcast \
- *      --verify \
- *      -vvvv \
- *      --private-key [PRIVATE KEY]
- * ```
+ * Deploys our authority registry contract.
  */
 contract DeployAuthorityRegistry is DeploymentScript {
 
