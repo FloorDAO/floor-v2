@@ -13,6 +13,7 @@ import {FloorTest} from '../../utilities/Environments.sol';
 contract SushiswapRemoveLiquidityTest is FloorTest {
     /// ..
     address internal constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address internal constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
 
     /// ..
     address internal constant TOKEN_A = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9;
@@ -37,7 +38,7 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up a floor migration contract
         addAction = new SushiswapAddLiquidity(UNISWAP_ROUTER);
-        action = new SushiswapRemoveLiquidity(UNISWAP_ROUTER);
+        action = new SushiswapRemoveLiquidity(UNISWAP_ROUTER, UNISWAP_FACTORY);
 
         deal(TOKEN_A, address(this), 100 ether);
         deal(TOKEN_B, address(this), 100 ether);

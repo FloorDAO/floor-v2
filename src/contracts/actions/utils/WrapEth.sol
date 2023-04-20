@@ -12,20 +12,6 @@ contract WrapEth is IAction {
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// The {Treasury} contract that will provide the ERC20 tokens and will be
-    /// the recipient of the swapped WETH.
-    address public immutable treasury;
-
-    /**
-     * We assign any variable contract addresses in our constructor, allowing us
-     * to have multiple deployed actions if any parameters change.
-     *
-     * @param _treasury Address of the Floor {Treasury} contract
-     */
-    constructor(address _treasury) {
-        treasury = _treasury;
-    }
-
     /**
      * Wraps a fixed amount of ETH into WETH.
      *
@@ -33,7 +19,7 @@ contract WrapEth is IAction {
      */
     function execute(bytes calldata /* _request */ ) public payable returns (uint) {
         IWETH(WETH).deposit{value: msg.value}();
-        IWETH(WETH).transfer(treasury, msg.value);
+        IWETH(WETH).transfer(msg.sender, msg.value);
 
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury}.

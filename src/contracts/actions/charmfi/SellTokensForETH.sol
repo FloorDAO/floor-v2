@@ -24,6 +24,10 @@ contract UniswapSellTokensForETH is IAction {
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    /// The {Treasury} contract that will provide the ERC20 tokens and will be
+    /// the recipient of the swapped WETH.
+    address public immutable treasury;
+
     /**
      * Store our required information to action a swap.
      *
@@ -50,9 +54,11 @@ contract UniswapSellTokensForETH is IAction {
      * to have multiple deployed actions if any parameters change.
      *
      * @param _swapRouter The UniSwap {SwapRouter} contract
+     * @param _treasury Address of the Floor {Treasury} contract
      */
-    constructor(address _swapRouter) {
+    constructor(address _swapRouter, address _treasury) {
         swapRouter = ISwapRouter(_swapRouter);
+        treasury = _treasury;
     }
 
     /**
@@ -81,7 +87,7 @@ contract UniswapSellTokensForETH is IAction {
             request.token0, // tokenIn
             WETH, // tokenOut
             request.fee, // fee
-            msg.sender, // recipient
+            treasury, // recipient
             request.deadline, // deadline
             request.amountIn, // amountIn
             request.amountOutMinimum, // amountOutMinimum

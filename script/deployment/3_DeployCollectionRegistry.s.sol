@@ -7,9 +7,9 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 
 /**
- * Deploys our collection registry and approves our default collections
+ * Deploys our collection registry and approves our default collections.
  */
-contract DeployCoreContracts is DeploymentScript {
+contract DeployCollectionRegistry is DeploymentScript {
 
     function run() external deployer {
         // Confirm that we have our required contracts deployed

@@ -25,7 +25,7 @@ contract CowSwapCreateOrderTest is FloorTest {
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Send this address as the {Treasury} parameter so we can see what comes back
-        action = new CowSwapCreateOrder(SETTLEMENT_CONTRACT, WETH);
+        action = new CowSwapCreateOrder(SETTLEMENT_CONTRACT);
 
         alice = users[0];
     }

@@ -43,12 +43,11 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
     /// Domain separator taked from the settlement contract
     bytes32 public immutable domainSeparator;
 
-    IWETH public immutable weth;
+    address public constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    constructor(address settlement_, address weth_) {
+    constructor(address settlement_) {
         settlement = ICoWSwapSettlement(settlement_);
         domainSeparator = settlement.domainSeparator();
-        weth = IWETH(weth_);
     }
 
 
@@ -68,8 +67,8 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
         require(request.buyAmount + request.sellAmount > 0);
 
         // Wrap our msg.value into WETH if that is our sell token
-        if (request.sellToken == address(weth)) {
-            weth.deposit{value: request.sellAmount}();
+        if (request.sellToken == weth) {
+            IWETH(weth).deposit{value: request.sellAmount}();
         }
 
         // Approve the vault relayer to use our tokens when needed

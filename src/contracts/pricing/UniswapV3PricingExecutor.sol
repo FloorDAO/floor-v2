@@ -8,6 +8,8 @@ import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
+
 
 /// If we are unable to find a pool for the Uniswap token combination
 error UnknownUniswapPool();
@@ -182,10 +184,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * Retrieves the liquidity of a Uniswap pool.
+     * Retrieves the amount of WETH held in the Uniswap pool.
      */
     function getLiquidity(address token) external returns (uint) {
-        return IUniswapV3Pool(_poolAddress(token)).liquidity();
+        return IWETH(WETH).balanceOf(_poolAddress(token));
     }
 
     /**

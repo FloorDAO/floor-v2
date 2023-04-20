@@ -38,6 +38,6 @@ contract LlamapayDeposit is IAction, Pausable {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return llamapayRouter.deposit(request.token, request.amountToDeposit);
+        return llamapayRouter.deposit(msg.sender, request.token, request.amountToDeposit);
     }
 }

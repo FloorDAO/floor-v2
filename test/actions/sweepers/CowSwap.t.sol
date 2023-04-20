@@ -23,7 +23,7 @@ contract CowSwapSweepTest is FloorTest {
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Send this address as the {Treasury} parameter so we can see what comes back
-        action = new CowSwapSweeper(SETTLEMENT_CONTRACT, WETH, address(this));
+        action = new CowSwapSweeper(SETTLEMENT_CONTRACT, address(this));
     }
 
     /**

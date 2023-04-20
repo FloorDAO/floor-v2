@@ -47,6 +47,6 @@ contract LlamapayCreateStream is IAction, Pausable {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return llamapayRouter.createStream(request.to, request.token, request.amountToDeposit, uint216(request.amountPerSec));
+        return llamapayRouter.createStream(msg.sender, request.to, request.token, request.amountToDeposit, uint216(request.amountPerSec));
     }
 }

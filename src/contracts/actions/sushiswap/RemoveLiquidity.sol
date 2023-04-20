@@ -43,9 +43,9 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * ..
      */
-    constructor(address _uniswapRouter) {
+    constructor(address _uniswapRouter, address _uniswapFactory) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
-        uniswapFactory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+        uniswapFactory = IUniswapV2Factory(_uniswapFactory);
     }
 
     /**

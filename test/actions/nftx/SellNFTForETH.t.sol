@@ -36,7 +36,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         treasury = 0x15abb66bA754F05cBC0165A64A11cDed1543dE48;
 
         // Set up a floor migration contract
-        action = new NFTXSellNFTForETH(MARKETPLACE_ZAP, treasury);
+        action = new NFTXSellNFTForETH(MARKETPLACE_ZAP);
     }
 
     /**

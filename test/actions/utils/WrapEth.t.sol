@@ -26,7 +26,7 @@ contract WrapEthTest is FloorTest {
         treasury = users[1];
 
         // Set up a WrapEth action
-        action = new WrapEth(treasury);
+        action = new WrapEth();
 
         // Set up a WETH interface
         weth = IWETH(action.WETH());

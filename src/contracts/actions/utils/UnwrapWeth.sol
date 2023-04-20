@@ -12,10 +12,6 @@ contract UnwrapWeth is IAction {
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// The {Treasury} contract that will provide the ERC20 tokens and will be
-    /// the recipient of the swapped WETH.
-    address public immutable treasury;
-
     /**
      * Store our required information to action a swap.
      *
@@ -23,16 +19,6 @@ contract UnwrapWeth is IAction {
      */
     struct ActionRequest {
         uint amount;
-    }
-
-    /**
-     * We assign any variable contract addresses in our constructor, allowing us
-     * to have multiple deployed actions if any parameters change.
-     *
-     * @param _treasury Address of the Floor {Treasury} contract
-     */
-    constructor(address _treasury) {
-        treasury = _treasury;
     }
 
     /**
@@ -47,14 +33,14 @@ contract UnwrapWeth is IAction {
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
         // Transfer the WETH from the {Treasury} into the action
-        IWETH(WETH).transferFrom(treasury, address(this), request.amount);
+        IWETH(WETH).transferFrom(msg.sender, address(this), request.amount);
         require(IWETH(WETH).balanceOf(address(this)) == request.amount, 'Wrong amount');
 
         // Unwrap the WETH into ETH
         IWETH(WETH).withdraw(request.amount);
 
         // Transfer ETH to the {Treasury}
-        (bool success,) = treasury.call{value: request.amount}('');
+        (bool success,) = payable(msg.sender).call{value: request.amount}('');
         require(success, 'Eth send fail');
 
         // We return just the amount of WETH generated in the swap, which will have

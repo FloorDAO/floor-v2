@@ -26,7 +26,7 @@ contract UnwrapWethTest is FloorTest {
         treasury = users[1];
 
         // Set up a WrapEth action
-        action = new UnwrapWeth(treasury);
+        action = new UnwrapWeth();
 
         // Set up a WETH interface
         weth = IWETH(action.WETH());
@@ -53,6 +53,7 @@ contract UnwrapWethTest is FloorTest {
         uint treasuryWethPreWrap = weth.balanceOf(treasury);
 
         // Action our wrap
+        vm.prank(treasury);
         uint amountOut = action.execute(abi.encode(amount));
         assertEq(amount, amountOut);
 

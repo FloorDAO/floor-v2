@@ -42,11 +42,11 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
 
     address public immutable treasury;
 
-    constructor(address settlement_, address weth_, address treasury_) {
+    constructor(address settlement_, address treasury_) {
         settlement = ICoWSwapSettlement(settlement_);
         domainSeparator = settlement.domainSeparator();
         treasury = treasury_;
-        weth = IWETH(weth_);
+        weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     }
 
     function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata /* data */) external payable override returns (string memory) {

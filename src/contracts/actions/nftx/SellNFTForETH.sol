@@ -24,10 +24,6 @@ contract NFTXSellNFTForETH is IAction {
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// The {Treasury} contract that will fund the NFT tokens and will be
-    /// the recipient of the swapped WETH.
-    address public immutable treasury;
-
     /**
      * Store our required information to action a swap.
      *
@@ -51,11 +47,9 @@ contract NFTXSellNFTForETH is IAction {
      * to have multiple deployed actions if any parameters change.
      *
      * @param _marketplaceZap Address of the NFTX Marketplace Zap
-     * @param _treasury Address of the Floor {Treasury} contract
      */
-    constructor(address _marketplaceZap, address _treasury) {
+    constructor(address _marketplaceZap) {
         marketplaceZap = INFTXMarketplaceZap(_marketplaceZap);
-        treasury = _treasury;
     }
 
     /**
@@ -95,14 +89,14 @@ contract NFTXSellNFTForETH is IAction {
         ERC721(request.asset).setApprovalForAll(address(marketplaceZap), true);
 
         // Take a snapshot of our starting balance to calculate the end balance difference
-        uint startBalance = address(treasury).balance;
+        uint startBalance = address(msg.sender).balance;
 
         // Set up our swap parameters based on `execute` parameters
-        marketplaceZap.mintAndSell721(request.vaultId, request.tokenIds, request.minEthOut, request.path, treasury);
+        marketplaceZap.mintAndSell721(request.vaultId, request.tokenIds, request.minEthOut, request.path, msg.sender);
 
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury} during the swap itself.
-        return address(treasury).balance - startBalance;
+        return address(msg.sender).balance - startBalance;
     }
 
     /**

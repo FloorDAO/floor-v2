@@ -38,6 +38,6 @@ contract LlamapayWithdraw is IAction, Pausable {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return llamapayRouter.withdraw(request.token, request.amount);
+        return llamapayRouter.withdraw(msg.sender, request.token, request.amount);
     }
 }

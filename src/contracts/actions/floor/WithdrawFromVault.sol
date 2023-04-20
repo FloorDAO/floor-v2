@@ -16,8 +16,6 @@ contract FloorWithdrawFromVault is AuthorityControl, IAction {
 
     /**
      * Store our required information to action a swap.
-     *
-     * ..
      */
     struct ActionRequest {
         address vaultFactory;
@@ -26,18 +24,13 @@ contract FloorWithdrawFromVault is AuthorityControl, IAction {
         uint amount;
     }
 
-    address public immutable treasury;
-
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
      *
      * @param _authority {AuthorityRegistry} contract address
-     * @param _treasury ..
      */
-    constructor(address _authority, address _treasury) AuthorityControl(_authority) {
-        treasury = _treasury;
-    }
+    constructor(address _authority) AuthorityControl(_authority) {}
 
     /**
      * Sells our specified `tokenIds` from the NFTX vault collection to gain instant
@@ -59,7 +52,7 @@ contract FloorWithdrawFromVault is AuthorityControl, IAction {
         received = IVaultFactory(request.vaultFactory).withdraw(request.vaultId, request.token, request.amount);
 
         // Transfer the tokens to the {Treasury}
-        IERC20(request.token).transfer(treasury, received);
+        IERC20(request.token).transfer(msg.sender, received);
     }
 
 }

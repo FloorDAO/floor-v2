@@ -37,7 +37,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         treasury = 0x15abb66bA754F05cBC0165A64A11cDed1543dE48;
 
         // Set up a floor migration contract
-        action = new UniswapSellTokensForETH(UNISWAP_ROUTER, treasury);
+        action = new UniswapSellTokensForETH(UNISWAP_ROUTER);
     }
 
     /**

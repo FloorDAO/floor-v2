@@ -28,7 +28,7 @@ contract LlamaPayDepositTest is FloorTest {
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our LlamaPay Router
-        llamapayRouter = new LlamapayRouter(LLAMAPAY_CONTRACT, address(this));
+        llamapayRouter = new LlamapayRouter(LLAMAPAY_CONTRACT);
 
         // Set up our action, using the test suite's address as the {Treasury}
         action = new LlamapayDeposit(llamapayRouter);

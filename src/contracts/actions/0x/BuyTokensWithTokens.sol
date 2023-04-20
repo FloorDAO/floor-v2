@@ -17,9 +17,6 @@ contract BuyTokensWithTokens is IAction {
     /// Internal store of desired 0x contract
     address public immutable swapTarget;
 
-    /// Internal address of our {Treasury}
-    address public immutable treasury;
-
     /**
      * Store our required information to action a swap.
      */
@@ -34,11 +31,9 @@ contract BuyTokensWithTokens is IAction {
      * to have multiple deployed actions if any parameters change.
      *
      * @param _swapTarget Address of the 0x swap contract
-     * @param _treasury Address of the Floor {Treasury} contract
      */
-    constructor(address _swapTarget, address _treasury) {
+    constructor(address _swapTarget) {
         swapTarget = _swapTarget;
-        treasury = _treasury;
     }
 
     /**
@@ -56,7 +51,7 @@ contract BuyTokensWithTokens is IAction {
         if (_sellToken != ETH) {
             // Transfer our allowance of the `sellToken` from the {Treasury} so that
             // we can handle any amount request. We later transfer dust back if left.
-            IERC20(_sellToken).transferFrom(treasury, address(this), IERC20(_sellToken).allowance(treasury, address(this)));
+            IERC20(_sellToken).transferFrom(msg.sender, address(this), IERC20(_sellToken).allowance(msg.sender, address(this)));
         } else {
             IWETH(WETH).deposit{value: msg.value}();
             _sellToken = WETH;
@@ -74,7 +69,7 @@ contract BuyTokensWithTokens is IAction {
         // Transfer our allowance of the `sellToken` from the {Treasury} so that
         // we can handle any amount request. We later transfer dust back if left.
         if (_sellToken != WETH) {
-            sellToken.transferFrom(treasury, address(this), sellToken.allowance(treasury, address(this)));
+            sellToken.transferFrom(msg.sender, address(this), sellToken.allowance(msg.sender, address(this)));
         }
 
         // Give `swapTarget` an allowance to spend this contract's `sellToken`.
@@ -88,12 +83,12 @@ contract BuyTokensWithTokens is IAction {
         received_ = buyToken.balanceOf(address(this)) - startAmountBuy;
 
         // Transfer tokens back to the {Treasury}
-        buyToken.transfer(treasury, received_);
+        buyToken.transfer(msg.sender, received_);
 
         // If we still hold any `sellToken` then we can return this to the {Treasury} too
         uint sellTokenDust = sellToken.balanceOf(address(this));
         if (sellTokenDust != 0) {
-            sellToken.transfer(treasury, sellTokenDust);
+            sellToken.transfer(msg.sender, sellTokenDust);
         }
     }
 }
