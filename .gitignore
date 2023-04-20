@@ -28,4 +28,4 @@ artifacts
 cache_hardhat
 
 # floor
-.seedphrase
+.privatekey

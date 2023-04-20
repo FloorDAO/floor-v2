@@ -40,7 +40,8 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
     function run() external deployer {
 
         // Confirm that we have our required contracts deployed
-        address authorityRegistry = requireDeployment('AuthorityRegistry');
+        address authorityControl = requireDeployment('AuthorityControl');
+        address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
 
         // Set up some live uniswap contracts
@@ -56,7 +57,7 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
         // Store our created action contract addresses
         storeDeployment('BuyTokensWithTokens', address(new BuyTokensWithTokens(0xDef1C0ded9bec7F1a1670819833240f027b25EfF)));
         storeDeployment('FloorDepositIntoVault', address(new FloorDepositIntoVault()));
-        storeDeployment('FloorWithdrawFromVault', address(new FloorWithdrawFromVault(authorityRegistry)));
+        storeDeployment('FloorWithdrawFromVault', address(new FloorWithdrawFromVault(authorityControl)));
         storeDeployment('GemSweep', address(gemSweep));
         storeDeployment('LlamapayRouter', address(llamapayRouter));
         storeDeployment('LlamapayCreateStream', address(new LlamapayCreateStream(llamapayRouter)));
@@ -70,7 +71,7 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
         storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury)));
         storeDeployment('GemSweeper', address(new GemSweeper()));
         storeDeployment('ManualSweeper', address(new ManualSweeper()));
-        // TODO: MercenarySweeper mercenarySweeper = new MercenarySweeper(address _newCollectionWars)
+        storeDeployment('MercenarySweeper', address(new MercenarySweeper(newCollectionWars)));
 
         storeDeployment('UniswapAddLiquidity', address(new UniswapAddLiquidity(uniswapPositionManager)));
         storeDeployment('UniswapClaimPoolRewards', address(new UniswapClaimPoolRewards(uniswapPositionManager)));

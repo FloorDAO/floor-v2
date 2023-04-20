@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
 import 'forge-std/Script.sol';
+
 
 /**
  * Provides additional logic and helper methods for deployment scripts.
@@ -33,7 +35,7 @@ contract DeploymentScript is Script {
      *
      * @return The address of the deployed contract
      */
-    function requireDeployment(string memory key) internal view returns (address) {
+    function requireDeployment(string memory key) internal view returns (address payable) {
         // @dev This will raise an error if it cannot be read
         bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), 'deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
@@ -51,7 +53,7 @@ contract DeploymentScript is Script {
 
         // Ensure we found a deployment address and return it if we did
         require(deploymentAddress != address(0), 'Contract has not been deployed');
-        return deploymentAddress;
+        return payable(deploymentAddress);
     }
 
     /**
@@ -61,6 +63,9 @@ contract DeploymentScript is Script {
      * @param deploymentAddress The address that the contract was deployed to
      */
     function storeDeployment(string memory key, address deploymentAddress) internal {
+        // Ensure we aren't trying to store a zero address
+        require(deploymentAddress != address(0), 'Cannot store zero address');
+
         // Load our current JSON object
         bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), 'deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
@@ -73,10 +78,12 @@ contract DeploymentScript is Script {
 
         // Loop through all current deployments to search for our key
         for (uint i; i < deployments.length; ++i) {
+            // Copy over our base data
+            newDeployments[i] = deployments[i];
+
             if (keccak256(abi.encodePacked(deployments[i].key)) == keccak256(abi.encodePacked(key))) {
                 deployments[i].deploymentAddress = deploymentAddress;
                 exists = true;
-                break;
             }
         }
 
@@ -93,10 +100,13 @@ contract DeploymentScript is Script {
         // Loop through our new deployment data and parse it into a JSON string
         string memory json = '{"deployments":[';
         for (uint k; k < newDeployments.length; ++k) {
+            console.log(newDeployments[k].key);
+            console.logAddress(newDeployments[k].deploymentAddress);
+            console.log('---');
             json = string.concat(json, '{"deploymentAddress":"');
             json = string.concat(json, _addressToString(newDeployments[k].deploymentAddress));
             json = string.concat(json, '","key":"');
-            json = string.concat(json, key);
+            json = string.concat(json, newDeployments[k].key);
             json = string.concat(json, '"}');
 
             if (k + 1 != newDeployments.length) {
@@ -110,6 +120,24 @@ contract DeploymentScript is Script {
         vm.writeFile(JSON_PATH, json);
 
         console.log('Contract has been added to JSON successfully');
+    }
+
+    /**
+     * Wraps around a deployment function to load in the seed phrase of a wallet for
+     * deployments.
+     */
+    modifier deployer() {
+        // Load our seed phrase from a protected file
+        uint256 privateKey = _stringToUint(vm.readFile('.privatekey'));
+
+        // Using the passed in the script call, has all subsequent calls (at this call
+        // depth only) create transactions that can later be signed and sent onchain.
+        vm.startBroadcast(privateKey);
+
+        _;
+
+        // Stop collecting onchain transactions
+        vm.stopBroadcast();
     }
 
     /**
@@ -134,23 +162,16 @@ contract DeploymentScript is Script {
        return string(_string);
     }
 
-    /**
-     * Wraps around a deployment function to load in the seed phrase of a wallet for
-     * deployments.
-     */
-    modifier deployer() {
-        // Load our seed phrase from a protected file
-        string memory seedPhrase = vm.readFile('.seedphrase');
-        uint256 privateKey = vm.deriveKey(seedPhrase, 0);
-
-        // Using the passed in the script call, has all subsequent calls (at this call
-        // depth only) create transactions that can later be signed and sent onchain.
-        vm.startBroadcast(privateKey);
-
-        _;
-
-        // Stop collecting onchain transactions
-        vm.stopBroadcast();
+    function _stringToUint(string memory s) internal pure returns (uint) {
+        bytes memory b = bytes(s);
+        uint result = 0;
+        for (uint256 i = 0; i < b.length; i++) {
+            uint256 c = uint256(uint8(b[i]));
+            if (c >= 48 && c <= 57) {
+                result = result * 10 + (c - 48);
+            }
+        }
+        return result;
     }
 
 }

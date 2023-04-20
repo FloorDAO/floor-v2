@@ -17,7 +17,7 @@ contract DeployVaultContracts is DeploymentScript {
     function run() external deployer {
 
         // Confirm that we have our required contracts deployed
-        address authorityRegistry = requireDeployment('AuthorityRegistry');
+        address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
 
         // Deploy vault strategies
@@ -29,7 +29,7 @@ contract DeployVaultContracts is DeploymentScript {
         storeDeployment('RevenueStakingStrategy', address(revenueStaking));
 
         // Deploy our vault factory
-        VaultFactory vaultFactory = new VaultFactory(authorityRegistry, collectionRegistry);
+        VaultFactory vaultFactory = new VaultFactory(authorityControl, collectionRegistry);
 
         // Store our vault factory
         storeDeployment('VaultFactory', address(vaultFactory));
