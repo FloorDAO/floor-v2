@@ -72,7 +72,7 @@ contract NFTXSellNftsForEth is IAction {
 
         // Loop through our tokens to transfer
         for (uint i; i < length;) {
-            ERC721(request.asset).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
+            ERC721(asset).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
             unchecked {
                 ++i;
             }

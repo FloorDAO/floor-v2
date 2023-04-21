@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
-import {NFTXSellNFTForETH} from '@floor/actions/nftx/SellNFTForETH.sol';
+import {NFTXSellNftsForEth} from '@floor/actions/nftx/SellNftsForEth.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
-contract NFTXSellNFTForETHTest is FloorTest {
+contract NFTXSellNftsForEthTest is FloorTest {
     // ..
     address internal constant RBC_CONTRACT = 0xE63bE4Ed45D32e43Ff9b53AE9930983B0367330a;
 
@@ -19,7 +19,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     // Store our action contract
-    NFTXSellNFTForETH action;
+    NFTXSellNftsForEth action;
 
     // Store the treasury address
     address treasury;
@@ -36,7 +36,7 @@ contract NFTXSellNFTForETHTest is FloorTest {
         treasury = 0x15abb66bA754F05cBC0165A64A11cDed1543dE48;
 
         // Set up a floor migration contract
-        action = new NFTXSellNFTForETH(MARKETPLACE_ZAP);
+        action = new NFTXSellNftsForEth(MARKETPLACE_ZAP);
     }
 
     /**

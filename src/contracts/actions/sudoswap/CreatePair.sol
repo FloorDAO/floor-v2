@@ -2,6 +2,12 @@
 
 pragma solidity ^0.8.0;
 
+import {ICurve} from '@sudoswap/bonding-curves/ICurve.sol';
+import {LSSVMPairFactory} from '@sudoswap/LSSVMPairFactory.sol';
+import {ERC20, LSSVMPair} from '@sudoswap/LSSVMPair.sol';
+
+import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
+
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 
@@ -42,20 +48,18 @@ contract SudoswapCreatePair is IAction {
         uint96 fee;
         uint128 spotPrice;
         uint initialTokenBalance;
-        uint[] calldata initialNftIds;
+        uint[] initialNftIds;
     }
 
     /// ..
-    ILSSVMPairFactoryLike public immutable pairFactory;
+    LSSVMPairFactory public immutable pairFactory;
 
     /**
      * We assign any variable contract addresses in our constructor, allowing us
      * to have multiple deployed actions if any parameters change.
-     *
-     * @param _marketplaceZap Address of the NFTX Marketplace Zap
      */
-    constructor(address _pairFactory) {
-        pairFactory = ILSSVMPairFactoryLike(_pairFactory);
+    constructor(address payable _pairFactory) {
+        pairFactory = LSSVMPairFactory(_pairFactory);
     }
 
     /**
@@ -77,13 +81,13 @@ contract SudoswapCreatePair is IAction {
             uint96 fee,
             uint128 spotPrice,
             uint initialTokenBalance,
-            uint[] calldata initialNftIds
+            uint[] memory initialNftIds
         ) = abi.decode(_request, (
             address, address, address, LSSVMPair.PoolType, uint128, uint96, uint128, uint, uint[])
         );
 
         // Prepare to capture a Pair through either of our creation methods
-        LSSVMPairERC20 pair;
+        LSSVMPair pair;
 
         // Transfer our NFT IDs to the action as the pair factory requires them to be
         // transferred from the immediate sender.
@@ -95,12 +99,12 @@ contract SudoswapCreatePair is IAction {
             unchecked { ++i; }
         }
 
-        if (request.token == address(0)) {
+        if (token == address(0)) {
             // If we have no ERC20 token supplied, then we assume that we are
             // pairing ETH <-> ERC721.
             pair = pairFactory.createPairETH{value: msg.value}({
                 _nft: IERC721(nft),
-                _bondingCurve: ICurve(curve),
+                _bondingCurve: ICurve(bondingCurve),
                 _assetRecipient: payable(msg.sender),
                 _poolType: poolType,
                 _delta: delta,
@@ -110,15 +114,16 @@ contract SudoswapCreatePair is IAction {
             });
         } else {
             // For this pairing, we additionally need to transfer our ERC20 token
-            ERC20(token).safeTransferFrom(msg.sender, address(this), initialTokenBalance);
-            ERC20(token).approve(address(pairFactory), initialTokenBalance);
+            ERC20 _token = ERC20(token);
+            _token.transferFrom(msg.sender, address(this), initialTokenBalance);
+            _token.approve(address(pairFactory), initialTokenBalance);
 
             // When we have an ERC20 defined, then we pair ERC20 <-> ERC721
             pair = pairFactory.createPairERC20(
-                CreateERC20PairParams({
-                    token: ERC20(token),
+                LSSVMPairFactory.CreateERC20PairParams({
+                    token: _token,
                     nft: IERC721(nft),
-                    bondingCurve: ICurve(curve),
+                    bondingCurve: ICurve(bondingCurve),
                     assetRecipient: payable(msg.sender),
                     poolType: poolType,
                     delta: delta,
@@ -135,4 +140,3 @@ contract SudoswapCreatePair is IAction {
     }
 
 }
-

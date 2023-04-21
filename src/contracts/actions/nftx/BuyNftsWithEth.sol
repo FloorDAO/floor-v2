@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {INFTXMarketplaceZap} from '@floor-interfaces/nftx/NFTXMarketplaceZap.sol';
 
-/// If no tokens are claimable for the caller
-error NoTokensProvided();
 
 /**
  * This action allows us to batch sell ERC721 NFT tokens from the {Treasury}
@@ -35,8 +33,8 @@ contract NFTXBuyNftsWithEth is IAction {
     struct ActionRequest {
         uint vaultId;
         uint amount;
-        uint[] calldata specificIds;
-        address[] calldata path;
+        uint[] specificIds;
+        address[] path;
     }
 
     /**
@@ -81,7 +79,7 @@ contract NFTXBuyNftsWithEth is IAction {
         // Get the remaining ETH and transfer it back to the sender
         uint remainingBalance = startBalance - address(this).balance;
         if (remainingBalance != 0) {
-            (bool success, ) = payable(msg.sender).call{value: remaining}("");
+            (bool success, ) = payable(msg.sender).call{value: remainingBalance}('');
             require(success, "Address: unable to send value, recipient may have reverted");
         }
 

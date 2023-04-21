@@ -10,6 +10,7 @@ forge-std/=lib/forge-std/src/
 @solidity-trigonometry/=lib/solidity-trigonometry/src/
 @1inch/=lib/
 @charmfi/=lib/charmfi-contracts-0.8.0-support/
+@sudoswap/=lib/lssvm/src/
 @floor/=src/contracts/
 @floor-interfaces/=src/interfaces/
 @floor-scripts/=script/

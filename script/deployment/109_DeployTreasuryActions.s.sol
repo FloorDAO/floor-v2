@@ -10,7 +10,7 @@ import {LlamapayCreateStream} from '@floor/actions/llamapay/CreateStream.sol';
 import {LlamapayDeposit} from '@floor/actions/llamapay/Deposit.sol';
 import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 import {LlamapayWithdraw} from '@floor/actions/llamapay/Withdraw.sol';
-import {NFTXSellNFTForETH} from '@floor/actions/nftx/SellNFTForETH.sol';
+import {NFTXSellNftsForEth} from '@floor/actions/nftx/SellNftsForEth.sol';
 import {SushiswapAddLiquidity} from '@floor/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity.sol';
 import {CowSwapSweeper} from '@floor/actions/sweepers/CowSwap.sol';
@@ -63,7 +63,7 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
         storeDeployment('LlamapayCreateStream', address(new LlamapayCreateStream(llamapayRouter)));
         storeDeployment('LlamapayDeposit', address(new LlamapayDeposit(llamapayRouter)));
         storeDeployment('LlamapayWithdraw', address(new LlamapayWithdraw(llamapayRouter)));
-        storeDeployment('NFTXSellNFTForETH', address(new NFTXSellNFTForETH(0x941A6d105802CCCaa06DE58a13a6F49ebDCD481C)));
+        storeDeployment('NFTXSellNftsForEth', address(new NFTXSellNftsForEth(0x941A6d105802CCCaa06DE58a13a6F49ebDCD481C)));
         storeDeployment('SushiswapAddLiquidity', address(new SushiswapAddLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F)));
         storeDeployment('SushiswapRemoveLiquidity', address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac)));
 

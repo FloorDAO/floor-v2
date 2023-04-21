@@ -2,6 +2,10 @@
 
 pragma solidity ^0.8.0;
 
+import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
+
+import {LSSVMPair} from '@sudoswap/LSSVMPair.sol';
+
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 
@@ -45,7 +49,7 @@ contract SudoswapSellNftsForEth is IAction {
         // to the struct is buggy due to memory -> storage array mapping.
         (
             address pair,
-            uint[] nftIds,
+            uint[] memory nftIds,
             uint minExpectedTokenOutput,
             bool isRouter,
             address routerCaller
@@ -69,7 +73,7 @@ contract SudoswapSellNftsForEth is IAction {
             tokenRecipient: payable(msg.sender),
             isRouter: isRouter,
             routerCaller: routerCaller
-        })
+        });
     }
 
 }
