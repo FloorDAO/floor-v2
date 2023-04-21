@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {AlphaVault} from '@charmfi/contracts/AlphaVault.sol';
+
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IAlphaVault} from '@floor-interfaces/charm/AlphaVault.sol';
 
 
 /**
@@ -31,26 +32,28 @@ contract CharmDeposit is IAction {
         address vault;
     }
 
-    /// ..
-    IAlphaVault public immutable charmVault;
-
     /**
      * ..
      */
-    function execute(bytes calldata _request) public returns (uint) {
+    function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
-        ActionRequest calldata request = _execute(abi.decode(_request, (ActionRequest)));
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
+        // Load our vault so that we can directly query tokens
+        AlphaVault vault = AlphaVault(request.vault);
+        address token0 = address(vault.token0());
+        address token1 = address(vault.token1());
 
         // Fetch tokens from address
-        uint amount0Pulled = request.token0.pullTokensIfNeeded(msg.sender, request.amount0Desired);
-        uint amount1Pulled = request.token1.pullTokensIfNeeded(msg.sender, request.amount1Desired);
+        uint amount0Pulled = token0.pullTokensIfNeeded(msg.sender, request.amount0Desired);
+        uint amount1Pulled = token1.pullTokensIfNeeded(msg.sender, request.amount1Desired);
 
         // Approve positionManager so it can pull tokens
-        request.token0.approveToken(request.vault, amount0Pulled);
-        request.token1.approveToken(request.vault, amount1Pulled);
+        token0.approveToken(request.vault, amount0Pulled);
+        token1.approveToken(request.vault, amount1Pulled);
 
         // Deposit tokens into the vault
-        (uint shares, uint amount0, uint amount1) = IAlphaVault(request.vault).deposit({
+        (uint shares, uint amount0, uint amount1) = vault.deposit({
             amount0Desired: request.amount0Desired,
             amount1Desired: request.amount1Desired,
             amount0Min: request.amount0Min,
@@ -59,12 +62,12 @@ contract CharmDeposit is IAction {
         });
 
         // Send leftovers back to the caller
-        request.token0.withdrawTokens(msg.sender, request.amount0Desired - amount0);
-        request.token1.withdrawTokens(msg.sender, request.amount1Desired - amount1);
+        token0.withdrawTokens(msg.sender, request.amount0Desired - amount0);
+        token1.withdrawTokens(msg.sender, request.amount1Desired - amount1);
 
         // Remove approvals
-        request.token0.approveToken(request.vault, 0);
-        request.token1.approveToken(request.vault, 0);
+        token0.approveToken(request.vault, 0);
+        token1.approveToken(request.vault, 0);
 
         return shares;
     }

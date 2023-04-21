@@ -2,8 +2,9 @@
 
 pragma solidity ^0.8.0;
 
+import {IStrategy} from '@charmfi/interfaces/IStrategy.sol';
+
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IAlphaStrategy} from '@floor-interfaces/charm/AlphaStrategy.sol';
 
 /**
  * Updates vault's positions. Can only be called by the strategy keeper.
@@ -29,8 +30,8 @@ contract CharmRebalance is IAction {
         // Unpack the request bytes data into our struct and call our internal execute logic
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
-        if (IAlphaStrategy(request.strategy).shouldRebalance()) {
-            IAlphaStrategy(request.strategy).rebalance();
+        if (IStrategy(request.strategy).shouldRebalance()) {
+            IStrategy(request.strategy).rebalance();
         }
 
         return 0;

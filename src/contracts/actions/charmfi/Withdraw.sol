@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IVault} from '@charmfi/interfaces/IVault.sol';
+
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IAlphaVault} from '@floor-interfaces/charm/AlphaVault.sol';
 
 
 /**
@@ -23,13 +24,13 @@ contract CharmWithdraw is IAction {
     /**
      * ..
      */
-    function execute(bytes calldata _request) public returns (uint) {
+    function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
-        ActionRequest calldata request = abi.decode(_request, (ActionRequest));
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
-        IAlphaVault(request.vault).withdraw({
+        IVault(request.vault).withdraw({
             shares: request.shares,
             amount0Min: request.amount0Min,
             amount1Min: request.amount1Min,

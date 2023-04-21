@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {TokenUtils} from '@floor/utils/TokenUtils.sol';
+import {AlphaVault} from '@charmfi/contracts/AlphaVault.sol';
+import {PassiveStrategy} from '@charmfi/contracts/PassiveStrategy.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IAlphaVault} from '@floor-interfaces/charm/AlphaVault.sol';
 
 
 /**
@@ -12,28 +12,33 @@ import {IAlphaVault} from '@floor-interfaces/charm/AlphaVault.sol';
  */
 contract CharmCreateVault is IAction {
 
+    /**
+     * This large struct will use 3 storage slots.
+     */
     struct ActionRequest {
         // Vault parameters
-        uint protocolFee;
-        uint maxTotalSupply;
-        address uniswapPool;
+        uint maxTotalSupply;    // 256 / 256
+        address uniswapPool;    // 416 / 512
+        uint24 protocolFee;     // 440 / 512 (1e6 max in vault)
 
         // Strategy parameters
-        int24 baseThreshold;
-        int24 limitThreshold;
-        int24 maxTwapDeviation;
-        uint32 twapDuration;
-        address keeper;
+        int24 baseThreshold;    // 464 / 512
+        int24 limitThreshold;   // 488 / 512
+        int24 minTickMove;      // 512 / 512
+        uint40 period;          // 552 / 768 (uint40 allows 35,000 years)
+        int24 maxTwapDeviation; // 576 / 768
+        uint32 twapDuration;    // 608 / 768
+        address keeper;         // 768 / 768
     }
 
-    function execute(bytes calldata _request) public returns (uint) {
+    function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
-        ActionRequest calldata request = abi.decode(_request, (ActionRequest));
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
         // Deploy our vault, referencing the uniswap pool
-        IAlphaVault alphaVault = new AlphaVault({
+        AlphaVault alphaVault = new AlphaVault({
             _pool: request.uniswapPool,
-            _protocolFee: request.protocolFee,
+            _protocolFee: uint(request.protocolFee),
             _maxTotalSupply: request.maxTotalSupply
         });
 
@@ -47,10 +52,12 @@ contract CharmCreateVault is IAction {
          * @param _twapDuration TWAP duration in seconds for rebalance check
          * @param _keeper Account that can call `rebalance()`
          */
-        IAlphaStrategy alphaStrategy = new AlphaStrategy({
+        PassiveStrategy alphaStrategy = new PassiveStrategy({
             _vault: address(alphaVault),
             _baseThreshold: request.baseThreshold,
             _limitThreshold: request.limitThreshold,
+            _period: uint(request.period),
+            _minTickMove: request.minTickMove,
             _maxTwapDeviation: request.maxTwapDeviation,
             _twapDuration: request.twapDuration,
             _keeper: request.keeper
