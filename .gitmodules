@@ -34,3 +34,6 @@
 [submodule "lib/charmfi-contracts-0.8.0-support"]
 	path = lib/charmfi-contracts-0.8.0-support
 	url = https://github.com/FloorDAO/charmfi-contracts-0.8.0-support
+[submodule "lib/lssvm"]
+	path = lib/lssvm
+	url = https://github.com/sudoswap/lssvm
