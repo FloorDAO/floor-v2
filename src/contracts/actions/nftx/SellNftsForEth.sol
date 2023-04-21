@@ -17,12 +17,9 @@ error NoTokensProvided();
  * This uses the NFTX Marketplace Zap to facilitate the trade, allowing us to
  * specify a minimum amount of ETH to receive in return.
  */
-contract NFTXSellNFTForETH is IAction {
+contract NFTXSellNftsForEth is IAction {
     /// The NFTX Marketplace Zap contract
     INFTXMarketplaceZap public immutable marketplaceZap;
-
-    /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /**
      * Store our required information to action a swap.
@@ -67,18 +64,15 @@ contract NFTXSellNFTForETH is IAction {
         (address asset, uint vaultId, uint[] memory tokenIds, uint minEthOut, address[] memory path) =
             abi.decode(_request, (address, uint, uint[], uint, address[]));
 
-        // Now we can map our extracted data into our ActionRequest
-        ActionRequest memory request = ActionRequest({asset: asset, vaultId: vaultId, tokenIds: tokenIds, minEthOut: minEthOut, path: path});
-
         // Ensure that we have tokenIds sent
-        uint length = request.tokenIds.length;
+        uint length = tokenIds.length;
         if (length == 0) {
             revert NoTokensProvided();
         }
 
         // Loop through our tokens to transfer
         for (uint i; i < length;) {
-            ERC721(request.asset).safeTransferFrom(msg.sender, address(this), request.tokenIds[i]);
+            ERC721(request.asset).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
             unchecked {
                 ++i;
             }
@@ -86,15 +80,15 @@ contract NFTXSellNFTForETH is IAction {
 
         // Now that the tokens are held in our contract we can approve the marketplace zap
         // to use them.
-        ERC721(request.asset).setApprovalForAll(address(marketplaceZap), true);
+        ERC721(asset).setApprovalForAll(address(marketplaceZap), true);
 
         // Take a snapshot of our starting balance to calculate the end balance difference
         uint startBalance = address(msg.sender).balance;
 
         // Set up our swap parameters based on `execute` parameters
-        marketplaceZap.mintAndSell721(request.vaultId, request.tokenIds, request.minEthOut, request.path, msg.sender);
+        marketplaceZap.mintAndSell721(vaultId, tokenIds, minEthOut, path, msg.sender);
 
-        // We return just the amount of WETH generated in the swap, which will have
+        // We return just the amount of ETH generated in the swap, which will have
         // already been transferred to the {Treasury} during the swap itself.
         return address(msg.sender).balance - startBalance;
     }
