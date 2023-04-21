@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {IVault} from '@charmfi/interfaces/IVault.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
@@ -27,6 +29,10 @@ contract CharmWithdraw is IAction {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
+        // Pull our shares into the action. As we are interacting with the token itself, it
+        // does not need an additional approval call.
+        IERC20(request.vault).transferFrom(msg.sender, address(this), request.shares);
 
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
