@@ -7,10 +7,18 @@ import 'forge-std/Script.sol';
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 
+struct Term {
+    uint256 percent; // 4 decimals ( 5000 = 0.5% )
+    uint256 gClaimed; // rebase-agnostic number
+    uint256 max; // maximum nominal FLOOR amount can claim, 9 decimal
+}
+
+
 interface IVestingClaim {
-    function terms(address) external view returns (bytes memory);
+    function terms(address) external view returns (Term memory);
     function redeemableFor(address) external view returns (uint);
     function claimed(address) external view returns (uint);
+    function circulatingSupply() external view returns (uint);
 }
 
 
@@ -82,19 +90,12 @@ contract PFloorHolderBalances {
         for (uint i; i < pFloorHolders.length; ++i) {
             // To determine the amount of FLOOR offered to the user, we need to calculate
             // `claimed + redeemable` - `amount actually claimed`.
-            uint termClaimable;
 
-            try this._termClaimable(pFloorHolders[i]) returns (uint _amount) {
-                termClaimable = _amount;
-            } catch {
-                // ..
-            }
+            Term memory info = vesting.terms(pFloorHolders[i]);
+            uint max = (vesting.circulatingSupply() * info.percent) / 1e6;
+            if (max > info.max) max = info.max;
 
-            // If our gFloor mapping means we have claimed more than available, return 0 available
-            uint amount = 0;
-            if (termClaimable > _claimed[pFloorHolders[i]]) {
-                amount = termClaimable - _claimed[pFloorHolders[i]];
-            }
+            uint amount = max - _claimed[pFloorHolders[i]];
 
             // Format our output
             string memory line = '| ';
@@ -105,10 +106,6 @@ contract PFloorHolderBalances {
         }
 
         console.log('+-----------------------------------------------+--------------------+');
-    }
-
-    function _termClaimable(address holder) external view returns (uint) {
-        return vesting.claimed(holder) + vesting.redeemableFor(holder);
     }
 
     /**
