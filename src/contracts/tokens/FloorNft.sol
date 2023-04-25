@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Counters} from '@openzeppelin/contracts/utils/Counters.sol';
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
@@ -9,9 +8,8 @@ import {ERC721, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.so
 
 
 contract FloorNft is ERC721Lockable {
-    using Counters for Counters.Counter;
-
-    Counters.Counter private supply;
+    // Maintain an index of our current supply
+    uint private supply;
 
     // The URI of your IPFS/hosting server for the metadata folder.
     // Used in the format: "ipfs://your_uri/".
@@ -64,14 +62,14 @@ contract FloorNft is ERC721Lockable {
      */
     modifier mintCompliance(uint _mintAmount) {
         require(_mintAmount > 0 && _mintAmount <= maxMintAmountPerTx, 'Invalid mint amount');
-        require(supply.current() + _mintAmount <= maxSupply, 'Max supply exceeded');
+        require(supply + _mintAmount <= maxSupply, 'Max supply exceeded');
 
         _;
     }
 
     // Returns the current supply of the collection
     function totalSupply() public view returns (uint) {
-        return supply.current();
+        return supply;
     }
 
     // Mint function
@@ -155,12 +153,12 @@ contract FloorNft is ERC721Lockable {
 
     // Helper function
     function _mintLoop(address _receiver, uint _mintAmount) internal {
-        for (uint i = 0; i < _mintAmount;) {
-            _safeMint(_receiver, supply.current());
-            supply.increment();
-
+        for (uint i; i < _mintAmount;) {
+            _safeMint(_receiver, supply + i);
             unchecked { i++; }
         }
+
+        supply += _mintAmount;
     }
 
     // ..
