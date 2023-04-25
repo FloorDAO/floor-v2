@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {FLOOR} from '../tokens/Floor.sol';
 
+import {IgFLOOR} from '@floor-interfaces/legacy/IgFLOOR.sol';
 import {IMigrateFloorToken} from '@floor-interfaces/migrations/MigrateFloorToken.sol';
 
 /// If there are no tokens available for the recipient
@@ -66,15 +67,18 @@ contract MigrateFloorToken is IMigrateFloorToken {
 
             // Transfer the token into our contract
             if (tokenBalance > 0 && token.transferFrom(msg.sender, address(this), tokenBalance)) {
-                // Add the amount transferred to a running tally. gFloor is the only 18
-                // decimal token that we migrate, but the others are 9 decimal so we need
-                // some explicit logic to cater for this.
-                if (address(token) != 0xb1Cc59Fc717b8D4783D41F952725177298B5619d) {
-                    tokenBalance *= (10 ** 9);
+
+                // If we have a gFLOOR token, then we need to find the underlying FLOOR that
+                // is staked and mint that for the user.
+                if (address(token) == 0xb1Cc59Fc717b8D4783D41F952725177298B5619d) {
+                    tokenBalance = IgFLOOR(address(token)).balanceFrom(tokenBalance);
                 }
 
-                // Increment our `floorAllocation` based on the token balance of the user
-                floorAllocation += tokenBalance;
+                // Increment our `floorAllocation` based on the token balance of the user. gFloor
+                // is the only 18 decimal token that we migrate, but this is converted to Floor just
+                // above this. So this means that at this point in the logic, all tokens are 9
+                // decimal so we need some explicit logic to cater for this.
+                floorAllocation += tokenBalance * (10 ** 9);
             }
 
             unchecked {
