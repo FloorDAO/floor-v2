@@ -27,7 +27,7 @@ interface IVestingClaim {
  * address when we upgrade to V2. Before these values are actually reallocated, we
  * need to pause the existing `VestingClaim` contract from V1.
  */
-contract PFloorHolderBalances {
+contract RemainingVestingFloor {
 
     // Accorcing to Etherscan, the amount of FLOOR claimed by an address
     mapping (address => uint) internal _claimed;
