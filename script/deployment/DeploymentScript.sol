@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
 import 'forge-std/Script.sol';
 
 
@@ -100,9 +99,6 @@ contract DeploymentScript is Script {
         // Loop through our new deployment data and parse it into a JSON string
         string memory json = '{"deployments":[';
         for (uint k; k < newDeployments.length; ++k) {
-            console.log(newDeployments[k].key);
-            console.logAddress(newDeployments[k].deploymentAddress);
-            console.log('---');
             json = string.concat(json, '{"deploymentAddress":"');
             json = string.concat(json, _addressToString(newDeployments[k].deploymentAddress));
             json = string.concat(json, '","key":"');
@@ -118,8 +114,6 @@ contract DeploymentScript is Script {
 
         // Write the deployed addresses back to our JSON file
         vm.writeFile(JSON_PATH, json);
-
-        console.log('Contract has been added to JSON successfully');
     }
 
     /**
