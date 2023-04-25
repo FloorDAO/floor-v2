@@ -61,7 +61,8 @@ contract PFloorHolderBalances {
             0x40D73Df4F99bae688CE3C23a01022224FE16C7b2
         ];
 
-        // To save from scraping Etherscan, list in/out transactions (9 decimal)
+        // To save from scraping Etherscan, list in/out transactions (9 decimal). This
+        // snapshot was taked 25th April, 2023 at 11:30am.
         _claimed[0xfA64669BCB2D5Ef351CCbE0d0396b8DE3CB1D7e2] += 100_000000000;
         _claimed[0x0f294726A2E3817529254F81e0C195b6cd0C834f] += 2000_000000000;
         _claimed[0x7b0a39EC4B38Ec527bc9Db669107632c02959C4b] += 10000_000000000;
@@ -78,34 +79,56 @@ contract PFloorHolderBalances {
         _claimed[0x3B85db7f2B97B6b8cF988b06F7Ba362C5B28B475] += 4050_000000000;
         _claimed[0x10877B0c8556095a5c9aee62a757410CD1e9554E] += 8373_097900000;
         _claimed[0x3B85db7f2B97B6b8cF988b06F7Ba362C5B28B475] += 4340_000000000;
-        _claimed[0x44373fa186a86Edf35C20FEE3ff72ffD9e82560d] += 10000_000000000;
+        _claimed[0x44373fa186a86Edf35C20FEE3ff72ffD9e82560d] += 1000_000000000;
         _claimed[0xb1b117a45aD71d408eb55475FC3A65454edCc94A] += 181_400110000;
+
+        // NFTX multisig claim remaps address
+        _claimed[0x40D73Df4F99bae688CE3C23a01022224FE16C7b2] += 29245_752247000;
 
         // Output our table headers
         console.log('+-----------------------------------------------+--------------------+');
         console.log('| Address                                       | Available FLOOR    |');
         console.log('+-----------------------------------------------+--------------------+');
 
+        // Keep a sum of the total amount of FLOOR to be allocated
+        uint totalFloor;
+
         // Loop through our users to display the amount owed
         for (uint i; i < pFloorHolders.length; ++i) {
-            // To determine the amount of FLOOR offered to the user, we need to calculate
-            // `claimed + redeemable` - `amount actually claimed`.
-
+            // Pull out our vesting terms from the contract directly, as this avoids a conversion
+            // into gFloor that would skew our numbers. This will give us the user's total FLOOR
+            // allocation at the current circulating supply.
             Term memory info = vesting.terms(pFloorHolders[i]);
             uint max = (vesting.circulatingSupply() * info.percent) / 1e6;
             if (max > info.max) max = info.max;
 
+            // Reduce the max amount by the amount we have recorded the user to have claimed in
+            // FLOOR terms.
             uint amount = max - _claimed[pFloorHolders[i]];
 
             // Format our output
             string memory line = '| ';
             line = string.concat(line, _addressToString(pFloorHolders[i]));
             line = string.concat(line, '    | ');
-            line = string.concat(line, Strings.toString(amount / 1e9));
+            line = string.concat(line, Strings.toString(amount));
             console.log(line);
+
+            // Track our total amount of FLOOR required
+            totalFloor += amount;
         }
 
+        // Output the total allocated FLOOR value
         console.log('+-----------------------------------------------+--------------------+');
+        console.log('');
+        console.log('+-----------------------------------------------+--------------------+');
+        console.log(
+            string.concat(
+                '| TOTAL FLOOR ALLOCATED                         | ',
+                Strings.toString(totalFloor)
+            )
+        );
+        console.log('+-----------------------------------------------+--------------------+');
+        console.log('');
     }
 
     /**
