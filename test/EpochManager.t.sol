@@ -291,7 +291,7 @@ contract EpochManagerTest is FloorTest {
             string memory message
         ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
+        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, false);
         assertEq(message, '');
 
@@ -311,7 +311,7 @@ contract EpochManagerTest is FloorTest {
             message
         ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
+        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
     }

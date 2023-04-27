@@ -238,7 +238,7 @@ contract EpochManager is IEpochManager, Ownable {
 
             // Now that we have the results of the snapshot we can register them against our
             // pending sweeps.
-            treasury.registerSweep(currentEpoch, collections, amounts, TreasuryEnums.SweepType.FLOOR_WAR);
+            treasury.registerSweep(currentEpoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
         }
 
         unchecked {

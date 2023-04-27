@@ -7,7 +7,7 @@ library TreasuryEnums {
     /// Different sweep types that can be specified.
     enum SweepType {
         COLLECTION_ADDITION,
-        FLOOR_WAR
+        SWEEP
     }
 
     /// Different approval types that can be specified.
