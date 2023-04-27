@@ -33,8 +33,6 @@ contract SudoswapSellNftsForEth is IAction {
         address pair;
         uint[] nftIds;
         uint minExpectedTokenOutput;
-        bool isRouter;
-        address routerCaller;
     }
 
     /**
@@ -45,24 +43,22 @@ contract SudoswapSellNftsForEth is IAction {
      * @return uint The amount of ETH or ERC20 spent on the execution
      */
     function execute(bytes calldata _request) public payable returns (uint) {
-       // Unpack the request bytes data into individual variables, as mapping it directly
+        // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
         (
             address pair,
             uint[] memory nftIds,
-            uint minExpectedTokenOutput,
-            bool isRouter,
-            address routerCaller
-        ) = abi.decode(_request, (
-            address, uint[], uint, bool, address)
-        );
+            uint minExpectedTokenOutput
+        ) = abi.decode(_request, (address, uint[], uint));
+
+        // Get the NFT from the pairing
+        IERC721 nft = LSSVMPair(pair).nft();
 
         // We need to pull in all of the NFTs into the action to send it to the pairing
         uint length = nftIds.length;
         for (uint i; i < length;) {
-            IERC721 nft = LSSVMPair(pair).nft();
-            nft.safeTransferFrom(msg.sender, address(this), nftIds[i], '');
-            nft.approve(address(pair), nftIds[i]);
+            nft.transferFrom(msg.sender, address(this), nftIds[i]);
+            nft.approve(pair, nftIds[i]);
             unchecked { ++i; }
         }
 
@@ -71,8 +67,8 @@ contract SudoswapSellNftsForEth is IAction {
             nftIds: nftIds,
             minExpectedTokenOutput: minExpectedTokenOutput,
             tokenRecipient: payable(msg.sender),
-            isRouter: isRouter,
-            routerCaller: routerCaller
+            isRouter: false,
+            routerCaller: msg.sender
         });
     }
 

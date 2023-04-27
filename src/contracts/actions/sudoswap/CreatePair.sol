@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import {ICurve} from '@sudoswap/bonding-curves/ICurve.sol';
@@ -51,7 +50,7 @@ contract SudoswapCreatePair is IAction {
         uint[] initialNftIds;
     }
 
-    /// ..
+    /// Store our pair factory
     LSSVMPairFactory public immutable pairFactory;
 
     /**
@@ -76,36 +75,61 @@ contract SudoswapCreatePair is IAction {
             address token,
             address nft,
             address bondingCurve,
-            LSSVMPair.PoolType poolType,
+            uint8 _poolType,
             uint128 delta,
             uint96 fee,
             uint128 spotPrice,
             uint initialTokenBalance,
             uint[] memory initialNftIds
         ) = abi.decode(_request, (
-            address, address, address, LSSVMPair.PoolType, uint128, uint96, uint128, uint, uint[])
+            address,
+            address,
+            address,
+            uint8,
+            uint128,
+            uint96,
+            uint128,
+            uint,
+            uint[]
+        ));
+
+        // Cast our integer to a PoolType
+        LSSVMPair.PoolType poolType = LSSVMPair.PoolType(_poolType);
+
+        // Validate our provided pool type
+        require(
+            poolType == LSSVMPair.PoolType.NFT || poolType == LSSVMPair.PoolType.TRADE,
+            'Unknown pool type'
         );
+
+        // Transfer our NFT IDs to the action as the pair factory requires them to be
+        // transferred from the immediate sender.
+        IERC721 _nft = IERC721(nft);
+
+        // We skip parsing the length outside of the loop as this takes us over our
+        // variable limit.
+        for (uint i; i < initialNftIds.length;) {
+            _nft.transferFrom(msg.sender, address(this), initialNftIds[i]);
+            _nft.approve(address(pairFactory), initialNftIds[i]);
+            unchecked { ++i; }
+        }
+
+        // Determine the asset recipient, based on the pool type
+        address payable assetRecipient;
+        if (poolType == LSSVMPair.PoolType.NFT) {
+            assetRecipient = payable(msg.sender);
+        }
 
         // Prepare to capture a Pair through either of our creation methods
         LSSVMPair pair;
 
-        // Transfer our NFT IDs to the action as the pair factory requires them to be
-        // transferred from the immediate sender.
-        uint length = initialNftIds.length;
-        for (uint i; i < length;) {
-            IERC721(nft).safeTransferFrom(msg.sender, address(this), initialNftIds[i], '');
-            IERC721(nft).approve(address(pairFactory), initialNftIds[i]);
-
-            unchecked { ++i; }
-        }
-
+        // If we have no token provided, then we will be backing the NFT value
+        // with ETH.
         if (token == address(0)) {
-            // If we have no ERC20 token supplied, then we assume that we are
-            // pairing ETH <-> ERC721.
             pair = pairFactory.createPairETH{value: msg.value}({
-                _nft: IERC721(nft),
+                _nft: _nft,
                 _bondingCurve: ICurve(bondingCurve),
-                _assetRecipient: payable(msg.sender),
+                _assetRecipient: assetRecipient,
                 _poolType: poolType,
                 _delta: delta,
                 _fee: fee,
@@ -122,9 +146,9 @@ contract SudoswapCreatePair is IAction {
             pair = pairFactory.createPairERC20(
                 LSSVMPairFactory.CreateERC20PairParams({
                     token: _token,
-                    nft: IERC721(nft),
+                    nft: _nft,
                     bondingCurve: ICurve(bondingCurve),
-                    assetRecipient: payable(msg.sender),
+                    assetRecipient: assetRecipient,
                     poolType: poolType,
                     delta: delta,
                     fee: fee,
@@ -134,6 +158,9 @@ contract SudoswapCreatePair is IAction {
                 })
             );
         }
+
+        // Transfer the ownership of the created pair to the caller
+        pair.transferOwnership(msg.sender);
 
         // Return our integer address equivalent
         return uint(uint160(address(pair)));
