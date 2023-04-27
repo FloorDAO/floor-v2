@@ -287,15 +287,11 @@ contract EpochManagerTest is FloorTest {
         // The epoch will have incremented in `endEpoch`, so we minus 1.
         (
             TreasuryEnums.SweepType sweepType,
-            uint allocationBlock,
-            uint sweepBlock,
             bool completed,
             string memory message
         ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
         // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
-        assertEq(allocationBlock, 12);
-        assertEq(sweepBlock, 0);
         assertEq(completed, false);
         assertEq(message, '');
 
@@ -311,15 +307,11 @@ contract EpochManagerTest is FloorTest {
         // Get our updated epoch information
         (
             sweepType,
-            allocationBlock,
-            sweepBlock,
             completed,
             message
         ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
         // assertEq(sweepType, TreasuryEnums.SweepType.FLOOR_WAR);
-        assertEq(allocationBlock, 12);
-        assertEq(sweepBlock, 23);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
     }

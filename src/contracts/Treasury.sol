@@ -241,8 +241,6 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             sweepType: sweepType,
             collections: collections,
             amounts: amounts,
-            allocationBlock: block.number,
-            sweepBlock: 0,
             completed: false,
             message: ''
         });
@@ -323,20 +321,24 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         bytes calldata data,
         uint mercSweep
     ) internal {
+        uint msgValue;
+
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
         if (mercSweep != 0) {
             require(epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions');
             require(mercSweep <= epochSweep.amounts[0], 'Merc Sweep cannot be higher than msg.value');
+
+            msgValue = epochSweep.amounts[0];
         }
+        else {
+            // Find the total amount to send to the sweeper and transfer it before the call
+            uint length = epochSweep.collections.length;
 
-        // Find the total amount to send to the sweeper and transfer it before the call
-        uint msgValue;
-        uint length = epochSweep.collections.length;
-
-        for (uint i; i < length;) {
-            msgValue += epochSweep.amounts[i];
-            unchecked { ++i; }
+            for (uint i; i < length;) {
+                msgValue += epochSweep.amounts[i];  // TODO: If this is COLLECTION_ADDITION, only ever a single.
+                unchecked { ++i; }
+            }
         }
 
         // If we have specified mercenary staked NFTs to be swept then we need to
@@ -365,7 +367,6 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
         // Mark our sweep as completed
         epochSweep.completed = true;
-        epochSweep.sweepBlock = block.number;
 
         // If we returned a message, then we write it to our sweep
         epochSweep.message = message;

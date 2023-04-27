@@ -30,8 +30,6 @@ interface ITreasury {
         TreasuryEnums.SweepType sweepType;
         address[] collections;
         uint[] amounts;
-        uint allocationBlock;
-        uint sweepBlock;
         bool completed;
         string message;
     }
