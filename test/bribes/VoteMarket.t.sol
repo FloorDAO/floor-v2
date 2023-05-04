@@ -43,6 +43,9 @@ contract VoteMarketTest is FloorTest {
     address[] claimCollections;
     uint[] claimCollectionVotes;
 
+    // Store our {EpochManager} so that we can control the current epoch
+    EpochManager epochManager;
+
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up a small pool of test users
         (alice, feeCollector, oracle) = (users[0], users[1], users[2]);
@@ -54,7 +57,7 @@ contract VoteMarketTest is FloorTest {
         voteMarket = new VoteMarket(address(collectionRegistry), oracle, feeCollector);
 
         // Create our Epoch Manager
-        EpochManager epochManager = new EpochManager();
+        epochManager = new EpochManager();
 
         // Set our Epoch Manager
         voteMarket.setEpochManager(address(epochManager));
@@ -92,35 +95,62 @@ contract VoteMarketTest is FloorTest {
 
     function test_CanCreateBribe() external {
         // Create a bribe, putting 25 WETH into the bribe of 5 epochs
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
+
+        (
+            uint startEpoch,
+            uint maxRewardPerVote,
+            uint remainingRewards,
+            uint totalRewardAmount,
+            address collection,
+            address rewardToken,
+            address creator,
+            uint8 numberOfEpochs
+        ) = voteMarket.bribes(bribeId);
+
+        assertEq(startEpoch, epochManager.currentEpoch());
+        assertEq(maxRewardPerVote, 0.05 ether);
+        assertEq(remainingRewards, 25 ether);
+        assertEq(totalRewardAmount, 25 ether);
+        assertEq(collection, approvedCollection);
+        assertEq(rewardToken, address(WETH));
+        assertEq(creator, address(this));
+        assertEq(numberOfEpochs, uint8(5));
     }
 
     function test_CannotCreateBribeWithZeroAddressRewardToken() external {
         vm.expectRevert('Cannot be zero address');
-        voteMarket.createBribe(approvedCollection, address(0), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(0), 0, uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeUnderMinimumEpochs() external {
         vm.expectRevert('Invalid number of epochs');
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(0), 0.05 ether, 25 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(0), 0.05 ether, 25 ether, emptyBlacklist);
+    }
+
+    function test_CannotCreateBribeInPast() external {
+        epochManager.setCurrentEpoch(1);
+
+        vm.expectRevert('Cannot start in past');
+        voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithZeroTotalRewards() external {
         vm.expectRevert('Invalid amounts');
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 0 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(5), 0.05 ether, 0 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithZeroMaxRewardPerVote() external {
         vm.expectRevert('Invalid amounts');
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0 ether, 25 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(5), 0 ether, 25 ether, emptyBlacklist);
     }
 
     function test_CannotCreateBribeWithoutSufficientTokens() external {
         vm.expectRevert();
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 100000 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), 0, uint8(5), 0.05 ether, 100000 ether, emptyBlacklist);
     }
 
-    function test_CanClaimAgainstSingleCollectionOnOneEpoch() external {
+    function test_CanClaimAgainstSingleCollectionOnOneEpoch() external disableClaimWindow {
         // Merkle Root
         // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
         bytes32 merkleRoot = hex'4a504f2fee32fc23741019fe5681ab66a64e33bf5dccd9f7ead6b34e66d7623e';
@@ -129,7 +159,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -146,7 +176,7 @@ contract VoteMarketTest is FloorTest {
         assertEq(WETH.balanceOf(feeCollector), 10000000000000000);
     }
 
-    function test_CanClaimAgainstSingleCollectionOverMultipleEpochs() external {
+    function test_CanClaimAgainstSingleCollectionOverMultipleEpochs() external disableClaimWindow {
         // Merkle Root
         // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
         // keccak256(abi.encode(alice, 1, approvedCollection, 5 ether))
@@ -158,7 +188,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(1, merkleRootB, approvedCollection, 5 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProofA = new bytes32[](3);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -194,7 +224,7 @@ contract VoteMarketTest is FloorTest {
         assertEq(WETH.balanceOf(feeCollector), 15000000000000000);
     }
 
-    function test_CanClaimAgainstMultipleCollections() external {
+    function test_CanClaimAgainstMultipleCollections() external disableClaimWindow {
         // Merkle Root
         // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
         // keccak256(abi.encode(alice, 0, approvedCollection2, 5 ether))
@@ -211,8 +241,8 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(1, merkleRootB, approvedCollection2, 50 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 250 ether, emptyBlacklist);
-        voteMarket.createBribe(approvedCollection2, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 250 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProofA = new bytes32[](3);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a3';
@@ -258,7 +288,7 @@ contract VoteMarketTest is FloorTest {
         assertEq(WETH.balanceOf(feeCollector), 30000000000000000);
     }
 
-    function test_CanClaimSpecificBribeRewardTokens() external {
+    function test_CanClaimSpecificBribeRewardTokens() external disableClaimWindow {
         // Create 3 bribes in one epoch that contains different
         bytes32 merkleRoot = hex'2b52f18d66217640ead81dde7fa2e4f5fed97a3c4c437a43bb60434d326ba260';
 
@@ -277,9 +307,9 @@ contract VoteMarketTest is FloorTest {
         uint[] memory includedBribeIds = new uint[](2);
 
         // Set up our bribe
-        includedBribeIds[0] = voteMarket.createBribe(approvedCollection, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
-        voteMarket.createBribe(approvedCollection2, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
-        includedBribeIds[1] = voteMarket.createBribe(approvedCollection3, address(WETH), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        includedBribeIds[0] = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        includedBribeIds[1] = voteMarket.createBribe(approvedCollection3, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProofA = new bytes32[](4);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a0';
@@ -316,7 +346,7 @@ contract VoteMarketTest is FloorTest {
         assertEq(WETH.balanceOf(feeCollector), 20000000000000000);
     }
 
-    function test_CannotClaimTwiceOnSameCollectionEpoch() external {
+    function test_CannotClaimTwiceOnSameCollectionEpoch() external disableClaimWindow {
         // Merkle Root
         // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
         bytes32 merkleRoot = hex'4a504f2fee32fc23741019fe5681ab66a64e33bf5dccd9f7ead6b34e66d7623e';
@@ -325,7 +355,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -358,7 +388,7 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(5), 0.05 ether, 50 ether, aliceBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, aliceBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -378,7 +408,7 @@ contract VoteMarketTest is FloorTest {
         assertEq(WETH.balanceOf(feeCollector), 0);
     }
 
-    function test_CanOnlyEarnTheEnforcedMaxRewardPerVote() external {
+    function test_CanOnlyEarnTheEnforcedMaxRewardPerVote() external disableClaimWindow {
         // Our other tests show a number of votes that don't exceed the `maxRewardPerVote`, so this
         // test ensures that if a user is rewarded for more votes that the maximum price would give
         // against an epoch allocation then it just uses the number of total votes / total allocation.
@@ -393,7 +423,7 @@ contract VoteMarketTest is FloorTest {
         // Set up our bribe so that we allocate 50 tokens to the bribe with a 1 token max reward
         // per vote. Since our user is providing 500 votes, this should reward the user with the
         // full 50 tokens, rather than 500 tokens which the max vote reward would calculate to.
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), uint8(1), 1 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(1), 1 ether, 50 ether, emptyBlacklist);
 
         bytes32[] memory merkleProof = new bytes32[](1);
         merkleProof[0] = hex'9bce35978367d42a249f72fdf1c2d747b4e8ddf3c109d8021b5887ebf107ea9e';
@@ -442,6 +472,151 @@ contract VoteMarketTest is FloorTest {
 
         vm.expectRevert('Unauthorized caller');
         voteMarket.expireCollectionBribes(collections, indexes);
+    }
+
+    function test_CanDefineClaimWindow(uint epoch) external {
+        // Create a bribe on the current epoch, that lasts for 5 epochs.
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
+
+        /**
+         * With our bribe running from epoch 0 to epoch 4 inclusive, and a claim window then lasting
+         * for an additional 4 epochs, this gives us a claim window running from the start of epoch
+         * 5, until the end of epoch 8. From epoch 9 onwards, the bribe creator will then be able
+         * to withdraw any unclaimed amount and allocated users will no longer be able to claim.
+         */
+
+        // If we are in epoch 5, 6, 7 or 8, then we want to assert True, otherwise the window is
+        // closed and will return False.
+        epochManager.setCurrentEpoch(epoch);
+        if (epoch == 5 || epoch == 6 || epoch == 7 || epoch == 8) {
+            assertTrue(voteMarket.bribeClaimOpen(bribeId));
+        }
+        else {
+            assertFalse(voteMarket.bribeClaimOpen(bribeId));
+        }
+    }
+
+    function test_CannotClaimOutsideClaimWindow(uint epoch) external {
+        /**
+         * @dev The base version of this test in which the claim passes, is outlined in:
+         * `test_CanClaimAgainstSingleCollectionOnOneEpoch`
+         */
+
+        // Merkle Root
+        // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
+        bytes32 merkleRoot = hex'4a504f2fee32fc23741019fe5681ab66a64e33bf5dccd9f7ead6b34e66d7623e';
+
+        // Register our merkle root against epoch 0
+        _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
+
+        // Set up our bribe
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+
+        bytes32[] memory merkleProof = new bytes32[](3);
+        merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
+        merkleProof[1] = hex'8b21b8a5a775deda87741bf112ceaceacee044c477696c325e1c259cb2581b96';
+        merkleProof[2] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a4';
+
+        // Set up our claim
+        uint[] memory bribeIds = new uint[](1);
+        uint[] memory epochs = new uint[](1);
+        address[] memory collections = new address[](1);
+        uint[] memory votes = new uint[](1);
+
+        bribeIds[0] = bribeId;
+        epochs[0] = 0;
+        collections[0] = approvedCollection;
+        votes[0] = 10 ether;
+        merkleProofStore.push(merkleProof);
+
+        // Claim as Alice with a valid request.
+        // @dev If we are in epoch 5, 6, 7 or 8, then we want to assert True, otherwise the
+        //  window is closed and a revert will be raised.
+        epochManager.setCurrentEpoch(epoch);
+        if (epoch != 5 && epoch != 6 && epoch != 7 && epoch != 8) {
+            vm.expectRevert('Claim window closed');
+            voteMarket.claim(alice, epochs, bribeIds, collections, votes, merkleProofStore);
+
+            // Ensure no claim was made for the recipient and no fees generated
+            assertEq(WETH.balanceOf(alice), 0 ether);
+            assertEq(WETH.balanceOf(feeCollector), 0 ether);
+        }
+        else {
+            voteMarket.claim(alice, epochs, bribeIds, collections, votes, merkleProofStore);
+
+            // Ensure our recipient received the expected amount of WETH
+            assertEq(WETH.balanceOf(alice), 490000000000000000);
+
+            // Our fee collector should have received 2%
+            assertEq(WETH.balanceOf(feeCollector), 10000000000000000);
+        }
+    }
+
+    function test_CanWithdrawUnclaimedBribeFunds() external {
+        // Merkle Root
+        // keccak256(abi.encode(alice, 0, approvedCollection, 10 ether))
+        bytes32 merkleRoot = hex'4a504f2fee32fc23741019fe5681ab66a64e33bf5dccd9f7ead6b34e66d7623e';
+
+        // Register our merkle root against epoch 0
+        _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
+
+        // Set up our bribe
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+
+        bytes32[] memory merkleProof = new bytes32[](3);
+        merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
+        merkleProof[1] = hex'8b21b8a5a775deda87741bf112ceaceacee044c477696c325e1c259cb2581b96';
+        merkleProof[2] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a4';
+
+        // Set our epoch to the claim window, allowing our user to make the claim
+        epochManager.setCurrentEpoch(6);
+        _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
+
+        // Confirm our amounts before reclaims
+        assertEq(WETH.balanceOf(alice), 490000000000000000);              // .49 eth
+        assertEq(WETH.balanceOf(address(this)), 450_000000000000000000);  // 450 eth
+        assertEq(WETH.balanceOf(feeCollector), 10000000000000000);        // .01 eth
+
+        // Now we can move our epoch to after the claim window, so that the creator of the
+        // bribe can withdraw their remaining bribe funds
+        epochManager.setCurrentEpoch(9);
+        voteMarket.reclaimExpiredFunds(bribeId);
+
+        // Confirm our closing amounts
+        assertEq(WETH.balanceOf(alice), 490000000000000000);             // .49 eth
+        assertEq(WETH.balanceOf(address(this)), 499500000000000000000);  // 499.5 eth
+        assertEq(WETH.balanceOf(feeCollector), 10000000000000000);       // .01 eth
+    }
+
+    function test_CannotWithdrawUnclaimedBribeFundsScenarios(uint epoch) external {
+        // Set up our bribe
+        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+
+        // Set our test epoch
+        epochManager.setCurrentEpoch(epoch);
+
+        // If we have an epoch before the bribe is set to end, then we sure get a revert
+        // because the claim window has not yet closed
+        if (epoch < 9) {
+            vm.expectRevert('Too early to reclaim');
+            voteMarket.reclaimExpiredFunds(bribeId);
+        }
+
+        // Otherwise, if we are past the claim window, then we should be able to claim
+        // the funds remaining in the bribe
+        else {
+            voteMarket.reclaimExpiredFunds(bribeId);
+
+            // We can also test that we can't reclaim funds more than once
+            vm.expectRevert('No funds remaining');
+            voteMarket.reclaimExpiredFunds(bribeId);
+        }
+
+        // Regardless of the epoch, we should not be able to make the call if we are
+        // not the original creator of the bribe.
+        vm.expectRevert('Not bribe creator');
+        vm.prank(alice);
+        voteMarket.reclaimExpiredFunds(bribeId);
     }
 
     function _registerClaimWithSingleVote(uint epoch, bytes32 root, address collection, uint votes) internal {
@@ -499,5 +674,18 @@ contract VoteMarketTest is FloorTest {
 
         vm.prank(oracle);
         voteMarket.registerClaims(epoch, root, claimCollections, claimCollectionVotes);
+    }
+
+    /**
+     * Allows our claim window to be disabled.
+     */
+    modifier disableClaimWindow() {
+        vm.mockCall(
+            address(voteMarket),
+            abi.encodeWithSelector(VoteMarket.bribeClaimOpen.selector),
+            abi.encode(true)
+        );
+
+        _;
     }
 }

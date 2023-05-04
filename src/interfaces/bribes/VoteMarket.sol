@@ -3,24 +3,29 @@
 pragma solidity ^0.8.0;
 
 interface IVoteMarket {
-    /// @notice Bribe struct requirements.
+
+    /**
+     * Bribe struct requirements.
+     *
+     * @param bribeId ID of the bribe
+     * @param startEpoch The first epoch at which the bribe reward is claimable.
+     * @param maxRewardPerVote Max Price per vote.
+     * @param totalRewardAmount The total amount of `rewardToken` funding the bribe.
+     * @param remainingRewards Tracking of the number of rewards remaining.
+     * @param collection Address of the target gauge.
+     * @param rewardToken Address of the ERC20 used for rewards.
+     * @param creator The creator of the bribe.
+     * @param numberOfEpochs The number of epochs the bribe will run for.
+     */
     struct Bribe {
-        // ID of the bribe
-        uint bribeId;
-        // Address of the target gauge.
-        address collection;
-        // Address of the ERC20 used for rewards.
-        address rewardToken;
-        // The first epoch at which the bribe reward is claimable.
-        uint startEpoch;
-        // Number of periods.
-        uint8 numberOfEpochs;
-        // Max Price per vote.
-        uint maxRewardPerVote;
-        // Total Reward Added.
-        uint totalRewardAmount;
-        // Blacklisted addresses.
-        address[] blacklist;
+        uint startEpoch;         // 256 / 256
+        uint maxRewardPerVote;   // 512 / 512
+        uint remainingRewards;   // 768 / 768
+        uint totalRewardAmount;  // 1024 / 1024
+        address collection;      // 1184 / 1280
+        address rewardToken;     // 1344 / 1536
+        address creator;         // 1504 / 1536
+        uint8 numberOfEpochs;    // 1512 / 1536
     }
 
     /// Fired when a new bribe is created
@@ -63,6 +68,7 @@ interface IVoteMarket {
      *
      * @param collection Address of the target collection.
      * @param rewardToken Address of the ERC20 used or rewards.
+     * @param startEpoch The epoch to start offering the bribe.
      * @param numberOfEpochs Number of periods.
      * @param maxRewardPerVote Target Bias for the Gauge.
      * @param totalRewardAmount Total Reward Added.
@@ -73,6 +79,7 @@ interface IVoteMarket {
     function createBribe(
         address collection,
         address rewardToken,
+        uint startEpoch,
         uint8 numberOfEpochs,
         uint maxRewardPerVote,
         uint totalRewardAmount,

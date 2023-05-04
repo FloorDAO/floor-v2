@@ -19,22 +19,25 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     /// The percentage of bribes that will be sent to the DAO
     uint8 public constant DAO_FEE = 2;
 
+    /// The number of epochs to claim generated rewards
+    uint public constant CLAIM_WINDOW_EPOCHS = 4;
+
     /// The recipient of any fees collected. This should be set to the {Treasury}, or
     /// to a specialist fee collection contract.
     address public immutable feeCollector;
 
     /// Store our claim merkles that define the available rewards for each user across
     /// all collections and bribes.
-    mapping(uint => bytes32) epochMerkles;
+    mapping(uint => bytes32) public epochMerkles;
 
     /// Store the total number of votes cast against each collection at each epoch
-    mapping(bytes32 => uint) epochCollectionVotes;
+    mapping(bytes32 => uint) public epochCollectionVotes;
 
     /// Stores a list of all bribes created, across past, live and future
-    Bribe[] bribes;
+    Bribe[] public bribes;
 
     /// A mapping of collection addresses to an array of bribe array indexes
-    mapping(address => uint[]) collectionBribes;
+    mapping(address => uint[]) public collectionBribes;
 
     /// Store a list of users that have claimed. Each encoded bytes represents a user that
     /// has claimed against a specific epoch and bribe ID.
@@ -67,6 +70,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
      *
      * @param collection Address of the target collection.
      * @param rewardToken Address of the ERC20 used or rewards.
+     * @param startEpoch The epoch to start offering the bribe.
      * @param numberOfEpochs Number of periods.
      * @param maxRewardPerVote Target Bias for the Gauge.
      * @param totalRewardAmount Total Reward Added.
@@ -77,6 +81,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     function createBribe(
         address collection,
         address rewardToken,
+        uint startEpoch,
         uint8 numberOfEpochs,
         uint maxRewardPerVote,
         uint totalRewardAmount,
@@ -89,8 +94,11 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
         // of epochs.
         require(numberOfEpochs >= MINIMUM_EPOCHS, 'Invalid number of epochs');
 
+        // Ensure the start date is not in the past
+        require(startEpoch >= currentEpoch(), 'Cannot start in past');
+
         // If new collection epoch, force the number of epochs to be 1
-        if (epochManager.isCollectionAdditionEpoch()) {
+        if (epochManager.isCollectionAdditionEpoch(startEpoch)) {
             require(numberOfEpochs == 1, 'New collection bribes can only last 1 epoch');
         }
 
@@ -109,14 +117,14 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
         // Create our Bribe object at the new ID index
         bribes.push(
             Bribe({
-                bribeId: newBribeID,
                 collection: collection,
                 rewardToken: rewardToken,
-                startEpoch: currentEpoch(),
+                startEpoch: startEpoch,
                 numberOfEpochs: numberOfEpochs,
                 maxRewardPerVote: maxRewardPerVote,
                 totalRewardAmount: totalRewardAmount,
-                blacklist: blacklist
+                remainingRewards: totalRewardAmount,
+                creator: msg.sender
             })
         );
 
@@ -147,8 +155,14 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
         uint[] calldata votes,
         bytes32[][] calldata merkleProof
     ) external whenNotPaused {
-        // Loop through all bribes assigned to the collection
+        // Loop through all bribes passed in the call
         for (uint i; i < bribeIds.length;) {
+            // Ensure that our bribe has not closed the claim window
+            if (!this.bribeClaimOpen(bribeIds[i])) {
+                revert('Claim window closed');
+            }
+
+            // For each specified, claim against the merkle proof at that epoch
             for (uint k; k < epoch.length;) {
                 _claim(bribeIds[i], account, epoch[k], collection[k], votes[k], merkleProof[k]);
                 unchecked {
@@ -175,7 +189,11 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
         for (uint i; i < collection.length;) {
             // Loop through all bribes assigned to the collection
             for (uint k; k < collectionBribes[collection[i]].length;) {
-                _claim(collectionBribes[collection[i]][k], account, epoch[i], collection[i], votes[i], merkleProof[i]);
+                // Ensure that our bribe has not closed the claim window
+                if (this.bribeClaimOpen(collectionBribes[collection[i]][k])) {
+                    _claim(collectionBribes[collection[i]][k], account, epoch[i], collection[i], votes[i], merkleProof[i]);
+                }
+
                 unchecked {
                     ++k;
                 }
@@ -185,6 +203,29 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
                 ++i;
             }
         }
+    }
+
+    /**
+     * Allows the bribe creator to withdraw unclaimed funds when the claim window has expired.
+     *
+     * @param bribeId The bribe ID to be reclaimed
+     */
+    function reclaimExpiredFunds(uint bribeId) external {
+        // Ensure message sender is the bribe creator
+        require(bribes[bribeId].creator == msg.sender, 'Not bribe creator');
+
+        // Ensure that we have passed the reclaim window
+        uint bribeEndEpoch = bribes[bribeId].startEpoch + bribes[bribeId].numberOfEpochs - 1;
+        require(bribeEndEpoch + CLAIM_WINDOW_EPOCHS < currentEpoch(), 'Too early to reclaim');
+
+        // Ensure that there are still funds remaining to withdraw
+        require(bribes[bribeId].remainingRewards != 0, 'No funds remaining');
+
+        // Transfer to sender
+        ERC20(bribes[bribeId].rewardToken).transferFrom(address(this), msg.sender, bribes[bribeId].remainingRewards);
+
+        // Set our remaining funds to zero
+        delete bribes[bribeId].remainingRewards;
     }
 
     /**
@@ -224,12 +265,21 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
                 / epochCollectionVotes[collectionHash];
         }
 
+        // Mark our collection rewards for the epoch as claimed for the user
+        userClaimed[userClaimHash] = true;
+
         // Determine the reward amount for the user
         uint amount = (votes * voteReward) / (10 ** ERC20(bribe.rewardToken).decimals());
+
+        // Emit our event
+        emit Claimed(account, bribe.rewardToken, bribeId, amount, epoch);
 
         // Determine the amount of fee, if applicable, to return to the DAO for
         // facilitating the vote market.
         if (amount != 0) {
+            // Reduce the amount of remaining rewards in the bribe
+            bribes[bribeId].remainingRewards -= amount;
+
             if (DAO_FEE != 0) {
                 uint feeAmount = amount * DAO_FEE / 100;
                 amount -= feeAmount;
@@ -241,12 +291,6 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
             // Transfer to account claiming the reward
             ERC20(bribe.rewardToken).transfer(account, amount);
         }
-
-        // Mark our collection rewards for the epoch as claimed for the user
-        userClaimed[userClaimHash] = true;
-
-        // Emit our event
-        emit Claimed(account, bribe.rewardToken, bribeId, amount, epoch);
     }
 
     /**
@@ -341,6 +385,23 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
                 ++i;
             }
         }
+    }
+
+    /**
+     * Checks if a bribe claim window is still open.
+     *
+     * @param bribeId The bribe ID to be checked
+     *
+     * @return bool If the claim window is still open
+     */
+    function bribeClaimOpen(uint bribeId) external view returns (bool) {
+        // Our bribe epoch duration is inclusive of the start epoch, so we need to reduce the
+        // number by 1 to accomodate this.
+        uint bribeEndEpoch = bribes[bribeId].startEpoch + bribes[bribeId].numberOfEpochs - 1;
+
+        // Confirm our lower and upper boundary
+        uint currentEpoch = currentEpoch();
+        return (bribeEndEpoch < currentEpoch && bribeEndEpoch + CLAIM_WINDOW_EPOCHS >= currentEpoch);
     }
 
     /**
