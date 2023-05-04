@@ -101,4 +101,7 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         // Return an empty string as no message to store
         return '';
     }
+
+    // TODO: What happens to any remaining WETH; will there be any?
+
 }

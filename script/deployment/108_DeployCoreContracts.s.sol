@@ -6,9 +6,9 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 import {NftStaking} from '@floor/staking/NftStaking.sol';
-import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
-import {NftStakingLocker} from '@floor/staking/NftStakingLocker.sol';
-import {NftStakingNFTXV2} from '@floor/staking/NftStakingNFTXV2.sol';
+import {NftStakingBoostCalculator} from '@floor/staking/calculators/NftStakingBoostCalculator.sol';
+import {NftStakingLocker} from '@floor/staking/strategies/NftStakingLocker.sol';
+import {NftStakingNFTXV2} from '@floor/staking/strategies/NftStakingNFTXV2.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
+import {NftStakingBoostCalculator} from '@floor/staking/calculators/NftStakingBoostCalculator.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {ABDKMath64x64} from '@floor/forks/ABDKMath64x64.sol';
 
-import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
+import {INftStakingBoostCalculator} from '@floor-interfaces/staking/calculators/NftStakingBoostCalculator.sol';
 
 /**
  * Calculates the boost power generated from staked NFTs, factoring in the total

@@ -12,8 +12,8 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
-import {INftStakingStrategy} from '@floor-interfaces/staking/NftStakingStrategy.sol';
-import {INftStakingBoostCalculator} from '@floor-interfaces/staking/NftStakingBoostCalculator.sol';
+import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStakingStrategy.sol';
+import {INftStakingBoostCalculator} from '@floor-interfaces/staking/calculators/NftStakingBoostCalculator.sol';
 
 /**
  * This contract allows approved collection NFTs to be depoited into it to generate

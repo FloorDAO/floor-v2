@@ -12,7 +12,7 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
 import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
-import {INftStakingStrategy} from '@floor-interfaces/staking/NftStakingStrategy.sol';
+import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStakingStrategy.sol';
 
 /**
  * This contract allows approved collection NFTs to be depoited into it to generate

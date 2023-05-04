@@ -7,8 +7,8 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {NftStaking} from '@floor/staking/NftStaking.sol';
-import {NftStakingLocker} from '@floor/staking/NftStakingLocker.sol';
-import {NftStakingBoostCalculator} from '@floor/staking/NftStakingBoostCalculator.sol';
+import {NftStakingLocker} from '@floor/staking/strategies/NftStakingLocker.sol';
+import {NftStakingBoostCalculator} from '@floor/staking/calculators/NftStakingBoostCalculator.sol';
 import {UniswapV3PricingExecutor} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 

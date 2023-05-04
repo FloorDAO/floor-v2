@@ -8,7 +8,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
-import {INftStakingStrategy} from '@floor-interfaces/staking/NftStakingStrategy.sol';
+import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStakingStrategy.sol';
 
 /**
  * This contract allows approved collection NFTs to be depoited into it to generate
