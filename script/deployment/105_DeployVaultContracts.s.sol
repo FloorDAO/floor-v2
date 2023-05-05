@@ -2,9 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
-
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+// import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
@@ -21,18 +20,18 @@ contract DeployVaultContracts is DeploymentScript {
         address collectionRegistry = requireDeployment('CollectionRegistry');
 
         // Deploy vault strategies
-        NFTXInventoryStakingStrategy inventoryStaking = new NFTXInventoryStakingStrategy('NFTX Inventory Staking');
-        RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy('Revenue Staking');
+        NFTXInventoryStakingStrategy inventoryStaking = new NFTXInventoryStakingStrategy();
+        // RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
 
         // Store our strategies deployment address
         storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
-        storeDeployment('RevenueStakingStrategy', address(revenueStaking));
+        // storeDeployment('RevenueStakingStrategy', address(revenueStaking));
 
         // Deploy our vault factory
-        VaultFactory vaultFactory = new VaultFactory(authorityControl, collectionRegistry);
+        StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry);
 
         // Store our vault factory
-        storeDeployment('VaultFactory', address(vaultFactory));
+        storeDeployment('StrategyFactory', address(strategyFactory));
 
     }
 

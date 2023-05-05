@@ -9,8 +9,8 @@ import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
+import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
@@ -46,7 +46,7 @@ contract EpochManager is IEpochManager, Ownable {
     INewCollectionWars public newCollectionWars;
     ISweepWars public voteContract;
     ITreasury public treasury;
-    IVaultFactory public vaultFactory;
+    IStrategyFactory public strategyFactory;
     IVoteMarket public voteMarket;
 
     /// Stores a mapping of an epoch to a collection
@@ -126,15 +126,15 @@ contract EpochManager is IEpochManager, Ownable {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
-        // Get our vaults
-        address[] memory vaults = vaultFactory.vaults();
+        // Get our strategies
+        address[] memory strategies = strategyFactory.strategies();
 
         /**
          * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
          * as user rewards.
          *
          * The vault will handle its own internal price calculation and stale caching logic based
-         * on a {VaultPricingStrategy} tied to the vault.
+         * on a {VaultPricingStrategy} tied to the strategy.
          *
          * @dev Our FLOOR ETH price is determined by:
          * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
@@ -164,19 +164,19 @@ contract EpochManager is IEpochManager, Ownable {
         uint ethRewards;
 
         // Create our variables that we will reallocate during our loop to save gas
-        IVault vault;
-        uint vaultId;
+        IBaseStrategy strategy;
+        uint strategyId;
         uint tokensLength;
 
-        // Iterate over vaults
-        uint vaultLength = vaults.length;
-        for (uint i; i < vaultLength;) {
+        // Iterate over strategies
+        uint strategiesLength = strategies.length;
+        for (uint i; i < strategiesLength;) {
             // Parse our vault address into the Vault interface
-            vault = IVault(vaults[i]);
+            strategy = IBaseStrategy(strategies[i]);
 
             // Pull out rewards and transfer into the {Treasury}
-            vaultId = vault.vaultId();
-            (address[] memory tokens, uint[] memory amounts) = vaultFactory.claimRewards(vaultId);
+            strategyId = strategy.strategyId();
+            (address[] memory tokens, uint[] memory amounts) = strategyFactory.claimRewards(strategyId);
 
             // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
             tokensLength = tokens.length;
@@ -192,7 +192,7 @@ contract EpochManager is IEpochManager, Ownable {
                 // Now that the {Treasury} has knowledge of the reward tokens and has minted
                 // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
                 // the {Treasury}.
-                vaultFactory.registerMint(vaultId, tokens[k], amounts[k]);
+                strategyFactory.registerMint(strategyId, tokens[k], amounts[k]);
 
                  unchecked { ++k; }
             }
@@ -287,7 +287,7 @@ contract EpochManager is IEpochManager, Ownable {
         address _newCollectionWars,
         address _pricingExecutor,
         address _treasury,
-        address _vaultFactory,
+        address _strategyFactory,
         address _voteContract,
         address _voteMarket
     ) external onlyOwner {
@@ -295,7 +295,7 @@ contract EpochManager is IEpochManager, Ownable {
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         treasury = ITreasury(_treasury);
-        vaultFactory = IVaultFactory(_vaultFactory);
+        strategyFactory = IStrategyFactory(_strategyFactory);
         voteContract = ISweepWars(_voteContract);
         voteMarket = IVoteMarket(_voteMarket);
     }

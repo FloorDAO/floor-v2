@@ -21,10 +21,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
     function setUp() public {
         // Set up our pricing executor
-        strategy = new NFTXInventoryStakingStrategy(bytes32('PUNK Vault'));
+        strategy = new NFTXInventoryStakingStrategy();
         strategy.initialize(
-            0, // Vault ID
-            testUser, // Vault Address (set to our testUser so that it can call strategy methods direct)
+            bytes32('PUNK Strategy'),
+            0, // Strategy ID
             abi.encode(
                 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, // _underlyingToken
                 0x08765C76C758Da951DC73D3a8863B34752Dd76FB, // _yieldToken
@@ -37,7 +37,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
      * Checks that we can get the strategy name set in the constructor.
      */
     function test_CanGetName() public {
-        assertEq(strategy.name(), 'PUNK Vault');
+        assertEq(strategy.name(), 'PUNK Strategy');
     }
 
     /**
@@ -65,8 +65,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     /**
      *
      */
-    function test_CanGetVaultId() public {
-        assertEq(strategy.vaultId(), 0);
+    function test_CanGetStrategyId() public {
+        assertEq(strategy.strategyId(), 0);
     }
 
     /**
@@ -87,7 +87,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Deposit using the underlying token to receive xToken into the strategy
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        strategy.deposit(strategy.underlyingToken(), 1 ether);
+        _deposit(strategy.underlyingToken(), 1 ether);
 
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(testUser), 49242376308170344638);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(testUser), 0);
@@ -112,7 +112,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         vm.expectRevert(CannotDepositZeroAmount.selector);
         vm.prank(testUser);
-        strategy.deposit(token, 0);
+        _deposit(token, 0);
     }
 
     /**
@@ -125,12 +125,13 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.deposit(strategy.underlyingToken(), 1 ether);
+        uint[] memory depositAmounts = _deposit(strategy.underlyingToken(), 1 ether);
+        uint depositAmount = depositAmounts[0];
 
         // If we try to claim straight away, our user will be locked
         address token = strategy.underlyingToken();
         vm.expectRevert('User locked');
-        strategy.withdraw(token, 0.5 ether);
+        _withdraw(token, 0.5 ether);
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -138,12 +139,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Confirm that we cannot claim more than our token balance
         vm.expectRevert('ERC20: burn amount exceeds balance');
-        strategy.withdraw(token, depositAmount + 1);
+        _withdraw(token, depositAmount + 1);
 
         // We can now claim rewards via the strategy that will eat away from our
         // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
         // back our underlying token.
-        strategy.withdraw(token, 0.5 ether);
+        _withdraw(token, 0.5 ether);
 
         // The strategy should now hold token
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 467780757975035829);
@@ -160,7 +161,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         vm.expectRevert(CannotWithdrawZeroAmount.selector);
         vm.prank(testUser);
-        strategy.withdraw(token, 0);
+        _withdraw(token, 0);
     }
 
     /**
@@ -173,7 +174,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.deposit(strategy.underlyingToken(), 1 ether);
+        uint[] memory depositAmounts = _deposit(strategy.underlyingToken(), 1 ether);
+        uint depositAmount = depositAmounts[0];
 
         // To pass this lock we need to manipulate the block timestamp to set it
         // after our lock would have expired.
@@ -181,7 +183,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We can now exit via the strategy. This will burn all of our xToken and
         // we will just have our `underlyingToken` back in the strategy.
-        strategy.withdraw(strategy.underlyingToken(), depositAmount);
+        _withdraw(strategy.underlyingToken(), depositAmount);
 
         // The strategy should now hold token and xToken. However, we need to accomodate
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
@@ -190,25 +192,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         vm.stopPrank();
     }
-
-    /**
-     * If we have multiple users with staked positions, a user cannot
-     * exit to a value more than they have staked. This has to be
-     * enforced to prevent other user's xTokens being taken. We expect
-     * a revert in this case.
-     *
-     * This will be done via the vault.
-     */
-    function test_CannotExitBeyondPosition() public {}
-
-    /**
-     * If we don't have a stake in the {InventoryStaking} contract and
-     * we try to exit our (non-existant) position then we should expect
-     * a revert.
-     *
-     * This will be done via the vault.
-     */
-    function test_CannotExitPositionWithZeroStake() public {}
 
     /**
      * When we have rewards available we want to be able to determine
@@ -220,7 +203,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Deposit using the underlying token to receive xToken into the strategy
         IERC20(strategy.underlyingToken()).approve(address(strategy), 5 ether);
-        strategy.deposit(strategy.underlyingToken(), 5 ether);
+        _deposit(strategy.underlyingToken(), 5 ether);
 
         // Skip some time for the NFTX lock to expire
         skip(2592001);
@@ -275,4 +258,29 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     function test_CanCalculateTotalRewardsGenerated() public {
         assertEq(strategy.totalRewardsGenerated(strategy.underlyingToken()), 0);
     }
+
+    /**
+     * Helper function call to make a deposit.
+     */
+    function _deposit(address token, uint amount) internal returns (uint[] memory) {
+        address[] memory tokens = new address[](1);
+        tokens[0] = token;
+        uint[] memory amounts = new uint[](1);
+        amounts[0] = amount;
+
+        return strategy.deposit(tokens, amounts);
+    }
+
+    /**
+     * Helper function call to make a deposit.
+     */
+    function _withdraw(address token, uint amount) internal returns (uint[] memory) {
+        address[] memory tokens = new address[](1);
+        tokens[0] = token;
+        uint[] memory amounts = new uint[](1);
+        amounts[0] = amount;
+
+        return strategy.withdraw(tokens, amounts);
+    }
+
 }

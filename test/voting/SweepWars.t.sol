@@ -8,14 +8,14 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {IVault, Vault} from '@floor/vaults/Vault.sol';
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
 import {CannotVoteWithZeroAmount, CollectionNotApproved, SweepWars, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -26,7 +26,7 @@ contract SweepWarsTest is FloorTest {
     FLOOR floor;
     SweepWars sweepWars;
     Treasury treasury;
-    VaultFactory vaultFactory;
+    StrategyFactory strategyFactory;
     VeFloorStaking veFloor;
 
     // A set of collections to be referenced during testing
@@ -56,8 +56,8 @@ contract SweepWarsTest is FloorTest {
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
 
-        // Create our {VaultFactory}
-        vaultFactory = new VaultFactory(
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(
             address(authorityRegistry),
             address(collectionRegistry)
         );
@@ -74,7 +74,7 @@ contract SweepWarsTest is FloorTest {
         // Now that we have all our dependencies, we can deploy our {SweepWars} contract
         sweepWars = new SweepWars(
             address(collectionRegistry),
-            address(vaultFactory),
+            address(strategyFactory),
             address(veFloor),
             address(authorityRegistry),
             address(treasury)
@@ -86,7 +86,7 @@ contract SweepWarsTest is FloorTest {
         veFloor.setEpochManager(address(epochManager));
 
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy());
 
         // Approve our test collection
         collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
@@ -430,13 +430,13 @@ contract SweepWarsTest is FloorTest {
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
 
         // Create the vault via the factory
-        (, vaultAddr_) = vaultFactory.createVault(vaultName, approvedStrategy, _strategyInitBytes(), collection);
+        (, vaultAddr_) = strategyFactory.deployStrategy(bytes32(bytes(vaultName)), approvedStrategy, _strategyInitBytes(), collection);
 
         // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
     }
 
     function _mockVaultStrategyRewardsGenerated(address vault, uint amount) internal {
-        vm.mockCall(address(vault), abi.encodeWithSelector(IVault.lastEpochRewards.selector), abi.encode(amount));
+        vm.mockCall(address(vault), abi.encodeWithSelector(IBaseStrategy.lastEpochRewards.selector), abi.encode(amount));
     }
 }

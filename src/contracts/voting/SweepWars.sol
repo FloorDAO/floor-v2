@@ -12,8 +12,7 @@ import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
+import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
@@ -59,7 +58,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
-    IVaultFactory immutable vaultFactory;
+    IStrategyFactory immutable vaultFactory;
     VeFloorStaking immutable veFloor;
     ITreasury immutable treasury;
     INftStaking public nftStaking;
@@ -94,7 +93,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         AuthorityControl(_authority)
     {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-        vaultFactory = IVaultFactory(_vaultFactory);
+        vaultFactory = IStrategyFactory(_vaultFactory);
         veFloor = VeFloorStaking(_veFloor);
 
         treasury = ITreasury(_treasury);

@@ -15,8 +15,6 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFai
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IMercenarySweeper, ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
-import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 

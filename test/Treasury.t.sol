@@ -13,13 +13,11 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {Vault} from '@floor/vaults/Vault.sol';
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
@@ -43,7 +41,7 @@ contract TreasuryTest is FloorTest {
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     SweepWars sweepWars;
-    VaultFactory vaultFactory;
+    StrategyFactory strategyFactory;
 
     constructor() {
         // Set up our mock pricing executor
@@ -63,8 +61,8 @@ contract TreasuryTest is FloorTest {
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
-        // Create our {VaultFactory}
-        vaultFactory = new VaultFactory(
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(
             address(authorityRegistry),
             address(collectionRegistry)
         );
@@ -78,7 +76,7 @@ contract TreasuryTest is FloorTest {
         // Create our Gauge Weight Vote contract
         sweepWars = new SweepWars(
             address(collectionRegistry),
-            address(vaultFactory),
+            address(strategyFactory),
             address(veFloor),
             address(authorityRegistry),
             address(treasury)
@@ -91,7 +89,7 @@ contract TreasuryTest is FloorTest {
             address(0),  // Floor Wars not needed for these tests
             address(pricingExecutorMock),
             address(treasury),
-            address(vaultFactory),
+            address(strategyFactory),
             address(sweepWars),
             address(0)  // Vote Market not needed for these tests
         );

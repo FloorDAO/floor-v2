@@ -14,8 +14,7 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {Vault} from '@floor/vaults/Vault.sol';
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
@@ -38,7 +37,7 @@ contract NewCollectionWarsTest is FloorTest {
     Treasury treasury;
     PricingExecutorMock pricingExecutorMock;
     SweepWars sweepWars;
-    VaultFactory vaultFactory;
+    StrategyFactory strategyFactory;
 
     address alice;
     address bob;
@@ -62,8 +61,8 @@ contract NewCollectionWarsTest is FloorTest {
         floor = new FLOOR(address(authorityRegistry));
         veFloor = new VeFloorStaking(floor, address(this));
 
-        // Create our {VaultFactory}
-        vaultFactory = new VaultFactory(
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(
             address(authorityRegistry),
             address(collectionRegistry)
         );
@@ -77,7 +76,7 @@ contract NewCollectionWarsTest is FloorTest {
         // Create our Gauge Weight Vote contract
         sweepWars = new SweepWars(
             address(collectionRegistry),
-            address(vaultFactory),
+            address(strategyFactory),
             address(veFloor),
             address(authorityRegistry),
             address(treasury)
@@ -109,7 +108,7 @@ contract NewCollectionWarsTest is FloorTest {
             address(newCollectionWars),
             address(pricingExecutorMock),
             address(treasury),
-            address(vaultFactory),
+            address(strategyFactory),
             address(sweepWars),
             address(0)  // Vote Market not needed for these tests
         );

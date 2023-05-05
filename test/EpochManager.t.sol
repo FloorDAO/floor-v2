@@ -15,15 +15,14 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-import {Vault} from '@floor/vaults/Vault.sol';
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
@@ -51,7 +50,7 @@ contract EpochManagerTest is FloorTest {
     PricingExecutorMock pricingExecutorMock;
     NewCollectionWars newCollectionWars;
     SweepWars sweepWars;
-    VaultFactory vaultFactory;
+    StrategyFactory strategyFactory;
     VoteMarket voteMarket;
 
     constructor () {
@@ -68,8 +67,8 @@ contract EpochManagerTest is FloorTest {
         floor = new FLOOR(address(authorityRegistry));
         veFloor = new VeFloorStaking(floor, address(this));
 
-        // Create our {VaultFactory}
-        vaultFactory = new VaultFactory(
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(
             address(authorityRegistry),
             address(collectionRegistry)
         );
@@ -83,7 +82,7 @@ contract EpochManagerTest is FloorTest {
         // Create our Gauge Weight Vote contract
         sweepWars = new SweepWars(
             address(collectionRegistry),
-            address(vaultFactory),
+            address(strategyFactory),
             address(veFloor),
             address(authorityRegistry),
             address(treasury)
@@ -109,7 +108,7 @@ contract EpochManagerTest is FloorTest {
             address(newCollectionWars),
             address(pricingExecutorMock),
             address(treasury),
-            address(vaultFactory),
+            address(strategyFactory),
             address(sweepWars),
             address(voteMarket)
         );
@@ -124,7 +123,7 @@ contract EpochManagerTest is FloorTest {
         veFloor.setFeeReceiver(address(treasury));
 
         // Approve a strategy
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy());
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -164,7 +163,7 @@ contract EpochManagerTest is FloorTest {
             address(2),  // newCollectionWars
             address(3),  // pricingExecutor
             address(4),  // treasury
-            address(5),  // vaultFactory
+            address(5),  // strategyFactory
             address(6),  // voteContract,
             address(7)   // voteMarket
         );
@@ -173,7 +172,7 @@ contract EpochManagerTest is FloorTest {
         assertEq(address(epochManager.newCollectionWars()), address(2));
         assertEq(address(epochManager.pricingExecutor()), address(3));
         assertEq(address(epochManager.treasury()), address(4));
-        assertEq(address(epochManager.vaultFactory()), address(5));
+        assertEq(address(epochManager.strategyFactory()), address(5));
         assertEq(address(epochManager.voteContract()), address(6));
         assertEq(address(epochManager.voteMarket()), address(7));
     }
@@ -208,8 +207,8 @@ contract EpochManagerTest is FloorTest {
      * trying to run it again. If this is not catered for, then we expect a revert.
      */
     function test_CannotCallAnotherEpochWithoutRespectingTimeout() public {
-        // Mock our VaultFactory call to return no vaults
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.vaults.selector), abi.encode(new address[](0)));
+        // Mock our StrategyFactory call to return no vaults
+        vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.strategies.selector), abi.encode(new address[](0)));
 
         // Call an initial trigger, which should pass as no vaults or staked users
         // are set up for the test.
@@ -232,15 +231,15 @@ contract EpochManagerTest is FloorTest {
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
         sweepWars.setSampleSize(5);
 
-        // Prevent the {VaultFactory} from trying to transfer tokens when registering the mint
-        vm.mockCall(address(vaultFactory), abi.encodeWithSelector(VaultFactory.registerMint.selector), abi.encode(''));
+        // Prevent the {StrategyFactory} from trying to transfer tokens when registering the mint
+        vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.registerMint.selector), abi.encode(''));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(
             address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max)
         );
 
-        // Mock our vaults response (our {VaultFactory} has a hardcoded address(8) when we
+        // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
         address payable[] memory stakers = utilities.createUsers(stakerCount);
@@ -252,7 +251,7 @@ contract EpochManagerTest is FloorTest {
             collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
             // Deploy our vault
-            (, vaults[i]) = vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
+            (, vaults[i]) = strategyFactory.deployStrategy('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
 
             address[] memory tokens = new address[](1);
             tokens[0] = collection;
@@ -262,7 +261,7 @@ contract EpochManagerTest is FloorTest {
             // Set up a mock that will set rewards to be a static amount of ether
             vm.mockCall(
                 vaults[i],
-                abi.encodeWithSelector(Vault.claimRewards.selector),
+                abi.encodeWithSelector(BaseStrategy.claimRewards.selector),
                 abi.encode(tokens, amounts)
             );
 

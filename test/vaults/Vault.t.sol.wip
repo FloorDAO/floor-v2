@@ -9,8 +9,6 @@ import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {Vault, InsufficientPosition} from '@floor/vaults/Vault.sol';
-import {VaultFactory} from '@floor/vaults/VaultFactory.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
@@ -61,7 +59,7 @@ contract VaultTest is FloorTest {
         );
 
         // Set up our Vault with authority
-        (, address vaultAddress) = vaultFactory.createVault(
+        (, address vaultAddress) = vaultFactory.deployStrategy(
             'Test Vault',
             address(strategy),
             abi.encode(
@@ -362,6 +360,25 @@ contract VaultTest is FloorTest {
 
         vm.stopPrank();
     }
+
+    /**
+     * If we have multiple users with staked positions, a user cannot
+     * exit to a value more than they have staked. This has to be
+     * enforced to prevent other user's xTokens being taken. We expect
+     * a revert in this case.
+     *
+     * This will be done via the vault.
+     */
+    function test_CannotExitBeyondPosition() public {}
+
+    /**
+     * If we don't have a stake in the {InventoryStaking} contract and
+     * we try to exit our (non-existant) position then we should expect
+     * a revert.
+     *
+     * This will be done via the vault.
+     */
+    function test_CannotExitPositionWithZeroStake() public {}
 
     function test_CanPause() public {
         assertEq(vault.paused(), false);

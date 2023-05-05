@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
+import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
 /**
  * Allows for approved ERC20 tokens to be deposited into a vault.
@@ -19,8 +19,8 @@ contract FloorDepositIntoVault is IAction {
      */
     struct ActionRequest {
         address vault;
-        address token;
-        uint amount;
+        address[] tokens;
+        uint[] amounts;
     }
 
     /**
@@ -32,12 +32,11 @@ contract FloorDepositIntoVault is IAction {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
-        // Ensure that we have an amount sent
-        require(request.amount != 0, 'Invalid amount');
-
         // Deposit the requested token into the vault. This assumes that the {Treasury}
         // has already approved the asset to be deposited.
-        return IVault(request.vault).deposit(request.token, request.amount);
+        IBaseStrategy(request.vault).deposit(request.tokens, request.amounts);
+
+        return 0;
     }
 
 }

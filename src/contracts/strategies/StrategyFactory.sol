@@ -6,16 +6,16 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
-import {Vault} from '@floor/vaults/Vault.sol';
 import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-import {IVault} from '@floor-interfaces/vaults/Vault.sol';
-import {IVaultFactory} from '@floor-interfaces/vaults/VaultFactory.sol';
+import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
+
 
 // No empty names, that's just silly
-error VaultNameCannotBeEmpty();
+error StrategyNameCannotBeEmpty();
+
 
 /**
  * Allows for vaults to be created, pairing them with an approved collection. The vault
@@ -25,16 +25,16 @@ error VaultNameCannotBeEmpty();
  * This factory will keep an index of created vaults and secondary information to ensure
  * that external applications can display and maintain a list of available vaults.
  */
-contract VaultFactory is AuthorityControl, IVaultFactory {
+contract StrategyFactory is AuthorityControl, IStrategyFactory {
     /// Maintains an array of all vaults created
-    address[] private _vaults;
+    address[] private _strategies;
 
     /// Contract mappings to our internal registries
     ICollectionRegistry public immutable collectionRegistry;
 
     /// Mappings to aide is discoverability
-    mapping(uint => address) private vaultIds;
-    mapping(address => address[]) private collectionVaults;
+    mapping(uint => address) private strategyIds;
+    mapping(address => address[]) public collectionStrategies;
 
     /**
      * Store our registries, mapped to their interfaces.
@@ -48,36 +48,24 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
     }
 
     /**
-     * Provides a list of all vaults created.
+     * Provides a list of all strategies created.
      *
-     * @return Array of all vaults created by the {VaultFactory}
+     * @return Array of all strategies created by the {StrategyFactory}
      */
-    function vaults() external view returns (address[] memory) {
-        return _vaults;
+    function strategies() external view returns (address[] memory) {
+        return _strategies;
     }
 
     /**
-     * Provides a vault against the provided `vaultId` (index). If the index does not exist,
+     * Provides a strategy against the provided `strategyId` (index). If the index does not exist,
      * then address(0) will be returned.
      *
-     * @param _vaultId ID of the vault to cross check
+     * @param _strategyId ID of the strategy to retrieve
      *
-     * @return Address of the vault
+     * @return Address of the strategy
      */
-    function vault(uint _vaultId) external view returns (address) {
-        return vaultIds[_vaultId];
-    }
-
-    /**
-     * Provides a list of all vault addresses that have been set up for a
-     * collection address.
-     *
-     * @param _collection Address of the collection to look up
-     *
-     * @return Array of vaults that reference the collection
-     */
-    function vaultsForCollection(address _collection) external view returns (address[] memory) {
-        return collectionVaults[_collection];
+    function strategy(uint _strategyId) external view returns (address) {
+        return strategyIds[_strategyId];
     }
 
     /**
@@ -91,17 +79,18 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      * @param _strategyInitData Bytes data required by the {Strategy} for initialization
      * @param _collection The address of the collection attached to the vault
      *
-     * @return vaultId_ ID of the newly created vault
-     * @return vaultAddr_ Address of the newly created vault
+     * @return strategyId_ ID of the newly created vault
+     * @return strategyAddr_ Address of the newly created vault
      */
-    function createVault(string calldata _name, address _strategy, bytes calldata _strategyInitData, address _collection)
-        external
-        onlyRole(VAULT_MANAGER)
-        returns (uint vaultId_, address vaultAddr_)
-    {
+    function deployStrategy(
+        bytes32 _name,
+        address _strategy,
+        bytes calldata _strategyInitData,
+        address _collection
+    ) external onlyRole(VAULT_MANAGER) returns (uint strategyId_, address strategyAddr_) {
         // No empty names, that's just silly
-        if (bytes(_name).length == 0) {
-            revert VaultNameCannotBeEmpty();
+        if (_name == '') {
+            revert StrategyNameCannotBeEmpty();
         }
 
         // Make sure the collection is approved
@@ -110,33 +99,30 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
         }
 
         // Capture our vaultId, before we increment the array length
-        vaultId_ = _vaults.length;
+        strategyId_ = _strategies.length;
 
         // Deploy a new {Strategy} instance using the clone mechanic
-        address strategy = Clones.cloneDeterministic(_strategy, bytes32(vaultId_));
-
-        // Create our {Vault} with provided information
-        vaultAddr_ = address(new Vault(_name, vaultId_, strategy));
+        strategyAddr_ = Clones.cloneDeterministic(_strategy, bytes32(strategyId_));
 
         // We then need to instantiate the strategy using our supplied `strategyInitData`
-        IBaseStrategy(strategy).initialize(vaultId_, vaultAddr_, _strategyInitData);
+        IBaseStrategy(strategyAddr_).initialize(_name, strategyId_, _strategyInitData);
 
         // Add our vaults to our internal tracking
-        _vaults.push(vaultAddr_);
+        _strategies.push(strategyAddr_);
 
         // Add our mappings for onchain discoverability
-        vaultIds[vaultId_] = vaultAddr_;
-        collectionVaults[_collection].push(vaultAddr_);
+        strategyIds[strategyId_] = strategyAddr_;
+        collectionStrategies[_collection].push(strategyAddr_);
 
         // Finally we can emit our event to notify watchers of a new vault
-        emit VaultCreated(vaultId_, vaultAddr_, _collection);
+        emit VaultCreated(strategyId_, strategyAddr_, _collection);
     }
 
     /**
      * ..
      */
-    function withdraw(uint _vaultId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) returns (uint) {
-        return IVault(vaultIds[_vaultId]).withdraw(msg.sender, _token, _amount);
+    function withdraw(uint _strategyId, address[] memory _tokens, uint[] memory _amounts) public onlyRole(TREASURY_MANAGER) returns (uint[] memory) {
+        return IBaseStrategy(strategyIds[_strategyId]).withdraw(_tokens, _amounts);
     }
 
     /**
@@ -145,24 +131,24 @@ contract VaultFactory is AuthorityControl, IVaultFactory {
      *
      * @dev Events are fired within the vault to allow listeners to update.
      *
-     * @param _vaultId Vault ID to be updated
+     * @param _strategyId Vault ID to be updated
      * @param _paused If the vault should be paused or unpaused
      */
-    function pause(uint _vaultId, bool _paused) public onlyRole(VAULT_MANAGER) {
-        IVault(vaultIds[_vaultId]).pause(_paused);
+    function pause(uint _strategyId, bool _paused) public onlyRole(VAULT_MANAGER) {
+        IBaseStrategy(strategyIds[_strategyId]).pause(_paused);
     }
 
     /**
      * ..
      */
-    function claimRewards(uint _vaultId) public returns (address[] memory, uint[] memory) {
-        return IVault(vaultIds[_vaultId]).claimRewards();
+    function claimRewards(uint _strategyId) public returns (address[] memory, uint[] memory) {
+        return IBaseStrategy(strategyIds[_strategyId]).claimRewards();
     }
 
     /**
      * ..
      */
-    function registerMint(uint _vaultId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) {
-        IVault(vaultIds[_vaultId]).registerMint(msg.sender, _token, _amount);
+    function registerMint(uint _strategyId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) {
+        IBaseStrategy(strategyIds[_strategyId]).registerMint(msg.sender, _token, _amount);
     }
 }

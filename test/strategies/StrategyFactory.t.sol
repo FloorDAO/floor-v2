@@ -4,16 +4,15 @@ pragma solidity ^0.8.0;
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from '@floor/strategies/StrategyFactory.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {Vault} from '@floor/vaults/Vault.sol';
-import {CollectionNotApproved, VaultFactory, VaultNameCannotBeEmpty} from '@floor/vaults/VaultFactory.sol';
 
 import {SweepWarsMock} from '../mocks/SweepWars.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract VaultFactoryTest is FloorTest {
+contract StrategyFactoryTest is FloorTest {
     CollectionRegistry collectionRegistry;
-    VaultFactory vaultFactory;
+    StrategyFactory strategyFactory;
 
     address approvedCollection;
     address approvedStrategy;
@@ -27,7 +26,7 @@ contract VaultFactoryTest is FloorTest {
     constructor() forkBlock(BLOCK_NUMBER) {}
 
     /**
-     * Deploy the {VaultFactory} contract but don't create any vaults, as we want to
+     * Deploy the {StrategyFactory} contract but don't create any vaults, as we want to
      * allow our tests to have control.
      *
      * We do, however, want to create an approved strategy and collection that we
@@ -35,8 +34,8 @@ contract VaultFactoryTest is FloorTest {
      */
     function setUp() public {
         // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy(bytes32('Approved Strategy')));
-        strategy = address(new NFTXInventoryStakingStrategy(bytes32('Unapproved Strategy')));
+        approvedStrategy = address(new NFTXInventoryStakingStrategy());
+        strategy = address(new NFTXInventoryStakingStrategy());
 
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
@@ -48,8 +47,8 @@ contract VaultFactoryTest is FloorTest {
         // Approve our test collection
         collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-        // Create our {VaultFactory}
-        vaultFactory = new VaultFactory(
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(
             address(authorityRegistry),
             address(collectionRegistry)
         );
@@ -59,61 +58,61 @@ contract VaultFactoryTest is FloorTest {
      * We should be able to query for all vaults, even when there are none actually
      * created. This won't revert but will just return an empty array.
      */
-    function test_VaultsWithNoneCreated() public {
-        assertEq(vaultFactory.vaults().length, 0);
+    function test_StrategysWithNoneCreated() public {
+        assertEq(strategyFactory.strategies().length, 0);
     }
 
     /**
      * When there is only a single vault created, we should still receive an array
      * response but with just a single item inside it.
      */
-    function test_VaultsWithSingleVault() public {
-        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), approvedCollection);
+    function test_StrategysWithSingleStrategy() public {
+        strategyFactory.deployStrategy('Test Strategy', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
-        assertEq(vaultFactory.vaults().length, 1);
+        assertEq(strategyFactory.strategies().length, 1);
     }
 
     /**
      * When we have multiple vaults created we should be able to query them and
      * receive all in an array.
      */
-    function test_VaultsWithMultipleVaults() public {
-        vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
-        vaultFactory.createVault('Test Vault 2', approvedStrategy, _strategyInitBytes(), approvedCollection);
-        vaultFactory.createVault('Test Vault 3', approvedStrategy, _strategyInitBytes(), approvedCollection);
+    function test_StrategysWithMultipleStrategys() public {
+        strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        strategyFactory.deployStrategy('Test Strategy 2', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        strategyFactory.deployStrategy('Test Strategy 3', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
-        assertEq(vaultFactory.vaults().length, 3);
+        assertEq(strategyFactory.strategies().length, 3);
     }
 
     /**
      * We should be able to query for our vault based on it's uint index. This
      * will return the address of the created vault.
      */
-    function test_CanGetVault() public {
+    function test_CanGetStrategy() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) = strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         // Confirm that the vault address stored in our vault factory matches the
         // one that was just cloned.
-        assertEq(vaultFactory.vault(vaultId), vault);
+        assertEq(strategyFactory.strategy(vaultId), vault);
     }
 
     /**
      * If we try and get a vault with an unknown index, we expect a NULL address
      * to be returned.
      */
-    function test_CannotGetUnknownVault() public {
-        assertEq(vaultFactory.vault(420), address(0));
+    function test_CannotGetUnknownStrategy() public {
+        assertEq(strategyFactory.strategy(420), address(0));
     }
 
     /**
      * We should be able to create a vault with valid function parameters.
      *
-     * This should emit {VaultCreated}.
+     * This should emit {StrategyCreated}.
      */
-    function test_CanCreateVault() public {
+    function test_CanCreateStrategy() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = vaultFactory.createVault('Test Vault 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) = strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultId, 0);
         require(vault != address(0), 'Invalid vault address');
@@ -123,21 +122,21 @@ contract VaultFactoryTest is FloorTest {
      * We should not be able to create a vault with an empty name. This should
      * cause a revert.
      *
-     * This should not emit {VaultCreated}.
+     * This should not emit {StrategyCreated}.
      */
-    function test_CannotCreateVaultWithEmptyName() public {
-        vm.expectRevert(VaultNameCannotBeEmpty.selector);
-        vaultFactory.createVault('', approvedStrategy, _strategyInitBytes(), approvedCollection);
+    function test_CannotCreateStrategyWithEmptyName() public {
+        vm.expectRevert(StrategyNameCannotBeEmpty.selector);
+        strategyFactory.deployStrategy('', approvedStrategy, _strategyInitBytes(), approvedCollection);
     }
 
     /**
      * We should not be able to create a vault if we have referenced a collection
      * that has not been approved. This should cause a revert.
      *
-     * This should not emit {VaultCreated}.
+     * This should not emit {StrategyCreated}.
      */
-    function test_CannotCreateVaultWithUnapprovedCollection() public {
+    function test_CannotCreateStrategyWithUnapprovedCollection() public {
         vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, collection));
-        vaultFactory.createVault('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
+        strategyFactory.deployStrategy('Test Strategy', approvedStrategy, _strategyInitBytes(), collection);
     }
 }
