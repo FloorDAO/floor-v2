@@ -20,6 +20,9 @@ import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract SweepWarsTest is FloorTest {
+    // Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 16_616_037;
+
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
@@ -49,7 +52,7 @@ contract SweepWarsTest is FloorTest {
     // Store vote power from setUp
     mapping(address => uint) votePower;
 
-    constructor() {
+    constructor() forkBlock(BLOCK_NUMBER) {
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
@@ -368,16 +371,6 @@ contract SweepWarsTest is FloorTest {
         address vault3 = _createCollectionVault(approvedCollection3, 'Vault 3');
         address vault4 = _createCollectionVault(approvedCollection3, 'Vault 4');
 
-        vm.label(vault1, 'vault1');
-        vm.label(vault2, 'vault2');
-        vm.label(vault3, 'vault3');
-        vm.label(vault4, 'vault4');
-
-        _mockVaultStrategyRewardsGenerated(vault1, 10 ether);
-        _mockVaultStrategyRewardsGenerated(vault2, 20 ether);
-        _mockVaultStrategyRewardsGenerated(vault3, 2 ether);
-        _mockVaultStrategyRewardsGenerated(vault4, 6 ether);
-
         vm.startPrank(address(treasury));
         (address[] memory collections, uint[] memory amounts) = sweepWars.snapshot(10000 ether, 0);
         vm.stopPrank();
@@ -430,13 +423,15 @@ contract SweepWarsTest is FloorTest {
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
 
         // Create the vault via the factory
-        (, vaultAddr_) = strategyFactory.deployStrategy(bytes32(bytes(vaultName)), approvedStrategy, _strategyInitBytes(), collection);
+        (, vaultAddr_) = strategyFactory.deployStrategy(
+            bytes32(bytes(vaultName)),
+            approvedStrategy,
+            _strategyInitBytes(),
+            collection
+        );
 
         // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
     }
 
-    function _mockVaultStrategyRewardsGenerated(address vault, uint amount) internal {
-        // vm.mockCall(address(vault), abi.encodeWithSelector(IBaseStrategy.lastEpochRewards.selector), abi.encode(amount));
-    }
 }

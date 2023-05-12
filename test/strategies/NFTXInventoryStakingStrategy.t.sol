@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
@@ -11,6 +9,8 @@ import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+
+import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -119,7 +119,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         vm.startPrank(erc20Holder);
 
         // Confirm our account has a balance of the underlying token
-        assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 50242376308170344638);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 8000000000000000000);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(erc20Holder), 0);
 
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
@@ -129,14 +129,14 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
         strategy.depositErc20(1 ether);
 
-        assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 49242376308170344638);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 7000000000000000000);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(erc20Holder), 0);
 
         // The amount of xToken returned to the strategy is less than 1, because this uses
         // xToken share value. This is expected to be variable and less that the depositted
         // amount.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 967780757975035829);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 597372952018122478);
 
         vm.stopPrank();
     }
@@ -192,7 +192,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         );
 
         // The strategy should now hold token
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 467780757975035829);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 97372952018122478);
     }
 
     /**
@@ -436,7 +436,96 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     }
 
     function test_CanWithdrawWithoutAffectingYieldEarned() public {
-        // ..
+        vm.startPrank(erc20Holder);
+
+        // We deposit 8 vToken
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 8 ether);
+        strategy.depositErc20(8 ether);
+
+        // Our 8 vToken deposit gives us 4.77 xToken
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 4778983616144979825);
+
+        // Confirm our rewards generated at first deposit will be zero
+        assertRewards(strategy, 0, 0, 0, 0);
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Generate rewards worth of 2 ETH using a mocked call
+        address[] memory rewardToken = new address[](1);
+        rewardToken[0] = strategy.yieldToken();
+        uint[] memory rewardAmount = new uint[](1);
+        rewardAmount[0] = 2 ether;
+
+        vm.mockCall(
+            address(strategy),
+            abi.encodeWithSelector(NFTXInventoryStakingStrategy.available.selector),
+            abi.encode(rewardToken, rewardAmount)
+        );
+
+        // Confirm our rewards generated after mocking our rewards are updated
+        assertRewards(strategy, 2 ether, 2 ether, 0, 0);
+
+        // Withdraw ETH from our position
+        strategyFactory.withdraw(
+            strategyId,
+            abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether)
+        );
+
+        // Confirm our rewards generated after withdrawing from our initial deposit
+        assertRewards(strategy, 2 ether, 2 ether, 0, 0);
+
+        // Our strategy should now hold 3.77 xToken
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 3778983616144979825);
+
+        // Snapshot the rewards
+        strategyFactory.snapshot(strategyId);
+
+        // Withdraw another xToken
+        strategyFactory.withdraw(
+            strategyId,
+            abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether)
+        );
+
+        // Confirm that we still have 2 ETH of rewards
+        assertRewards(strategy, 2 ether, 2 ether, 0, 2 ether);
+
+        // Our strategy should now hold 2.77 xToken
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 2778983616144979825);
+
+        // Before we can harvest, we need to mock the NFTX calls as we won't actually have
+        // any tokens available to claim.
+        vm.mockCall(
+            address(strategy.inventoryStaking()),
+            abi.encodeWithSelector(INFTXInventoryStaking.withdraw.selector),
+            abi.encode(true)
+        );
+
+        vm.mockCall(
+            strategy.yieldToken(),
+            abi.encodeWithSelector(IERC20.transfer.selector),
+            abi.encode(true)
+        );
+
+        // Harvest our rewards via the strategy
+        strategyFactory.harvest(strategyId);
+
+        // Update our `available` mock
+        rewardAmount[0] = 0;
+        vm.mockCall(
+            address(strategy),
+            abi.encodeWithSelector(NFTXInventoryStakingStrategy.available.selector),
+            abi.encode(rewardToken, rewardAmount)
+        );
+
+        // Confirm our closing strategy data is correct
+        assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
+
+        vm.stopPrank();
     }
 
     function test_CanGetValidTokens() public {
@@ -444,6 +533,24 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         assertEq(tokens.length, 1);
         assertEq(tokens[0], strategy.underlyingToken());
+    }
+
+    function assertRewards(
+        NFTXInventoryStakingStrategy _strategy,
+        uint _rewardAmount,
+        uint _availableAmount,
+        uint _lifetimeRewards,
+        uint _lastEpochRewards
+    ) internal {
+        (, uint[] memory totalRewardAmounts) = _strategy.totalRewards();
+        (, uint[] memory totalAvailableAmounts) = _strategy.available();
+        uint lifetimeRewards = _strategy.lifetimeRewards(_strategy.yieldToken());
+        uint lastEpochRewards = _strategy.lastEpochRewards(_strategy.yieldToken());
+
+        assertEq(totalRewardAmounts[0], _rewardAmount);
+        assertEq(totalAvailableAmounts[0], _availableAmount);
+        assertEq(lifetimeRewards, _lifetimeRewards);
+        assertEq(lastEpochRewards, _lastEpochRewards);
     }
 
 }

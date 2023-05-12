@@ -138,7 +138,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * TODO: ..
      */
     function snapshot(uint _strategyId) external /* TODO: onlyRole */ returns (address[] memory tokens, uint[] memory amounts) {
-
+        return IBaseStrategy(strategyIds[_strategyId]).snapshot();
     }
 
     /**

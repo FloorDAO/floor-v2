@@ -50,7 +50,8 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /// Track the amount of deposit token
     uint private deposits;
 
-    /// ..
+    /// Stores the temporary recipient of any ERC721 and ERC1155 tokens that are received
+    /// by the contract.
     address private _nftReceiver;
 
     /**
@@ -275,14 +276,14 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         if (amounts[0] != 0) {
             inventoryStaking.withdraw(vaultId, amounts[0]);
-            IERC20(underlyingToken).transfer(_recipient, amounts[0]);
+            IERC20(yieldToken).transfer(_recipient, amounts[0]);
 
             unchecked {
-                lifetimeRewards[underlyingToken] += amounts[0];
+                lifetimeRewards[yieldToken] += amounts[0];
             }
         }
 
-        emit Harvest(underlyingToken, amounts[0]);
+        emit Harvest(yieldToken, amounts[0]);
     }
 
     /**
