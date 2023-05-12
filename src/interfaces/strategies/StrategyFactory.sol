@@ -60,11 +60,6 @@ interface IStrategyFactory {
     ) external returns (uint strategyId_, address strategyAddr_);
 
     /**
-     * ..
-     */
-    function withdraw(uint _strategyId, address[] memory _tokens, uint[] memory _amounts) external returns (uint[] memory);
-
-    /**
      * Allows individual vaults to be paused, meaning that assets can no longer be deposited,
      * although staked assets can always be withdrawn.
      *
@@ -76,13 +71,8 @@ interface IStrategyFactory {
     function pause(uint _strategyId, bool _paused) external;
 
     /**
-     * ..
+     * TODO: ..
      */
-    function claimRewards(uint _strategyId) external returns (address[] memory, uint[] memory);
-
-    /**
-     * ..
-     */
-    function registerMint(uint _strategyId, address _token, uint _amount) external;
+    function snapshot(uint _strategyId) external /* TODO: onlyRole */ returns (address[] memory tokens, uint[] memory amounts);
 
 }

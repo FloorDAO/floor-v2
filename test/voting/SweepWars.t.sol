@@ -437,6 +437,6 @@ contract SweepWarsTest is FloorTest {
     }
 
     function _mockVaultStrategyRewardsGenerated(address vault, uint amount) internal {
-        vm.mockCall(address(vault), abi.encodeWithSelector(IBaseStrategy.lastEpochRewards.selector), abi.encode(amount));
+        // vm.mockCall(address(vault), abi.encodeWithSelector(IBaseStrategy.lastEpochRewards.selector), abi.encode(amount));
     }
 }

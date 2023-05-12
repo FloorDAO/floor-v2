@@ -232,7 +232,7 @@ contract EpochManagerTest is FloorTest {
         sweepWars.setSampleSize(5);
 
         // Prevent the {StrategyFactory} from trying to transfer tokens when registering the mint
-        vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.registerMint.selector), abi.encode(''));
+        // vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.registerMint.selector), abi.encode(''));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
         vm.mockCall(
@@ -259,11 +259,7 @@ contract EpochManagerTest is FloorTest {
             amounts[0] = 1 ether;
 
             // Set up a mock that will set rewards to be a static amount of ether
-            vm.mockCall(
-                vaults[i],
-                abi.encodeWithSelector(BaseStrategy.claimRewards.selector),
-                abi.encode(tokens, amounts)
-            );
+            // TODO: ..
 
             // Each staker will then deposit and vote
             for (uint j; j < stakerCount; ++j) {

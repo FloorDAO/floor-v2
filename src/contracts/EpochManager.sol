@@ -176,7 +176,7 @@ contract EpochManager is IEpochManager, Ownable {
 
             // Pull out rewards and transfer into the {Treasury}
             strategyId = strategy.strategyId();
-            (address[] memory tokens, uint[] memory amounts) = strategyFactory.claimRewards(strategyId);
+            (address[] memory tokens, uint[] memory amounts) = strategyFactory.snapshot(strategyId);
 
             // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
             tokensLength = tokens.length;
@@ -187,14 +187,8 @@ contract EpochManager is IEpochManager, Ownable {
 
                 unchecked {
                     ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
+                    ++k;
                 }
-
-                // Now that the {Treasury} has knowledge of the reward tokens and has minted
-                // the equivalent FLOOR, we can notify the {Strategy} and transfer assets into
-                // the {Treasury}.
-                strategyFactory.registerMint(strategyId, tokens[k], amounts[k]);
-
-                 unchecked { ++k; }
             }
 
             unchecked {

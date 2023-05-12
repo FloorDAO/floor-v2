@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import {BuyTokensWithTokens} from '@floor/actions/0x/BuyTokensWithTokens.sol';
 import {CowSwapCreateOrder} from '@floor/actions/cowswap/CreateOrder.sol';
-import {FloorDepositIntoVault} from '@floor/actions/floor/DepositIntoVault.sol';
-import {FloorWithdrawFromVault} from '@floor/actions/floor/WithdrawFromVault.sol';
 import {GemSweep} from '@floor/actions/gem/Sweep.sol';
 import {LlamapayCreateStream} from '@floor/actions/llamapay/CreateStream.sol';
 import {LlamapayDeposit} from '@floor/actions/llamapay/Deposit.sol';
@@ -40,7 +38,6 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
     function run() external deployer {
 
         // Confirm that we have our required contracts deployed
-        address authorityControl = requireDeployment('AuthorityControl');
         address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
 
@@ -56,8 +53,6 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
 
         // Store our created action contract addresses
         storeDeployment('BuyTokensWithTokens', address(new BuyTokensWithTokens(0xDef1C0ded9bec7F1a1670819833240f027b25EfF)));
-        storeDeployment('FloorDepositIntoVault', address(new FloorDepositIntoVault()));
-        storeDeployment('FloorWithdrawFromVault', address(new FloorWithdrawFromVault(authorityControl)));
         storeDeployment('GemSweep', address(gemSweep));
         storeDeployment('LlamapayRouter', address(llamapayRouter));
         storeDeployment('LlamapayCreateStream', address(new LlamapayCreateStream(llamapayRouter)));

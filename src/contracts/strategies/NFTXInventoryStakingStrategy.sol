@@ -3,12 +3,17 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
+import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
 
 import {BaseStrategy, InsufficientPosition, UnableToTransferTokens, ZeroAmountReceivedFromWithdraw} from '@floor/strategies/BaseStrategy.sol';
 
+import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
+import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
+import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
 
 
 /**
@@ -32,11 +37,21 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /// The reward yield will be a vault xToken as defined by the InventoryStaking contract.
     address public yieldToken;
 
+    /// The ERC721 / ERC1155 token asset for the NFTX vault
+    address public assetAddress;
+
     /// Address of the NFTX Inventory Staking contract
-    address public inventoryStaking;
+    INFTXInventoryStaking public inventoryStaking;
+
+    /// The NFTX zap addresses
+    INFTXStakingZap public stakingZap;
+    INFTXUnstakingInventoryZap public unstakingZap;
+
+    /// Track the amount of deposit token
+    uint private deposits;
 
     /// ..
-    uint public deposits;
+    address private _nftReceiver;
 
     /**
      * Sets up our contract variables.
@@ -53,18 +68,31 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         strategyId = _strategyId;
 
         // Extract the NFTX information from our initialisation bytes data
-        (uint _vaultId, address _underlyingToken, address _yieldToken, address _inventoryStaking) = abi.decode(_initData, (uint, address, address, address));
+        (
+            uint _vaultId,
+            address _underlyingToken,
+            address _yieldToken,
+            address _inventoryStaking,
+            address _stakingZap,
+            address _unstakingZap
+        ) = abi.decode(_initData, (uint, address, address, address, address, address));
 
         // Map our NFTX information
         vaultId = _vaultId;
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;
+        stakingZap = INFTXStakingZap(_stakingZap);
+        unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
+        inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
 
-        // Map our NFTX Inventory Staking contract address
-        inventoryStaking = _inventoryStaking;
+        // Set our ERC721 / ERC1155 token asset address
+        assetAddress = INFTXVault(_underlyingToken).assetAddress();
 
         // Set the underlying token as valid to process
         _validTokens[underlyingToken] = true;
+
+        // Transfer ownership to the caller
+        _transferOwnership(msg.sender);
     }
 
     /**
@@ -79,13 +107,9 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      *
-     * @return amounts_ Amount of yield token returned from NFTX
+     * @return amount_ Amount of yield token returned from NFTX
      */
-    function deposit(address[] memory /* tokens */, uint[] memory amounts) external nonReentrant whenNotPaused returns (uint[] memory amounts_) {
-        // Since we only process our underlying token for NFTX Inventory Staking, we can just directly
-        // reference the first amounts array element.
-        uint amount = amounts[0];
-
+    function depositErc20(uint amount) external nonReentrant whenNotPaused returns (uint amount_) {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
@@ -99,36 +123,58 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(inventoryStaking, amount);
+        IERC20(underlyingToken).approve(address(inventoryStaking), amount);
 
         // Deposit the token into the NFTX contract
-        INFTXInventoryStaking(inventoryStaking).deposit(vaultId, amount);
+        inventoryStaking.deposit(vaultId, amount);
 
         // Determine the amount of yield token returned from our deposit
-        amounts_ = new uint[](1);
-        amounts_[0] = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
 
         // Increase the user's position and the total position for the vault
         unchecked {
-            position[yieldToken] += amounts_[0];
+            position[yieldToken] += amount_;
         }
 
         // Emit our event to followers
-        emit Deposit(underlyingToken, amount, msg.sender);
+        emit Deposit(underlyingToken, amount, amount_, msg.sender);
+    }
+
+    function depositErc721(uint[] calldata tokenIds) external {
+        // Pull tokens in
+        uint tokensLength = tokenIds.length;
+        for (uint i; i < tokensLength;) {
+            // TODO: Punks?
+            IERC721(assetAddress).transferFrom(msg.sender, address(this), tokenIds[i]);
+            unchecked { ++i; }
+        }
+
+        // Approve stakingZap
+        IERC721(assetAddress).setApprovalForAll(address(stakingZap), true);
+
+        // Push tokens out
+        stakingZap.provideInventory721(vaultId, tokenIds);
+    }
+
+    function depositErc1155(uint256[] calldata tokenIds, uint256[] calldata amounts) external {
+        // Pull tokens in
+        IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
+
+        // Approve stakingZap
+        IERC1155(assetAddress).setApprovalForAll(address(stakingZap), true);
+
+        // Push tokens out
+        stakingZap.provideInventory1155(vaultId, tokenIds, amounts);
     }
 
     /**
      * Withdraws an amount of our position from the NFTX strategy.
      *
-     * @param amounts Amount of yield token to withdraw
+     * @param amount Amount of yield token to withdraw
      *
-     * @return amounts_ Amount of the underlying token returned
+     * @return amount_ Amount of the underlying token returned
      */
-    function withdraw(address[] memory /* tokens */, uint[] memory amounts) external nonReentrant onlyOwner returns (uint[] memory amounts_) {
-        // Since we only process our underlying token for NFTX Inventory Staking, we can just directly
-        // reference the first amounts array element.
-        uint amount = amounts[0];
-
+    function withdrawErc20(address recipient, uint amount) external nonReentrant onlyOwner returns (uint amount_) {
         // Prevent users from trying to claim nothing
         if (amount == 0) {
             revert CannotWithdrawZeroAmount();
@@ -143,140 +189,149 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
 
         // Process our withdrawal against the NFTX contract
-        INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amount);
+        inventoryStaking.withdraw(vaultId, amount);
 
         // Determine the amount of `underlyingToken` received
-        amounts_ = new uint[](1);
-        amounts_[0] = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
-        if (amounts_[0] == 0) {
+        amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+        if (amount_ == 0) {
             revert ZeroAmountReceivedFromWithdraw();
         }
 
         // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(msg.sender, amounts_[0]);
+        IERC20(underlyingToken).transfer(recipient, amount_);
 
         unchecked {
-            deposits -= amounts_[0];
+            deposits -= amount_;
 
             // We can now reduce the users position and total position held by the vault
             position[yieldToken] -= amount;
         }
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(underlyingToken, amounts_[0], msg.sender);
+        emit Withdraw(underlyingToken, amount_, msg.sender);
     }
 
-    /**
-     * Harvest possible rewards from strategy.
-     *
-     * TODO: Should be locked down, or return to {Treasury}
-     *
-     * @return tokens_ Tokens claimed
-     * @return amounts_ Amount of rewards claimed
-     */
-    function _claimRewards() internal override returns (address[] memory tokens_, uint[] memory amounts_) {
-        tokens_ = new address[](1);
-        tokens_[0] = underlyingToken;
+    function withdrawErc721(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
+        _unstakeInventory(_recipient, _numNfts, _partial);
+    }
 
-        amounts_ = new uint[](1);
-        amounts_[0] = this.rewardsAvailable(underlyingToken);
+    function withdrawErc1155(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
+        _unstakeInventory(_recipient, _numNfts, _partial);
+    }
 
-        if (amounts_[0] != 0) {
-            INFTXInventoryStaking(inventoryStaking).withdraw(vaultId, amounts_[0]);
-            IERC20(underlyingToken).transfer(msg.sender, amounts_[0]);
+    function _unstakeInventory(address _recipient, uint _numNfts, uint _partial) internal {
+        // Before we can withdraw, we need to allow the contract to manage our ERC20
+        IERC20(yieldToken).approve(address(unstakingZap), type(uint).max);
 
-            unchecked {
-                lifetimeRewards[underlyingToken] += amounts_[0];
-            }
+        // Set our NFT receiver so that our safe transfer will pass it on
+        _nftReceiver = _recipient;
+
+        // Unstake our ERC721's and partial remaining tokens
+        unstakingZap.unstakeInventory(vaultId, _numNfts, _partial);
+
+        // Delete our NFT receiver to prevent unexpected transactions
+        delete _nftReceiver;
+
+        // If we have requested `_partial` token to be returned, then we need to send
+        // this over.
+        if (_partial > 0) {
+            IERC20(underlyingToken).transfer(_recipient, _partial - 1);
         }
-
-        emit Harvest(underlyingToken, amounts_[0]);
     }
 
     /**
-     * The token amount of reward yield available to be claimed on the connected external
-     * platform. Our `claimRewards` function will always extract the maximum yield, so this
-     * could essentially return a boolean. However, I think it provides a nicer UX to
-     * provide a proper amount and we can determine if it's financially beneficial to claim.
-     *
-     * This value is stored in terms of the `yieldToken`.
-     *
-     * @return The available rewards to be claimed
+     * Gets rewards that are available to harvest.
      */
-    function rewardsAvailable(address /* token */) external view returns (uint) {
-        // Get the amount of rewards avaialble to claim
-        uint userTokens = deposits;
-
+    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
         // Get the xToken balance held by the strategy
         uint xTokenUserBal = IERC20(yieldToken).balanceOf(address(this));
 
          // Get the number of vTokens valued per xToken in wei
-        uint shareValue = INFTXInventoryStaking(inventoryStaking).xTokenShareValue(vaultId);
-        uint reqXTokens = (userTokens * 1e18) / shareValue;
+        uint shareValue = inventoryStaking.xTokenShareValue(vaultId);
+        uint reqXTokens = (deposits * 1e18) / shareValue;
+
+        // Set up our return arrays
+        tokens_ = new address[](1);
+        amounts_ = new uint[](1);
+
+        // Assign our yield token as the return
+        tokens_[0] = underlyingToken;
 
         // If we require more xTokens than are held to allow our users to withdraw their
         // staked NFTs (NFTX dust issue) then we need to catch this and return zero.
-        if (reqXTokens > xTokenUserBal) {
-            return 0;
+        if (reqXTokens <= xTokenUserBal) {
+            // Get the total rewards available above what would be required for a user
+            // to mint their tokens back out of the vault.
+            amounts_[0] = xTokenUserBal - reqXTokens;
+        }
+    }
+
+    /**
+     * Extracts all rewards from third party and moves it to a recipient. This should
+     * only be called by a specific action via the {StrategyFactory}.
+     */
+    function harvest(address _recipient) external override onlyOwner {
+        (, uint[] memory amounts) = this.available();
+
+        if (amounts[0] != 0) {
+            inventoryStaking.withdraw(vaultId, amounts[0]);
+            IERC20(underlyingToken).transfer(_recipient, amounts[0]);
+
+            unchecked {
+                lifetimeRewards[underlyingToken] += amounts[0];
+            }
         }
 
-        // Get the total rewards available above what would be required for a user
-        // to mint their tokens back out of the vault.
-        return xTokenUserBal - reqXTokens;
-    }
-
-    /**
-     * Total rewards generated by the strategy in all time. This is pure bragging rights.
-     *
-     * This value is stored in terms of the `yieldToken`.
-     *
-     * @return Total rewards generated by strategy
-     */
-    function totalRewardsGenerated(address token) external view returns (uint) {
-        return this.rewardsAvailable(token) + lifetimeRewards[token];
-    }
-
-    /**
-     * The amount of reward tokens generated by the strategy that is allocated to, but has not
-     * yet been, minted into FLOOR tokens. This will be calculated by a combination of an
-     * internally incremented tally of claimed rewards, as well as the returned value of
-     * `rewardsAvailable` to determine pending rewards.
-     *
-     * This value is stored in terms of the `yieldToken`.
-     *
-     * @return Amount of unminted rewards held in the contract
-     */
-    function unmintedRewards(address token) external override view returns (uint) {
-        return IERC20(token).balanceOf(address(this));
-    }
-
-    /**
-     * This is a call that will only be available for the {Treasury} to indicate that it
-     * has minted FLOOR and that the internally stored `mintedRewards` integer should be
-     * updated accordingly.
-     *
-     * @dev Only to be called by the {Treasury}
-     *
-     * @param amount Amount of token to be registered as minted
-     */
-    function registerMint(address recipient, address /* token */, uint amount) external onlyOwner {
-        bool success = IERC20(yieldToken).transfer(recipient, amount);
-        if (!success) revert UnableToTransferTokens(recipient, amount);
-
-        unchecked {
-            mintedRewards[yieldToken] += amount;
-        }
-
-        // emit MintRegistered(recipient, yieldToken, amount);
+        emit Harvest(underlyingToken, amounts[0]);
     }
 
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view returns (address[] memory) {
+    function validTokens() external view override returns (address[] memory) {
         address[] memory tokens_ = new address[](1);
         tokens_[0] = underlyingToken;
         return tokens_;
+    }
+
+    /**
+     * Allows the contract to receive ERC721 tokens.
+     */
+    function onERC721Received(address /* _from */, address /* _to */, uint _id, bytes memory /* _data */) public returns (bytes4) {
+        require(msg.sender == assetAddress, 'Invalid asset');
+
+        if (_nftReceiver != address(0)) {
+            IERC721(assetAddress).safeTransferFrom(address(this), _nftReceiver, _id);
+        }
+
+        return this.onERC721Received.selector;
+    }
+
+
+    /**
+     * Allows the contract to receive ERC1155 tokens.
+     */
+    function onERC1155Received(address /* _from */, address /* _to */, uint _id, uint _value, bytes calldata _data) public returns (bytes4) {
+        require(msg.sender == assetAddress, 'Invalid asset');
+
+        if (_nftReceiver != address(0)) {
+            IERC1155(assetAddress).safeTransferFrom(address(this), _nftReceiver, _id, _value, _data);
+        }
+
+        return this.onERC1155Received.selector;
+    }
+
+    /**
+     * Allows the contract to receive batch ERC1155 tokens.
+     */
+    function onERC1155BatchReceived(address /* _from */, address /* _to */, uint[] calldata _ids, uint[] calldata _values, bytes calldata _data) external returns (bytes4) {
+        require(msg.sender == assetAddress, 'Invalid asset');
+
+        if (_nftReceiver != address(0)) {
+            IERC1155(assetAddress).safeBatchTransferFrom(address(this), _nftReceiver, _ids, _values, _data);
+        }
+
+        return this.onERC1155BatchReceived.selector;
     }
 
 }

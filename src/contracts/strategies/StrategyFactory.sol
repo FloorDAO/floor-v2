@@ -29,6 +29,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     /// Maintains an array of all vaults created
     address[] private _strategies;
 
+    /// Store our Treasury address
+    address public treasury;
+
     /// Contract mappings to our internal registries
     ICollectionRegistry public immutable collectionRegistry;
 
@@ -119,13 +122,6 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     }
 
     /**
-     * ..
-     */
-    function withdraw(uint _strategyId, address[] memory _tokens, uint[] memory _amounts) public onlyRole(TREASURY_MANAGER) returns (uint[] memory) {
-        return IBaseStrategy(strategyIds[_strategyId]).withdraw(_tokens, _amounts);
-    }
-
-    /**
      * Allows individual vaults to be paused, meaning that assets can no longer be deposited,
      * although staked assets can always be withdrawn.
      *
@@ -139,16 +135,50 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     }
 
     /**
-     * ..
+     * TODO: ..
      */
-    function claimRewards(uint _strategyId) public returns (address[] memory, uint[] memory) {
-        return IBaseStrategy(strategyIds[_strategyId]).claimRewards();
+    function snapshot(uint _strategyId) external /* TODO: onlyRole */ returns (address[] memory tokens, uint[] memory amounts) {
+
+    }
+
+    /**
+     * TODO: ..
+     */
+    function harvest(uint _strategyId) external /* TODO: onlyRole */ {
+        IBaseStrategy(strategyIds[_strategyId]).harvest(treasury);
+    }
+
+    /**
+     * TODO: ..
+     */
+    function withdraw(uint _strategyId, bytes calldata _data) external /* TODO: onlyRole */ {
+        // Extract the selector from data
+        bytes4 _selector = bytes4(_data);
+
+        // Create a replication of the bytes data that removes the selector
+        bytes memory _newData = new bytes(_data.length - 4);
+        for (uint i; i < _data.length - 4; i++) {
+            _newData[i] = _data[i + 4];
+        }
+
+        // Make a call to our strategy that passes on our withdrawal data
+        (bool success,) = strategyIds[_strategyId].call(
+            // Sandwich the selector against the recipient and remaining data
+            abi.encodePacked(
+                abi.encodeWithSelector(_selector, treasury),
+                _newData
+            )
+        );
+
+        // If our call failed, return a standardised message rather than decoding
+        require(success, 'Unable to withdraw');
     }
 
     /**
      * ..
      */
-    function registerMint(uint _strategyId, address _token, uint _amount) public onlyRole(TREASURY_MANAGER) {
-        IBaseStrategy(strategyIds[_strategyId]).registerMint(msg.sender, _token, _amount);
+    function setTreasury(address _treasury) public onlyRole(TREASURY_MANAGER) {
+        treasury = _treasury;
     }
+
 }
