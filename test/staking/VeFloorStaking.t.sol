@@ -295,6 +295,9 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_EarlyWithdrawToShouldNotWorkWhenLossIsTooBig() external {
+        // Set our max loss ratio as 10% (9 decimal accuracy)
+        veFloor.setMaxLossRatio(1_00000000);
+
         veFloor.deposit(1 ether, 5);
 
         vm.expectRevert(VeFloorStaking.LossIsTooBig.selector);
