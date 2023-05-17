@@ -244,27 +244,16 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      * Gets rewards that are available to harvest.
      */
     function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
-        // Get the xToken balance held by the strategy
-        uint xTokenUserBal = IERC20(yieldToken).balanceOf(address(this));
-
-         // Get the number of vTokens valued per xToken in wei
-        uint shareValue = inventoryStaking.xTokenShareValue(vaultId);
-        uint reqXTokens = (deposits * 1e18) / shareValue;
-
         // Set up our return arrays
         tokens_ = new address[](1);
         amounts_ = new uint[](1);
 
         // Assign our yield token as the return
-        tokens_[0] = underlyingToken;
+        tokens_[0] = yieldToken;
 
-        // If we require more xTokens than are held to allow our users to withdraw their
-        // staked NFTs (NFTX dust issue) then we need to catch this and return zero.
-        if (reqXTokens <= xTokenUserBal) {
-            // Get the total rewards available above what would be required for a user
-            // to mint their tokens back out of the vault.
-            amounts_[0] = xTokenUserBal - reqXTokens;
-        }
+        // Get the xToken balance held by the strategy that is in addition to the amount
+        // deposited. This should show only the gain / rewards generated.
+        amounts_[0] = IERC20(yieldToken).balanceOf(address(this)) - position[yieldToken];
     }
 
     /**
@@ -275,8 +264,14 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         (, uint[] memory amounts) = this.available();
 
         if (amounts[0] != 0) {
+            // Withdraw our xToken to return vToken from the NFTX inventory staking contract
             inventoryStaking.withdraw(vaultId, amounts[0]);
-            IERC20(yieldToken).transfer(_recipient, amounts[0]);
+
+            // We can now withdraw all of the vToken from the contract
+            IERC20(underlyingToken).transfer(
+                _recipient,
+                IERC20(underlyingToken).balanceOf(address(this))
+            );
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];
