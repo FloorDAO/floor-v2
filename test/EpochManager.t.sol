@@ -30,6 +30,9 @@ import {FloorTest} from './utilities/Environments.sol';
 
 contract EpochManagerTest is FloorTest {
 
+    // Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 16_616_037;
+
     address alice;
 
     address approvedStrategy;
@@ -53,7 +56,7 @@ contract EpochManagerTest is FloorTest {
     StrategyFactory strategyFactory;
     VoteMarket voteMarket;
 
-    constructor () {
+    constructor() forkBlock(BLOCK_NUMBER) {
         // Create our test users
         alice = users[0];
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
-// import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
+import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -21,11 +21,11 @@ contract DeployVaultContracts is DeploymentScript {
 
         // Deploy vault strategies
         NFTXInventoryStakingStrategy inventoryStaking = new NFTXInventoryStakingStrategy();
-        // RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
+        RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
 
         // Store our strategies deployment address
         storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
-        // storeDeployment('RevenueStakingStrategy', address(revenueStaking));
+        storeDeployment('RevenueStakingStrategy', address(revenueStaking));
 
         // Deploy our vault factory
         StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry);

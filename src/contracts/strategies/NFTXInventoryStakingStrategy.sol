@@ -8,7 +8,7 @@ import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
 
-import {BaseStrategy, InsufficientPosition, UnableToTransferTokens, ZeroAmountReceivedFromWithdraw} from '@floor/strategies/BaseStrategy.sol';
+import {BaseStrategy, InsufficientPosition, ZeroAmountReceivedFromWithdraw} from '@floor/strategies/BaseStrategy.sol';
 
 import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';

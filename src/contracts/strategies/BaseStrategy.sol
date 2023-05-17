@@ -147,6 +147,16 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     }
 
     /**
+     * Confirms that the requested single token is valid before processing a function.
+     *
+     * @param token A token address that must be valid
+     */
+    modifier onlyValidToken(address token) {
+        require(_validTokens[token], 'Invalid token');
+        _;
+    }
+
+    /**
      * Confirms that the requested tokens are all valid before processing a function.
      *
      * @param tokens An array of tokens that must all be valid
