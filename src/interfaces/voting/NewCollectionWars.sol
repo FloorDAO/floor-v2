@@ -158,7 +158,7 @@ interface INewCollectionWars {
      * Determines the voting power given by a staked NFT based on the requested
      * exercise price and the spot price.
      */
-    function nftVotingPower(uint spotPrice, uint exercisePercent) external view returns (uint);
+    function nftVotingPower(address collection, uint spotPrice, uint exercisePercent) external view returns (uint);
 
     /**
      * ..

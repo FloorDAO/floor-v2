@@ -15,6 +15,7 @@ import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {NewCollectionNftOptionVotingPowerCalculator} from '@floor/voting/calculators/NewCollectionNftOptionVotingPower.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
@@ -129,6 +130,10 @@ contract NewCollectionWarsTest is FloorTest {
             mock721.mint(carol, i + 10);
             mock1155.mint(carol, i + 10, 10, bytes(''));
         }
+
+        // Deploy our NFT option calculator
+        NewCollectionNftOptionVotingPowerCalculator calculator = new NewCollectionNftOptionVotingPowerCalculator();
+        newCollectionWars.setNftVotingPowerCalculator(address(calculator));
     }
 
     function setUp() public {
@@ -403,7 +408,7 @@ contract NewCollectionWarsTest is FloorTest {
         // End our epoch, which should create
         epochManager.endEpoch();
 
-        // Try and sweep the wrong epoch and it should fail
+        // TODO: Fix error code to test properly
         vm.expectRevert('error code 1');
         treasury.sweepEpoch(0, address(0), '', 3 ether);
 
@@ -851,27 +856,27 @@ contract NewCollectionWarsTest is FloorTest {
     }
 
     function test_CanCalculateNftVotingPower() external {
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 0),   2.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 10),  1.90 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 20),  1.80 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 30),  1.70 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 40),  1.60 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 50),  1.50 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 60),  1.40 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 70),  1.30 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 80),  1.20 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 90),  1.10 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 100), 1.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 110), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 120), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 130), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 140), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 150), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 160), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 170), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 180), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 190), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(1 ether, 200), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 0),   2.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 10),  1.90 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 20),  1.80 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 30),  1.70 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 40),  1.60 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 50),  1.50 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 60),  1.40 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 70),  1.30 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 80),  1.20 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 90),  1.10 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 100), 1.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 110), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 120), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 130), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 140), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 150), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 160), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 170), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 180), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 190), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 200), 0.00 ether);
     }
 
     /**
