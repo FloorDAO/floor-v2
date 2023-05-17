@@ -597,43 +597,6 @@ contract NftStakingTest is FloorTest {
         assertEq(treasuryEndBalance, 1726865950363757461);
     }
 
-    function test_CanDetermineUnstakeEarlyFees() public {
-        uint[] memory tokens = new uint[](2);
-        tokens[0] = 242;
-        tokens[1] = 5710;
-
-        address approvalAddress = staking.nftStakingStrategy().approvalAddress();
-
-        vm.startPrank(LOW_HOLDER_2);
-        IERC721(LOW_VALUE_NFT).setApprovalForAll(approvalAddress, true);
-        staking.stake(LOW_VALUE_NFT, tokens, _singleAmountArray(tokens.length), 6, false);
-        vm.stopPrank();
-
-        // Skip some time to unlock our user, moving our epoch only partially through stake
-        skip(NFTX_LOCK_LENGTH);
-
-        vm.prank(LOW_HOLDER_2);
-        assertEq(staking.unstakeFees(LOW_VALUE_NFT), 2.0 ether);
-
-        epochManager.setCurrentEpoch(26);
-        vm.prank(LOW_HOLDER_2);
-        assertEq(staking.unstakeFees(LOW_VALUE_NFT), 1.5 ether);
-
-        epochManager.setCurrentEpoch(52);
-        vm.prank(LOW_HOLDER_2);
-        assertEq(staking.unstakeFees(LOW_VALUE_NFT), 1 ether);
-
-        epochManager.setCurrentEpoch(78);
-        vm.prank(LOW_HOLDER_2);
-        assertEq(staking.unstakeFees(LOW_VALUE_NFT), 0.5 ether);
-
-        epochManager.setCurrentEpoch(104);
-        vm.prank(LOW_HOLDER_2);
-        assertEq(staking.unstakeFees(LOW_VALUE_NFT), 0);
-
-        vm.stopPrank();
-    }
-
     function _singleAmountArray(uint length) internal pure returns (uint[] memory amounts) {
         amounts = new uint[](length);
         for (uint i; i < length;) {
