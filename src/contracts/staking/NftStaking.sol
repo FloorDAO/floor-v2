@@ -319,7 +319,7 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Get our base early exit fee and determine the linear decline of the exit fees. The remaining
         // fees are divided by 2 to reduce the amount paid
         uint tokens = stakedNft.tokensStaked * 1 ether;
-        fees = (tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount)) / 2;
+        fees = tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount);
     }
 
     /**
