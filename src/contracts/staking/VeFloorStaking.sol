@@ -313,7 +313,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
     }
 
-    function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint loss, uint ret) {
+    function _earlyWithdrawLoss(address /* account */, uint depAmount, uint stBalance) private pure returns (uint loss, uint ret) {
         ret = depAmount - (stBalance / 2);
         loss = depAmount - ret;
     }
