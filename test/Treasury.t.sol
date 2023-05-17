@@ -109,7 +109,6 @@ contract TreasuryTest is FloorTest {
 
         // Give our {Treasury} contract roles to manage (mint) Floor tokens
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(treasury));
-        authorityRegistry.grantRole(authorityControl.REWARDS_MANAGER(), address(treasury));
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(treasury));
         authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(treasury));
 

@@ -46,15 +46,6 @@ contract AuthorityControl is Context, IAuthorityControl {
     /// timeframe restrictions.
     bytes32 public constant GUARDIAN = keccak256('Guardian');
 
-    /// RewardsManager - Can allocate rewards to users
-    bytes32 public constant REWARDS_MANAGER = keccak256('RewardsManager');
-
-    /// StakingManager - Can stake on behalf of other users
-    bytes32 public constant STAKING_MANAGER = keccak256('StakingManager');
-
-    /// StrategyManager - Can approve strategy contracts to be used on vaults
-    bytes32 public constant STRATEGY_MANAGER = keccak256('StrategyManager');
-
     /// TreasuryManager - Access to Treasury asset management
     bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
 

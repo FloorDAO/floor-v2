@@ -17,15 +17,6 @@ interface IAuthorityControl {
     /// timeframe restrictions.
     function GUARDIAN() external returns (bytes32);
 
-    /// RewardsManager - Can allocate rewards to users
-    function REWARDS_MANAGER() external returns (bytes32);
-
-    /// StakingManager - Can stake on behalf of other users
-    function STAKING_MANAGER() external returns (bytes32);
-
-    /// StrategyManager - Can approve strategy contracts to be used on vaults
-    function STRATEGY_MANAGER() external returns (bytes32);
-
     /// TreasuryManager - Access to Treasury asset management
     function TREASURY_MANAGER() external returns (bytes32);
 

@@ -34,7 +34,6 @@ contract AuthorityControlTest is FloorTest {
         // Our expected roles are defined in our test contract
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), utilities.deployer()));
@@ -107,13 +106,10 @@ contract AuthorityControlTest is FloorTest {
     function test_UserCanHaveMultipleRoles() public {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), carol);
         authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), carol);
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), carol);
 
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), carol));
         assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), carol));
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), carol));
 
-        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), carol));
         assertFalse(authorityControl.hasRole(authorityControl.GOVERNOR(), carol));
         assertFalse(authorityControl.hasRole(authorityControl.GUARDIAN(), carol));
         assertFalse(authorityControl.hasRole(UNKNOWN, carol));
@@ -134,10 +130,8 @@ contract AuthorityControlTest is FloorTest {
         // This will give Bob access to all _known_ and _unknown_ roles
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
 
         // Since bob is now the Guardian, we need him to grant the role back to the
@@ -153,11 +147,9 @@ contract AuthorityControlTest is FloorTest {
         // apart from the Governor role.
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
-        assertFalse(authorityControl.hasRole(authorityControl.GOVERNOR(), bob));
     }
 
     /**
@@ -167,15 +159,15 @@ contract AuthorityControlTest is FloorTest {
      * This should emit {RoleRevoked}.
      */
     function test_CanRevokeUserRole() public {
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), bob);
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
 
         // We emit the event we expect to see.
         vm.expectEmit(true, true, false, true);
-        emit RoleRevoked(authorityControl.STRATEGY_MANAGER(), bob, DEPLOYER);
+        emit RoleRevoked(authorityControl.COLLECTION_MANAGER(), bob, DEPLOYER);
 
-        authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), bob);
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
     }
 
     /**
@@ -186,9 +178,9 @@ contract AuthorityControlTest is FloorTest {
      * This should not emit {RoleRevoked}.
      */
     function test_CannotRevokeUserRoleWithoutExistingRole() public {
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
-        authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), bob);
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
     }
 
     /**
@@ -196,11 +188,11 @@ contract AuthorityControlTest is FloorTest {
      * call should be reverted.
      */
     function testFail_CannotRevokeUserRoleWithoutPermissions() public {
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), bob);
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
 
         vm.startPrank(alice);
-        authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), bob);
+        authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
         vm.stopPrank();
     }
 
@@ -211,8 +203,8 @@ contract AuthorityControlTest is FloorTest {
      */
     function testCanRenounceRole() public {
         // We grant Bob the role that he will be soon renouncing
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), bob);
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
 
         // Set up our requests to be sent from Bob, as renounce uses the
         // `msg.sender` as the target address.
@@ -220,11 +212,11 @@ contract AuthorityControlTest is FloorTest {
 
         // We emit the event we expect to see.
         vm.expectEmit(true, true, false, true);
-        emit RoleRevoked(authorityControl.STRATEGY_MANAGER(), bob, DEPLOYER);
+        emit RoleRevoked(authorityControl.COLLECTION_MANAGER(), bob, DEPLOYER);
 
         // We call to renounce Bob's `StrategyManager` role
-        authorityRegistry.renounceRole(authorityControl.STRATEGY_MANAGER());
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        authorityRegistry.renounceRole(authorityControl.COLLECTION_MANAGER());
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
 
         vm.stopPrank();
     }
@@ -239,9 +231,9 @@ contract AuthorityControlTest is FloorTest {
     function test_CannotRenounceUngrantedRole() public {
         vm.startPrank(bob);
 
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
-        authorityRegistry.renounceRole(authorityControl.STRATEGY_MANAGER());
-        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        authorityRegistry.renounceRole(authorityControl.COLLECTION_MANAGER());
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
 
         vm.stopPrank();
     }
