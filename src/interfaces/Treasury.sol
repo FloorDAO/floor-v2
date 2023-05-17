@@ -67,9 +67,6 @@ interface ITreasury {
     /// @dev When an ERC1155 is withdrawn from the vault
     event WithdrawERC1155(address token, uint tokenId, uint amount, address recipient);
 
-    /// @dev When multiplier pool has been updated
-    event MultiplierPoolUpdated(uint percent);
-
     /// @dev When FLOOR is minted
     event FloorMinted(uint amount);
 
@@ -136,12 +133,12 @@ interface ITreasury {
     /**
      * ..
      */
-    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external payable;
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
      * ..
      */
-    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external payable;
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
      * ..

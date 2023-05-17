@@ -8,7 +8,7 @@ import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
-import {ManualSweeper} from '@floor/actions/sweepers/Manual.sol';
+import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
@@ -79,7 +79,8 @@ contract EpochManagerTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(floor)
+            address(floor),
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         // Create our Gauge Weight Vote contract

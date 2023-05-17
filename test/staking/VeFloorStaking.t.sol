@@ -41,8 +41,8 @@ contract VeFloorStakingTest is FloorTest {
         vm.prank(alice);
         floor.approve(address(veFloor), 100 ether);
 
-        // Set our max loss ratio as 10%
-        veFloor.setMaxLossRatio(100000000);
+        // Set our max loss ratio as 100% (9 decimal accuracy)
+        veFloor.setMaxLossRatio(1_000000000);
     }
 
     function test_ShouldTakeUsersDeposit() external {
@@ -380,6 +380,40 @@ contract VeFloorStakingTest is FloorTest {
         // Confirm that no fees were sent to our receiver
         assertEq(floor.balanceOf(alice), balanceAddr1Before);
         assertAlmostEqual(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether, 1e4);
+    }
+
+    function test_CanDetermineEarlyWithdrawLoss() external {
+        veFloor.deposit(100 ether, 6);
+
+        epochManager.setCurrentEpoch(0);
+        (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 50 ether);
+        assertEq(ret, 50 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(26);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 37.5 ether);  // 28125000000000000000
+        assertEq(ret, 62.5 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(52);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 25 ether);
+        assertEq(ret, 75 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(78);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 12.5 ether);
+        assertEq(ret, 87.5 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(104);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 0 ether);
+        assertEq(ret, 100 ether);
+        assertEq(canWithdraw, true);
     }
 
     function _assertBalances(address _account, uint _balance, uint _epoch) internal {

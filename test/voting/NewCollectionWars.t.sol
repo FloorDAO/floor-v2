@@ -7,7 +7,7 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 
-import {MercenarySweeper} from '@floor/actions/sweepers/Mercenary.sol';
+import {MercenarySweeper} from '@floor/sweepers/Mercenary.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -70,7 +70,8 @@ contract NewCollectionWarsTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(floor)
+            address(floor),
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         // Create our Gauge Weight Vote contract
@@ -403,12 +404,16 @@ contract NewCollectionWarsTest is FloorTest {
         epochManager.endEpoch();
 
         // Try and sweep the wrong epoch and it should fail
-        vm.expectRevert('Merc Sweep only available for collection additions');
-        treasury.sweepEpoch{value: 5 ether}(0, address(0), '', 3 ether);
+        vm.expectRevert('error code 1');
+        treasury.sweepEpoch(0, address(0), '', 3 ether);
+
+        // Approve our sweeper contract
+        address sweeperMock = address(new SweeperMock());
+        treasury.approveSweeper(sweeperMock, true);
 
         // Try and sweep above the sweep amount and it should fail
         vm.expectRevert('Merc Sweep cannot be higher than msg.value');
-        treasury.sweepEpoch{value: 5 ether}(1, address(0), '', 3 ether);
+        treasury.sweepEpoch(1, address(0), '', 3 ether);
 
         // Set up our Mercenary sweeper contract and assign it to our {Treasury}
         treasury.setMercenarySweeper(address(new MercenarySweeper(address(newCollectionWars))));
@@ -416,7 +421,7 @@ contract NewCollectionWarsTest is FloorTest {
         // Now make a sweep call directly via the Treasury to confirm that
         // our implementation is correctly run. We pass a sweeper mock to
         // prevent any exceptions during later sweeping.
-        treasury.sweepEpoch{value: 5 ether}(1, address(new SweeperMock()), '', 1 ether);
+        treasury.sweepEpoch(1, sweeperMock, '', 1 ether);
 
         // The successful mercenary sweep will have purchased specific tokens
         // and moved them into the {Treasury}. We should now own:
@@ -868,7 +873,6 @@ contract NewCollectionWarsTest is FloorTest {
         assertEq(newCollectionWars.nftVotingPower(1 ether, 190), 0.00 ether);
         assertEq(newCollectionWars.nftVotingPower(1 ether, 200), 0.00 ether);
     }
-
 
     /**
      * Allows our contract to receive dust ETH back from sweeps.

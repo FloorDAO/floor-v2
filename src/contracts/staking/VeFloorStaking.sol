@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
+
+import "forge-std/console.sol";
 
 import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
@@ -99,7 +100,6 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @param feeReceiver_ The receiver contract address
      */
     function setFeeReceiver(address feeReceiver_) public onlyOwner {
-        if (feeReceiver_ == address(0)) revert ZeroAddress();
         feeReceiver = feeReceiver_;
         emit FeeReceiverSet(feeReceiver_);
     }
@@ -297,7 +297,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
         _withdraw(depositor, amount);
         floor.safeTransfer(to, ret);
-        floor.safeTransfer(feeReceiver, loss);
+        floor.transfer(feeReceiver, loss);
     }
 
     /**
@@ -314,7 +314,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     }
 
     function _earlyWithdrawLoss(address account, uint depAmount, uint stBalance) private view returns (uint loss, uint ret) {
-        ret = depAmount - this.votingPowerOfAt(account, uint88(stBalance), currentEpoch());
+        ret = depAmount - (stBalance / 2);
         loss = depAmount - ret;
     }
 

@@ -70,7 +70,8 @@ contract TreasuryTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(floor)
+            address(floor),
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         // Create our Gauge Weight Vote contract

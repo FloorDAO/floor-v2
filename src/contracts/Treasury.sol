@@ -15,6 +15,7 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFai
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IMercenarySweeper, ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
@@ -26,8 +27,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
-    /// Holds our {FLOOR} contract reference
+    /// Holds our {FLOOR} and {WETH} contract references.
     FLOOR public floor;
+    IWETH public weth;
 
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
@@ -36,6 +38,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /// Stores our Mercenary sweeper contract address
     address public mercSweeper;
 
+    /// Stores a list of approved sweeper contracts
+    mapping(address => bool) public approvedSweepers;
+
     /**
      * Set up our connection to the Treasury to ensure future calls only come from this
      * trusted source.
@@ -43,8 +48,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param _authority {AuthorityRegistry} contract address
      * @param _floor Address of our {FLOOR}
      */
-    constructor(address _authority, address _floor) AuthorityControl(_authority) {
+    constructor(address _authority, address _floor, address _weth) AuthorityControl(_authority) {
         floor = FLOOR(_floor);
+        weth = IWETH(_weth);
     }
 
     /**
@@ -259,13 +265,31 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         address sweeper,
         bytes calldata data,
         uint mercSweep
-    ) public payable onlyRole(TREASURY_MANAGER) {
+    ) public {
         // Load the stored sweep at our epoch index
         Sweep memory epochSweep = epochSweeps[epochIndex];
 
-        // Ensure we have a valid sweep index
+        // Ensure we have not already swept this epoch
         require(!epochSweep.completed, 'Epoch sweep already completed');
-        require(epochSweep.collections.length != 0, 'No collections to sweep');
+
+        /**
+         * Checks if the Epoch grace period has expired. This gives the DAO 1 epoch to action
+         * the sweep before allowing an external party to action on their behalf.
+         *
+         *  Sweep       Current
+         *  3           3           Only DAO
+         *  3           4           Only DAO
+         *  3           5           Anyone
+         *
+         * If the grace period has ended, then a user that holds 5,000 FLOOR tokens can action
+         * the sweep to take place.
+         */
+        if (epochIndex + 2 < currentEpoch()) {
+            require(this.hasRole(this.TREASURY_MANAGER(), msg.sender), 'Only DAO may currently execute.');
+        }
+        else {
+            require(floor.balanceOf(msg.sender) >= 5000, 'Insufficient FLOOR holding.');
+        }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
     }
@@ -288,25 +312,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         address sweeper,
         bytes calldata data,
         uint mercSweep
-    ) public payable onlyRole(TREASURY_MANAGER) {
-        // Load the stored sweep at our epoch index
-        Sweep memory epochSweep = epochSweeps[epochIndex];
-
-        // Ensure we have a valid sweep index
-        require(epochSweep.collections.length != 0, 'No collections to sweep');
-
-        return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
-    }
-
-    /**
-     * Allows us to set a minimum amount of ETH to sweep with, so that if the yield
-     * allocated to the sweep is too low to be beneficial, then the DAO can stomache
-     * the additional cost.
-     *
-     * @param _minSweepAmount The minimum amount of ETH to sweep with
-     */
-    function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
-        minSweepAmount = _minSweepAmount;
+    ) public onlyRole(TREASURY_MANAGER) {
+        return _sweepEpoch(epochIndex, sweeper, epochSweeps[epochIndex], data, mercSweep);
     }
 
     /**
@@ -320,6 +327,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         uint mercSweep
     ) internal {
         uint msgValue;
+
+        // Ensure we have a valid sweep index
+        require(epochSweep.collections.length != 0, 'No collections to sweep');
+
+        // Confirm that our sweeper has been approved
+        require(approvedSweepers[sweeper], 'Sweeper contract not approved');
 
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
@@ -338,6 +351,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
                 unchecked { ++i; }
             }
         }
+
+        // Unwrap enough WETH to power the upcoming sweeps
+        weth.withdraw(msgValue);
 
         // If we have specified mercenary staked NFTs to be swept then we need to
         // action that sweep and remove the value swept from the future sweep amount.
@@ -380,6 +396,24 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      */
     function setMercenarySweeper(address _mercSweeper) external onlyRole(TREASURY_MANAGER) {
         mercSweeper = _mercSweeper;
+    }
+
+    /**
+     * ..
+     */
+    function approveSweeper(address _sweeper, bool _approved) external onlyRole(TREASURY_MANAGER) {
+        approvedSweepers[_sweeper] = _approved;
+    }
+
+    /**
+     * Allows us to set a minimum amount of ETH to sweep with, so that if the yield
+     * allocated to the sweep is too low to be beneficial, then the DAO can stomache
+     * the additional cost.
+     *
+     * @param _minSweepAmount The minimum amount of ETH to sweep with
+     */
+    function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
+        minSweepAmount = _minSweepAmount;
     }
 
     /**

@@ -68,7 +68,8 @@ contract SweepWarsTest is FloorTest {
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
-            address(floor)
+            address(floor),
+            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
         // Set up our veFloor token
@@ -366,10 +367,10 @@ contract SweepWarsTest is FloorTest {
         sweepWars.setSampleSize(3);
 
         // Create a vault for our collections
-        address vault1 = _createCollectionVault(approvedCollection1, 'Vault 1');
-        address vault2 = _createCollectionVault(approvedCollection2, 'Vault 2');
-        address vault3 = _createCollectionVault(approvedCollection3, 'Vault 3');
-        address vault4 = _createCollectionVault(approvedCollection3, 'Vault 4');
+        _createCollectionVault(approvedCollection1, 'Vault 1');
+        _createCollectionVault(approvedCollection2, 'Vault 2');
+        _createCollectionVault(approvedCollection3, 'Vault 3');
+        _createCollectionVault(approvedCollection3, 'Vault 4');
 
         vm.startPrank(address(treasury));
         (address[] memory collections, uint[] memory amounts) = sweepWars.snapshot(10000 ether, 0);

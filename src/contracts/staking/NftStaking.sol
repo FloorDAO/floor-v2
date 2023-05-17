@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
@@ -201,6 +203,11 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             }
         }
 
+        console.log('==');
+        console.log(stakedNft.tokensStaked);
+        console.log(uint(stakedNft.tokensStaked));
+        console.log('==');
+
         // Stake the token into our staking strategy
         nftStakingStrategy.stake(msg.sender, _collection, _tokenId, _amount, _is1155);
 
@@ -309,15 +316,10 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             return 0;
         }
 
-        // Get our base early exit fee and determine the linear decline of the exit fees
+        // Get our base early exit fee and determine the linear decline of the exit fees. The remaining
+        // fees are divided by 2 to reduce the amount paid
         uint tokens = stakedNft.tokensStaked * 1 ether;
-        fees = tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount);
-
-        // Reduce the penalty by the modifier against the NFT sweep power. The modifier is
-        // accurate to 9 decimal places, so we will need to account for that.
-        if (sweepModifier != 0) {
-            fees = (fees * (10e9 - sweepModifier)) / 10e9;
-        }
+        fees = (tokens - ((tokens * (currentEpoch - stakedNft.epochStart)) / stakedNft.epochCount)) / 2;
     }
 
     /**
