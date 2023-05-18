@@ -7,7 +7,7 @@ import {ERC20, LSSVMPair} from '@sudoswap/LSSVMPair.sol';
 
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * New pairs for the sudoswap AMM are created with the LSSVMPairFactory. LPs will call
@@ -20,7 +20,7 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  *
  * @dev https://docs.sudoswap.xyz/reference/pair-creation/
  */
-contract SudoswapCreatePair is IAction {
+contract SudoswapCreatePair is Action {
     /**
      * @param token The ERC20 to stake against the NFT. Zero if ETH will be paired.
      * @param _nft The NFT contract of the collection the pair trades
@@ -66,7 +66,7 @@ contract SudoswapCreatePair is IAction {
      *
      * @return uint Integer representation of the created pair address
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
         (

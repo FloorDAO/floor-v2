@@ -5,7 +5,7 @@ import {AlphaVault} from '@charmfi/contracts/AlphaVault.sol';
 
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Deposits tokens in proportion to the vault's current holdings.
@@ -15,7 +15,7 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * if user manipulated price to deposit cheaper, as the value of range
  * orders can only by manipulated higher.
  */
-contract CharmDeposit is IAction {
+contract CharmDeposit is Action {
     using TokenUtils for address;
 
     /// @param amount0Desired Max amount of token0 to deposit
@@ -31,7 +31,7 @@ contract CharmDeposit is IAction {
         address vault;
     }
 
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

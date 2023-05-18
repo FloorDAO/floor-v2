@@ -2,17 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Withdraws tokens from a Llamapay pool.
  */
-contract LlamapayWithdraw is IAction, Pausable {
+contract LlamapayWithdraw is Action {
     /// Our internally deployed Llamapay router
     LlamapayRouter public immutable llamapayRouter;
 
@@ -35,7 +34,7 @@ contract LlamapayWithdraw is IAction, Pausable {
     /**
      * Executes our token withdrawal against our Llamapay router.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
         return llamapayRouter.withdraw(msg.sender, request.token, request.amount);

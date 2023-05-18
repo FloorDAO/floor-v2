@@ -5,10 +5,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
@@ -16,7 +13,7 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  *
  * @author Twade
  */
-abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausable {
+abstract contract UniswapActionBase is Action, IERC721Receiver {
     /// Stores our Uniswap position manager
     IUniswapV3NonfungiblePositionManager public positionManager;
 
@@ -28,16 +25,6 @@ abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausab
      */
     function _setPositionManager(address _positionManager) internal {
         positionManager = IUniswapV3NonfungiblePositionManager(_positionManager);
-    }
-
-    /**
-     * Pauses execution functionality.
-     *
-     * @param _p Boolean value for if the vault should be paused
-     */
-    function pause(bool _p) external onlyOwner {
-        if (_p) _pause();
-        else _unpause();
     }
 
     /**
@@ -57,7 +44,7 @@ abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausab
      * that it can undertake additional logic. This is required as Uniswap checks that the
      * calling contract owns the token as a permissions system.
      *
-     * @param The token ID of the Uniswap token
+     * @param tokenId The token ID of the Uniswap token
      */
     modifier requiresUniswapToken(uint tokenId) {
         // Call to safeTransfer will trigger `onERC721Received` which must return

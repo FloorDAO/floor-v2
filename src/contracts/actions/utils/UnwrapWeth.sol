@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 /**
  * This action allows us to unwrap WETH in the {Treasury} into ETH.
  */
-contract UnwrapWeth is IAction {
+contract UnwrapWeth is Action {
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -28,7 +28,7 @@ contract UnwrapWeth is IAction {
      *
      * @return uint The amount of ETH unwrapped from the WETH by the execution
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

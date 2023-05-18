@@ -2,13 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
 
+import {Action} from '@floor/actions/Action.sol';
 import {GATOrder} from '@floor/forks/GATOrder.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {ICoWSwapSettlement} from '@floor-interfaces/cowswap/CoWSwapSettlement.sol';
 import {GPv2Order} from '@floor-interfaces/cowswap/GPv2Order.sol';
 import {ICoWSwapOnchainOrders} from '@floor-interfaces/cowswap/CoWSwapOnchainOrders.sol';
@@ -20,7 +19,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * Based on codebase:
  * https://github.com/nlordell/dappcon-2022-smart-orders
  */
-contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
+contract CowSwapCreateOrder is Action, ICoWSwapOnchainOrders {
     using GPv2Order for *;
 
     /// @dev The complete data for a Gnosis Protocol order. This struct contains
@@ -55,7 +54,7 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
         domainSeparator = settlement.domainSeparator();
     }
 
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

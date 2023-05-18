@@ -37,7 +37,7 @@ contract UniswapCreatePool is UniswapActionBase {
      * already present with the fee amount specified. If the pool does already exist,
      * then the existing pool address will be returned in the call anyway.
      */
-    function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

@@ -5,12 +5,12 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {IVault} from '@charmfi/interfaces/IVault.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Withdraws tokens in proportion to the vault's holdings.
  */
-contract CharmWithdraw is IAction {
+contract CharmWithdraw is Action {
     /// @param shares Shares burned by sender
     /// @param amount0Min Revert if resulting `amount0` is smaller than this
     /// @param amount1Min Revert if resulting `amount1` is smaller than this
@@ -21,7 +21,7 @@ contract CharmWithdraw is IAction {
         address vault;
     }
 
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

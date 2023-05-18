@@ -48,7 +48,7 @@ contract UniswapAddLiquidity is UniswapActionBase {
     /**
      * Adds liquidity to an existing ERC721 position.
      */
-    function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
         return _execute(abi.decode(_request, (ActionRequest)));
     }

@@ -2,11 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /// If Gem prevents our sweep from being successful
 error UnableToSweepGem();
@@ -17,7 +15,7 @@ error UnableToSweepGem();
  *
  * @author Twade
  */
-contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
+contract GemSweep is Action, IERC721Receiver {
     /// Internal store of GemSwap contract
     address GEM_SWAP;
 
@@ -32,7 +30,7 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
      *
      * @return spent The amount of ETH spent on the call
      */
-    function execute(bytes calldata _request) public payable returns (uint spent) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint spent) {
         // Sweeps from GemSwap
         (bool success,) = payable(GEM_SWAP).call{value: msg.value}(_request);
         if (!success) revert UnableToSweepGem();

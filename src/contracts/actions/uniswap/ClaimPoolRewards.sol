@@ -37,7 +37,7 @@ contract UniswapClaimPoolRewards is UniswapActionBase {
      *
      * @dev The contract must hold the erc721 token before it can collect fees.
      */
-    function execute(bytes calldata _request) public payable whenNotPaused returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
         return _execute(request);

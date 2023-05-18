@@ -6,7 +6,7 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
 import {LSSVMPair} from '@sudoswap/LSSVMPair.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Sends a set of NFTs to the pair in exchange for token.
@@ -14,7 +14,7 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * @dev To compute the amount of token to that will be received, call
  * `bondingCurve.getSellInfo`.
  */
-contract SudoswapSellNftsForEth is IAction {
+contract SudoswapSellNftsForEth is Action {
     /**
      * Store our required information to action a sell.
      *
@@ -36,7 +36,7 @@ contract SudoswapSellNftsForEth is IAction {
      *
      * @return uint The amount of ETH or ERC20 received in exchange for the NFTs
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
         (address pair, uint[] memory nftIds, uint minExpectedTokenOutput) = abi.decode(_request, (address, uint[], uint));

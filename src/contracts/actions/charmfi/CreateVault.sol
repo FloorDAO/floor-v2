@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 import {AlphaVault} from '@charmfi/contracts/AlphaVault.sol';
 import {PassiveStrategy} from '@charmfi/contracts/PassiveStrategy.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Creates a Charm liquidity vault for 2 tokens.
  */
-contract CharmCreateVault is IAction {
+contract CharmCreateVault is Action {
     /**
      * This large struct will use 3 storage slots.
      */
@@ -28,7 +28,7 @@ contract CharmCreateVault is IAction {
         address keeper; // 768 / 768
     }
 
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

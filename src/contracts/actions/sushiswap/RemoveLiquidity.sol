@@ -4,10 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {IUniswapV2Factory} from '@floor-interfaces/uniswap/IUniswapV2Factory.sol';
 import {IUniswapV2Router01} from '@floor-interfaces/uniswap/IUniswapV2Router01.sol';
 
@@ -16,7 +13,7 @@ import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 /**
  * Allows liquidity to be removed from a Sushiswap position.
  */
-contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
+contract SushiswapRemoveLiquidity is Action {
     using TokenUtils for address;
 
     struct ActionRequest {
@@ -39,8 +36,8 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * Sets up our immutable Sushiswap contract references.
      *
-     * @param _uniswapRouter
-     * @param _uniswapFactory
+     * @param _uniswapRouter The address of the external Uniswap router contract
+     * @param _uniswapFactory The address of the external Uniswap factory contract
      */
     constructor(address _uniswapRouter, address _uniswapFactory) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
@@ -50,7 +47,7 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     /**
      * Removes liquidity to the Sushiswap pool.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

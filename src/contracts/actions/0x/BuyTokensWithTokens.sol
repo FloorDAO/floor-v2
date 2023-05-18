@@ -4,13 +4,14 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
+
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 /**
  * @notice Buy tokens on 0x using another token.
  */
-contract BuyTokensWithTokens is IAction {
+contract BuyTokensWithTokens is Action {
     address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -43,7 +44,7 @@ contract BuyTokensWithTokens is IAction {
      *
      * @return received_ The amount of tokens bought
      */
-    function execute(bytes calldata _request) public payable returns (uint received_) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint received_) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy (due to bytes memory -> storage?).
         (address _sellToken, address _buyToken, bytes memory swapCallData) = abi.decode(_request, (address, address, bytes));

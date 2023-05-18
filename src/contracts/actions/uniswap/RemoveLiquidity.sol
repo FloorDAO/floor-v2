@@ -38,7 +38,7 @@ contract UniswapRemoveLiquidity is UniswapActionBase {
      * @dev To collect the liquidity generated, we will need to subsequently call `collect`
      * on the pool using the {UniswapClaimPoolRewards} action.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
         return _execute(request);

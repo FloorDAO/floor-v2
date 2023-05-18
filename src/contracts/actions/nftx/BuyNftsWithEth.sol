@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {INFTXMarketplaceZap} from '@floor-interfaces/nftx/NFTXMarketplaceZap.sol';
 
 /**
@@ -14,7 +14,7 @@ import {INFTXMarketplaceZap} from '@floor-interfaces/nftx/NFTXMarketplaceZap.sol
  * This uses the NFTX Marketplace Zap to facilitate the trade, allowing us to
  * specify a minimum amount of ETH to receive in return.
  */
-contract NFTXBuyNftsWithEth is IAction {
+contract NFTXBuyNftsWithEth is Action {
     /// The NFTX Marketplace Zap contract
     INFTXMarketplaceZap public immutable marketplaceZap;
 
@@ -53,7 +53,7 @@ contract NFTXBuyNftsWithEth is IAction {
      *
      * @return uint The amount of ETH spent on the execution
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
         (uint vaultId, uint amount, uint[] memory specificIds, address[] memory path) =

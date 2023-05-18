@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * This action allows us to send ETH.
  */
-contract SendEth is IAction {
+contract SendEth is Action {
     /**
      * Store our required information to action a swap.
      *
@@ -26,7 +26,7 @@ contract SendEth is IAction {
      *
      * @return uint The amount of ETH sent by the execution
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

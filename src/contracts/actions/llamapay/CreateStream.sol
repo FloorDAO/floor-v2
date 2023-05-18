@@ -2,17 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Creates and funds a stream on the Llamapay platform.
  */
-contract LlamapayCreateStream is IAction, Pausable {
+contract LlamapayCreateStream is Action {
     /// Our internally deployed Llamapay router
     LlamapayRouter public immutable llamapayRouter;
 
@@ -44,7 +43,7 @@ contract LlamapayCreateStream is IAction, Pausable {
      *
      * @return uint Total balance currently held by the stream
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
         return llamapayRouter.createStream(msg.sender, request.to, request.token, request.amountToDeposit, uint216(request.amountPerSec));

@@ -4,12 +4,12 @@ pragma solidity ^0.8.0;
 import {ERC20, LSSVMPair} from '@sudoswap/LSSVMPair.sol';
 import {LSSVMPairERC20} from '@sudoswap/LSSVMPairERC20.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * Sends token to the pair in exchange for any `numNFTs` NFTs.
  */
-contract SudoswapBuyNftsWithEth is IAction {
+contract SudoswapBuyNftsWithEth is Action {
     /// Temporary store for a fallback ETH recipient
     address ethRecipient;
 
@@ -36,7 +36,7 @@ contract SudoswapBuyNftsWithEth is IAction {
      *
      * @return spent The amount of ETH or ERC20 spent on the execution
      */
-    function execute(bytes calldata _request) public payable returns (uint spent) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint spent) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

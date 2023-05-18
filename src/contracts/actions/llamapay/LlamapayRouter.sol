@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {ILlamaPay} from '@floor-interfaces/llamapay/LlamaPay.sol';
 import {ILlamaPayFactory} from '@floor-interfaces/llamapay/LlamaPayFactory.sol';
 

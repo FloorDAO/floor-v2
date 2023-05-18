@@ -4,10 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 import {IUniswapV2Router01} from '@floor-interfaces/uniswap/IUniswapV2Router01.sol';
 
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
@@ -15,7 +12,7 @@ import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 /**
  * Allows liquidity to be added to a Sushiswap position.
  */
-contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
+contract SushiswapAddLiquidity is Action {
     using TokenUtils for address;
 
     struct ActionRequest {
@@ -38,7 +35,7 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
     /**
      * Sets up our immutable Sushiswap contract references.
      *
-     * @param _uniswapRouter
+     * @param _uniswapRouter The address of the external Uniswap router contract
      */
     constructor(address _uniswapRouter) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
@@ -48,7 +45,7 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
      * Adds liquidity to the Sushiswap pool, with logic varying if one of the tokens
      * is specified to be ETH, rather than an ERC20.
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 

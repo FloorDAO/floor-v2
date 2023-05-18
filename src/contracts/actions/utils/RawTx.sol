@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {IAction} from '@floor-interfaces/actions/Action.sol';
+import {Action} from '@floor/actions/Action.sol';
 
 /**
  * This action allows us to send bytes to a recipient contract.
  */
-contract RawTx is IAction {
+contract RawTx is Action {
     /**
      * Store our required information to action a raw transaction.
      *
@@ -24,7 +24,7 @@ contract RawTx is IAction {
      *
      * @param _request Packed bytes that will map to our `ActionRequest` struct
      */
-    function execute(bytes calldata _request) public payable returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
