@@ -269,8 +269,8 @@ contract NewCollectionWarsTest is FloorTest {
         newCollectionWarOptions.createOption(war, address(mock721), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        assertEq(mock721.ownerOf(0), address(newCollectionWars));
-        assertEq(mock721.ownerOf(1), address(newCollectionWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWarOptions));
+        assertEq(mock721.ownerOf(1), address(newCollectionWarOptions));
         assertEq(mock721.ownerOf(2), alice);
     }
 
@@ -292,9 +292,9 @@ contract NewCollectionWarsTest is FloorTest {
         newCollectionWarOptions.createOption(war, address(mock1155), tokenIds, amounts, exercisePercents);
         vm.stopPrank();
 
-        assertEq(mock1155.balanceOf(address(newCollectionWars), 0), 5);
-        assertEq(mock1155.balanceOf(address(newCollectionWars), 1), 3);
-        assertEq(mock1155.balanceOf(address(newCollectionWars), 2), 0);
+        assertEq(mock1155.balanceOf(address(newCollectionWarOptions), 0), 5);
+        assertEq(mock1155.balanceOf(address(newCollectionWarOptions), 1), 3);
+        assertEq(mock1155.balanceOf(address(newCollectionWarOptions), 2), 0);
 
         assertEq(mock1155.balanceOf(alice, 0), 5);
         assertEq(mock1155.balanceOf(alice, 1), 7);
@@ -536,8 +536,8 @@ contract NewCollectionWarsTest is FloorTest {
 
         newCollectionWarOptions.exerciseOptions{value: 2 ether}(war, 2 ether);
 
-        assertEq(mock1155.balanceOf(address(newCollectionWars), 0), 0);
-        assertEq(mock1155.balanceOf(address(newCollectionWars), 1), 3);
+        assertEq(mock1155.balanceOf(address(newCollectionWarOptions), 0), 0);
+        assertEq(mock1155.balanceOf(address(newCollectionWarOptions), 1), 3);
 
         assertEq(mock1155.balanceOf(address(treasury), 0), 5);
         assertEq(mock1155.balanceOf(address(treasury), 1), 2);
@@ -590,8 +590,8 @@ contract NewCollectionWarsTest is FloorTest {
         vm.prank(alice);
         newCollectionWarOptions.reclaimOptions(war, address(mock721), claimPercents, indexes);
 
-        assertEq(mock721.ownerOf(0), address(newCollectionWars));
-        assertEq(mock721.ownerOf(1), address(newCollectionWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWarOptions));
+        assertEq(mock721.ownerOf(1), address(newCollectionWarOptions));
     }
 
     function test_CanReclaimStakedNft() external {
@@ -712,8 +712,8 @@ contract NewCollectionWarsTest is FloorTest {
         newCollectionWarOptions.reclaimOptions(war, address(mock721), claimPercents, indexes);
         vm.stopPrank();
 
-        assertEq(mock721.ownerOf(0), address(newCollectionWars));
-        assertEq(mock721.ownerOf(1), address(newCollectionWars));
+        assertEq(mock721.ownerOf(0), address(newCollectionWarOptions));
+        assertEq(mock721.ownerOf(1), address(newCollectionWarOptions));
 
         // Now that an additional 2 epoches have ended, it will now be claimable (one for
         // the DAO to exercise and one for Floor NFT holders to exercise).
