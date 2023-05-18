@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface INftStaking {
-
     /// Emitted when a token is staked
     event TokensStaked(address sender, uint tokens, uint tokenValue, uint currentEpoch, uint8 epochCount);
 
@@ -36,5 +35,4 @@ interface INftStaking {
     function setBoostCalculator(address _boostCalculator) external;
 
     function claimRewards(address _collection) external;
-
 }

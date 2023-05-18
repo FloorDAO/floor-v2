@@ -17,7 +17,6 @@ import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingTest is FloorTest {
-
     address constant LOW_VALUE_NFT = 0x524cAB2ec69124574082676e6F654a18df49A048;
     address constant HIGH_VALUE_NFT = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     address constant ERC1155_NFT = 0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313;
@@ -56,19 +55,13 @@ contract NftStakingTest is FloorTest {
         // mock the response for this.
         vm.mockCall(
             address(pricingExecutor),
-            abi.encodeWithSelector(
-                UniswapV3PricingExecutor.getFloorPrice.selector,
-                0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA
-            ),
+            abi.encodeWithSelector(UniswapV3PricingExecutor.getFloorPrice.selector, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA),
             abi.encode(136)
         );
 
         vm.mockCall(
             address(pricingExecutor),
-            abi.encodeWithSelector(
-                UniswapV3PricingExecutor.getLatestFloorPrice.selector,
-                0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA
-            ),
+            abi.encodeWithSelector(UniswapV3PricingExecutor.getLatestFloorPrice.selector, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA),
             abi.encode(136)
         );
 
@@ -89,15 +82,18 @@ contract NftStakingTest is FloorTest {
         nftStakingStrategy.setStakingZaps(0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3);
 
         // Add our underlying token mappings
-        nftStakingStrategy.setUnderlyingToken(LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327);
-        nftStakingStrategy.setUnderlyingToken(HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB);
-        nftStakingStrategy.setUnderlyingToken(ERC1155_NFT, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, 0xf80ffB0699B8d97E9fD198cCBc367A47b77a9d1C);
+        nftStakingStrategy.setUnderlyingToken(
+            LOW_VALUE_NFT, 0xB603B3fc4B5aD885e26298b7862Bb6074dff32A9, 0xEB07C09A72F40818704a70F059D1d2c82cC54327
+        );
+        nftStakingStrategy.setUnderlyingToken(
+            HIGH_VALUE_NFT, 0x269616D549D7e8Eaa82DFb17028d0B212D11232A, 0x08765C76C758Da951DC73D3a8863B34752Dd76FB
+        );
+        nftStakingStrategy.setUnderlyingToken(
+            ERC1155_NFT, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, 0xf80ffB0699B8d97E9fD198cCBc367A47b77a9d1C
+        );
 
         // Set our {InventoryStaking} and {Treasury} contract addresses
-        nftStakingStrategy.setContracts(
-            0x3E135c3E981fAe3383A5aE0d323860a34CfAB893,
-            users[1]
-        );
+        nftStakingStrategy.setContracts(0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, users[1]);
 
         // Set our sweep modifier
         staking.setSweepModifier(4e9);
@@ -522,18 +518,17 @@ contract NftStakingTest is FloorTest {
 
     function test_CanStressTestStaking() external {
         // Define the number of results we want
-        uint results = 50;  // Must be <= 231
+        uint results = 50; // Must be <= 231
         assertLe(results, 231);
 
         // Load our token IDs from our text file into a uint array
-        uint[] memory tokens = vm.parseJsonUintArray(
-            vm.readFile('test/data/lilking-tokens.json'),
-            '.tokenIds'
-        );
+        uint[] memory tokens = vm.parseJsonUintArray(vm.readFile('test/data/lilking-tokens.json'), '.tokenIds');
 
         // Set our array length
         uint deleted = 231 - results;
-        assembly { mstore(tokens, sub(mload(tokens), deleted)) }
+        assembly {
+            mstore(tokens, sub(mload(tokens), deleted))
+        }
 
         // Get the approval address for our staking strategy
         address approvalAddress = staking.nftStakingStrategy().approvalAddress();
@@ -601,7 +596,9 @@ contract NftStakingTest is FloorTest {
         amounts = new uint[](length);
         for (uint i; i < length;) {
             amounts[i] = 1;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 }

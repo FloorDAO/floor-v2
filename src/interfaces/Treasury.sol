@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-
 library TreasuryEnums {
     /// Different sweep types that can be specified.
     enum SweepType {
@@ -19,12 +18,10 @@ library TreasuryEnums {
     }
 }
 
-
 /**
  * @dev The Treasury will hold all assets.
  */
 interface ITreasury {
-
     /// Stores data that allows the Treasury to action a sweep.
     struct Sweep {
         TreasuryEnums.SweepType sweepType;
@@ -143,7 +140,8 @@ interface ITreasury {
     /**
      * ..
      */
-    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType) external;
+    function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType)
+        external;
 
     /**
      * ..

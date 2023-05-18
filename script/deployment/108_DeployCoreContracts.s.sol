@@ -13,14 +13,11 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our treasury actions.
  */
 contract DeployCoreContracts is DeploymentScript {
-
     function run() external deployer {
-
         // Confirm that we have our required contracts deployed
         address collectionRegistry = requireDeployment('CollectionRegistry');
         address floor = requireDeployment('Floor');
@@ -46,7 +43,5 @@ contract DeployCoreContracts is DeploymentScript {
 
         // Deploy our veFloor staking contracts
         storeDeployment('VeFloorStaking', address(new VeFloorStaking(IERC20(floor), treasury)));
-
     }
-
 }

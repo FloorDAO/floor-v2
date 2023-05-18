@@ -6,9 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 
-
 interface IEpochManaged {
-
     /**
      *  ..
      */
@@ -18,5 +16,4 @@ interface IEpochManaged {
      * ..
      */
     function setEpochManager(address _epochManager) external;
-
 }

@@ -15,7 +15,6 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  * @author Twade
  */
 contract UniswapMintPosition is UniswapActionBase {
-
     using TokenUtils for address;
 
     struct ActionRequest {
@@ -57,7 +56,7 @@ contract UniswapMintPosition is UniswapActionBase {
         request.token1.approveToken(address(positionManager), request.amount1Desired);
 
         // Create our ERC721 and fund it with an initial desired amount of each token
-        (uint tokenId, , uint amount0, uint amount1) = positionManager.mint(
+        (uint tokenId,, uint amount0, uint amount1) = positionManager.mint(
             IUniswapV3NonfungiblePositionManager.MintParams({
                 token0: request.token0,
                 token1: request.token1,
@@ -83,5 +82,4 @@ contract UniswapMintPosition is UniswapActionBase {
 
         return tokenId;
     }
-
 }

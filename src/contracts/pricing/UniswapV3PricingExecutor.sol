@@ -10,7 +10,6 @@ import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
-
 /// If we are unable to find a pool for the Uniswap token combination
 error UnknownUniswapPool();
 

@@ -11,7 +11,6 @@ import {ERC20Mock} from '../mocks/erc/ERC20Mock.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract VestingClaimTest is FloorTest {
-
     // Store some test tokens
     FLOOR newFloor;
     ERC20Mock weth;

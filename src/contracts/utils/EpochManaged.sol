@@ -6,9 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 
-
 abstract contract EpochManaged is Ownable {
-
     /// Stores the current {EpochManager} contract
     IEpochManager public epochManager;
 
@@ -33,5 +31,4 @@ abstract contract EpochManaged is Ownable {
         require(msg.sender == address(epochManager), 'Only EpochManager can call');
         _;
     }
-
 }

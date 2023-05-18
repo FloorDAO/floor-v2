@@ -159,7 +159,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -188,7 +190,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(1, merkleRootB, approvedCollection, 5 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProofA = new bytes32[](3);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -241,8 +245,12 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(1, merkleRootB, approvedCollection2, 50 ether);
 
         // Set up our bribe
-        voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 250 ether, emptyBlacklist);
-        voteMarket.createBribe(approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 250 ether, emptyBlacklist
+        );
+        voteMarket.createBribe(
+            approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProofA = new bytes32[](3);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a3';
@@ -307,9 +315,15 @@ contract VoteMarketTest is FloorTest {
         uint[] memory includedBribeIds = new uint[](2);
 
         // Set up our bribe
-        includedBribeIds[0] = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
-        voteMarket.createBribe(approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
-        includedBribeIds[1] = voteMarket.createBribe(approvedCollection3, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist);
+        includedBribeIds[0] = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist
+        );
+        voteMarket.createBribe(
+            approvedCollection2, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist
+        );
+        includedBribeIds[1] = voteMarket.createBribe(
+            approvedCollection3, address(WETH), epochManager.currentEpoch(), uint8(2), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProofA = new bytes32[](4);
         merkleProofA[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a0';
@@ -355,7 +369,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -388,7 +404,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, aliceBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, aliceBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -423,7 +441,9 @@ contract VoteMarketTest is FloorTest {
         // Set up our bribe so that we allocate 50 tokens to the bribe with a 1 token max reward
         // per vote. Since our user is providing 500 votes, this should reward the user with the
         // full 50 tokens, rather than 500 tokens which the max vote reward would calculate to.
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(1), 1 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(1), 1 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](1);
         merkleProof[0] = hex'9bce35978367d42a249f72fdf1c2d747b4e8ddf3c109d8021b5887ebf107ea9e';
@@ -476,7 +496,9 @@ contract VoteMarketTest is FloorTest {
 
     function test_CanDefineClaimWindow(uint epoch) external {
         // Create a bribe on the current epoch, that lasts for 5 epochs.
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 25 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 25 ether, emptyBlacklist
+        );
 
         /**
          * With our bribe running from epoch 0 to epoch 4 inclusive, and a claim window then lasting
@@ -490,8 +512,7 @@ contract VoteMarketTest is FloorTest {
         epochManager.setCurrentEpoch(epoch);
         if (epoch == 5 || epoch == 6 || epoch == 7 || epoch == 8) {
             assertTrue(voteMarket.bribeClaimOpen(bribeId));
-        }
-        else {
+        } else {
             assertFalse(voteMarket.bribeClaimOpen(bribeId));
         }
     }
@@ -510,7 +531,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -540,8 +563,7 @@ contract VoteMarketTest is FloorTest {
             // Ensure no claim was made for the recipient and no fees generated
             assertEq(WETH.balanceOf(alice), 0 ether);
             assertEq(WETH.balanceOf(feeCollector), 0 ether);
-        }
-        else {
+        } else {
             voteMarket.claim(alice, epochs, bribeIds, collections, votes, merkleProofStore);
 
             // Ensure our recipient received the expected amount of WETH
@@ -561,7 +583,9 @@ contract VoteMarketTest is FloorTest {
         _registerClaimWithSingleVote(0, merkleRoot, approvedCollection, 10 ether);
 
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         bytes32[] memory merkleProof = new bytes32[](3);
         merkleProof[0] = hex'923010e87599b5969c1d6060a7da5b8c162fccbbd7d888258d195043b2f551a1';
@@ -573,9 +597,9 @@ contract VoteMarketTest is FloorTest {
         _claimAllWithSingleValues(alice, 0, approvedCollection, 10 ether, merkleProof);
 
         // Confirm our amounts before reclaims
-        assertEq(WETH.balanceOf(alice), 490000000000000000);              // .49 eth
-        assertEq(WETH.balanceOf(address(this)), 450_000000000000000000);  // 450 eth
-        assertEq(WETH.balanceOf(feeCollector), 10000000000000000);        // .01 eth
+        assertEq(WETH.balanceOf(alice), 490000000000000000); // .49 eth
+        assertEq(WETH.balanceOf(address(this)), 450_000000000000000000); // 450 eth
+        assertEq(WETH.balanceOf(feeCollector), 10000000000000000); // .01 eth
 
         // Now we can move our epoch to after the claim window, so that the creator of the
         // bribe can withdraw their remaining bribe funds
@@ -583,14 +607,16 @@ contract VoteMarketTest is FloorTest {
         voteMarket.reclaimExpiredFunds(bribeId);
 
         // Confirm our closing amounts
-        assertEq(WETH.balanceOf(alice), 490000000000000000);             // .49 eth
-        assertEq(WETH.balanceOf(address(this)), 499500000000000000000);  // 499.5 eth
-        assertEq(WETH.balanceOf(feeCollector), 10000000000000000);       // .01 eth
+        assertEq(WETH.balanceOf(alice), 490000000000000000); // .49 eth
+        assertEq(WETH.balanceOf(address(this)), 499500000000000000000); // 499.5 eth
+        assertEq(WETH.balanceOf(feeCollector), 10000000000000000); // .01 eth
     }
 
     function test_CannotWithdrawUnclaimedBribeFundsScenarios(uint epoch) external {
         // Set up our bribe
-        uint bribeId = voteMarket.createBribe(approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist);
+        uint bribeId = voteMarket.createBribe(
+            approvedCollection, address(WETH), epochManager.currentEpoch(), uint8(5), 0.05 ether, 50 ether, emptyBlacklist
+        );
 
         // Set our test epoch
         epochManager.setCurrentEpoch(epoch);
@@ -601,7 +627,6 @@ contract VoteMarketTest is FloorTest {
             vm.expectRevert('Too early to reclaim');
             voteMarket.reclaimExpiredFunds(bribeId);
         }
-
         // Otherwise, if we are past the claim window, then we should be able to claim
         // the funds remaining in the bribe
         else {
@@ -680,11 +705,7 @@ contract VoteMarketTest is FloorTest {
      * Allows our claim window to be disabled.
      */
     modifier disableClaimWindow() {
-        vm.mockCall(
-            address(voteMarket),
-            abi.encodeWithSelector(VoteMarket.bribeClaimOpen.selector),
-            abi.encode(true)
-        );
+        vm.mockCall(address(voteMarket), abi.encodeWithSelector(VoteMarket.bribeClaimOpen.selector), abi.encode(true));
 
         _;
     }

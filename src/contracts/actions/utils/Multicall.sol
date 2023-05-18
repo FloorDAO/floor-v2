@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * Provides a function to batch together multiple calls in a single external call.
  */
@@ -15,7 +14,9 @@ contract ActionMulticall {
         uint length = actions.length;
         for (uint i; i < length;) {
             IAction(actions[i]).execute(data[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 }

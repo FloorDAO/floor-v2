@@ -14,7 +14,6 @@ pragma solidity ^0.8.0;
  */
 
 interface IStrategyFactory {
-
     /// @dev Sent when a vault is created successfully
     event VaultCreated(uint indexed vaultId, address vaultAddress, address assetAddress);
 
@@ -52,12 +51,9 @@ interface IStrategyFactory {
      * @return strategyId_ ID of the newly created vault
      * @return strategyAddr_ Address of the newly created vault
      */
-    function deployStrategy(
-        bytes32 _name,
-        address _strategy,
-        bytes calldata _strategyInitData,
-        address _collection
-    ) external returns (uint strategyId_, address strategyAddr_);
+    function deployStrategy(bytes32 _name, address _strategy, bytes calldata _strategyInitData, address _collection)
+        external
+        returns (uint strategyId_, address strategyAddr_);
 
     /**
      * Allows individual vaults to be paused, meaning that assets can no longer be deposited,
@@ -74,5 +70,4 @@ interface IStrategyFactory {
      * TODO: ..
      */
     function snapshot(uint _strategyId) external /* TODO: onlyRole */ returns (address[] memory tokens, uint[] memory amounts);
-
 }

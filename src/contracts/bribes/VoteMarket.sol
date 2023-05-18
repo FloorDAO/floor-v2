@@ -12,7 +12,6 @@ import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 
 contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
-
     /// Minimum number of epochs for a Bribe
     uint8 public constant MINIMUM_EPOCHS = 1;
 
@@ -317,10 +316,14 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
                     bribes[collectionBribes[approvedCollections[i]][k]].numberOfEpochs += 1;
                 }
 
-                unchecked { ++k; }
+                unchecked {
+                    ++k;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -342,7 +345,10 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
      * Allows our oracle wallet to upload a merkle root to define claims available against
      * a bribe when the epoch ends.
      */
-    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external onlyOracle {
+    function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes)
+        external
+        onlyOracle
+    {
         // Ensure that a merkleRoot has not already been set to this epoch
         require(epochMerkles[epoch] == '', 'merkleRoot already set');
 
@@ -407,7 +413,7 @@ contract VoteMarket is EpochManaged, IVoteMarket, Pausable {
     /**
      * Ensure that only our oracle wallet can call this function.
      */
-    modifier onlyOracle {
+    modifier onlyOracle() {
         require(msg.sender == oracleWallet, 'Unauthorized caller');
         _;
     }

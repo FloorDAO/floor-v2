@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import 'forge-std/console.sol';
 
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
@@ -23,11 +23,10 @@ import {INftStakingBoostCalculator} from '@floor-interfaces/staking/calculators/
  */
 
 contract NftStaking is EpochManaged, INftStaking, Pausable {
-
     struct StakedNft {
-        uint epochStart;       // 256 / 256
-        uint128 epochCount;    // 384 / 512
-        uint128 tokensStaked;  // 512 / 512
+        uint epochStart; // 256 / 256
+        uint128 epochCount; // 384 / 512
+        uint128 tokensStaked; // 512 / 512
     }
 
     /// Stores our modular NFT staking strategy.
@@ -106,13 +105,8 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         // Loop through all stakes against a collection and summise the sweep power based on
         // the number staked and remaining epoch duration.
         for (uint i; i < length;) {
-            (uint _sweepPower, uint _sweepTotal) = _calculateStakePower(
-                collectionStakers[_collectionHash][i],
-                _collection,
-                cachedFloorPrice,
-                currentEpoch,
-                _epoch
-            );
+            (uint _sweepPower, uint _sweepTotal) =
+                _calculateStakePower(collectionStakers[_collectionHash][i], _collection, cachedFloorPrice, currentEpoch, _epoch);
 
             unchecked {
                 sweepPower += _sweepPower;
@@ -125,13 +119,11 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
         return boostCalculator.calculate(sweepPower, sweepTotal, sweepModifier);
     }
 
-    function _calculateStakePower(
-        address _user,
-        address _collection,
-        uint cachedFloorPrice,
-        uint currentEpoch,
-        uint targetEpoch
-    ) internal view returns (uint sweepPower, uint sweepTotal) {
+    function _calculateStakePower(address _user, address _collection, uint cachedFloorPrice, uint currentEpoch, uint targetEpoch)
+        internal
+        view
+        returns (uint sweepPower, uint sweepTotal)
+    {
         // Load our user's staked NFTs
         StakedNft memory stakedNft = stakedNfts[this.hash(_user, _collection)];
 
@@ -139,13 +131,12 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
             // Get the remaining power of the stake based on remaining epochs
             if (currentEpoch < stakedNft.epochStart + stakedNft.epochCount) {
                 // Determine our staked sweep power by calculating our epoch discount
-                uint stakedSweepPower = (
-                    ((stakedNft.tokensStaked * cachedFloorPrice * voteDiscount) / 10000)
-                        * stakedNft.epochCount
-                ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+                uint stakedSweepPower = (((stakedNft.tokensStaked * cachedFloorPrice * voteDiscount) / 10000) * stakedNft.epochCount)
+                    / LOCK_PERIODS[LOCK_PERIODS.length - 1];
 
                 // Add the staked sweep power to our collection total
-                sweepPower = stakedSweepPower - ((stakedSweepPower * (((targetEpoch - stakedNft.epochStart) * 1e9) / stakedNft.epochCount)) / 1e9);
+                sweepPower =
+                    stakedSweepPower - ((stakedSweepPower * (((targetEpoch - stakedNft.epochStart) * 1e9) / stakedNft.epochCount)) / 1e9);
 
                 // Tally up our quantity total
                 sweepTotal = stakedNft.tokensStaked;
@@ -164,13 +155,10 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
      * @param _amount[] The number of each token to stake
      * @param _epochCount The number of epochs to stake for
      */
-    function stake(
-        address _collection,
-        uint[] calldata _tokenId,
-        uint[] calldata _amount,
-        uint8 _epochCount,
-        bool _is1155
-    ) external whenNotPaused {
+    function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155)
+        external
+        whenNotPaused
+    {
         // Validate the number of epochs staked
         require(_epochCount < LOCK_PERIODS.length, 'Invalid epoch index');
 
@@ -425,5 +413,4 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
     function collectionHash(address _collection, address _strategy) internal pure returns (bytes32) {
         return keccak256(abi.encode(_collection, _strategy));
     }
-
 }

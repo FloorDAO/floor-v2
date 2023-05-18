@@ -64,5 +64,4 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
      * Allows our contract to receive dust ETH back from our Gem sweep.
      */
     receive() external payable {}
-
 }

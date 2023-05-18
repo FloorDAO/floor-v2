@@ -90,7 +90,8 @@ contract StrategyFactoryTest is FloorTest {
      */
     function test_CanGetStrategy() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) =
+            strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         // Confirm that the vault address stored in our vault factory matches the
         // one that was just cloned.
@@ -112,7 +113,8 @@ contract StrategyFactoryTest is FloorTest {
      */
     function test_CanCreateStrategy() public {
         // Create a vault and store the address of the new clone
-        (uint vaultId, address vault) = strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+        (uint vaultId, address vault) =
+            strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         assertEq(vaultId, 0);
         require(vault != address(0), 'Invalid vault address');

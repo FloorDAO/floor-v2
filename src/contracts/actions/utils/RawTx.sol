@@ -49,5 +49,4 @@ contract RawTx is IAction {
     receive() external payable {
         //
     }
-
 }

@@ -11,14 +11,11 @@ import {Treasury} from '@floor/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our treasury actions.
  */
 contract DeployCoreContracts is DeploymentScript {
-
     function run() external deployer {
-
         // Load our required contract addresses
         address collectionRegistry = requireDeployment('CollectionRegistry');
         address newCollectionWars = requireDeployment('NewCollectionWars');
@@ -35,15 +32,7 @@ contract DeployCoreContracts is DeploymentScript {
         EpochManager epochManager = new EpochManager();
 
         // Set our contracts against the new epoch manager
-        epochManager.setContracts(
-            collectionRegistry,
-            newCollectionWars,
-            pricingExecutor,
-            treasury,
-            vaultFactory,
-            voteContract,
-            voteMarket
-        );
+        epochManager.setContracts(collectionRegistry, newCollectionWars, pricingExecutor, treasury, vaultFactory, voteContract, voteMarket);
 
         // Assign our epoch manager to our existing contracts
         NewCollectionWars(newCollectionWars).setEpochManager(address(epochManager));
@@ -55,7 +44,5 @@ contract DeployCoreContracts is DeploymentScript {
 
         // Finally, we can save our epoch manager contract address
         storeDeployment('EpochManager', address(epochManager));
-
     }
-
 }

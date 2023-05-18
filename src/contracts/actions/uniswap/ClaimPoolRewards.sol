@@ -13,7 +13,6 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  * @author Twade
  */
 contract UniswapClaimPoolRewards is UniswapActionBase {
-
     /// @param tokenId The id of the erc721 token
     /// @return amount0 The max amount of fees collected in token0
     /// @return amount1 The max amount of fees collected in token1
@@ -58,5 +57,4 @@ contract UniswapClaimPoolRewards is UniswapActionBase {
         // Empty return value, as we have 2 forms of fees returned
         return 0;
     }
-
 }

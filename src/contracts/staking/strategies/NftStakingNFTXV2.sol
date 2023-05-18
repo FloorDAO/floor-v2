@@ -20,7 +20,6 @@ import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStaki
  */
 
 contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
-
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
     mapping(address => address) public underlyingXTokenMapping;
@@ -71,13 +70,10 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
      * @param _amount[] The number of tokens to transfer
      * @param _is1155 If the collection is an ERC1155 standard
      */
-    function stake(
-        address _user,
-        address _collection,
-        uint[] calldata _tokenId,
-        uint[] calldata _amount,
-        bool _is1155
-    ) external onlyNftStaking {
+    function stake(address _user, address _collection, uint[] calldata _tokenId, uint[] calldata _amount, bool _is1155)
+        external
+        onlyNftStaking
+    {
         // If we have an 1155 collection, then we can use batch transfer
         if (_is1155) {
             IERC1155(_collection).safeBatchTransferFrom(_user, address(this), _tokenId, _amount, '');
@@ -104,7 +100,8 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
                     require(success, string(result));
 
                     // Approve the staking zap to buy for zero value
-                    data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(stakingZap));
+                    data =
+                        abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenId[i], 0, address(stakingZap));
                     (success, result) = address(_collection).call(data);
                     require(success, string(result));
                 }
@@ -194,9 +191,10 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
         uint userTokens = tokensStaked * 1e18;
 
         // Get the xToken balance held by the strategy
-        uint xTokenUserBal = IERC20(INFTXInventoryStaking(inventoryStaking).xTokenAddr(underlyingTokenMapping[_collection])).balanceOf(address(this));
+        uint xTokenUserBal =
+            IERC20(INFTXInventoryStaking(inventoryStaking).xTokenAddr(underlyingTokenMapping[_collection])).balanceOf(address(this));
 
-         // Get the number of vTokens valued per xToken in wei
+        // Get the number of vTokens valued per xToken in wei
         uint shareValue = INFTXInventoryStaking(inventoryStaking).xTokenShareValue(vaultId);
         uint reqXTokens = (userTokens * 1e18) / shareValue;
 
@@ -323,7 +321,11 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     /**
      * Allows the contract to receive batch ERC1155 tokens.
      */
-    function onERC1155BatchReceived(address, address, uint[] calldata tokenIds, uint[] calldata amounts, bytes calldata) public virtual returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint[] calldata tokenIds, uint[] calldata amounts, bytes calldata)
+        public
+        virtual
+        returns (bytes4)
+    {
         if (_nftReceiver != address(0)) {
             IERC1155(msg.sender).safeBatchTransferFrom(address(this), _nftReceiver, tokenIds, amounts, '');
         }
@@ -333,7 +335,7 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
     /**
      * Ensures that only the {NftStaking} contract can call the function.
      */
-    modifier onlyNftStaking {
+    modifier onlyNftStaking() {
         require(msg.sender == nftStaking, 'Invalid caller');
         _;
     }

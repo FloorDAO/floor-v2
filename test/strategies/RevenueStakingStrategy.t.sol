@@ -9,7 +9,6 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, RevenueStakingStrateg
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract RevenueStakingStrategyTest is FloorTest {
-
     // Store our staking strategy
     RevenueStakingStrategy strategy;
 
@@ -146,5 +145,4 @@ contract RevenueStakingStrategyTest is FloorTest {
         strategy.depositErc20(address(0), 0);
         vm.stopPrank();
     }
-
 }

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
 import {ERC721, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
-
 
 contract FloorNft is ERC721Lockable {
     // Maintain an index of our current supply
@@ -39,12 +38,7 @@ contract FloorNft is ERC721Lockable {
     // Constructor function that sets name and symbol
     // of the collection, cost, max supply and the maximum
     // amount a user can mint per transaction
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint _maxSupply,
-        uint _maxMintAmountPerTx
-    ) ERC721(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, uint _maxSupply, uint _maxMintAmountPerTx) ERC721(_name, _symbol) {
         maxSupply = _maxSupply;
         maxMintAmountPerTx = _maxMintAmountPerTx;
     }
@@ -104,19 +98,10 @@ contract FloorNft is ERC721Lockable {
 
     // Returns the Token URI with Metadata for specified Token Id
     function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
+        require(_exists(_tokenId), 'ERC721Metadata: URI query for nonexistent token');
 
         string memory currentBaseURI = _baseURI();
-        return
-            bytes(currentBaseURI).length > 0
-                ? string(
-                    abi.encodePacked(
-                        currentBaseURI,
-                        Strings.toString(_tokenId),
-                        '.json'
-                    )
-                )
-                : "";
+        return bytes(currentBaseURI).length > 0 ? string(abi.encodePacked(currentBaseURI, Strings.toString(_tokenId), '.json')) : '';
     }
 
     // Set the maximum mint amount per transaction
@@ -147,7 +132,7 @@ contract FloorNft is ERC721Lockable {
 
     // Withdraw ETH after sale
     function withdraw() public onlyOwner {
-        (bool os, ) = payable(owner()).call{value: address(this).balance}("");
+        (bool os,) = payable(owner()).call{value: address(this).balance}('');
         require(os);
     }
 
@@ -155,7 +140,9 @@ contract FloorNft is ERC721Lockable {
     function _mintLoop(address _receiver, uint _mintAmount) internal {
         for (uint i; i < _mintAmount;) {
             _safeMint(_receiver, supply + i);
-            unchecked { i++; }
+            unchecked {
+                i++;
+            }
         }
 
         supply += _mintAmount;

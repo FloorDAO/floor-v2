@@ -84,5 +84,4 @@ contract UniswapAddLiquidity is UniswapActionBase {
 
         return uint(liquidity);
     }
-
 }

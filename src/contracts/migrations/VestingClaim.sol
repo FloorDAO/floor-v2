@@ -7,7 +7,6 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IFLOOR} from '@floor-interfaces/tokens/Floor.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
-
 /**
  * Handles the migration of remaining claimable FLOOR tokens. This will be a
  * slightly manual process as it requires the {RemainingVestingFloor} report
@@ -15,7 +14,6 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * be allocated, and to which addresses.
  */
 contract VestingClaim is Ownable {
-
     IFLOOR public immutable FLOOR;
     IERC20 public immutable WETH;
     ITreasury private immutable treasury;
@@ -23,11 +21,10 @@ contract VestingClaim is Ownable {
     // Tracks available allocations
     mapping(address => uint) internal allocation;
 
-
     constructor(address _floor, address _weth, address _treasury) {
-        require(_floor != address(0), "Zero address: FLOOR");
-        require(_weth != address(0), "Zero address: WETH");
-        require(_treasury != address(0), "Zero address: Treasury");
+        require(_floor != address(0), 'Zero address: FLOOR');
+        require(_weth != address(0), 'Zero address: WETH');
+        require(_treasury != address(0), 'Zero address: Treasury');
 
         FLOOR = IFLOOR(_floor);
         WETH = IERC20(_weth);
@@ -41,7 +38,7 @@ contract VestingClaim is Ownable {
      * @param _to address The address that is claiming
      * @param _amount uint256 The amount being claimed in FLOOR (18 decimals)
      */
-    function claim(address _to, uint256 _amount) external {
+    function claim(address _to, uint _amount) external {
         // Ensure that we have sufficient FLOOR allocation to claim against
         require(allocation[msg.sender] >= _amount, 'Insufficient allocation');
 

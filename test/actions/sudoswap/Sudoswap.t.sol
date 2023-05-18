@@ -13,9 +13,7 @@ import {SudoswapSellNftsForEth} from '@floor/actions/sudoswap/SellNftsForEth.sol
 import {ERC20Mock} from '../../mocks/erc/ERC20Mock.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
-
 contract SudoswapTest is FloorTest, IERC721Receiver {
-
     // Store our action contracts
     SudoswapBuyNftsWithEth internal buyNfts;
     SudoswapCreatePair internal createPair;
@@ -137,7 +135,7 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
         address vaultAddress = address(uint160(vaultAddressUint));
 
         // Get a quote from the pair to confirm the view function is accurate for 2 NFTs
-        (,,,uint estimate,) = LSSVMPair(vaultAddress).getBuyNFTQuote(2);
+        (,,, uint estimate,) = LSSVMPair(vaultAddress).getBuyNFTQuote(2);
         assertEq(estimate, 2.002 ether);
 
         // Capture the starting balance of our test user that will be making the sale,
@@ -255,7 +253,7 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
         assertEq(vaultAddress, 0xC0fAB5E289a04B8C3561Ec316D348DcDa66d540C);
 
         // Get a quote from the pair to confirm the view function is accurate for 2 NFTs
-        (,,,uint estimate,) = LSSVMPair(vaultAddress).getBuyNFTQuote(2);
+        (,,, uint estimate,) = LSSVMPair(vaultAddress).getBuyNFTQuote(2);
         assertEq(estimate, 2.002 ether);
 
         // Mint and approve our tokens as the buyer (alice)
@@ -393,7 +391,7 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
         assertEq(vaultAddress, 0xC0fAB5E289a04B8C3561Ec316D348DcDa66d540C);
 
         // Get a quote from the pair to confirm the view function is accurate for 1 NFT
-        (,,,uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
+        (,,, uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
         assertEq(estimate, 0.999 ether);
 
         // Transfer our token to Alice so that she can make the purchase
@@ -447,7 +445,7 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
         assertEq(vaultAddress, 0xC0fAB5E289a04B8C3561Ec316D348DcDa66d540C);
 
         // Get a quote from the pair to confirm the view function is accurate for 1 NFT
-        (,,,uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
+        (,,, uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
         assertEq(estimate, 0.999 ether);
 
         // Try and sell our NFT for above our estimate, expecting a revert
@@ -482,7 +480,7 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
         assertEq(vaultAddress, 0xC0fAB5E289a04B8C3561Ec316D348DcDa66d540C);
 
         // Get a quote from the pair to confirm the view function is accurate for 1 NFT
-        (,,,uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
+        (,,, uint estimate,) = LSSVMPair(vaultAddress).getSellNFTQuote(1);
         assertEq(estimate, 0.999 ether);
 
         // Transfer our token to Alice so that she can make the purchase
@@ -538,12 +536,11 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
      *
      * @dev Note that the operator is recorded as the owner of the deposited NFT.
      */
-    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
+    function onERC721Received(address, address, uint, bytes calldata) external pure override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
     receive() external payable {
         //
     }
-
 }

@@ -8,12 +8,12 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  * Interacts with the Gem.xyz protocol to fulfill a sweep order.
  */
 contract GemSweeper is ISweeper {
-
-    function execute(
-        address[] calldata /* collections */,
-        uint[] calldata /* amounts */,
-        bytes calldata data
-    ) external payable override returns (string memory) {
+    function execute(address[] calldata, /* collections */ uint[] calldata, /* amounts */ bytes calldata data)
+        external
+        payable
+        override
+        returns (string memory)
+    {
         // Unpack the call data into sweep data
         (address gemSwap, bytes memory request) = abi.decode(data, (address, bytes));
 
@@ -32,5 +32,4 @@ contract GemSweeper is ISweeper {
      * Allows our contract to receive dust ETH back from our Gem sweep.
      */
     receive() external payable {}
-
 }

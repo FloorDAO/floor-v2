@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import 'forge-std/console.sol';
 
 import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import {ERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol';
 import {ERC20Votes} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
@@ -33,7 +33,6 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * @dev Based on staked 1inch (St1inch :: 0x9A0C8Ff858d273f57072D714bca7411D717501D7)
  */
 contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloorStaking, IVotable {
-
     using SafeERC20 for IERC20;
 
     event EmergencyExitSet(bool status);
@@ -313,7 +312,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
     }
 
-    function _earlyWithdrawLoss(address /* account */, uint depAmount, uint stBalance) private pure returns (uint loss, uint ret) {
+    function _earlyWithdrawLoss(address, /* account */ uint depAmount, uint stBalance) private pure returns (uint loss, uint ret) {
         ret = depAmount - (stBalance / 2);
         loss = depAmount - ret;
     }
@@ -422,16 +421,15 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
     // The following functions are overrides required by Solidity.
 
-    function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+    function _afterTokenTransfer(address from, address to, uint amount) internal override (ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
     }
 
-    function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+    function _mint(address to, uint amount) internal override (ERC20, ERC20Votes) {
         super._mint(to, amount);
     }
 
-    function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
+    function _burn(address account, uint amount) internal override (ERC20, ERC20Votes) {
         super._burn(account, amount);
     }
-
 }

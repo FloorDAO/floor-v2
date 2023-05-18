@@ -67,7 +67,6 @@ contract MigrateFloorToken is IMigrateFloorToken {
 
             // Transfer the token into our contract
             if (tokenBalance > 0 && token.transferFrom(msg.sender, address(this), tokenBalance)) {
-
                 // If we have a gFLOOR token, then we need to find the underlying FLOOR that
                 // is staked and mint that for the user.
                 if (address(token) == 0xb1Cc59Fc717b8D4783D41F952725177298B5619d) {

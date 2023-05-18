@@ -16,10 +16,7 @@ interface IUniswapV3NonfungiblePositionManager {
         uint deadline;
     }
 
-    function mint(MintParams calldata params)
-        external
-        payable
-        returns (uint tokenId, uint128 liquidity, uint amount0, uint amount1);
+    function mint(MintParams calldata params) external payable returns (uint tokenId, uint128 liquidity, uint amount0, uint amount1);
 
     struct IncreaseLiquidityParams {
         uint tokenId;
@@ -101,5 +98,5 @@ interface IUniswapV3NonfungiblePositionManager {
      *
      * Emits a {Transfer} event.
      */
-    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function safeTransferFrom(address from, address to, uint tokenId) external;
 }

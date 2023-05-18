@@ -7,7 +7,6 @@ import {NftStakingBoostCalculator} from '@floor/staking/calculators/NftStakingBo
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingBoostCalculatorTest is FloorTest {
-
     // Internal contract references
     NftStakingBoostCalculator calculator;
 
@@ -36,5 +35,4 @@ contract NftStakingBoostCalculatorTest is FloorTest {
         vm.expectRevert();
         calculator.calculate(type(uint64).max, type(uint64).max, type(uint64).max);
     }
-
 }

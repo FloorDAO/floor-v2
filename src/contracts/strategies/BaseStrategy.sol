@@ -32,7 +32,6 @@ error UnableToTransferTokens(address recipient, uint amount);
  * ..
  */
 abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausable, ReentrancyGuard {
-
     /**
      * The human-readable name of the strategy.
      */
@@ -48,23 +47,23 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     /**
      * The amount of rewards claimed in the last claim call.
      */
-    mapping (address => uint) public lastEpochRewards;
+    mapping(address => uint) public lastEpochRewards;
 
     /**
      * This will return the internally tracked value of tokens that have been harvested
      * by the strategy.
      */
-    mapping (address => uint) public lifetimeRewards;
+    mapping(address => uint) public lifetimeRewards;
 
     /**
      * Maintain a list of active positions held by depositing users.
      */
-    mapping (address => uint) public position;
+    mapping(address => uint) public position;
 
     /**
      * Stores a list of tokens that the strategy supports.
      */
-    mapping (address => bool) internal _validTokens;
+    mapping(address => bool) internal _validTokens;
 
     /**
      * Gets a read of new yield since the last call. This is what can be called when
@@ -87,7 +86,9 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
             // We can then update our epoch rewards amount for the token
             lastEpochRewards[tokens_[i]] = totalRewardsForToken;
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // TODO: emit Event();
@@ -104,7 +105,9 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
         // Add our lifetime rewards
         for (uint i; i < tokensLength;) {
             amounts_[i] += lifetimeRewards[tokens_[i]];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -121,7 +124,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
      *
      * @dev This _should_ always be imposed to be the {Treasury} by the {StrategyFactory}.
      */
-    function harvest(address /* _recipient */) external virtual /* TODO: onlyRole */ {
+    function harvest(address /* _recipient */ ) external virtual /* TODO: onlyRole */ {
         revert('Not implemented');
     }
 
@@ -167,10 +170,11 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
         uint length = tokens.length;
         for (uint i; i < length;) {
             require(_validTokens[tokens[i]], 'Invalid token');
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         _;
     }
-
 }

@@ -14,7 +14,6 @@ pragma solidity ^0.8.0;
  * and underlying tokens.
  */
 interface IBaseStrategy {
-
     /// @dev When strategy receives a deposit
     event Deposit(address token, uint amountIn, uint amountOut, address caller);
 
@@ -60,7 +59,7 @@ interface IBaseStrategy {
      *
      * @dev This _should_ always be imposed to be the {Treasury} by the {StrategyFactory}.
      */
-    function harvest(address /* _recipient */) external;
+    function harvest(address /* _recipient */ ) external;
 
     /**
      * Returns an array of tokens that the strategy supports.
@@ -81,5 +80,4 @@ interface IBaseStrategy {
      * ..
      */
     function snapshot() external returns (address[] memory, uint[] memory);
-
 }

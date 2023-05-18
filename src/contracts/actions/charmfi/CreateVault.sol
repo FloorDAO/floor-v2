@@ -6,29 +6,26 @@ import {PassiveStrategy} from '@charmfi/contracts/PassiveStrategy.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * Creates a Charm liquidity vault for 2 tokens.
  */
 contract CharmCreateVault is IAction {
-
     /**
      * This large struct will use 3 storage slots.
      */
     struct ActionRequest {
         // Vault parameters
-        uint maxTotalSupply;    // 256 / 256
-        address uniswapPool;    // 416 / 512
-        uint24 protocolFee;     // 440 / 512 (1e6 max in vault)
-
+        uint maxTotalSupply; // 256 / 256
+        address uniswapPool; // 416 / 512
+        uint24 protocolFee; // 440 / 512 (1e6 max in vault)
         // Strategy parameters
-        int24 baseThreshold;    // 464 / 512
-        int24 limitThreshold;   // 488 / 512
-        int24 minTickMove;      // 512 / 512
-        uint40 period;          // 552 / 768 (uint40 allows 35,000 years)
+        int24 baseThreshold; // 464 / 512
+        int24 limitThreshold; // 488 / 512
+        int24 minTickMove; // 512 / 512
+        uint40 period; // 552 / 768 (uint40 allows 35,000 years)
         int24 maxTwapDeviation; // 576 / 768
-        uint32 twapDuration;    // 608 / 768
-        address keeper;         // 768 / 768
+        uint32 twapDuration; // 608 / 768
+        address keeper; // 768 / 768
     }
 
     function execute(bytes calldata _request) public payable returns (uint) {

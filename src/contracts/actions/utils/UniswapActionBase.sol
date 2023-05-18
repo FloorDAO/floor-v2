@@ -17,7 +17,6 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
  * @author Twade
  */
 abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausable {
-
     /// Stores our Uniswap position manager
     IUniswapV3NonfungiblePositionManager public positionManager;
 
@@ -46,7 +45,7 @@ abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausab
      *
      * @dev Note that the operator is recorded as the owner of the deposited NFT.
      */
-    function onERC721Received(address, address, uint256, bytes calldata) external view override returns (bytes4) {
+    function onERC721Received(address, address, uint, bytes calldata) external view override returns (bytes4) {
         // Ensure that the sender of the ERC721 is the Uniswap position manager
         require(msg.sender == address(positionManager), 'Not a Uniswap NFT');
 
@@ -67,5 +66,4 @@ abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausab
         // Return the token back to the original owner
         positionManager.safeTransferFrom(address(this), msg.sender, tokenId);
     }
-
 }

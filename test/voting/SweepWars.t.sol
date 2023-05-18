@@ -10,7 +10,13 @@ import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {CannotVoteWithZeroAmount, CollectionNotApproved, SweepWars, InsufficientVotesAvailable, SampleSizeCannotBeZero} from '@floor/voting/SweepWars.sol';
+import {
+    CannotVoteWithZeroAmount,
+    CollectionNotApproved,
+    SweepWars,
+    InsufficientVotesAvailable,
+    SampleSizeCannotBeZero
+} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
@@ -424,15 +430,9 @@ contract SweepWarsTest is FloorTest {
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));
 
         // Create the vault via the factory
-        (, vaultAddr_) = strategyFactory.deployStrategy(
-            bytes32(bytes(vaultName)),
-            approvedStrategy,
-            _strategyInitBytes(),
-            collection
-        );
+        (, vaultAddr_) = strategyFactory.deployStrategy(bytes32(bytes(vaultName)), approvedStrategy, _strategyInitBytes(), collection);
 
         // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
     }
-
 }

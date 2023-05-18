@@ -9,7 +9,6 @@ import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract FloorNftTest is FloorTest, IERC721Receiver {
-
     // Store some test users
     address alice;
     address bob;
@@ -101,45 +100,61 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
 
         // Try and mint with Alice. This will fail as minting is paused
         vm.expectRevert('The contract is paused');
-        floorNft.whitelistMint(_setBytesArray([
-            hex"972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065",
-            hex"259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e",
-            hex"79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b",
-            hex"c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065',
+                    hex'259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e',
+                    hex'79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b',
+                    hex'c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f'
+                ]
+            )
+        );
 
         // Unpause the contract and repeat the call
         floorNft.setPaused(false);
 
         vm.startPrank(alice);
-        floorNft.whitelistMint(_setBytesArray([
-            hex"972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065",
-            hex"259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e",
-            hex"79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b",
-            hex"c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065',
+                    hex'259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e',
+                    hex'79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b',
+                    hex'c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // Try and mint with Bob
         vm.startPrank(bob);
         vm.expectRevert('Invalid proof');
-        floorNft.whitelistMint(_setBytesArray([
-            hex"6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf405",
-            hex"eb32294b145a6cb39a8253090debc4d56632d1c2df9c90c9f6df5021cd5f09bb",
-            hex"84bf0a7cc18a5896163ba81bd983480c37b0c99123c17a977974daa016db39f1",
-            hex"59d753adc1377ab6343d2b715bcfac8108e7f170e7bab164a015bc82a86ac642"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf405',
+                    hex'eb32294b145a6cb39a8253090debc4d56632d1c2df9c90c9f6df5021cd5f09bb',
+                    hex'84bf0a7cc18a5896163ba81bd983480c37b0c99123c17a977974daa016db39f1',
+                    hex'59d753adc1377ab6343d2b715bcfac8108e7f170e7bab164a015bc82a86ac642'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // Try and mint again with Alice
         vm.startPrank(alice);
         vm.expectRevert('Address has already claimed');
-        floorNft.whitelistMint(_setBytesArray([
-            hex"972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065",
-            hex"259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e",
-            hex"79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b",
-            hex"c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065',
+                    hex'259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e',
+                    hex'79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b',
+                    hex'c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // Update our Merkle to one that supports Bob, but not Alice
@@ -149,12 +164,16 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         // that the address has already claimed.
         vm.startPrank(alice);
         vm.expectRevert('Address has already claimed');
-        floorNft.whitelistMint(_setBytesArray([
-            hex"6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf404",
-            hex"6a0a5fd2600a000cf6b68f978ef1663a0738da6d7b3a1fae4b2b1ff5b6def37c",
-            hex"0a2d04dd5ef25cb74db4bd9771bbadc4ac405123083bba87fec44300dafbcb0d",
-            hex"d1afeb55fd702313cff2cfedfe81063cb9af4ab270081f9bf3be6934cca00ab2"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf404',
+                    hex'6a0a5fd2600a000cf6b68f978ef1663a0738da6d7b3a1fae4b2b1ff5b6def37c',
+                    hex'0a2d04dd5ef25cb74db4bd9771bbadc4ac405123083bba87fec44300dafbcb0d',
+                    hex'd1afeb55fd702313cff2cfedfe81063cb9af4ab270081f9bf3be6934cca00ab2'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // We could now mint as Bob, but for the test we will update the Merkle
@@ -167,33 +186,45 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         // Try and mint as Alice
         vm.startPrank(alice);
         vm.expectRevert('Address has already claimed');
-        floorNft.whitelistMint(_setBytesArray([
-            hex"6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf405",
-            hex"81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce",
-            hex"0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e",
-            hex"39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'6336b8bb274032aa3be701ac6a1d53b59751cb189032350fca009329bdacf405',
+                    hex'81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce',
+                    hex'0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e',
+                    hex'39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // Try and mint as Bob
         vm.startPrank(bob);
-        floorNft.whitelistMint(_setBytesArray([
-            hex"972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11064",
-            hex"81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce",
-            hex"0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e",
-            hex"39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925"
-        ]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11064',
+                    hex'81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce',
+                    hex'0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e',
+                    hex'39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925'
+                ]
+            )
+        );
         vm.stopPrank();
 
         // Try and mint again as Bob
         vm.startPrank(bob);
         vm.expectRevert('Address has already claimed');
-        floorNft.whitelistMint(_setBytesArray([
-  hex"972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11064",
-  hex"81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce",
-  hex"0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e",
-  hex"39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925"
-]));
+        floorNft.whitelistMint(
+            _setBytesArray(
+                [
+                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11064',
+                    hex'81da62a48687a95c0f8e542a968839e157dad1dfc115674386ed95e06019adce',
+                    hex'0f36e286880e6aef8e46cd0cd5929279fc265b847042c5f5fb78af068f21dd4e',
+                    hex'39e4c466dc63ec62e9adbfcae524ef61fd985a0e3efc644fc1adad465eef5925'
+                ]
+            )
+        );
         vm.stopPrank();
     }
 
@@ -261,7 +292,6 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         floorNft.withdraw();
         vm.stopPrank();
     }
-
 
     /**
      * ERC721Lockable Specific Tests
@@ -500,7 +530,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    receive() payable external {}
+    receive() external payable {}
 
     function _setBytesArray(string[4] memory input) internal pure returns (bytes32[] memory) {
         bytes32[] memory arr = new bytes32[](input.length);
@@ -509,5 +539,4 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         }
         return arr;
     }
-
 }

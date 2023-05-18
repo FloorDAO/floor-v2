@@ -12,10 +12,8 @@ import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegis
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
 
-
 // No empty names, that's just silly
 error StrategyNameCannotBeEmpty();
-
 
 /**
  * Allows for vaults to be created, pairing them with an approved collection. The vault
@@ -85,12 +83,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @return strategyId_ ID of the newly created vault
      * @return strategyAddr_ Address of the newly created vault
      */
-    function deployStrategy(
-        bytes32 _name,
-        address _strategy,
-        bytes calldata _strategyInitData,
-        address _collection
-    ) external onlyRole(VAULT_MANAGER) returns (uint strategyId_, address strategyAddr_) {
+    function deployStrategy(bytes32 _name, address _strategy, bytes calldata _strategyInitData, address _collection)
+        external
+        onlyRole(VAULT_MANAGER)
+        returns (uint strategyId_, address strategyAddr_)
+    {
         // No empty names, that's just silly
         if (_name == '') {
             revert StrategyNameCannotBeEmpty();
@@ -164,10 +161,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         // Make a call to our strategy that passes on our withdrawal data
         (bool success,) = strategyIds[_strategyId].call(
             // Sandwich the selector against the recipient and remaining data
-            abi.encodePacked(
-                abi.encodeWithSelector(_selector, treasury),
-                _newData
-            )
+            abi.encodePacked(abi.encodeWithSelector(_selector, treasury), _newData)
         );
 
         // If our call failed, return a standardised message rather than decoding
@@ -180,5 +174,4 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     function setTreasury(address _treasury) public onlyRole(TREASURY_MANAGER) {
         treasury = _treasury;
     }
-
 }

@@ -7,7 +7,6 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {INFTXMarketplaceZap} from '@floor-interfaces/nftx/NFTXMarketplaceZap.sol';
 
-
 /**
  * This action allows us to batch sell ERC721 NFT tokens from the {Treasury}
  * into a specific NFTX vault.
@@ -66,21 +65,15 @@ contract NFTXBuyNftsWithEth is IAction {
         _nftReceiver = msg.sender;
 
         // Set up our swap parameters based on `execute` parameters
-        marketplaceZap.buyAndRedeem{value: msg.value}(
-            vaultId,
-            amount,
-            specificIds,
-            path,
-            msg.sender
-        );
+        marketplaceZap.buyAndRedeem{value: msg.value}(vaultId, amount, specificIds, path, msg.sender);
 
         delete _nftReceiver;
 
         // Get the remaining ETH and transfer it back to the sender
         uint remainingBalance = startBalance - address(this).balance;
         if (remainingBalance != 0) {
-            (bool success, ) = payable(msg.sender).call{value: remainingBalance}('');
-            require(success, "Address: unable to send value, recipient may have reverted");
+            (bool success,) = payable(msg.sender).call{value: remainingBalance}('');
+            require(success, 'Address: unable to send value, recipient may have reverted');
         }
 
         // We return just the amount of tokens bought

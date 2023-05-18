@@ -40,12 +40,12 @@ contract CowSwapCreateOrderTest is FloorTest {
         // Action our trade
         action.execute{value: 30 ether}(
             abi.encode(
-                WETH,     // address sellToken;
-                PUDGY,    // address buyToken;
-                alice,    // address receiver;
+                WETH, // address sellToken;
+                PUDGY, // address buyToken;
+                alice, // address receiver;
                 20 ether, // uint256 sellAmount;
                 20 ether, // uint256 buyAmount;
-                1 ether   // uint256 feeAmount;
+                1 ether // uint256 feeAmount;
             )
         );
 
@@ -60,5 +60,4 @@ contract CowSwapCreateOrderTest is FloorTest {
     receive() external payable {
         assertEq(msg.value, 999880756991001119);
     }
-
 }

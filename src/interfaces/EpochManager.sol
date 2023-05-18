@@ -6,7 +6,6 @@ pragma solidity ^0.8.0;
  * Handles epoch management for all other contracts.
  */
 interface IEpochManager {
-
     event EpochEnded(uint epoch, uint timestamp);
     event CollectionAdditionWarScheduled(uint epoch, uint index);
 
@@ -55,6 +54,13 @@ interface IEpochManager {
     /**
      * ..
      */
-    function setContracts(address _collectionRegistry, address _newCollectionWars, address _pricingExecutor, address _treasury, address _vaultFactory, address _voteContract, address _voteMarket) external;
-
+    function setContracts(
+        address _collectionRegistry,
+        address _newCollectionWars,
+        address _pricingExecutor,
+        address _treasury,
+        address _vaultFactory,
+        address _voteContract,
+        address _voteMarket
+    ) external;
 }

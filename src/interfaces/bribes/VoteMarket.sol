@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 interface IVoteMarket {
-
     /**
      * Bribe struct requirements.
      *
@@ -18,14 +17,14 @@ interface IVoteMarket {
      * @param numberOfEpochs The number of epochs the bribe will run for.
      */
     struct Bribe {
-        uint startEpoch;         // 256 / 256
-        uint maxRewardPerVote;   // 512 / 512
-        uint remainingRewards;   // 768 / 768
-        uint totalRewardAmount;  // 1024 / 1024
-        address collection;      // 1184 / 1280
-        address rewardToken;     // 1344 / 1536
-        address creator;         // 1504 / 1536
-        uint8 numberOfEpochs;    // 1512 / 1536
+        uint startEpoch; // 256 / 256
+        uint maxRewardPerVote; // 512 / 512
+        uint remainingRewards; // 768 / 768
+        uint totalRewardAmount; // 1024 / 1024
+        address collection; // 1184 / 1280
+        address rewardToken; // 1344 / 1536
+        address creator; // 1504 / 1536
+        uint8 numberOfEpochs; // 1512 / 1536
     }
 
     /// Fired when a new bribe is created

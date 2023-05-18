@@ -12,7 +12,6 @@ pragma solidity ^0.8.0;
  * https://github.com/saddle-finance/saddle-contract/blob/master/contracts/tokenomics/gauges/GaugeController.vy
  */
 interface ISweepWars {
-
     /// Sent when a user casts or revokes their vote
     event VoteCast(address sender, address collection, uint amount);
 
@@ -113,5 +112,4 @@ interface ISweepWars {
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
     function snapshot(uint tokens, uint epoch) external returns (address[] memory collections, uint[] memory amounts);
-
 }

@@ -4,15 +4,13 @@ pragma solidity ^0.8.0;
 import 'forge-std/console.sol';
 import 'forge-std/Script.sol';
 
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-
+import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 
 struct Term {
-    uint256 percent; // 4 decimals ( 5000 = 0.5% )
-    uint256 gClaimed; // rebase-agnostic number
-    uint256 max; // maximum nominal FLOOR amount can claim, 9 decimal
+    uint percent; // 4 decimals ( 5000 = 0.5% )
+    uint gClaimed; // rebase-agnostic number
+    uint max; // maximum nominal FLOOR amount can claim, 9 decimal
 }
-
 
 interface IVestingClaim {
     function terms(address) external view returns (Term memory);
@@ -21,16 +19,14 @@ interface IVestingClaim {
     function circulatingSupply() external view returns (uint);
 }
 
-
 /**
  * Displays a table showing the amount of FLOOR that should be allocated to each
  * address when we upgrade to V2. Before these values are actually reallocated, we
  * need to pause the existing `VestingClaim` contract from V1.
  */
 contract RemainingVestingFloor {
-
     // Accorcing to Etherscan, the amount of FLOOR claimed by an address
-    mapping (address => uint) internal _claimed;
+    mapping(address => uint) internal _claimed;
 
     // Reference our existing {VestingClaim} contract
     IVestingClaim vesting = IVestingClaim(0x8Cbc813576eD14Fc1C27bC1A791360b8339489e6);
@@ -121,12 +117,7 @@ contract RemainingVestingFloor {
         console.log('+-----------------------------------------------+--------------------+');
         console.log('');
         console.log('+-----------------------------------------------+--------------------+');
-        console.log(
-            string.concat(
-                '| TOTAL FLOOR ALLOCATED                         | ',
-                Strings.toString(totalFloor)
-            )
-        );
+        console.log(string.concat('| TOTAL FLOOR ALLOCATED                         | ', Strings.toString(totalFloor)));
         console.log('+-----------------------------------------------+--------------------+');
         console.log('');
     }
@@ -139,18 +130,17 @@ contract RemainingVestingFloor {
      *
      * @return string The address in string format
      */
-    function _addressToString(address _address) internal pure returns(string memory) {
-       bytes32 _bytes = bytes32(uint256(uint160(_address)));
-       bytes memory HEX = "0123456789abcdef";
-       bytes memory _string = new bytes(42);
-       _string[0] = '0';
-       _string[1] = 'x';
-       for(uint i = 0; i < 20; i++) {
-           _string[2+i*2] = HEX[uint8(_bytes[i + 12] >> 4)];
-           _string[3+i*2] = HEX[uint8(_bytes[i + 12] & 0x0f)];
-       }
+    function _addressToString(address _address) internal pure returns (string memory) {
+        bytes32 _bytes = bytes32(uint(uint160(_address)));
+        bytes memory HEX = '0123456789abcdef';
+        bytes memory _string = new bytes(42);
+        _string[0] = '0';
+        _string[1] = 'x';
+        for (uint i = 0; i < 20; i++) {
+            _string[2 + i * 2] = HEX[uint8(_bytes[i + 12] >> 4)];
+            _string[3 + i * 2] = HEX[uint8(_bytes[i + 12] & 0x0f)];
+        }
 
-       return string(_string);
+        return string(_string);
     }
-
 }

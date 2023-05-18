@@ -6,14 +6,11 @@ import {MigrateFloorToken} from '@floor/migrations/MigrateFloorToken.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our Floor token and migration contracts.
  */
 contract DeployFloorToken is DeploymentScript {
-
     function run() external deployer {
-
         // Get our authority control contract
         address authorityControl = requireDeployment('AuthorityControl');
 
@@ -25,5 +22,4 @@ contract DeployFloorToken is DeploymentScript {
         storeDeployment('FloorToken', address(floor));
         storeDeployment('MigrateFloorToken', address(migrateFloorToken));
     }
-
 }

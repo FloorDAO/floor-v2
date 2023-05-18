@@ -19,7 +19,6 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
-
     /// The mainnet contract address of our Uniswap Position Manager
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     uint24 internal constant POOL_FEE = 500;
@@ -63,10 +62,10 @@ contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
         // Create our pool
         uint poolAddress = createPoolAction.execute(
             abi.encode(
-                TOKEN_A,  // token0
-                TOKEN_B,  // token1
+                TOKEN_A, // token0
+                TOKEN_B, // token1
                 POOL_FEE, // fee
-                0         // sqrtPriceX96
+                0 // sqrtPriceX96
             )
         );
 
@@ -91,7 +90,6 @@ contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
                 TOKEN_B,
                 /// @param fee - The fee of the pool
                 POOL_FEE,
-
                 /**
                  * @dev Our tick values are hardcoded to end in a 0 as the tickSpacing calculation
                  * in the `flipTick` function of `TickBitmap.sol` was requiring the value to be a
@@ -164,11 +162,11 @@ contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
         ERC721(UNISWAP_POSITION_MANAGER).approve(address(removeLiquidityAction), tokenId);
         removeLiquidityAction.execute(
             abi.encode(
-                tokenId,                // tokenId
-                liquidity,              // liquidity
-                0,                      // amount0Min
-                0,                      // amount1Min
-                block.timestamp         // deadline
+                tokenId, // tokenId
+                liquidity, // liquidity
+                0, // amount0Min
+                0, // amount1Min
+                block.timestamp // deadline
             )
         );
 
@@ -181,9 +179,9 @@ contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
         ERC721(UNISWAP_POSITION_MANAGER).approve(address(claimPoolRewardsAction), tokenId);
         claimPoolRewardsAction.execute(
             abi.encode(
-                tokenId,           // tokenId
+                tokenId, // tokenId
                 type(uint128).max, // amount0
-                type(uint128).max  // amount1
+                type(uint128).max // amount1
             )
         );
 
@@ -200,5 +198,4 @@ contract UniswapLiquidityTest is FloorTest, IERC721Receiver {
     function onERC721Received(address, address, uint, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
-
 }

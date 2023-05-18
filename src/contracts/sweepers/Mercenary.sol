@@ -15,14 +15,13 @@ import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol
  * of writing, should only allow for a singular winner to be crowned.
  */
 contract MercenarySweeper is IMercenarySweeper {
-
     /// Contract reference to our active {NewCollectionWars} contract
     INewCollectionWars public immutable newCollectionWars;
 
     /**
      * Sets our immutable {NewCollectionWars} contract reference and casts it's interface.
      */
-    constructor (address _newCollectionWars) {
+    constructor(address _newCollectionWars) {
         newCollectionWars = INewCollectionWars(_newCollectionWars);
     }
 
@@ -42,5 +41,4 @@ contract MercenarySweeper is IMercenarySweeper {
         // Return the amount spent as a string
         return startBalance - address(this).balance;
     }
-
 }

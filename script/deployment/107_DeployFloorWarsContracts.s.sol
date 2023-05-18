@@ -6,14 +6,11 @@ import {SweepWars} from '@floor/voting/SweepWars.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our floor wars contracts.
  */
 contract DeployFloorWarsContracts is DeploymentScript {
-
     function run() external deployer {
-
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
@@ -40,7 +37,5 @@ contract DeployFloorWarsContracts is DeploymentScript {
 
         storeDeployment('NewCollectionWars', address(newCollectionWars));
         storeDeployment('SweepWars', address(sweepWars));
-
     }
-
 }

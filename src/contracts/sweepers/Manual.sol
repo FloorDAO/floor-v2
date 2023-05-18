@@ -12,17 +12,16 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  * completed in a single transaction.
  */
 contract ManualSweeper is ISweeper {
-
     /**
      * Our execute function call will just return the provided bytes data that should unpack
      * into a string message to be subsequently stored onchain against the sweep.
      */
-    function execute(
-        address[] calldata /* collections */,
-        uint[] calldata /* amounts */,
-        bytes calldata data
-    ) external payable override returns (string memory) {
+    function execute(address[] calldata, /* collections */ uint[] calldata, /* amounts */ bytes calldata data)
+        external
+        payable
+        override
+        returns (string memory)
+    {
         return string(data);
     }
-
 }

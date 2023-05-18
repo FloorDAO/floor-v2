@@ -20,13 +20,12 @@ import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStaki
  */
 
 contract NftStakingLocker is INftStakingStrategy, Ownable {
-
     /// ..
     address internal immutable nftStaking;
 
     /// Map collection => user => boolean
-    mapping (address => mapping (address => uint[])) public tokenIds;
-    mapping (address => mapping (address => uint[])) public tokenAmounts;
+    mapping(address => mapping(address => uint[])) public tokenIds;
+    mapping(address => mapping(address => uint[])) public tokenAmounts;
 
     /// Stores the equivalent ERC20 of the ERC721
     mapping(address => address) public underlyingTokenMapping;
@@ -57,13 +56,10 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
      * @param _amount[] The number of tokens to transfer
      * @param _is1155 If the collection is an ERC1155 standard
      */
-    function stake(
-        address _user,
-        address _collection,
-        uint[] calldata _tokenId,
-        uint[] calldata _amount,
-        bool _is1155
-    ) external onlyNftStaking {
+    function stake(address _user, address _collection, uint[] calldata _tokenId, uint[] calldata _amount, bool _is1155)
+        external
+        onlyNftStaking
+    {
         // If we have an 1155 collection, then we can use batch transfer
         if (_is1155) {
             IERC1155(_collection).safeBatchTransferFrom(_user, address(this), _tokenId, _amount, '');
@@ -94,7 +90,9 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
                 }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -112,7 +110,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
         address recipient,
         address _collection,
         uint numNfts,
-        uint /* baseNfts */,
+        uint, /* baseNfts */
         uint remainingPortionToUnstake,
         bool _is1155
     ) external onlyNftStaking {
@@ -145,12 +143,15 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
                     IERC721(_collection).safeTransferFrom(address(this), recipient, _tokenIds[i], bytes(''));
                 } else {
                     // Approve the recipient to buy for zero value
-                    bytes memory data = abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenIds[i], 0, recipient);
+                    bytes memory data =
+                        abi.encodeWithSignature('offerPunkForSaleToAddress(uint256,uint256,address)', _tokenIds[i], 0, recipient);
                     (bool success, bytes memory result) = address(_collection).call(data);
                     require(success, string(result));
                 }
 
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -163,7 +164,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
      * We don't have any rewards as we only deposit and withdraw a 1:1 mapping
      * of tokens and their amounts. No rewards are generated.
      */
-    function rewardsAvailable(address /* _collection */) external pure returns (uint) {
+    function rewardsAvailable(address /* _collection */ ) external pure returns (uint) {
         return 0;
     }
 
@@ -171,7 +172,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
      * We don't have any rewards as we only deposit and withdraw a 1:1 mapping
      * of tokens and their amounts. No rewards are generated.
      */
-    function claimRewards(address /* _collection */) external pure returns (uint) {
+    function claimRewards(address /* _collection */ ) external pure returns (uint) {
         return 0;
     }
 
@@ -190,7 +191,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
      * @param _collection Our approved collection address
      * @param _token The underlying token (the NFTX vault contract address)
      */
-    function setUnderlyingToken(address _collection, address _token, address /* _xToken */) external onlyOwner {
+    function setUnderlyingToken(address _collection, address _token, address /* _xToken */ ) external onlyOwner {
         require(_collection != address(0));
         require(_token != address(0));
 
@@ -203,7 +204,6 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
     function onERC721Received(address, address, uint, bytes memory) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
     }
-
 
     /**
      * Allows the contract to receive ERC1155 tokens.
@@ -222,7 +222,7 @@ contract NftStakingLocker is INftStakingStrategy, Ownable {
     /**
      * Ensures that only the {NftStaking} contract can call the function.
      */
-    modifier onlyNftStaking {
+    modifier onlyNftStaking() {
         require(msg.sender == nftStaking, 'Invalid caller');
         _;
     }

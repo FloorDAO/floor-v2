@@ -7,7 +7,6 @@ import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * Deposits tokens in proportion to the vault's current holdings.
  *
@@ -71,5 +70,4 @@ contract CharmDeposit is IAction {
 
         return shares;
     }
-
 }

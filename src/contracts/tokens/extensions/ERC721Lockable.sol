@@ -2,11 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
+import 'forge-std/console.sol';
 
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-
 
 /**
  * Allows an ERC721 token to be softlocked by an external contract. We piggyback
@@ -20,7 +19,6 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * the calling user. It will, however, require that the
  */
 abstract contract ERC721Lockable is ERC721, Ownable {
-
     /**
      * Holds information about our token locks.
      */
@@ -30,13 +28,13 @@ abstract contract ERC721Lockable is ERC721, Ownable {
     }
 
     /// Maps token IDs to locks
-    mapping (uint => TokenLock) internal tokenLocks;
+    mapping(uint => TokenLock) internal tokenLocks;
 
     /// Maps token IDs to a user that has it staked in an approved staking contract.
-    mapping (uint => address) public heldStakes;
+    mapping(uint => address) public heldStakes;
 
     /// Maps an approved locking address to a token ID.
-    mapping (uint => address) public approvedLockers;
+    mapping(uint => address) public approvedLockers;
 
     /// List of approved stakers
     address[] public approvedStakers;
@@ -45,7 +43,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      * Returns a list of tokens that the user has staked.
      */
     // function stakedBy(address user) external view returns (uint[] memory) {
-        // TODO: ..
+    // TODO: ..
     // }
 
     /**
@@ -76,10 +74,10 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      */
     function approveLocker(address to, uint tokenId) external {
         address currentOwner = ownerOf(tokenId);
-        require(to != currentOwner, "ERC721: approval to current owner");
+        require(to != currentOwner, 'ERC721: approval to current owner');
 
         if (currentOwner != msg.sender && (heldStakes[tokenId] != msg.sender || !_isApprovedStaker(currentOwner))) {
-            revert("ERC721: approve caller is not token owner");
+            revert('ERC721: approve caller is not token owner');
         }
 
         approvedLockers[tokenId] = to;
@@ -128,7 +126,9 @@ abstract contract ERC721Lockable is ERC721, Ownable {
                 index = i;
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Check if we have an incompatible state for the request
@@ -175,9 +175,10 @@ abstract contract ERC721Lockable is ERC721, Ownable {
             if (staker == approvedStakers[i]) {
                 return true;
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         return false;
     }
-
 }

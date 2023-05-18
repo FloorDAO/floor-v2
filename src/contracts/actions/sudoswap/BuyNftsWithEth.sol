@@ -6,7 +6,6 @@ import {LSSVMPairERC20} from '@sudoswap/LSSVMPairERC20.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * Sends token to the pair in exchange for any `numNFTs` NFTs.
  *
@@ -14,7 +13,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * function is meant for users who are ID agnostic.
  */
 contract SudoswapBuyNftsWithEth is IAction {
-
     /// Temporary store for a fallback ETH recipient
     address ethRecipient;
 
@@ -67,8 +65,7 @@ contract SudoswapBuyNftsWithEth is IAction {
             if (spent < request.maxExpectedTokenInput) {
                 token.transfer(msg.sender, request.maxExpectedTokenInput - spent);
             }
-        }
-        else if (LSSVMPair(request.pair).poolType() == LSSVMPair.PoolType.NFT) {
+        } else if (LSSVMPair(request.pair).poolType() == LSSVMPair.PoolType.NFT) {
             // Set our recipient for any returned ETH
             ethRecipient = msg.sender;
 
@@ -76,7 +73,6 @@ contract SudoswapBuyNftsWithEth is IAction {
                 numNFTs: request.numNFTs,
                 maxExpectedTokenInput: request.maxExpectedTokenInput,
                 nftRecipient: request.nftRecipient,
-
                 // By setting the sender as a router, the ERC20 tokens are transferred
                 // directly from the origin user.
                 isRouter: true,
@@ -85,8 +81,7 @@ contract SudoswapBuyNftsWithEth is IAction {
 
             // Remove our refunded ETH recipient
             delete ethRecipient;
-        }
-        else {
+        } else {
             revert('Unknown pool type');
         }
     }
@@ -96,5 +91,4 @@ contract SudoswapBuyNftsWithEth is IAction {
             payable(ethRecipient).transfer(msg.value);
         }
     }
-
 }

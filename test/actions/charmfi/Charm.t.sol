@@ -12,7 +12,6 @@ import {CharmWithdraw} from '@floor/actions/charmfi/Withdraw.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract CharmFinanceVaultTest is FloorTest {
-
     // Store our action contracts
     CharmCreateVault charmCreateVault;
     CharmDeposit charmDeposit;
@@ -37,18 +36,17 @@ contract CharmFinanceVaultTest is FloorTest {
         uint vaultAddressUint = charmCreateVault.execute(
             abi.encode(
                 // Vault parameters
-                2000000000000000000,                         // maxTotalSupply
-                0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8,  // uniswapPool
-                uint24(5000),                                // protocolFee
-
+                2000000000000000000, // maxTotalSupply
+                0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8, // uniswapPool
+                uint24(5000), // protocolFee
                 // Strategy parameters
-                int24(3600),             // baseThreshold
-                int24(1200),             // limitThreshold
-                int24(0),                // minTickMove
-                uint40(41400),           // period
-                int24(100),              // maxTwapDeviation
-                uint32(60),              // twapDuration
-                address(charmRebalance)  // keeper
+                int24(3600), // baseThreshold
+                int24(1200), // limitThreshold
+                int24(0), // minTickMove
+                uint40(41400), // period
+                int24(100), // maxTwapDeviation
+                uint32(60), // twapDuration
+                address(charmRebalance) // keeper
             )
         );
 
@@ -75,11 +73,11 @@ contract CharmFinanceVaultTest is FloorTest {
         // Deposit into the vault
         uint shares = charmDeposit.execute(
             abi.encode(
-                200000000,           // amount0Desired
-                100000000000000000,  // amount1Desired
-                180000000,           // amount0Min
-                90000000000000000,   // amount1Min
-                vaultAddress         // vault
+                200000000, // amount0Desired
+                100000000000000000, // amount1Desired
+                180000000, // amount0Min
+                90000000000000000, // amount1Min
+                vaultAddress // vault
             )
         );
 
@@ -95,11 +93,7 @@ contract CharmFinanceVaultTest is FloorTest {
         assertEq(strategyAddress, 0xDD4c722d1614128933d6DC7EFA50A6913e804E12);
 
         // Rebalance the vault
-        charmRebalance.execute(
-            abi.encode(
-                strategyAddress
-            )
-        );
+        charmRebalance.execute(abi.encode(strategyAddress));
 
         // Approve our withdraw action to burn our shares
         AlphaVault(vaultAddress).approve(address(charmWithdraw), shares);
@@ -107,15 +101,14 @@ contract CharmFinanceVaultTest is FloorTest {
         // Withdraw from the vault
         charmWithdraw.execute(
             abi.encode(
-                shares,        // shares
-                0,             // amount0Min
-                0,             // amount1Min
-                vaultAddress   // vault
+                shares, // shares
+                0, // amount0Min
+                0, // amount1Min
+                vaultAddress // vault
             )
         );
 
         // Confirm the amount of tokens received back from our withdrawal
-
     }
 
     function test_CanDepositAndWithdrawFromExistingVault() public {
@@ -134,11 +127,11 @@ contract CharmFinanceVaultTest is FloorTest {
         // Deposit into the vault
         uint shares = charmDeposit.execute(
             abi.encode(
-                200000000,           // amount0Desired
-                100000000000000000,  // amount1Desired
-                0,                   // amount0Min
-                0,                   // amount1Min
-                vaultAddress         // vault
+                200000000, // amount0Desired
+                100000000000000000, // amount1Desired
+                0, // amount0Min
+                0, // amount1Min
+                vaultAddress // vault
             )
         );
 
@@ -151,12 +144,11 @@ contract CharmFinanceVaultTest is FloorTest {
         // Withdraw from the vault
         charmWithdraw.execute(
             abi.encode(
-                shares,        // shares
-                0,             // amount0Min
-                0,             // amount1Min
-                vaultAddress   // vault
+                shares, // shares
+                0, // amount0Min
+                0, // amount1Min
+                vaultAddress // vault
             )
         );
     }
-
 }

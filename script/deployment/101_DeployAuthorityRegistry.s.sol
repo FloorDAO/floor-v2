@@ -6,12 +6,10 @@ import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our authority registry contract.
  */
 contract DeployAuthorityRegistry is DeploymentScript {
-
     function run() external deployer {
         // Deploy our Authority Registry contract. Note that this will give ownership
         // permissions to the address that deploys it.
@@ -22,5 +20,4 @@ contract DeployAuthorityRegistry is DeploymentScript {
         storeDeployment('AuthorityRegistry', address(authorityRegistry));
         storeDeployment('AuthorityControl', address(authorityControl));
     }
-
 }

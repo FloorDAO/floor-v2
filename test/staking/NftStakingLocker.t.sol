@@ -15,7 +15,6 @@ import {EpochManager} from '@floor/EpochManager.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NftStakingLockerTest is FloorTest {
-
     address constant LOW_VALUE_NFT = 0x524cAB2ec69124574082676e6F654a18df49A048;
     address constant HIGH_VALUE_NFT = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     address constant ERC1155_NFT = 0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313;
@@ -51,19 +50,13 @@ contract NftStakingLockerTest is FloorTest {
         // mock the response for this.
         vm.mockCall(
             address(pricingExecutor),
-            abi.encodeWithSelector(
-                UniswapV3PricingExecutor.getFloorPrice.selector,
-                0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA
-            ),
+            abi.encodeWithSelector(UniswapV3PricingExecutor.getFloorPrice.selector, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA),
             abi.encode(136)
         );
 
         vm.mockCall(
             address(pricingExecutor),
-            abi.encodeWithSelector(
-                UniswapV3PricingExecutor.getLatestFloorPrice.selector,
-                0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA
-            ),
+            abi.encodeWithSelector(UniswapV3PricingExecutor.getLatestFloorPrice.selector, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA),
             abi.encode(136)
         );
 
@@ -347,7 +340,9 @@ contract NftStakingLockerTest is FloorTest {
         amounts = new uint[](length);
         for (uint i; i < length;) {
             amounts[i] = 1;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 }

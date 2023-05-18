@@ -87,12 +87,12 @@ contract TreasuryTest is FloorTest {
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
-            address(0),  // Floor Wars not needed for these tests
+            address(0), // Floor Wars not needed for these tests
             address(pricingExecutorMock),
             address(treasury),
             address(strategyFactory),
             address(sweepWars),
-            address(0)  // Vote Market not needed for these tests
+            address(0) // Vote Market not needed for these tests
         );
 
         // Set our epoch manager
@@ -505,5 +505,4 @@ contract TreasuryTest is FloorTest {
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
-
 }

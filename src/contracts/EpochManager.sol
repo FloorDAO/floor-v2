@@ -27,7 +27,6 @@ error NoPricingExecutorSet();
  * Handles epoch management for all other contracts.
  */
 contract EpochManager is IEpochManager, Ownable {
-
     /// Stores the current epoch that is taking place.
     uint public currentEpoch;
 
@@ -50,7 +49,7 @@ contract EpochManager is IEpochManager, Ownable {
     IVoteMarket public voteMarket;
 
     /// Stores a mapping of an epoch to a collection
-    mapping (uint => uint) public collectionEpochs;
+    mapping(uint => uint) public collectionEpochs;
 
     /**
      * Allows a new epoch to be set. This should, in theory, only be set to one
@@ -120,7 +119,7 @@ contract EpochManager is IEpochManager, Ownable {
      * passed. We will also check if a new Collection Addition is starting in the new epoch
      * and initialise it if it is.
      */
-     function endEpoch() external {
+    function endEpoch() external {
         // Ensure enough time has past since the last epoch ended
         if (lastEpoch != 0 && block.timestamp < lastEpoch + EPOCH_LENGTH) {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
@@ -224,8 +223,7 @@ contract EpochManager is IEpochManager, Ownable {
             // that it is a Floor War and that we can additionally include "mercenary sweep
             // amounts" in the call.
             treasury.registerSweep(currentEpoch, sweepCollections, sweepAmounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
-        }
-        else {
+        } else {
             // Process the snapshot to find the floor war collection winners and the allocated amount
             // of the sweep.
             (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(ethRewards, currentEpoch);
@@ -293,5 +291,4 @@ contract EpochManager is IEpochManager, Ownable {
         voteContract = ISweepWars(_voteContract);
         voteMarket = IVoteMarket(_voteMarket);
     }
-
 }

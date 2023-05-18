@@ -8,7 +8,6 @@ import {LSSVMPair} from '@sudoswap/LSSVMPair.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * Sends a set of NFTs to the pair in exchange for token
  *
@@ -16,7 +15,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * `bondingCurve.getSellInfo`.
  */
 contract SudoswapSellNftsForEth is IAction {
-
     /**
      * Store our required information to action a sell.
      *
@@ -45,11 +43,7 @@ contract SudoswapSellNftsForEth is IAction {
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
-        (
-            address pair,
-            uint[] memory nftIds,
-            uint minExpectedTokenOutput
-        ) = abi.decode(_request, (address, uint[], uint));
+        (address pair, uint[] memory nftIds, uint minExpectedTokenOutput) = abi.decode(_request, (address, uint[], uint));
 
         // Get the NFT from the pairing
         IERC721 nft = LSSVMPair(pair).nft();
@@ -59,7 +53,9 @@ contract SudoswapSellNftsForEth is IAction {
         for (uint i; i < length;) {
             nft.transferFrom(msg.sender, address(this), nftIds[i]);
             nft.approve(pair, nftIds[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Sell the NFTs and send the tokens to the sender
@@ -71,5 +67,4 @@ contract SudoswapSellNftsForEth is IAction {
             routerCaller: msg.sender
         });
     }
-
 }

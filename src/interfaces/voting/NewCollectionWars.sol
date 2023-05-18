@@ -3,14 +3,13 @@
 pragma solidity ^0.8.0;
 
 interface INewCollectionWars {
-
     /**
      * Stores information about a user's option.
      */
     struct Option {
-        uint tokenId;   // 256 / 256
-        address user;   // 416 / 512
-        uint96 amount;  // 512 / 512
+        uint tokenId; // 256 / 256
+        address user; // 416 / 512
+        uint96 amount; // 512 / 512
     }
 
     /**
@@ -18,17 +17,17 @@ interface INewCollectionWars {
      * the DAO to exercise the NFT, or for the initial staker to reclaim it.
      */
     struct StakedCollectionERC721 {
-        address staker;          // 160 / 256
-        uint56 exercisePercent;  // 216 / 256
+        address staker; // 160 / 256
+        uint56 exercisePercent; // 216 / 256
     }
 
     /**
      * ..
      */
     struct StakedCollectionERC1155 {
-        address staker;          // 160 / 256
-        uint56 exercisePercent;  // 216 / 256
-        uint40 amount;           // 256 / 256
+        address staker; // 160 / 256
+        uint56 exercisePercent; // 216 / 256
+        uint40 amount; // 256 / 256
     }
 
     /**
@@ -111,7 +110,8 @@ interface INewCollectionWars {
      * gain additional voting power based on the floor price attached to the
      * collection in the FloorWar.
      */
-    function createOption(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents) external;
+    function createOption(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents)
+        external;
 
     /**
      * If the FloorWar has not yet ended, or the NFT timelock has expired, then the
@@ -128,7 +128,9 @@ interface INewCollectionWars {
      * Allow an authorised user to create a new floor war to start with a range of
      * collections from a specific epoch.
      */
-    function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices) external returns (uint);
+    function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices)
+        external
+        returns (uint);
 
     /**
      * ..

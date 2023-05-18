@@ -7,14 +7,11 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our strategies and vault factory contracts.
  */
 contract DeployVaultContracts is DeploymentScript {
-
     function run() external deployer {
-
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
@@ -32,7 +29,5 @@ contract DeployVaultContracts is DeploymentScript {
 
         // Store our vault factory
         storeDeployment('StrategyFactory', address(strategyFactory));
-
     }
-
 }

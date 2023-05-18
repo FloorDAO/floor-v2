@@ -6,14 +6,11 @@ import {IAuthorityRegistry} from '@floor-interfaces/authorities/AuthorityRegistr
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our treasury actions.
  */
 contract AddContractPermissions is DeploymentScript {
-
     function run() external deployer {
-
         // Load and reference our live authority contracts
         IAuthorityControl authorityControl = IAuthorityControl(requireDeployment('AuthorityRegistry'));
         IAuthorityRegistry authorityRegistry = IAuthorityRegistry(requireDeployment('AuthorityRegistry'));
@@ -34,7 +31,5 @@ contract AddContractPermissions is DeploymentScript {
 
         // Transfer ownership of any required contracts
         // None currently required..
-
     }
-
 }

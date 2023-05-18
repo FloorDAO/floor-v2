@@ -5,12 +5,10 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-
 /**
  * ..
  */
 contract DeploymentScriptTest is DeploymentScript, FloorTest {
-
     function test_CanRequireDeployment() external {
         // Cannot access unknown value
         vm.expectRevert('Contract has not been deployed');
@@ -34,5 +32,4 @@ contract DeploymentScriptTest is DeploymentScript, FloorTest {
         assertEq(requireDeployment('Testing'), address(3));
         assertEq(requireDeployment('TestingAgain'), address(2));
     }
-
 }

@@ -2,12 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface INftVotingPowerCalculator {
-    function calculate(
-        uint warIndex,
-        address collection,
-        uint spotPrice,
-        uint exercisePercent
-    ) external pure returns (uint);
+    function calculate(uint warIndex, address collection, uint spotPrice, uint exercisePercent) external pure returns (uint);
 }
 
 /**
@@ -17,12 +12,11 @@ interface INftVotingPowerCalculator {
  * The formula for this is documented against the `calculate` function.
  */
 contract NewCollectionNftOptionVotingPowerCalculator is INftVotingPowerCalculator {
-
     /**
      * Performs the calculation to return the vote power given from an
      * exercisable option.
      */
-    function calculate(uint /* warIndex */, address /* collection */, uint spotPrice, uint exercisePercent) external pure returns (uint) {
+    function calculate(uint, /* warIndex */ address, /* collection */ uint spotPrice, uint exercisePercent) external pure returns (uint) {
         // If the user has matched our spot price, then we return full value
         if (exercisePercent == 100) {
             return spotPrice;
@@ -41,5 +35,4 @@ contract NewCollectionNftOptionVotingPowerCalculator is INftVotingPowerCalculato
             return spotPrice + ((spotPrice * (100 - exercisePercent)) / 100);
         }
     }
-
 }

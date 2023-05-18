@@ -15,7 +15,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * amount is then placed as a single-sided bid or ask order.
  */
 contract CharmRebalance is IAction {
-
     struct ActionRequest {
         address strategy;
     }
@@ -36,5 +35,4 @@ contract CharmRebalance is IAction {
 
         return 0;
     }
-
 }

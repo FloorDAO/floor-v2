@@ -11,7 +11,6 @@ import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
  * @author Twade
  */
 contract UniswapCreatePool is UniswapActionBase {
-
     /// @param token0 Address of the first token
     /// @param token1 Address of the second token
     /// @param fee Fee for the pool
@@ -49,12 +48,7 @@ contract UniswapCreatePool is UniswapActionBase {
         }
 
         // Create our Uniswap pool if it does not already exist
-        address pool = positionManager.createAndInitializePoolIfNecessary(
-            request.token0,
-            request.token1,
-            request.fee,
-            request.sqrtPriceX96
-        );
+        address pool = positionManager.createAndInitializePoolIfNecessary(request.token0, request.token1, request.fee, request.sqrtPriceX96);
 
         // We cast the pool address to an integer so that it can be returned
         return uint(uint160(pool));

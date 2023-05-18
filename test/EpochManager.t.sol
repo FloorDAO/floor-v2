@@ -29,7 +29,6 @@ import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 import {FloorTest} from './utilities/Environments.sol';
 
 contract EpochManagerTest is FloorTest {
-
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
@@ -163,13 +162,13 @@ contract EpochManagerTest is FloorTest {
      */
     function test_CanSetContracts() external {
         epochManager.setContracts(
-            address(1),  // collectionRegistry
-            address(2),  // newCollectionWars
-            address(3),  // pricingExecutor
-            address(4),  // treasury
-            address(5),  // strategyFactory
-            address(6),  // voteContract,
-            address(7)   // voteMarket
+            address(1), // collectionRegistry
+            address(2), // newCollectionWars
+            address(3), // pricingExecutor
+            address(4), // treasury
+            address(5), // strategyFactory
+            address(6), // voteContract,
+            address(7) // voteMarket
         );
 
         assertEq(address(epochManager.collectionRegistry()), address(1));
@@ -239,9 +238,7 @@ contract EpochManagerTest is FloorTest {
         // vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.registerMint.selector), abi.encode(''));
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing
-        vm.mockCall(
-            address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max)
-        );
+        vm.mockCall(address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max));
 
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
@@ -284,11 +281,7 @@ contract EpochManagerTest is FloorTest {
         // querying the `epochSweeps` of the epoch iteration. The arrays in the struct
         // are not included in read attempts as we cannot get the information accurately.
         // The epoch will have incremented in `endEpoch`, so we minus 1.
-        (
-            TreasuryEnums.SweepType sweepType,
-            bool completed,
-            string memory message
-        ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
+        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
         // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, false);
@@ -304,15 +297,10 @@ contract EpochManagerTest is FloorTest {
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
         // Get our updated epoch information
-        (
-            sweepType,
-            completed,
-            message
-        ) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
+        (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
         // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
     }
-
 }

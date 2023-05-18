@@ -396,7 +396,7 @@ contract VeFloorStakingTest is FloorTest {
 
         epochManager.setCurrentEpoch(26);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 37.5 ether);  // 28125000000000000000
+        assertEq(loss, 37.5 ether); // 28125000000000000000
         assertEq(ret, 62.5 ether);
         assertEq(canWithdraw, true);
 

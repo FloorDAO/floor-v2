@@ -15,7 +15,6 @@ import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
 
-
 /**
  * Supports an Inventory Staking position against a single NFTX vault. This strategy
  * will hold the corresponding xToken against deposits.
@@ -27,7 +26,6 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 contract NFTXInventoryStakingStrategy is BaseStrategy {
-
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
@@ -147,7 +145,9 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         for (uint i; i < tokensLength;) {
             // TODO: Punks?
             IERC721(assetAddress).transferFrom(msg.sender, address(this), tokenIds[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Approve stakingZap
@@ -157,7 +157,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         stakingZap.provideInventory721(vaultId, tokenIds);
     }
 
-    function depositErc1155(uint256[] calldata tokenIds, uint256[] calldata amounts) external {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
@@ -268,10 +268,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             inventoryStaking.withdraw(vaultId, amounts[0]);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(underlyingToken).transfer(
-                _recipient,
-                IERC20(underlyingToken).balanceOf(address(this))
-            );
+            IERC20(underlyingToken).transfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];
@@ -293,7 +290,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /**
      * Allows the contract to receive ERC721 tokens.
      */
-    function onERC721Received(address /* _from */, address /* _to */, uint _id, bytes memory /* _data */) public returns (bytes4) {
+    function onERC721Received(address, /* _from */ address, /* _to */ uint _id, bytes memory /* _data */ ) public returns (bytes4) {
         require(msg.sender == assetAddress, 'Invalid asset');
 
         if (_nftReceiver != address(0)) {
@@ -303,11 +300,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         return this.onERC721Received.selector;
     }
 
-
     /**
      * Allows the contract to receive ERC1155 tokens.
      */
-    function onERC1155Received(address /* _from */, address /* _to */, uint _id, uint _value, bytes calldata _data) public returns (bytes4) {
+    function onERC1155Received(address, /* _from */ address, /* _to */ uint _id, uint _value, bytes calldata _data)
+        public
+        returns (bytes4)
+    {
         require(msg.sender == assetAddress, 'Invalid asset');
 
         if (_nftReceiver != address(0)) {
@@ -320,7 +319,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /**
      * Allows the contract to receive batch ERC1155 tokens.
      */
-    function onERC1155BatchReceived(address /* _from */, address /* _to */, uint[] calldata _ids, uint[] calldata _values, bytes calldata _data) external returns (bytes4) {
+    function onERC1155BatchReceived(
+        address, /* _from */
+        address, /* _to */
+        uint[] calldata _ids,
+        uint[] calldata _values,
+        bytes calldata _data
+    ) external returns (bytes4) {
         require(msg.sender == assetAddress, 'Invalid asset');
 
         if (_nftReceiver != address(0)) {
@@ -329,5 +334,4 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         return this.onERC1155BatchReceived.selector;
     }
-
 }

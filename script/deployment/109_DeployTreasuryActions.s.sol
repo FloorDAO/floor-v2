@@ -29,14 +29,11 @@ import {WrapEth} from '@floor/actions/utils/WrapEth.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
-
 /**
  * Deploys our treasury actions.
  */
 contract DeployTreasuryActionsPartOne is DeploymentScript {
-
     function run() external deployer {
-
         // Confirm that we have our required contracts deployed
         address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
@@ -60,7 +57,10 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
         storeDeployment('LlamapayWithdraw', address(new LlamapayWithdraw(llamapayRouter)));
         storeDeployment('NFTXSellNftsForEth', address(new NFTXSellNftsForEth(0x941A6d105802CCCaa06DE58a13a6F49ebDCD481C)));
         storeDeployment('SushiswapAddLiquidity', address(new SushiswapAddLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F)));
-        storeDeployment('SushiswapRemoveLiquidity', address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac)));
+        storeDeployment(
+            'SushiswapRemoveLiquidity',
+            address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac))
+        );
 
         storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41)));
         storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury)));
@@ -79,7 +79,5 @@ contract DeployTreasuryActionsPartOne is DeploymentScript {
         storeDeployment('SendEth', address(new SendEth()));
         storeDeployment('UnwrapWeth', address(new UnwrapWeth()));
         storeDeployment('WrapEth', address(new WrapEth()));
-
     }
-
 }

@@ -9,7 +9,6 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
-
 /**
  * New pairs for the sudoswap AMM are created with the LSSVMPairFactory. LPs will call
  * either createPairETH or createPairERC20 depending on their token type (i.e. if they
@@ -22,7 +21,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
  * @dev https://docs.sudoswap.xyz/reference/pair-creation/
  */
 contract SudoswapCreatePair is IAction {
-
     /**
      * @param token The ERC20 to stake against the NFT. Zero if ETH will be paired.
      * @param _nft The NFT contract of the collection the pair trades
@@ -81,26 +79,13 @@ contract SudoswapCreatePair is IAction {
             uint128 spotPrice,
             uint initialTokenBalance,
             uint[] memory initialNftIds
-        ) = abi.decode(_request, (
-            address,
-            address,
-            address,
-            uint8,
-            uint128,
-            uint96,
-            uint128,
-            uint,
-            uint[]
-        ));
+        ) = abi.decode(_request, (address, address, address, uint8, uint128, uint96, uint128, uint, uint[]));
 
         // Cast our integer to a PoolType
         LSSVMPair.PoolType poolType = LSSVMPair.PoolType(_poolType);
 
         // Validate our provided pool type
-        require(
-            poolType == LSSVMPair.PoolType.NFT || poolType == LSSVMPair.PoolType.TRADE,
-            'Unknown pool type'
-        );
+        require(poolType == LSSVMPair.PoolType.NFT || poolType == LSSVMPair.PoolType.TRADE, 'Unknown pool type');
 
         // Transfer our NFT IDs to the action as the pair factory requires them to be
         // transferred from the immediate sender.
@@ -111,7 +96,9 @@ contract SudoswapCreatePair is IAction {
         for (uint i; i < initialNftIds.length;) {
             _nft.transferFrom(msg.sender, address(this), initialNftIds[i]);
             _nft.approve(address(pairFactory), initialNftIds[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Determine the asset recipient, based on the pool type
@@ -165,5 +152,4 @@ contract SudoswapCreatePair is IAction {
         // Return our integer address equivalent
         return uint(uint160(address(pair)));
     }
-
 }

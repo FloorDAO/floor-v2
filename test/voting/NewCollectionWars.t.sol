@@ -27,7 +27,6 @@ import {SweeperMock} from '../mocks/Sweeper.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NewCollectionWarsTest is FloorTest {
-
     // Contract references to be deployed
     EpochManager epochManager;
     FLOOR floor;
@@ -112,7 +111,7 @@ contract NewCollectionWarsTest is FloorTest {
             address(treasury),
             address(strategyFactory),
             address(sweepWars),
-            address(0)  // Vote Market not needed for these tests
+            address(0) // Vote Market not needed for these tests
         );
 
         // Create some mock tokens
@@ -361,11 +360,11 @@ contract NewCollectionWarsTest is FloorTest {
         // Alice should still have the same ETH amount that she started with, but will have
         // the additional amounts awaiting her in escrow.
         assertEq(address(alice).balance, aliceStartAmount);
-        assertEq(newCollectionWars.payments(address(alice)), 0.60 ether + 0.75 ether);
+        assertEq(newCollectionWars.payments(address(alice)), 0.6 ether + 0.75 ether);
 
         // Confirm that Alice can then withdraw the payment
         newCollectionWars.withdrawPayments(payable(alice));
-        assertEq(address(alice).balance, aliceStartAmount + 0.60 ether + 0.75 ether);
+        assertEq(address(alice).balance, aliceStartAmount + 0.6 ether + 0.75 ether);
         assertEq(newCollectionWars.payments(address(alice)), 0);
     }
 
@@ -463,7 +462,7 @@ contract NewCollectionWarsTest is FloorTest {
 
         epochManager.endEpoch();
 
-        vm.expectRevert();  // Throws "EvmError: OutOfFund"
+        vm.expectRevert(); // Throws "EvmError: OutOfFund"
         newCollectionWars.exerciseOptions{value: 0.1 ether}(war, 1 ether);
     }
 
@@ -856,32 +855,31 @@ contract NewCollectionWarsTest is FloorTest {
     }
 
     function test_CanCalculateNftVotingPower() external {
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 0),   2.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 10),  1.90 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 20),  1.80 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 30),  1.70 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 40),  1.60 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 50),  1.50 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 60),  1.40 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 70),  1.30 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 80),  1.20 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 90),  1.10 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 100), 1.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 110), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 120), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 130), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 140), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 150), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 160), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 170), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 180), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 190), 0.00 ether);
-        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 200), 0.00 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 0), 2.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 10), 1.9 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 20), 1.8 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 30), 1.7 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 40), 1.6 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 50), 1.5 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 60), 1.4 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 70), 1.3 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 80), 1.2 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 90), 1.1 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 100), 1.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 110), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 120), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 130), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 140), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 150), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 160), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 170), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 180), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 190), 0.0 ether);
+        assertEq(newCollectionWars.nftVotingPower(address(0), 1 ether, 200), 0.0 ether);
     }
 
     /**
      * Allows our contract to receive dust ETH back from sweeps.
      */
     receive() external payable {}
-
 }

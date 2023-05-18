@@ -9,7 +9,6 @@ import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract ManualSweepTest is FloorTest {
-
     // Store our action contract
     ManualSweeper action;
 
@@ -25,9 +24,7 @@ contract ManualSweepTest is FloorTest {
     function test_CanSweep() public {
         // Action our trade
         string memory message = action.execute{value: 15 ether}(
-            new address[](0),
-            new uint[](0),
-            'Swept at: 0x74827d6490ce3235ae0da41418e5a9b399158960a079ab2ae1e47e1802f4437e'
+            new address[](0), new uint[](0), 'Swept at: 0x74827d6490ce3235ae0da41418e5a9b399158960a079ab2ae1e47e1802f4437e'
         );
 
         // The action will just return a message that we have sent, as this will be logged

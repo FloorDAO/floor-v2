@@ -39,7 +39,6 @@ error SampleSizeCannotBeZero();
  * ..
  */
 contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
-
     /// ..
     struct CollectionVote {
         uint power;
@@ -430,5 +429,4 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     function voteOptions() external view returns (address[] memory) {
         return collectionRegistry.approvedCollections();
     }
-
 }

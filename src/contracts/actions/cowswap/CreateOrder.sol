@@ -29,9 +29,9 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
         address sellToken;
         address buyToken;
         address receiver;
-        uint256 sellAmount;
-        uint256 buyAmount;
-        uint256 feeAmount;
+        uint sellAmount;
+        uint buyAmount;
+        uint feeAmount;
     }
 
     /// Encoded app data to recognise our transactions
@@ -49,7 +49,6 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
         settlement = ICoWSwapSettlement(settlement_);
         domainSeparator = settlement.domainSeparator();
     }
-
 
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct

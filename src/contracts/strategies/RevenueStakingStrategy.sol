@@ -8,7 +8,6 @@ import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy
 
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
 
-
 /**
  * Supports manual staking of "yield" from an authorised sender. This allows manual
  * yield management from external sources and products that cannot be strictly enforced
@@ -20,7 +19,6 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
 contract RevenueStakingStrategy is BaseStrategy {
-
     /// An array of tokens supported by the strategy
     address[] private _tokens;
 
@@ -43,8 +41,10 @@ contract RevenueStakingStrategy is BaseStrategy {
 
         // Set the underlying token as valid to process
         for (uint i; i < _tokens.length;) {
-          _validTokens[_tokens[i]] = true;
-          unchecked { ++i; }
+            _validTokens[_tokens[i]] = true;
+            unchecked {
+                ++i;
+            }
         }
 
         // Transfer ownership to the caller
@@ -86,7 +86,13 @@ contract RevenueStakingStrategy is BaseStrategy {
      *
      * @return uint Amount of the token returned
      */
-    function withdrawErc20(address recipient, address token, uint amount) external nonReentrant onlyOwner onlyValidToken(token) returns (uint) {
+    function withdrawErc20(address recipient, address token, uint amount)
+        external
+        nonReentrant
+        onlyOwner
+        onlyValidToken(token)
+        returns (uint)
+    {
         // Prevent users from trying to claim nothing
         if (amount == 0) {
             revert CannotWithdrawZeroAmount();
@@ -134,5 +140,4 @@ contract RevenueStakingStrategy is BaseStrategy {
     function validTokens() external view override returns (address[] memory) {
         return _tokens;
     }
-
 }

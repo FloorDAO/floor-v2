@@ -18,18 +18,16 @@ import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
-
 /**
  * ..
  */
 contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, IERC721Receiver, INewCollectionWars, PullPayment {
-
     /// Internal contract mappings
-    ITreasury immutable public treasury;
-    VeFloorStaking immutable public veFloor;
+    ITreasury public immutable treasury;
+    VeFloorStaking public immutable veFloor;
 
     /// Internal floor NFT mapping
-    address immutable public floorNft;
+    address public immutable floorNft;
 
     /// Internal NFT Option Calculator
     INftVotingPowerCalculator public nftVotingPowerCalculator;
@@ -39,41 +37,36 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
     FloorWar[] public wars;
 
     /// Stores the address of the collection that won a Floor War
-    mapping (uint => address) internal floorWarWinner;
+    mapping(uint => address) internal floorWarWinner;
 
     /// Stores the unlock epoch of a collection in a floor war
-    mapping (bytes32 => uint) internal collectionEpochLock;
+    mapping(bytes32 => uint) internal collectionEpochLock;
 
     /// Stores if a collection has been flagged as ERC1155
-    mapping (address => bool) internal is1155;
+    mapping(address => bool) internal is1155;
 
     /// Stores the number of votes a user has placed against a war collection
-    mapping (bytes32 => uint) public userVotes;
+    mapping(bytes32 => uint) public userVotes;
 
     /// Stores the floor spot price of a collection token against a war collection
-    mapping (bytes32 => uint) public collectionSpotPrice;
+    mapping(bytes32 => uint) public collectionSpotPrice;
 
     /// Stores the total number of votes against a war collection
-    mapping (bytes32 => uint) public collectionVotes;
-    mapping (bytes32 => uint) public collectionNftVotes;
+    mapping(bytes32 => uint) public collectionVotes;
+    mapping(bytes32 => uint) public collectionNftVotes;
 
     /// Stores an array of tokens staked against a war collection
     /// @dev (War -> Collection -> Price) => Option[]
-    mapping (bytes32 => Option[]) internal stakedTokens;
+    mapping(bytes32 => Option[]) internal stakedTokens;
 
     /// Stores which collection the user has cast their votes towards to allow for
     /// reallocation on subsequent votes if needed.
-    mapping (bytes32 => address) public userCollectionVote;
+    mapping(bytes32 => address) public userCollectionVote;
 
     /**
      * Sets our internal contract addresses.
      */
-    constructor (
-        address _authority,
-        address _floorNft,
-        address _treasury,
-        address _veFloor
-    ) AuthorityControl(_authority) {
+    constructor(address _authority, address _floorNft, address _treasury, address _veFloor) AuthorityControl(_authority) {
         floorNft = _floorNft;
         treasury = ITreasury(_treasury);
         veFloor = VeFloorStaking(_veFloor);
@@ -174,12 +167,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
      * gain additional voting power based on the floor price attached to the
      * collection in the FloorWar.
      */
-    function createOption(
-        address collection,
-        uint[] calldata tokenIds,
-        uint40[] calldata amounts,
-        uint56[] calldata exercisePercents
-    ) external {
+    function createOption(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents)
+        external
+    {
         // Confirm that the collection being voted for is in the war
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
         require(_isCollectionInWar(warCollection), 'Invalid collection');
@@ -199,19 +189,12 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
             optionHash = keccak256(abi.encode(currentWar.index, collection, exercisePercents[i]));
 
             // Store our option with the token ID, plus the amount being staked against it
-            stakedTokens[optionHash].push(
-                Option({
-                    tokenId: tokenIds[i],
-                    user: msg.sender,
-                    amount: uint96(amounts[i])
-                })
-            );
+            stakedTokens[optionHash].push(Option({tokenId: tokenIds[i], user: msg.sender, amount: uint96(amounts[i])}));
 
             // Transfer the NFT into our contract
             if (is1155[collection]) {
                 IERC1155(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i], amounts[i], '');
-            }
-            else {
+            } else {
                 IERC721(collection).transferFrom(msg.sender, address(this), tokenIds[i]);
             }
 
@@ -230,9 +213,11 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
                 stakedTokens[optionHash].length - 1,
                 collectionVotes[warCollection],
                 collectionNftVotes[warCollection]
-            );
+                );
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -245,12 +230,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
      *  0        1         < locked if won
      *  0        2         < free
      */
-    function reclaimOptions(
-        uint war,
-        address collection,
-        uint56[] calldata exercisePercents,
-        uint[][] calldata indexes
-    ) external {
+    function reclaimOptions(uint war, address collection, uint56[] calldata exercisePercents, uint[][] calldata indexes) external {
         // Check that the war has ended and that the requested collection is a timelocked token
         bytes32 warCollection = keccak256(abi.encode(war, collection));
         require(_isCollectionInWar(warCollection), 'Invalid collection');
@@ -272,15 +252,21 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
 
                 // Transfer the staked tokens to the staking user
                 if (is1155[collection]) {
-                    IERC1155(collection).safeTransferFrom(address(this), msg.sender, stakedTokens[optionHash][index].tokenId, stakedTokens[optionHash][index].amount, '');
+                    IERC1155(collection).safeTransferFrom(
+                        address(this), msg.sender, stakedTokens[optionHash][index].tokenId, stakedTokens[optionHash][index].amount, ''
+                    );
                 } else {
                     IERC721(collection).transferFrom(address(this), msg.sender, stakedTokens[optionHash][index].tokenId);
                 }
 
-                unchecked { ++index; }
+                unchecked {
+                    ++index;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -378,7 +364,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
                 break;
             }
 
-            unchecked { ++exercisePercent; }
+            unchecked {
+                ++exercisePercent;
+            }
         }
 
         emit CollectionExercised(war, collection, startBalance - amount);
@@ -433,7 +421,11 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
      * Allow an authorised user to create a new floor war to start with a range of
      * collections from a specific epoch.
      */
-    function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices) external onlyOwner returns (uint) {
+    function createFloorWar(uint epoch, address[] calldata collections, bool[] calldata isErc1155, uint[] calldata floorPrices)
+        external
+        onlyOwner
+        returns (uint)
+    {
         // Ensure that the Floor War is created with enough runway
         require(epoch > currentEpoch(), 'Floor War scheduled too soon');
 
@@ -456,7 +448,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
             collectionEpochLock[collectionHash] = collectionLockEpoch;
             is1155[collections[i]] = isErc1155[i];
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Schedule our floor war onto our {EpochManager}
@@ -509,7 +503,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
                 highestVoteCount = votes;
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Set our winner
@@ -584,7 +580,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
         unchecked {
             // Calculate the updated NFT vote power for the collection
             uint percentage = ((floorPrice * 1e18 - oldFloorPrice * 1e18) * 100) / oldFloorPrice;
-            uint increase = (collectionNftVotes[warCollection] * percentage) / 100  / 1e18;
+            uint increase = (collectionNftVotes[warCollection] * percentage) / 100 / 1e18;
             uint newNumber = (collectionNftVotes[warCollection] + increase);
 
             // Update our collection votes
@@ -608,5 +604,4 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, IERC1155Receiver, 
     function supportsInterface(bytes4) external pure returns (bool) {
         return true;
     }
-
 }

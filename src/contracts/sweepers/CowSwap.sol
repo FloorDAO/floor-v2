@@ -49,7 +49,12 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
         weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     }
 
-    function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata /* data */) external payable override returns (string memory) {
+    function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata /* data */ )
+        external
+        payable
+        override
+        returns (string memory)
+    {
         // Wrap out msg.value into WETH
         weth.deposit{value: msg.value}();
 
@@ -95,7 +100,9 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
             // bytes memory orderUid = new bytes(GPv2Order.UID_LENGTH);
             // orderUid.packOrderUidParams(orderHash, address(instance), order.validTo);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Return an empty string as no message to store
@@ -103,5 +110,4 @@ contract CowSwapSweeper is ICoWSwapOnchainOrders, ISweeper {
     }
 
     // TODO: What happens to any remaining WETH; will there be any?
-
 }
