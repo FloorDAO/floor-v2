@@ -202,7 +202,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * @param _collection The collection to check vote amount for
      * @param _baseEpoch The epoch at which to get vote count
      *
-     * @return The number of votes at the epoch specified
+     * @return votes_ The number of votes at the epoch specified
      */
     function votes(address _collection, uint _baseEpoch) public view returns (uint votes_) {
         CollectionVote memory collectionVote = collectionVotes[_collection];

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -65,8 +65,6 @@ contract RevenueStakingStrategyTest is FloorTest {
      * This should return an xToken that is stored in the strategy.
      */
     function test_CanDepositToRevenueStaking() public {
-        vm.startPrank(testUser);
-
         // Start with no deposits
         (address[] memory totalRewardTokens, uint[] memory totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], WETH);
@@ -82,11 +80,15 @@ contract RevenueStakingStrategyTest is FloorTest {
         assertEq(IERC20(WETH).balanceOf(address(strategy)), 0);
         assertEq(IERC20(PUNK).balanceOf(address(strategy)), 0);
 
+        vm.startPrank(testUser);
+
         // Deposit using the underlying token to receive xToken into the strategy
         IERC20(WETH).approve(address(strategy), 2 ether);
         IERC20(PUNK).approve(address(strategy), 1 ether);
         strategy.depositErc20(WETH, 2 ether);
         strategy.depositErc20(PUNK, 1 ether);
+
+        vm.stopPrank();
 
         // We should now see that tokens have transferred from user to strategy
         assertEq(IERC20(WETH).balanceOf(testUser), 76400000000000000000);
@@ -122,7 +124,33 @@ contract RevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 2 ether);
         assertEq(totalRewardAmounts[1], 1 ether);
 
-        vm.stopPrank();
+        // We can now withdraw from the strategy. First test that we can't withdraw above our
+        // position or an unknown token. Then we withdraw successfully.
+        vm.expectRevert(abi.encodeWithSelector(InsufficientPosition.selector, WETH, 2.1 ether, 2 ether));
+        strategy.withdrawErc20(testUser, WETH, 2.1 ether);
+        vm.expectRevert(abi.encodeWithSelector(InsufficientPosition.selector, PUNK, 2 ether, 1 ether));
+        strategy.withdrawErc20(testUser, PUNK, 2 ether);
+        vm.expectRevert(CannotWithdrawZeroAmount.selector);
+        strategy.withdrawErc20(testUser, WETH, 0);
+        vm.expectRevert('Invalid token');
+        strategy.withdrawErc20(testUser, address(0), 1 ether);
+
+        strategy.withdrawErc20(testUser, WETH, 2 ether);
+        strategy.withdrawErc20(testUser, PUNK, 1 ether);
+
+        // If we call the snapshot function against, we should see that no tokens are detected
+        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        assertEq(snapshotTokens[0], WETH);
+        assertEq(snapshotTokens[1], PUNK);
+        assertEq(snapshotAmounts[0], 0);
+        assertEq(snapshotAmounts[1], 0);
+
+        // We can, however, still see the total amounts of rewards generated
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardTokens[1], PUNK);
+        assertEq(totalRewardAmounts[0], 2 ether);
+        assertEq(totalRewardAmounts[1], 1 ether);
     }
 
     /**

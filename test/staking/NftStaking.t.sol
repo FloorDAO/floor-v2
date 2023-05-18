@@ -389,7 +389,7 @@ contract NftStakingTest is FloorTest {
         // The NFTs would normally be random, but since we are locked at a specific time, the
         // pseudo-randomness that NFTX applies will give us a consistent return.
         assertEq(IERC721(LOW_VALUE_NFT).ownerOf(5174), LOW_HOLDER_2);
-        assertEq(IERC20(nftStakingStrategy.underlyingToken(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 699999999999999999);
+        assertEq(IERC20(nftStakingStrategy.underlyingToken(LOW_VALUE_NFT)).balanceOf(LOW_HOLDER_2), 499999999999999997);
 
         vm.stopPrank();
     }

@@ -19,11 +19,11 @@ interface IEpochManager {
     /**
      * Stores a mapping of an epoch to a collection addition war index.
      *
-     * @param Epoch to check
+     * @param _epoch Epoch to check
      *
-     * @returns Index of the collection addition war. Will return 0 if none found
+     * @return Index of the collection addition war. Will return 0 if none found
      */
-    function collectionEpochs(uint) external view returns (uint);
+    function collectionEpochs(uint _epoch) external view returns (uint);
 
     /**
      * Allows a new epoch to be set. This should, in theory, only be set to one
@@ -36,7 +36,7 @@ interface IEpochManager {
     /**
      * Will return if the current epoch is a collection addition vote.
      *
-     * @return bool If the current epoch is a collection addition
+     * @return If the current epoch is a collection addition
      */
     function isCollectionAdditionEpoch() external view returns (bool);
 
@@ -45,7 +45,7 @@ interface IEpochManager {
      *
      * @param epoch The epoch to check
      *
-     * @return bool If the specified epoch is a collection addition
+     * @return If the specified epoch is a collection addition
      */
     function isCollectionAdditionEpoch(uint epoch) external view returns (bool);
 
@@ -72,14 +72,14 @@ interface IEpochManager {
      *
      * @param _epoch The epoch to find the estimated timestamp of
      *
-     * @return uint The estimated timestamp of when the specified epoch started
+     * @return The estimated timestamp of when the specified epoch started
      */
-    function epochIterationTimestamp(uint) external returns (uint);
+    function epochIterationTimestamp(uint _epoch) external returns (uint);
 
     /**
      * The length of an epoch in seconds.
      *
-     * @return uint The length of the epoch in seconds
+     * @return The length of the epoch in seconds
      */
     function EPOCH_LENGTH() external returns (uint);
 

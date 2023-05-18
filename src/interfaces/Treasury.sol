@@ -151,10 +151,5 @@ interface ITreasury {
     /**
      * ..
      */
-    function mercSweeper() external returns (address);
-
-    /**
-     * ..
-     */
     function setMercenarySweeper(address _mercSweeper) external;
 }

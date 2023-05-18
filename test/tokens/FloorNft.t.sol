@@ -29,10 +29,8 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
 
         // The majority of our tests will use, or rely on, the default minting
         // approach. So for the purpose of the majority of tests we will, by
-        // default, disable presale and whitelist functionality. These can be
-        // enabled again for specific tests.
+        // default, pause minting. These can be enabled again for specific tests.
         floorNft.setPaused(false);
-        floorNft.setPresale(false);
 
         // Set some of our test users
         (alice, bob, validStaker, locker) = (users[0], users[1], users[2], users[3]);
@@ -84,35 +82,9 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         floorNft.mint{value: 0.05 ether}(1);
     }
 
-    function test_CannotMintWhenSaleIsNotActive() public {
-        floorNft.setPresale(true);
-
-        vm.expectRevert('Sale is not active');
-        floorNft.mint{value: 0.05 ether}(1);
-    }
-
     function test_CanWhitelistMint() public {
-        // Pause our contract for the first test
-        floorNft.setPaused(true);
-
         // Set our Merkle tree that has our Alice address added, but not Bob :(
         floorNft.setMerkleRoot(hex'e9444147f02cc757d548f09d59c1486c68143c744a7b8d58bffeef39c6259a8f');
-
-        // Try and mint with Alice. This will fail as minting is paused
-        vm.expectRevert('The contract is paused');
-        floorNft.whitelistMint(
-            _setBytesArray(
-                [
-                    hex'972a69aadb9fb2dd5e3d4936ac6c01ebf152fc475a5f13a2ba0c5cf039d11065',
-                    hex'259d2aa12da7bc2037a7ccbee4dfac71ae56c2436cbbc918d8a29d98c51a488e',
-                    hex'79cbfa017bce7e8fcd50afc8d762a758ca9d1836f38d433da5503d1c4bcb898b',
-                    hex'c580fc92ea18e6d170b1b05e0d812075c6e945c64493edede0cab8f0c4a89c2f'
-                ]
-            )
-        );
-
-        // Unpause the contract and repeat the call
-        floorNft.setPaused(false);
 
         vm.startPrank(alice);
         floorNft.whitelistMint(
@@ -264,14 +236,6 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         assertEq(floorNft.paused(), true);
         floorNft.setPaused(false);
         assertEq(floorNft.paused(), false);
-    }
-
-    function test_CanSetPresale() public {
-        assertEq(floorNft.presale(), false);
-        floorNft.setPresale(true);
-        assertEq(floorNft.presale(), true);
-        floorNft.setPresale(false);
-        assertEq(floorNft.presale(), false);
     }
 
     function test_CanWithdrawFundsFromContract() public {

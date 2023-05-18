@@ -168,8 +168,15 @@ contract NftStakingNFTXV2 is INftStakingStrategy, Ownable {
 
         // Transfer our remaining portion to the user
         if (remainingPortionToUnstake != 0) {
-            // We minus 1 from the amount sent due to a small rounding error in NFTX calculations
-            IERC20(underlyingTokenMapping[_collection]).transfer(recipient, remainingPortionToUnstake - 1);
+            // Get our held underlying balance and then find the max between the two
+            uint underlyingBalance = IERC20(underlyingTokenMapping[_collection]).balanceOf(address(this));
+            if (underlyingBalance < remainingPortionToUnstake) {
+                // We minus variable dust from the amount sent due to a small rounding
+                // error in NFTX calculations.
+                remainingPortionToUnstake = underlyingBalance;
+            }
+
+            IERC20(underlyingTokenMapping[_collection]).transfer(recipient, remainingPortionToUnstake - 2);
         }
 
         unchecked {

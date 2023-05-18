@@ -100,7 +100,7 @@ contract EpochManagerTest is FloorTest {
         );
 
         // Create our {NewCollectionWars} contract
-        newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(floorNft), address(treasury), address(veFloor));
+        newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(veFloor));
 
         // Deploy our {VoteMarket} contract
         voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
@@ -134,6 +134,9 @@ contract EpochManagerTest is FloorTest {
 
         // Set our manual sweeper
         manualSweeper = address(new ManualSweeper());
+
+        // Give our epoch manager permission to take a strategy factory snapshot
+        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(epochManager));
     }
 
     /**

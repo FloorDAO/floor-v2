@@ -14,7 +14,6 @@ contract DeployFloorWarsContracts is DeploymentScript {
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
-        address floorNft = requireDeployment('FloorNft');
         address treasury = requireDeployment('Treasury');
         address vaultFactory = requireDeployment('VaultFactory');
         address veFloorStaking = requireDeployment('VeFloorStaking');
@@ -22,8 +21,6 @@ contract DeployFloorWarsContracts is DeploymentScript {
 
         NewCollectionWars newCollectionWars = new NewCollectionWars(
             authorityControl,   // address _authority
-            floorNft,           // address _floorNft
-            treasury,           // address _treasury
             voteStaking         // address _veFloor
         );
 

@@ -323,8 +323,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
+        vm.stopPrank();
+
         // We can now call the strategy to withdraw an NFT token and some partial token
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc721.selector, 1, 0.5 ether));
+
+        vm.startPrank(erc721Holder);
 
         // Our token holdings should be reduced to cover the withdrawal, and also show that the
         // {Treasury} now holds the expected amount of underlying token. This drops 1 wei due to
@@ -403,8 +407,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // after our lock would have expired.
         vm.warp(block.timestamp + 10 days);
 
+        vm.stopPrank();
+
         // We can now call the strategy to withdraw an NFT token and some partial token
         strategyFactory.withdraw(_strategyId, abi.encodeWithSelector(_strategy.withdrawErc721.selector, 1, 0.5 ether));
+
+        vm.startPrank(erc1155Holder);
 
         // Our token holdings should be reduced to cover the withdrawal, and also show that the
         // {Treasury} now holds the expected amount of underlying token. This drops 1 wei due to
@@ -429,6 +437,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // We deposit 8 vToken
         IERC20(strategy.underlyingToken()).approve(address(strategy), 8 ether);
         strategy.depositErc20(8 ether);
+
+        vm.stopPrank();
 
         // Our 8 vToken deposit gives us 4.77 xToken
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
@@ -498,8 +508,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Confirm our closing strategy data is correct
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
-
-        vm.stopPrank();
     }
 
     function test_CanGetValidTokens() public {

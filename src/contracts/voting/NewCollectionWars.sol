@@ -10,8 +10,9 @@ import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Re
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+import {NewCollectionWarOptions} from '@floor/voting/NewCollectionWarOptions.sol';
 
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 
@@ -39,13 +40,13 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     FloorWar[] public wars;
 
     /// Stores the address of the collection that won a Floor War
-    mapping(uint => address) internal floorWarWinner;
+    mapping(uint => address) public floorWarWinner;
 
     /// Stores the unlock epoch of a collection in a floor war
-    mapping(bytes32 => uint) internal collectionEpochLock;
+    mapping(bytes32 => uint) public collectionEpochLock;
 
     /// Stores if a collection has been flagged as ERC1155
-    mapping(address => bool) internal is1155;
+    mapping(address => bool) public is1155;
 
     /// Stores the number of votes a user has placed against a war collection
     mapping(bytes32 => uint) public userVotes;
@@ -56,10 +57,6 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     /// Stores the total number of votes against a war collection
     mapping(bytes32 => uint) public collectionVotes;
     mapping(bytes32 => uint) public collectionNftVotes;
-
-    /// Stores an array of tokens staked against a war collection
-    /// @dev (War -> Collection -> Price) => Option[]
-    mapping(bytes32 => Option[]) internal stakedTokens;
 
     /// Stores which collection the user has cast their votes towards to allow for
     /// reallocation on subsequent votes if needed.
@@ -118,7 +115,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
 
         // Ensure the collection is part of the current war
-        require(_isCollectionInWar(warCollection), 'Invalid collection');
+        require(this.isCollectionInWar(warCollection), 'Invalid collection');
 
         // Check if user has already voted. If they have, then we first need to
         // remove this existing vote before reallocating.
@@ -148,12 +145,15 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * @param collection The collection to cast the vote against
      * @param votingPower The voting power added from the option creation
      */
-    function optionVote(address sender, address collection, uint votingPower) external {
+    function optionVote(address sender, uint war, address collection, uint votingPower) external {
         // Ensure that only our {NewCollectionWarOptions} contract is calling this function
-        require(msg.sender == address(newCollectionWarOptions));
+        require(msg.sender == address(newCollectionWarOptions), 'Invalid caller');
+
+        // Confirm that we are voting for the current war only
+        require(war == currentWar.index, 'Invalid war');
 
         // Create our war collection hash
-        bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
+        bytes32 warCollection = keccak256(abi.encode(war, collection));
 
         unchecked {
             // Increment our vote counters
@@ -162,7 +162,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         }
 
         // Emit our event for stalkability
-        emit NftVoteCast(sender, collection, collectionVotes[warCollection], collectionNftVotes[warCollection]);
+        emit NftVoteCast(sender, war, collection, collectionVotes[warCollection], collectionNftVotes[warCollection]);
     }
 
     /**
@@ -170,7 +170,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      *
      * @dev This is used when a user unstakes their floor
      *
-     * @param The address of the account that is having their vote revoked
+     * @param account The address of the account that is having their vote revoked
      */
     function revokeVotes(address account) external onlyRole(VOTE_MANAGER) {
         // Ensure a war is currently running
@@ -276,7 +276,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * @dev We can't action this in one single call as we will need information about
      * the underlying NFTX token as well.
      *
-     * @return The collection address that received the most votes
+     * @return highestVoteCollection The collection address that received the most votes
      */
     function endFloorWar() external onlyEpochManager returns (address highestVoteCollection) {
         // Ensure that we have a current war running
@@ -328,7 +328,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
 
         // Ensure that the collection specified is valid
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
-        require(_isCollectionInWar(warCollection), 'Invalid collection');
+        require(this.isCollectionInWar(warCollection), 'Invalid collection');
 
         // Update the floor price of the collection
         uint oldFloorPrice = collectionSpotPrice[warCollection];
@@ -369,7 +369,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     /**
      * Check if a collection is in a FloorWar.
      */
-    function _isCollectionInWar(bytes32 warCollection) internal view returns (bool) {
+    function isCollectionInWar(bytes32 warCollection) external view returns (bool) {
         return collectionSpotPrice[warCollection] != 0;
     }
 }

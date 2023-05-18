@@ -4,33 +4,6 @@ pragma solidity ^0.8.0;
 
 interface INewCollectionWars {
     /**
-     * Stores information about a user's option.
-     */
-    struct Option {
-        uint tokenId; // 256 / 256
-        address user; // 416 / 512
-        uint96 amount; // 512 / 512
-    }
-
-    /**
-     * Stores information about the NFT that has been staked. This allows either
-     * the DAO to exercise the NFT, or for the initial staker to reclaim it.
-     */
-    struct StakedCollectionERC721 {
-        address staker; // 160 / 256
-        uint56 exercisePercent; // 216 / 256
-    }
-
-    /**
-     * ..
-     */
-    struct StakedCollectionERC1155 {
-        address staker; // 160 / 256
-        uint56 exercisePercent; // 216 / 256
-        uint40 amount; // 256 / 256
-    }
-
-    /**
      * For each FloorWar that is created, this structure will be created. When
      * the epoch ends, the FloorWar will remain and will be updated with information
      * on the winning collection and the votes attributed to each collection.
@@ -48,7 +21,7 @@ interface INewCollectionWars {
     event VoteRevoked(address sender, address collection, uint collectionVotes);
 
     /// Sent when a collection NFT is staked to vote
-    event NftVoteCast(address sender, address collection, uint index, uint collectionVotes, uint collectionNftVotes);
+    event NftVoteCast(address sender, uint war, address collection, uint collectionVotes, uint collectionNftVotes);
 
     /// Sent when a Collection Addition War is created
     event CollectionAdditionWarCreated(uint epoch, address[] collections, uint[] floorPrices);
@@ -76,6 +49,15 @@ interface INewCollectionWars {
     /// reallocation on subsequent votes if needed.
     function userCollectionVote(bytes32) external view returns (address);
 
+    /// Stores the address of the collection that won a Floor War
+    function floorWarWinner(uint _epoch) external view returns (address);
+
+    /// Stores if a collection has been flagged as ERC1155
+    function is1155(address) external returns(bool);
+
+    /// Stores the unlock epoch of a collection in a floor war
+    function collectionEpochLock(bytes32) external returns(uint);
+
     /**
      * The total voting power of a user, regardless of if they have cast votes
      * or not.
@@ -101,28 +83,23 @@ interface INewCollectionWars {
     function vote(address collection) external;
 
     /**
-     * ..
+     * Allows an approved contract to submit option-related votes against a collection
+     * in the current war.
+     *
+     * @param sender The address of the user that staked the token
+     * @param collection The collection to cast the vote against
+     * @param votingPower The voting power added from the option creation
+     */
+    function optionVote(address sender, uint war, address collection, uint votingPower) external;
+
+    /**
+     * Revokes a user's current votes in the current war.
+     *
+     * @dev This is used when a user unstakes their floor
+     *
+     * @param account The address of the account that is having their vote revoked
      */
     function revokeVotes(address account) external;
-
-    /**
-     * Allows the user to deposit their ERC721 or ERC1155 into the contract and
-     * gain additional voting power based on the floor price attached to the
-     * collection in the FloorWar.
-     */
-    function createOption(address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents)
-        external;
-
-    /**
-     * If the FloorWar has not yet ended, or the NFT timelock has expired, then the
-     * user reclaim the staked NFT and return it to their wallet.
-     *
-     *  start    current
-     *  0        0         < locked
-     *  0        1         < locked if won
-     *  0        2         < free
-     */
-    function reclaimOptions(uint war, address collection, uint56[] calldata exercisePercents, uint[][] calldata indexes) external;
 
     /**
      * Allow an authorised user to create a new floor war to start with a range of
@@ -133,7 +110,11 @@ interface INewCollectionWars {
         returns (uint);
 
     /**
-     * ..
+     * Sets a scheduled {FloorWar} to be active.
+     *
+     * @dev This function is called by the {EpochManager} when a new epoch starts
+     *
+     * @param index The index of the {FloorWar} being started
      */
     function startFloorWar(uint index) external;
 
@@ -151,24 +132,23 @@ interface INewCollectionWars {
     function endFloorWar() external returns (address highestVoteCollection);
 
     /**
-     * Allows an approved user to exercise the staked NFT at the price that it was
-     * listed at by the staking user.
-     */
-    function exerciseOptions(uint war, uint amount) external payable;
-
-    /**
-     * Determines the voting power given by a staked NFT based on the requested
-     * exercise price and the spot price.
-     */
-    function nftVotingPower(address collection, uint spotPrice, uint exercisePercent) external view returns (uint);
-
-    /**
-     * ..
+     * Allows us to update our collection floor prices if we have seen a noticable difference
+     * since the start of the epoch. This will need to be called for this reason as the floor
+     * price of the collection heavily determines the amount of voting power awarded when
+     * creating an option.
      */
     function updateCollectionFloorPrice(address collection, uint floorPrice) external;
 
     /**
-     * ..
+     * Allows our options contract to be updated.
+     *
+     * @param _contract The new contract to use
      */
-    function currentWarIndex() external view returns (uint);
+    function setOptionsContract(address _contract) external;
+
+    /**
+     * Check if a collection is in a FloorWar.
+     */
+    function isCollectionInWar(bytes32 warCollection) external view returns (bool);
+
 }
