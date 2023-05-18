@@ -31,9 +31,6 @@ contract CharmDeposit is IAction {
         address vault;
     }
 
-    /**
-     * ..
-     */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct and call our internal execute logic
         ActionRequest memory request = abi.decode(_request, (ActionRequest));

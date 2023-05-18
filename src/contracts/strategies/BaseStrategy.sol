@@ -8,7 +8,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
-import {InsufficientAmount} from '../utils/Errors.sol';
+import {InsufficientAmount} from '@floor/utils/Errors.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
@@ -23,13 +23,10 @@ error ZeroAmountReceivedFromWithdraw();
 /// @param position The amount available to withdraw for the caller
 error InsufficientPosition(address token, uint amount, uint position);
 
-/// If the contract was unable to transfer tokens when registering the mint
-/// @param recipient The recipient of the token transfer
-/// @param amount The amount requested to be transferred
-error UnableToTransferTokens(address recipient, uint amount);
 
 /**
- * ..
+ * Provides underlying logic for all strategies that handles common logic. This includes
+ * storing the total pending rewards and taking snapshots to maintain epoch earned yield.
  */
 abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausable, ReentrancyGuard {
     /**
@@ -68,8 +65,11 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     /**
      * Gets a read of new yield since the last call. This is what can be called when
      * the epoch ends to determine the amount generated within the epoch.
+     *
+     * @return tokens_ Tokens that have been generated as yield
+     * @return amounts_ The amount of yield generated for the corresponding token
      */
-    function snapshot() external /* TODO: onlyRole */ returns (address[] memory tokens_, uint[] memory amounts_) {
+    function snapshot() external onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
         // Get all the available tokens
         (tokens_, amounts_) = this.totalRewards();
 
@@ -90,8 +90,6 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
                 ++i;
             }
         }
-
-        // TODO: emit Event();
     }
 
     /**
@@ -122,9 +120,9 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
      * Extracts all rewards from third party and moves it to a recipient. This should
      * only be called by a specific action.
      *
-     * @dev This _should_ always be imposed to be the {Treasury} by the {StrategyFactory}.
+     * @dev The recipient _should_ always be set to the {Treasury} by the {StrategyFactory}.
      */
-    function harvest(address /* _recipient */ ) external virtual /* TODO: onlyRole */ {
+    function harvest(address /* _recipient */) external virtual onlyOwner {
         revert('Not implemented');
     }
 

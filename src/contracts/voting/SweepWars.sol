@@ -36,10 +36,22 @@ error InsufficientVotesToRevoke(uint amount, uint available);
 error SampleSizeCannotBeZero();
 
 /**
- * ..
+ * Each epoch, unless we have set up a {NewCollectionWar} to run, then a sweep war will
+ * take place. This contract will handle the voting and calculations for these wars.
+ *
+ * When a Sweep War epoch ends, then the `snapshot` function will be called that finds the
+ * top _x_ collections and their relative sweep amounts based on the votes cast.
  */
 contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
-    /// ..
+    /**
+     * Each collection has a stored struct that represents the current vote power, burn
+     * rate and the last epoch that a vote was cast. These three parameters can be combined
+     * to calculate current vote power at any epoch with minimal gas usage.
+     *
+     * @param power The amount of vote power assigned to a collection
+     * @param powerBurn The amount of vote power lost per epoch
+     * @param lastVoteEpoch The last epoch that a vote was placed for this collection
+     */
     struct CollectionVote {
         uint power;
         uint powerBurn;
@@ -185,7 +197,12 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     }
 
     /**
-     * ..
+     * Gets the number of votes for a collection at a specific epoch.
+     *
+     * @param _collection The collection to check vote amount for
+     * @param _baseEpoch The epoch at which to get vote count
+     *
+     * @return The number of votes at the epoch specified
      */
     function votes(address _collection, uint _baseEpoch) public view returns (uint votes_) {
         CollectionVote memory collectionVote = collectionVotes[_collection];
@@ -413,7 +430,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     }
 
     /**
-     * ..
+     * Allows our {NftStaking} contract to be updated.
+     *
+     * @param _nftStaking The new {NftStaking} contract address
      */
     function setNftStaking(address _nftStaking) external onlyRole(VOTE_MANAGER) {
         nftStaking = INftStaking(_nftStaking);

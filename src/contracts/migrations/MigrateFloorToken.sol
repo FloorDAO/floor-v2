@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {FLOOR} from '../tokens/Floor.sol';
+import {FLOOR} from '@floor/tokens/Floor.sol';
 
 import {IgFLOOR} from '@floor-interfaces/legacy/IgFLOOR.sol';
 import {IMigrateFloorToken} from '@floor-interfaces/migrations/MigrateFloorToken.sol';

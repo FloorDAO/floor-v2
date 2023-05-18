@@ -14,9 +14,7 @@ import {IUniswapV2Router01} from '@floor-interfaces/uniswap/IUniswapV2Router01.s
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 /**
- * ..
- *
- * @author Twade
+ * Allows liquidity to be removed from a Sushiswap position.
  */
 contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     using TokenUtils for address;
@@ -24,24 +22,25 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     struct ActionRequest {
         address tokenA;
         address tokenB;
+        address to;
         uint liquidity;
         uint amountAMin;
         uint amountBMin;
-        address to;
         uint deadline;
     }
 
-    /// ..
+    /// WETH token address
     address internal constant WETH_TOKEN = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    /// ..
-    IUniswapV2Router01 uniswapRouter;
-
-    /// ..
-    IUniswapV2Factory uniswapFactory;
+    /// Uniswap contract references
+    IUniswapV2Router01 public immutable uniswapRouter;
+    IUniswapV2Factory public immutable uniswapFactory;
 
     /**
-     * ..
+     * Sets up our immutable Sushiswap contract references.
+     *
+     * @param _uniswapRouter
+     * @param _uniswapFactory
      */
     constructor(address _uniswapRouter, address _uniswapFactory) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
@@ -49,7 +48,7 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Removes liquidity to the Sushiswap pool.
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
@@ -74,8 +73,4 @@ contract SushiswapRemoveLiquidity is IAction, Ownable, Pausable {
         return 0;
     }
 
-    /**
-     * ..
-     */
-    receive() external payable {}
 }

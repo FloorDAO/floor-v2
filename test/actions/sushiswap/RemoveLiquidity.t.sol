@@ -53,13 +53,13 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
     function setUp() public {
         // Set up a liquidity placement so our user has something. This functionality is
         // already tested in another test suite so we can rely on it to work.
-        tokenPosition = addAction.execute(abi.encode(TOKEN_A, TOKEN_B, 1 ether, 1 ether, 0, 0, address(this), block.timestamp + 3600));
+        tokenPosition = addAction.execute(abi.encode(TOKEN_A, TOKEN_B, address(this), 1 ether, 1 ether, 0, 0, block.timestamp + 3600));
 
         // Set up an ETH liquidity placement so our user has something. This functionality
         // is already tested in another test suite so we can rely on it to work. We can deposit
         // in ETH and it is automatically put into a WETH position.
         tokenEthPosition =
-            addAction.execute{value: 1 ether}(abi.encode(TOKEN_A, ETH_TOKEN, 1 ether, 1 ether, 0, 0, address(this), block.timestamp + 3600));
+            addAction.execute{value: 1 ether}(abi.encode(TOKEN_A, ETH_TOKEN, address(this), 1 ether, 1 ether, 0, 0, block.timestamp + 3600));
     }
 
     /**
@@ -90,7 +90,7 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
      * ..
      */
     function _removeLiquidity(address tokenA, address tokenB, uint liquidity) internal returns (uint) {
-        return action.execute(abi.encode(tokenA, tokenB, liquidity, 0, 0, address(this), block.timestamp + 3600));
+        return action.execute(abi.encode(tokenA, tokenB, address(this), liquidity, 0, 0, block.timestamp + 3600));
     }
 
     receive() external payable {

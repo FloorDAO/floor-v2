@@ -6,7 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '@floor/utils/Errors.sol';
 
 import {BaseStrategy, InsufficientPosition, ZeroAmountReceivedFromWithdraw} from '@floor/strategies/BaseStrategy.sol';
 
@@ -22,6 +22,9 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
  * The contract will extend the {BaseStrategy} to ensure it conforms to the required
  * logic and functionality. Only functions that have varied internal logic have been
  * included in this interface with function documentation to explain.
+ *
+ * @dev This contract does not support PUNK tokens. If a strategy needs to be established
+ * then it should be done through another, bespoke contract.
  *
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
@@ -143,7 +146,6 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Pull tokens in
         uint tokensLength = tokenIds.length;
         for (uint i; i < tokensLength;) {
-            // TODO: Punks?
             IERC721(assetAddress).transferFrom(msg.sender, address(this), tokenIds[i]);
             unchecked {
                 ++i;

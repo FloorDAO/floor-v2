@@ -37,14 +37,19 @@ contract CowSwapCreateOrder is IAction, ICoWSwapOnchainOrders, Pausable {
     /// Encoded app data to recognise our transactions
     bytes32 public constant APP_DATA = keccak256('floordao');
 
-    /// .. 0x9008d19f58aabd9ed0d60971565aa8510560ab41
+    /// Stores the external {CowSwapSettlement} contract reference
+    /// @dev Mainnet implementation: 0x9008d19f58aabd9ed0d60971565aa8510560ab41
     ICoWSwapSettlement public immutable settlement;
 
     /// Domain separator taked from the settlement contract
     bytes32 public immutable domainSeparator;
 
+    /// Constant address of the WETH token
     address public constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    /**
+     * Sets up our {CowSwapSettlement} contract reference
+     */
     constructor(address settlement_) {
         settlement = ICoWSwapSettlement(settlement_);
         domainSeparator = settlement.domainSeparator();

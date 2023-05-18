@@ -13,9 +13,7 @@ import {IUniswapV2Router01} from '@floor-interfaces/uniswap/IUniswapV2Router01.s
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 /**
- * ..
- *
- * @author Twade
+ * Allows liquidity to be added to a Sushiswap position.
  */
 contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
     using TokenUtils for address;
@@ -23,34 +21,38 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
     struct ActionRequest {
         address tokenA;
         address tokenB;
+        address to;
         uint amountADesired;
         uint amountBDesired;
         uint amountAMin;
         uint amountBMin;
-        address to;
         uint deadline;
     }
 
-    /// ..
+    /// ETH token address
     address internal constant ETH_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    /// ..
-    IUniswapV2Router01 uniswapRouter;
+    /// Uniswap contract references
+    IUniswapV2Router01 public immutable uniswapRouter;
 
     /**
-     * ..
+     * Sets up our immutable Sushiswap contract references.
+     *
+     * @param _uniswapRouter
      */
     constructor(address _uniswapRouter) {
         uniswapRouter = IUniswapV2Router01(_uniswapRouter);
     }
 
     /**
-     * ..
+     * Adds liquidity to the Sushiswap pool, with logic varying if one of the tokens
+     * is specified to be ETH, rather than an ERC20.
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
+        // Check if a requested token is ETH
         if (request.tokenA == ETH_TOKEN || request.tokenB == ETH_TOKEN) {
             require(request.tokenA != ETH_TOKEN, 'ETH token must be token B');
             return _addEthLiquidity(request);
@@ -117,7 +119,7 @@ contract SushiswapAddLiquidity is IAction, Ownable, Pausable {
     }
 
     /**
-     * ..
+     * Allows the contract to receive ETH as an intermediary.
      */
     receive() external payable {}
 }

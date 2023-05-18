@@ -10,14 +10,15 @@ import {LlamapayRouter} from '@floor/actions/llamapay/LlamapayRouter.sol';
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
- * ..
+ * Makes a deposit into a Llamapay pool. This subsidises salary and other outgoing
+ * payments to the team and external third parties.
  */
 contract LlamapayDeposit is IAction, Pausable {
-    /// ..
+    /// Our internally deployed Llamapay router
     LlamapayRouter public immutable llamapayRouter;
 
     /**
-     * Store our required information to action a swap.
+     * Store our required information to action a deposit.
      */
     struct ActionRequest {
         address token;
@@ -33,7 +34,7 @@ contract LlamapayDeposit is IAction, Pausable {
     }
 
     /**
-     * ..
+     * Executes our token deposit against our Llamapay router.
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into our struct

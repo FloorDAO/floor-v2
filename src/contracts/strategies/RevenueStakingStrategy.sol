@@ -6,7 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '../utils/Errors.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '@floor/utils/Errors.sol';
 
 /**
  * Supports manual staking of "yield" from an authorised sender. This allows manual

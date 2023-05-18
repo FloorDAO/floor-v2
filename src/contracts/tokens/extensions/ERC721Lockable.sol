@@ -40,13 +40,6 @@ abstract contract ERC721Lockable is ERC721, Ownable {
     address[] public approvedStakers;
 
     /**
-     * Returns a list of tokens that the user has staked.
-     */
-    // function stakedBy(address user) external view returns (uint[] memory) {
-    // TODO: ..
-    // }
-
-    /**
      * Checks if the token ID is currently locked, based on the lock timestamp.
      */
     function isLocked(uint tokenId) external view returns (bool) {

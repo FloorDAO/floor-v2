@@ -17,7 +17,7 @@ contract LlamapayCreateStream is IAction, Pausable {
     LlamapayRouter public immutable llamapayRouter;
 
     /**
-     * Store our required information to action a swap.
+     * Store our required information to action a stream creation.
      */
     struct ActionRequest {
         address to;

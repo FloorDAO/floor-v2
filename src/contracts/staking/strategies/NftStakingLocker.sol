@@ -20,7 +20,7 @@ import {INftStakingStrategy} from '@floor-interfaces/staking/strategies/NftStaki
  */
 
 contract NftStakingLocker is INftStakingStrategy, Ownable {
-    /// ..
+    /// Our {NftStakingStrategy} contract that will be used for staked tokens
     address internal immutable nftStaking;
 
     /// Map collection => user => boolean

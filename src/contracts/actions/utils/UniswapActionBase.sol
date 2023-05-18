@@ -53,7 +53,11 @@ abstract contract UniswapActionBase is IAction, IERC721Receiver, Ownable, Pausab
     }
 
     /**
-     * ..
+     * Flash loans a Uniswap ERC token, specified by the ID passed, to this contract so
+     * that it can undertake additional logic. This is required as Uniswap checks that the
+     * calling contract owns the token as a permissions system.
+     *
+     * @param The token ID of the Uniswap token
      */
     modifier requiresUniswapToken(uint tokenId) {
         // Call to safeTransfer will trigger `onERC721Received` which must return

@@ -8,9 +8,6 @@ import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
  * Sends token to the pair in exchange for any `numNFTs` NFTs.
- *
- * @dev To compute the amount of token to send, call bondingCurve.getBuyInfo. This swap
- * function is meant for users who are ID agnostic.
  */
 contract SudoswapBuyNftsWithEth is IAction {
     /// Temporary store for a fallback ETH recipient
@@ -19,14 +16,11 @@ contract SudoswapBuyNftsWithEth is IAction {
     /**
      * Store our required information to action a buy.
      *
+     * @param pair The address of the Sudoswap token pair
      * @param numNFTs The number of NFTs to purchase
      * @param maxExpectedTokenInput The maximum acceptable cost from the sender. If the actual
      * amount is greater than this value, the transaction will be reverted.
      * @param nftRecipient The recipient of the NFTs
-     * @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-     * ETH pairs.
-     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this
-     * address. Not used for ETH pairs.
      */
     struct ActionRequest {
         address pair;
@@ -36,7 +30,7 @@ contract SudoswapBuyNftsWithEth is IAction {
     }
 
     /**
-     * TODO: ...
+     * Buys one or more NFTs from a Sudoswap pool using the paired token.
      *
      * @param _request Packed bytes that will map to our `ActionRequest` struct
      *
@@ -87,8 +81,7 @@ contract SudoswapBuyNftsWithEth is IAction {
     }
 
     receive() external payable {
-        if (ethRecipient != address(0)) {
-            payable(ethRecipient).transfer(msg.value);
-        }
+        require(ethRecipient != address(0), 'Invalid ETH recipient');
+        payable(ethRecipient).transfer(msg.value);
     }
 }

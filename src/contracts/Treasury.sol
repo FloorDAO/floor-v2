@@ -35,7 +35,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     uint public minSweepAmount;
 
     /// Stores our Mercenary sweeper contract address
-    address public mercSweeper;
+    IMercenarySweeper public mercSweeper;
 
     /// Stores a list of approved sweeper contracts
     mapping(address => bool) public approvedSweepers;
@@ -299,9 +299,10 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      */
     function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep, bytes calldata data, uint mercSweep) internal {
         uint msgValue;
+        uint collectionsLength = epochSweep.collections.length;
 
         // Ensure we have a valid sweep index
-        require(epochSweep.collections.length != 0, 'No collections to sweep');
+        require(collectionsLength != 0, 'No collections to sweep');
 
         // Confirm that our sweeper has been approved
         require(approvedSweepers[sweeper], 'Sweeper contract not approved');
@@ -316,14 +317,19 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
             msgValue = epochSweep.amounts[0];
         } else {
-            // Find the total amount to send to the sweeper and transfer it before the call
-            uint length = epochSweep.collections.length;
-
-            for (uint i; i < length;) {
-                msgValue += epochSweep.amounts[i]; // TODO: If this is COLLECTION_ADDITION, only ever a single.
-                unchecked {
-                    ++i;
-                }
+            // If this is COLLECTION_ADDITION, we will only ever a single collection, so
+            // no need for a loop.
+            if (epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION) {
+                msgValue = epochSweep.amounts[0];
+            } else {
+                // Find the total amount to send to the sweeper and transfer it before the call
+                uint i;
+                do {
+                    msgValue += epochSweep.amounts[i];
+                    unchecked {
+                        ++i;
+                    }
+                } while (i < collectionsLength);
             }
         }
 
@@ -336,7 +342,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             // Fire our request to our mercenary sweeper contract, which will return the
             // amount actually spent on the sweep. We should only have a single value in
             // the collections and amounts arrays, but the sweeper will handle this.
-            uint spend = IMercenarySweeper(mercSweeper).execute{value: mercSweep}(epochManager.collectionEpochs(epochIndex), mercSweep);
+            uint spend = mercSweeper.execute{value: mercSweep}(epochManager.collectionEpochs(epochIndex), mercSweep);
 
             // Reduce the remaining message value sent to the subsequent sweeper
             unchecked {
@@ -362,14 +368,20 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * ..
+     * Allows the mercenary sweeper contract to be updated.
+     *
+     * @param _mercSweeper the new {IMercenarySweeper} contract
      */
     function setMercenarySweeper(address _mercSweeper) external onlyRole(TREASURY_MANAGER) {
-        mercSweeper = _mercSweeper;
+        mercSweeper = IMercenarySweeper(_mercSweeper);
     }
 
     /**
-     * ..
+     * Allows a sweeper contract to be approved or uapproved. This must be done before
+     * a contract can be referenced in the `sweepEpoch` and `resweepEpoch` calls.
+     *
+     * @param _sweeper The address of the sweeper contract
+     * @param _bool True to approve, False to unapprove
      */
     function approveSweeper(address _sweeper, bool _approved) external onlyRole(TREASURY_MANAGER) {
         approvedSweepers[_sweeper] = _approved;

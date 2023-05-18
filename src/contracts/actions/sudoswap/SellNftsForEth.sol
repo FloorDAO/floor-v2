@@ -9,7 +9,7 @@ import {LSSVMPair} from '@sudoswap/LSSVMPair.sol';
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 
 /**
- * Sends a set of NFTs to the pair in exchange for token
+ * Sends a set of NFTs to the pair in exchange for token.
  *
  * @dev To compute the amount of token to that will be received, call
  * `bondingCurve.getSellInfo`.
@@ -18,14 +18,10 @@ contract SudoswapSellNftsForEth is IAction {
     /**
      * Store our required information to action a sell.
      *
-     * @param nftIds The list of IDs of the NFTs to sell to the pair
+     * @param pair The address of the Sudoswap token pair
+     * @param nftIds The IDs of the pair NFT tokens to be sent
      * @param minExpectedTokenOutput The minimum acceptable token received by the sender. If
      * the actual amount is less than this value, the transaction will be reverted.
-     * @param tokenRecipient The recipient of the token output
-     * @param isRouter True if calling from LSSVMRouter, false otherwise. Not used for
-     * ETH pairs.
-     * @param routerCaller If isRouter is true, ERC20 tokens will be transferred from this
-     * address. Not used for ETH pairs.
      */
     struct ActionRequest {
         address pair;
@@ -34,11 +30,11 @@ contract SudoswapSellNftsForEth is IAction {
     }
 
     /**
-     * TODO: ...
+     * Sells one or more NFTs into a Sudoswap pool for the paired token.
      *
      * @param _request Packed bytes that will map to our `ActionRequest` struct
      *
-     * @return uint The amount of ETH or ERC20 spent on the execution
+     * @return uint The amount of ETH or ERC20 received in exchange for the NFTs
      */
     function execute(bytes calldata _request) public payable returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly

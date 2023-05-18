@@ -21,7 +21,8 @@ contract GemSweep is IAction, IERC721Receiver, Ownable, Pausable {
     /// Internal store of GemSwap contract
     address GEM_SWAP;
 
-    /// @notice Emitted when ..
+    /// @notice Emitted when a successful sweep takes place, showing the amount of
+    /// ETH spent on the sweep.
     event Sweep(uint ethAmount);
 
     /**

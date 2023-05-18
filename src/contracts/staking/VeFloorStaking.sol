@@ -141,21 +141,28 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     /**
      * @notice Gets the voting power of the provided account
      * @param account The address of an account to get voting power for
-     * @return votingPower The voting power available at the block timestamp
+     * @return votingPower The voting power available at the current epoch
      */
     function votingPowerOf(address account) external view returns (uint) {
         return this.votingPowerAt(account, currentEpoch());
     }
 
     /**
-     * ..
+     * @notice Gets the voting power of the provided account at a specific epoch
+     * @param account The address of an account to get voting power for
+     * @param epoch The epoch at which to check the user's voting power
+     * @return votingPower The voting power available at the epoch
      */
     function votingPowerAt(address account, uint epoch) external view returns (uint) {
         return this.votingPowerOfAt(account, depositors[account].amount, epoch);
     }
 
     /**
-     * ..
+     * @notice Gets the voting power of the provided account at a specific epoch
+     * @param account The address of an account to get voting power for
+     * @param amount The amount of voting power the account has
+     * @param epoch The epoch at which to check the user's voting power
+     * @return votingPower The voting power available at the epoch
      */
     function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint) {
         // If the epoch had not started at this point, then we return 0 power
@@ -339,7 +346,10 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     }
 
     /**
-     * ..
+     * Handles our internal logic to process a withdrawal for a depositor.
+     *
+     * @param depositor The structure for the user making the withdrawal
+     * @param balance The amount that the user is trying to withdraw
      */
     function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
@@ -360,7 +370,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     }
 
     /**
-     * ..
+     * Allows our voting contract addresses to be updated.
      */
     function setVotingContracts(address _newCollectionWars, address _sweepWars) external onlyOwner {
         newCollectionWars = INewCollectionWars(_newCollectionWars);
@@ -384,14 +394,21 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     }
 
     /**
-     * ..
+     * Checks if an address is exempt from having to pay early withdrawal fees.
+     *
+     * @param account Address of the account to check
+     *
+     * @return bool True if the user is exempt from early fees, false if not
      */
     function isExemptFromEarlyWithdrawFees(address account) external view returns (bool) {
         return earlyWithdrawFeeExemptions[account];
     }
 
     /**
-     * ..
+     * Allows an account to be exempted from paying early withdraw fees.
+     *
+     * @param account The account to update
+     * @param exempt If the account is to be exempt from fees
      */
     function addEarlyWithdrawFeeExemption(address account, bool exempt) external onlyOwner {
         earlyWithdrawFeeExemptions[account] = exempt;

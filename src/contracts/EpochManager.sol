@@ -71,7 +71,7 @@ contract EpochManager is IEpochManager, Ownable {
     }
 
     /**
-     * Will return if the specified epoch is a collection addition vote.
+     * Will return true if the specified epoch is a collection addition vote.
      *
      * @param epoch The epoch to check
      *

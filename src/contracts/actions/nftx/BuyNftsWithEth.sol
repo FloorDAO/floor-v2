@@ -18,7 +18,7 @@ contract NFTXBuyNftsWithEth is IAction {
     /// The NFTX Marketplace Zap contract
     INFTXMarketplaceZap public immutable marketplaceZap;
 
-    /// ..
+    /// Stores our NFT recipient so that we can hook into safe transfer callbacks
     address private _nftReceiver;
 
     /**
