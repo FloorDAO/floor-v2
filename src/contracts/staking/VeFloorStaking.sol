@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';

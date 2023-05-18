@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
@@ -190,11 +188,6 @@ contract NftStaking is EpochManaged, INftStaking, Pausable {
                 ++i;
             }
         }
-
-        console.log('==');
-        console.log(stakedNft.tokensStaked);
-        console.log(uint(stakedNft.tokensStaked));
-        console.log('==');
 
         // Stake the token into our staking strategy
         nftStakingStrategy.stake(msg.sender, _collection, _tokenId, _amount, _is1155);
