@@ -14,12 +14,8 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract DeployCoreContracts is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
-        address collectionRegistry = requireDeployment('CollectionRegistry');
         address floor = requireDeployment('Floor');
         address treasury = requireDeployment('Treasury');
-
-        // Define our oracle wallet that will vote market bribe attributions
-        address oracleWallet = address(1);
 
         // Deploy our pricing executor, powered by Uniswap
         UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0x1F98431c8aD98523631AE4a59f267346ea31F984, floor);
