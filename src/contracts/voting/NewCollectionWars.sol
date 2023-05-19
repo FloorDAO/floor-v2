@@ -12,9 +12,9 @@ import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
-import {NewCollectionWarOptions} from '@floor/voting/NewCollectionWarOptions.sol';
 
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
+import {INewCollectionWarOptions} from '@floor-interfaces/voting/NewCollectionWarOptions.sol';
 
 /**
  * When a new collection is going to be voted in to the ecosystem, we set up a New Collection
@@ -33,7 +33,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     VeFloorStaking public immutable veFloor;
 
     /// Internal options contract mapping
-    NewCollectionWarOptions public newCollectionWarOptions;
+    INewCollectionWarOptions public newCollectionWarOptions;
 
     /// Stores a collection of all the NewCollectionWars that have been started
     FloorWar public currentWar;
@@ -362,7 +362,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * @param _contract The new contract to use
      */
     function setOptionsContract(address _contract) external onlyOwner {
-        newCollectionWarOptions = NewCollectionWarOptions(_contract);
+        newCollectionWarOptions = INewCollectionWarOptions(_contract);
     }
 
 
