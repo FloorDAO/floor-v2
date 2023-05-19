@@ -1,0 +1,37 @@
+{
+  "name": "floor",
+  "version": "2.0.0",
+  "description": "",
+  "main": "",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "solhint": "./node_modules/.bin/solhint -f table src/**/*.sol src/**/**/*.sol",
+    "solhint:prettier": "./node_modules/.bin/prettier --write src/**/*.sol src/**/**/*.sol",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FloorDAO/floor-v2.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FloorDAO/floor-v2/issues"
+  },
+  "homepage": "https://github.com/FloorDAO/floor-v2#readme",
+  "devDependencies": {
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "chai": "^4.3.7",
+    "dotenv": "^16.0.3",
+    "hardhat": "^2.12.2",
+    "hardhat-gas-reporter": "^1.0.9",
+    "hardhat-preprocessor": "^0.1.5",
+    "prettier": "^2.7.1",
+    "prettier-plugin-solidity": "^1.0.0-rc.1",
+    "solhint": "^3.3.7",
+    "solhint-plugin-prettier": "^0.0.5"
+  }
+}

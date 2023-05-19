@@ -1,0 +1,16 @@
+ds-test/=lib/forge-std/lib/ds-test/src/
+erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
+forge-std/=lib/forge-std/src/
+@openzeppelin/=lib/openzeppelin-contracts/
+@openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/
+@uniswap/=lib/
+@chainlink/=lib/chainlink/
+@murky/=lib/murky/src/
+@solidity-math-utils/=lib/solidity-math-utils/project/contracts/
+@solidity-trigonometry/=lib/solidity-trigonometry/src/
+@1inch/=lib/
+@charmfi/=lib/charmfi-contracts-0.8.0-support/
+@sudoswap/=lib/lssvm/src/
+@floor/=src/contracts/
+@floor-interfaces/=src/interfaces/
+@floor-scripts/=script/
