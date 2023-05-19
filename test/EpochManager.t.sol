@@ -10,7 +10,6 @@ import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
-import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
@@ -53,7 +52,6 @@ contract EpochManagerTest is FloorTest {
     NewCollectionWars newCollectionWars;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
-    VoteMarket voteMarket;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Create our test users
@@ -102,9 +100,6 @@ contract EpochManagerTest is FloorTest {
         // Create our {NewCollectionWars} contract
         newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(veFloor));
 
-        // Deploy our {VoteMarket} contract
-        voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
-
         epochManager = new EpochManager();
         epochManager.setContracts(
             address(collectionRegistry),
@@ -113,14 +108,13 @@ contract EpochManagerTest is FloorTest {
             address(treasury),
             address(strategyFactory),
             address(sweepWars),
-            address(voteMarket)
+            address(0)
         );
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
         sweepWars.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
-        voteMarket.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
