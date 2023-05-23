@@ -72,7 +72,7 @@ contract RevenueStakingStrategy is BaseStrategy {
 
         // Emit our event to followers. We need to emit both a `Deposit` and `Harvest` as this
         // strategy essentially merges the two.
-        emit Deposit(token, amount, amount, msg.sender);
+        emit Deposit(token, amount, msg.sender);
         emit Harvest(token, amount);
 
         // As we have a 1:1 mapping of tokens, we can just return the initial deposit amount
