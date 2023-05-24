@@ -93,14 +93,11 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     mapping(bytes32 => uint) private userAgainstVotes;
     mapping(address => uint) private totalUserVotes;
 
-    struct EpochSnapshot {
-        uint epoch;
-        address[] collections;
-        int[] votes;
-    }
-
-    /// Store a mapping of epochs to snapshot results
-    mapping(uint => EpochSnapshot) public epochSnapshots;
+    /**
+     * Set up a vote cache that is referenced when finding top collections. This is
+     * expected to be overwritten at will.
+     */
+    mapping (address => int) private voteCache;
 
     /**
      * Sets up our contract parameters.
@@ -362,30 +359,20 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         uint remainingTokens = tokens;
 
         // Set up our temporary collections array that will maintain our top voted collections
-        address[] memory collections = _topCollections();
+        (address[] memory collections, uint[] memory collectionVotePowers) = _topCollections(epoch);
         uint collectionsLength = collections.length;
+
+        // Set up our amounts array that will hold the relevant share of the token allocation
+        uint[] memory amounts = new uint[](collectionsLength);
 
         // Iterate through our sample size of collections to get the total number of
         // votes placed that need to be used in distribution calculations to find
         // collection share.
-        int _collectionVotes;
-        uint negativeCollections;
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
-            unchecked {
-                _collectionVotes = votes(collections[i], epoch);
-                if (_collectionVotes > 0) {
-                    totalRelevantVotes += uint(_collectionVotes);
-                } else {
-                    ++negativeCollections;
-                }
-
-                ++i;
-            }
+            totalRelevantVotes += collectionVotePowers[i];
+            unchecked { ++i; }
         }
-
-        collectionsLength -= negativeCollections;
-        uint[] memory amounts = new uint[](collectionsLength);
 
         // Iterate over our collections
         for (uint i; i < collectionsLength;) {
@@ -394,36 +381,16 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             if (i == collectionsLength - 1) {
                 amounts[i] = remainingTokens;
             } else {
-                amounts[i] = (tokens * ((totalRelevantVotes * uint(votes(collections[i], epoch))) / (100 * 1e18))) / (10 * 1e18);
+                amounts[i] = (tokens * ((totalRelevantVotes * collectionVotePowers[i]) / (100 * 1e18))) / (10 * 1e18);
             }
 
             unchecked {
                 remainingTokens -= amounts[i];
-            }
-
-            unchecked {
                 ++i;
             }
         }
 
-        // Create an onchain record of all collections and votes from this epoch
-        storeSnapshotOnchain(epoch);
-
         return (collections, amounts);
-    }
-
-    function storeSnapshotOnchain(uint epoch) internal {
-        address[] memory collectionAddrs = this.voteOptions();
-        uint length = collectionAddrs.length;
-        int[] memory _collectionVotes = new int[](length);
-        for (uint i; i < length;) {
-            // Loop through our currently stored collections and their votes to determine
-            // if we want to shift things out.
-            _collectionVotes[i] = this.votes(collectionAddrs[i], epoch);
-            unchecked { ++i; }
-        }
-
-        epochSnapshots[epoch] = EpochSnapshot(epoch, collectionAddrs, _collectionVotes);
     }
 
     /**
@@ -431,26 +398,66 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * an intensive process for how simple it is, but essentially just orders creates an
      * ordered subset of the top _x_ voted collection addresses.
      *
-     * @return Array of collections
+     * @return Array of collections limited to sample size
+     * @return Respective vote power for each collection
      */
-    function _topCollections() internal view returns (address[] memory) {
+    function _topCollections(uint epoch) internal returns (address[] memory, uint[] memory) {
+        // Get all of our collections
+        address[] memory approvedCollections = this.voteOptions();
+        uint length = approvedCollections.length;
+
+        // We need to see which see if we have enough vote positive collections to fill the
+        // sample size. If we don't, then we replace the sample size with. Whilst in this
+        // loop we can also find vote amounts to save repeatedly calling them later on.
+        uint positiveCollections;
+
+        for (uint i; i < length;) {
+            // Store our vote cache
+            voteCache[approvedCollections[i]] = votes(approvedCollections[i], epoch);
+
+            // If our vote amount is over zero, then we count this to compare against
+            // the sample size later.
+            if (voteCache[approvedCollections[i]] > 0) {
+                unchecked { ++positiveCollections; }
+            }
+
+            unchecked { ++i; }
+        }
+
+        // Check if the number of positive collections is smaller than the sample size. If it
+        // is then we need to reduce the sample size we are looking at to only include positive
+        // ones.
+        uint _sampleSize = (positiveCollections > sampleSize) ? sampleSize : positiveCollections;
+
         // Set up our temporary collections array that will maintain our top voted collections
-        address[] memory collections = new address[](sampleSize);
+        address[] memory collections = new address[](_sampleSize);
+        uint[] memory amounts = new uint[](_sampleSize);
+
+        // If we have a zero value sample size, then we can just return our empty arrays
+        if (_sampleSize == 0) {
+            return (collections, amounts);
+        }
 
         uint j;
         uint k;
 
         // Iterate over all of our approved collections to check if they have more votes than
         // any of the collections currently stored.
-        address[] memory approvedCollections = this.voteOptions();
-        uint length = approvedCollections.length;
         for (uint i; i < length;) {
+            // If we have a vote power that is not positive, then we don't need to process
+            // any further logic as we definitely won't be including the collection in our
+            // response.
+            if (voteCache[approvedCollections[i]] <= 0) {
+                unchecked { ++i; }
+                continue;
+            }
+
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
-            for (j = 0; j < sampleSize && j <= i;) {
+            for (j = 0; j < _sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (collectionVotes[approvedCollections[i]].power > collectionVotes[collections[j]].power) {
+                if (voteCache[approvedCollections[i]] > voteCache[collections[j]]) {
                     break;
                 }
 
@@ -462,22 +469,24 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // If our `j` key is below the `sampleSize` we have requested, then we will
             // need to replace the key with our new collection and all subsequent keys will
             // shift down by 1, and any keys above the `sampleSize` will be deleted.
-            for (k = sampleSize - 1; k > j;) {
+            for (k = _sampleSize - 1; k > j;) {
                 collections[k] = collections[k - 1];
                 unchecked {
                     --k;
                 }
             }
 
-            // Update the new max element
+            // Update the new max element and update the corresponding vote power. We can safely
+            // cast our `amounts` value to a `uint` as it will always be a positive number.
             collections[k] = approvedCollections[i];
+            amounts[k] = uint(voteCache[approvedCollections[i]]);
 
             unchecked {
                 ++i;
             }
         }
 
-        return collections;
+        return (collections, amounts);
     }
 
     /**

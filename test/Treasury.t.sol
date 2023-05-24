@@ -85,15 +85,6 @@ contract TreasuryTest is FloorTest {
 
         // Set up our {EpochManager}
         epochManager = new EpochManager();
-        epochManager.setContracts(
-            address(collectionRegistry),
-            address(0), // Floor Wars not needed for these tests
-            address(pricingExecutorMock),
-            address(treasury),
-            address(strategyFactory),
-            address(sweepWars),
-            address(0) // Vote Market not needed for these tests
-        );
 
         // Set our epoch manager
         sweepWars.setEpochManager(address(epochManager));

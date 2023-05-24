@@ -120,12 +120,7 @@ contract NewCollectionWarsTest is FloorTest {
         treasury.setEpochManager(address(epochManager));
 
         epochManager.setContracts(
-            address(collectionRegistry),
             address(newCollectionWars),
-            address(pricingExecutorMock),
-            address(treasury),
-            address(strategyFactory),
-            address(sweepWars),
             address(0) // Vote Market not needed for these tests
         );
 

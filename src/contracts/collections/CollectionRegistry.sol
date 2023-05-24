@@ -89,6 +89,8 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         }
     }
 
+    /** TODO: ABILITY TO REMOVE COLLECTIONS FOR COLLECTION MANAGER **/
+
     /**
      * Sets our {PricingExecutor} contract address.
      */
