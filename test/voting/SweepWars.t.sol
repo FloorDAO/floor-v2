@@ -169,7 +169,7 @@ contract SweepWarsTest is FloorTest {
         assertEq(sweepWars.userVotesAvailable(alice), votePower[alice]);
 
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, voteAmount);
+        sweepWars.vote(approvedCollection1, voteAmount, false);
 
         assertEq(sweepWars.userVotesAvailable(alice), votePower[alice] - voteAmount);
     }
@@ -177,7 +177,7 @@ contract SweepWarsTest is FloorTest {
     function test_cannotVoteWithZeroBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 1 ether, 0));
         vm.prank(address(0));
-        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection1, 1 ether, false);
 
         assertEq(sweepWars.votes(approvedCollection1), 0);
     }
@@ -185,21 +185,21 @@ contract SweepWarsTest is FloorTest {
     function test_cannotVoteWithMoreTokensThanBalance() public {
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 101 ether, votePower[alice]));
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 101 ether);
+        sweepWars.vote(approvedCollection1, 101 ether, false);
 
         assertEq(sweepWars.votes(approvedCollection1), 0);
     }
 
     function test_cannotVoteWithMoreTokensThanUnvoted() public {
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 80 ether);
+        sweepWars.vote(approvedCollection1, 80 ether, false);
 
         assertEq(sweepWars.votes(approvedCollection1), 80 ether);
 
         vm.expectRevert(abi.encodeWithSelector(InsufficientVotesAvailable.selector, 21 ether, votePower[alice] - 80 ether));
 
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 21 ether);
+        sweepWars.vote(approvedCollection1, 21 ether, false);
 
         assertEq(sweepWars.votes(approvedCollection1), 80 ether);
     }
@@ -207,7 +207,7 @@ contract SweepWarsTest is FloorTest {
     function test_cannotVoteOnUnapprovedCollection() public {
         vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, unapprovedCollection1));
         vm.prank(alice);
-        sweepWars.vote(unapprovedCollection1, 1 ether);
+        sweepWars.vote(unapprovedCollection1, 1 ether, false);
 
         assertEq(sweepWars.votes(unapprovedCollection1), 0);
     }
@@ -215,31 +215,31 @@ contract SweepWarsTest is FloorTest {
     function test_cannotVoteWithZeroAmount() public {
         vm.expectRevert(CannotVoteWithZeroAmount.selector);
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 0);
+        sweepWars.vote(approvedCollection1, 0, false);
     }
 
     function test_canVote() public {
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
 
         // Check how many votes we will have at current epoch when vote was cast
         assertEq(sweepWars.votes(approvedCollection1), 10 ether);
 
         // Check how many votes we will have at a specific epoch (half way)
-        assertAlmostEqual(sweepWars.votes(approvedCollection1, 52), 5 ether, 1e2);
+        assertAlmostEqual(uint(sweepWars.votes(approvedCollection1, 52)), 5 ether, 1e2);
     }
 
     function test_canVoteOnFloorTokenAddress() public {
         vm.prank(alice);
-        sweepWars.vote(floorTokenCollection, 1 ether);
+        sweepWars.vote(floorTokenCollection, 1 ether, false);
 
         assertEq(sweepWars.votes(floorTokenCollection), 1 ether);
     }
 
     function test_canVoteMultipleTimesOnSameCollection() public {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
-        sweepWars.vote(approvedCollection1, 5 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
+        sweepWars.vote(approvedCollection1, 5 ether, false);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 15 ether);
@@ -247,9 +247,9 @@ contract SweepWarsTest is FloorTest {
 
     function test_canVoteOnMultipleApprovedCollections() public {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
-        sweepWars.vote(approvedCollection2, 5 ether);
-        sweepWars.vote(approvedCollection3, 15 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
+        sweepWars.vote(approvedCollection2, 5 ether, false);
+        sweepWars.vote(approvedCollection3, 15 ether, false);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 10 ether);
@@ -277,7 +277,7 @@ contract SweepWarsTest is FloorTest {
         collections[0] = approvedCollection1;
 
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
         sweepWars.revokeVotes(collections);
         vm.stopPrank();
 
@@ -290,8 +290,8 @@ contract SweepWarsTest is FloorTest {
         collections[1] = approvedCollection2;
 
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
-        sweepWars.vote(approvedCollection2, 5 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
+        sweepWars.vote(approvedCollection2, 5 ether, false);
         sweepWars.revokeVotes(collections);
         vm.stopPrank();
 
@@ -305,10 +305,10 @@ contract SweepWarsTest is FloorTest {
 
     function test_canRevokeAllUserVotes() public {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 1 ether);
-        sweepWars.vote(approvedCollection2, 2 ether);
-        sweepWars.vote(approvedCollection3, 3 ether);
-        sweepWars.vote(floorTokenCollection, 4 ether);
+        sweepWars.vote(approvedCollection1, 1 ether, false);
+        sweepWars.vote(approvedCollection2, 2 ether, false);
+        sweepWars.vote(approvedCollection3, 3 ether, false);
+        sweepWars.vote(floorTokenCollection, 4 ether, false);
         vm.stopPrank();
 
         assertEq(sweepWars.userVotingPower(alice), votePower[alice]);
@@ -354,15 +354,15 @@ contract SweepWarsTest is FloorTest {
 
     function test_canTakeSnapshot() public {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 2 ether);
-        sweepWars.vote(approvedCollection2, 10 ether);
-        sweepWars.vote(approvedCollection3, 6 ether);
-        sweepWars.vote(floorTokenCollection, 5 ether);
+        sweepWars.vote(approvedCollection1, 2 ether, false);
+        sweepWars.vote(approvedCollection2, 10 ether, false);
+        sweepWars.vote(approvedCollection3, 6 ether, false);
+        sweepWars.vote(floorTokenCollection, 5 ether, false);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        sweepWars.vote(approvedCollection3, 2 ether);
-        sweepWars.vote(floorTokenCollection, 10 ether);
+        sweepWars.vote(approvedCollection3, 2 ether, false);
+        sweepWars.vote(floorTokenCollection, 10 ether, false);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 2 ether);
@@ -406,9 +406,9 @@ contract SweepWarsTest is FloorTest {
 
         // Cast votes
         vm.prank(alice);
-        sweepWars.vote(approvedCollection1, 10 ether);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
         vm.prank(bob);
-        sweepWars.vote(approvedCollection1, 5 ether);
+        sweepWars.vote(approvedCollection1, 5 ether, false);
 
         // We need to calculate our selector manually as it uses an overloaded function
         bytes4 _selector = bytes4(keccak256('collectionBoost(address,uint256)'));
@@ -421,6 +421,9 @@ contract SweepWarsTest is FloorTest {
         vm.mockCall(nftStaking, abi.encodeWithSelector(_selector, approvedCollection1, 0), abi.encode(1500000000));
         assertEq(sweepWars.votes(approvedCollection1), 22.5 ether);
     }
+
+    function test_CanVoteAgainstCollection() external {}
+    function test_CannotIncludeNegativeVoteCollectionInSnapshot() external {}
 
     /**
      * ...

@@ -269,7 +269,7 @@ contract EpochManagerTest is FloorTest {
             for (uint j; j < stakerCount; ++j) {
                 // Cast votes from this user against the vault collection
                 vm.startPrank(stakers[i]);
-                sweepWars.vote(collection, 1 ether);
+                sweepWars.vote(collection, 1 ether, false);
                 vm.stopPrank();
             }
         }

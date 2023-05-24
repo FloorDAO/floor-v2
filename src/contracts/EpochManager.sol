@@ -11,6 +11,7 @@ import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegis
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
+import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
@@ -50,6 +51,9 @@ contract EpochManager is IEpochManager, Ownable {
 
     /// Stores a mapping of an epoch to a collection
     mapping(uint => uint) public collectionEpochs;
+
+    /// Store our epoch triggers
+    address[] public epochEndTriggers;
 
     /**
      * Allows a new epoch to be set. This should, in theory, only be set to one
@@ -233,6 +237,14 @@ contract EpochManager is IEpochManager, Ownable {
             treasury.registerSweep(currentEpoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
         }
 
+        // If we have any logic that needs to be triggered when an epoch ends, then we include
+        // it here.
+        uint triggersLength = epochEndTriggers.length;
+        for (uint i; i < triggersLength;) {
+            IEpochEndTriggered(epochEndTriggers[i]).endEpoch(currentEpoch);
+            unchecked { ++i; }
+        }
+
         unchecked {
             ++currentEpoch;
 
@@ -248,6 +260,27 @@ contract EpochManager is IEpochManager, Ownable {
         }
 
         emit EpochEnded(currentEpoch - 1, lastEpoch);
+    }
+
+    /**
+     * Allows a new epochEnd trigger to be attached
+     */
+    function setEpochEndTrigger(address contractAddr, bool enabled) external onlyOwner {
+        if (enabled) {
+            epochEndTriggers.push(contractAddr);
+        } else {
+            int deleteIndex = -1;
+            uint triggersLength = epochEndTriggers.length;
+            for (uint i; i < triggersLength;) {
+                if (epochEndTriggers[i] == contractAddr) {
+                    deleteIndex = int(i);
+                    break;
+                }
+            }
+
+            require(deleteIndex != -1, 'Not found');
+            delete epochEndTriggers[uint(deleteIndex)];
+        }
     }
 
     /**
