@@ -234,7 +234,11 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         // If we look to a point that would turn the returned value negative, then we need
         // to catch this and just return 0.
         int burnAmount = collectionVote.powerBurn * int(_baseEpoch - epoch);
-        if (burnAmount > collectionVote.power) {
+
+        if (
+            uint(burnAmount < 0 ? -burnAmount : burnAmount) >
+            uint(collectionVote.power < 0 ? -collectionVote.power : collectionVote.power)
+        ) {
             return 0;
         }
 
@@ -471,6 +475,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // shift down by 1, and any keys above the `sampleSize` will be deleted.
             for (k = _sampleSize - 1; k > j;) {
                 collections[k] = collections[k - 1];
+                amounts[k] = amounts[k - 1];
                 unchecked {
                     --k;
                 }

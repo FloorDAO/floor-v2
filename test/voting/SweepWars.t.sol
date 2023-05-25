@@ -422,8 +422,38 @@ contract SweepWarsTest is FloorTest {
         assertEq(sweepWars.votes(approvedCollection1), 22.5 ether);
     }
 
-    function test_CanVoteAgainstCollection() external {}
-    function test_CannotIncludeNegativeVoteCollectionInSnapshot() external {}
+    function test_CanVoteAgainstCollection() external {
+        // Make an initial "against" vote of 10 ether
+        vm.prank(alice);
+        sweepWars.vote(approvedCollection1, 10 ether, true);
+
+        // Check how many votes we will have at current epoch when vote was cast
+        assertEq(sweepWars.votes(approvedCollection1), -10 ether);
+
+        // Make an additional "against" vote of 5 ether
+        vm.prank(bob);
+        sweepWars.vote(approvedCollection1, 5 ether, true);
+
+        // Check how many votes we will have at current epoch when vote was cast
+        assertEq(sweepWars.votes(approvedCollection1), -15 ether);
+
+        // Make a "for" vote with bob that will increase it by 10 ether
+        vm.prank(bob);
+        sweepWars.vote(approvedCollection1, 10 ether, false);
+
+
+        // Check how many votes we will have at current epoch when vote was cast
+        assertEq(sweepWars.votes(approvedCollection1), -5 ether);
+
+        // Check how many votes we will have at a specific epoch (half way)
+        assertAlmostEqual(sweepWars.votes(approvedCollection1, 52), -2.5 ether, 1e2);
+
+        // At the end of the epoch duration, we can confirm that it should be zero
+        assertAlmostEqual(sweepWars.votes(approvedCollection1, 104), 0, 1e2);
+        assertEq(sweepWars.votes(approvedCollection1, 105), 0);
+    }
+
+    function test_CanExcludeZeroOrNegativeCollectionVotesFromSnapshot() external {}
 
     /**
      * ...
