@@ -8,12 +8,19 @@ import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol'
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 
 /**
- * ..
+ * When an epoch ends, this contract maintains an indexed list of all collections that
+ * were a part of it and the respective vote power attached to each.
  */
 contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
 
     /**
-     * ..
+     * Holds the data for each epoch to show collections and their votes.
+     *
+     * @dev The epoch `uint` is required otherwise Solidity breaks as required non-array.
+     *
+     * @param epoch The epoch the snapshot is taken
+     * @param collections The collections that took part in the war
+     * @param votes The respective vote power for the collection
      */
     struct EpochSnapshot {
         uint epoch;
@@ -21,21 +28,24 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
         int[] votes;
     }
 
-    /// ..
-    ISweepWars sweepWars;
+    /// The sweep war contract used by this contract
+    ISweepWars public immutable sweepWars;
 
-    /// Store a mapping of epochs to snapshot results
+    /// Store a mapping of epoch to snapshot results
     mapping(uint => EpochSnapshot) public epochSnapshots;
 
     /**
-     * ..
+     * Sets our internal contracts.
+     *
+     * @param _sweepWars The {SweepWars} contract being referenced
      */
     constructor (address _sweepWars) {
         sweepWars = ISweepWars(_sweepWars);
     }
 
     /**
-     * ..
+     * When the epoch ends, we capture the collections that took part and their respective
+     * votes. This is then stored in our mapped structure.
      *
      * @param epoch The epoch that is ending
      */
