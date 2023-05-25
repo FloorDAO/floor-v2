@@ -379,7 +379,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             if (i == collectionsLength - 1) {
                 amounts[i] = remainingTokens;
             } else {
-                amounts[i] = (tokens * ((totalRelevantVotes * collectionVotePowers[i]) / (100 * 1e18))) / (10 * 1e18);
+                amounts[i] = (tokens * ((collectionVotePowers[i] * 1 ether) / totalRelevantVotes)) / 1 ether;
             }
 
             unchecked {
@@ -442,7 +442,8 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // If we have a vote power that is not positive, then we don't need to process
             // any further logic as we definitely won't be including the collection in our
             // response.
-            if (votes(approvedCollections[i], epoch) <= 0) {
+            int _votes = votes(approvedCollections[i], epoch);
+            if (_votes <= 0) {
                 unchecked { ++i; }
                 continue;
             }
@@ -452,7 +453,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             for (j = 0; j < _sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (votes(approvedCollections[i], epoch) > votes(collections[j], epoch)) {
+                if (collections[j] == address(0) || _votes > votes(collections[j], epoch)) {
                     break;
                 }
 
@@ -461,21 +462,25 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
                 }
             }
 
-            // If our `j` key is below the `sampleSize` we have requested, then we will
-            // need to replace the key with our new collection and all subsequent keys will
-            // shift down by 1, and any keys above the `sampleSize` will be deleted.
-            for (k = _sampleSize - 1; k > j;) {
-                collections[k] = collections[k - 1];
-                amounts[k] = amounts[k - 1];
-                unchecked {
-                    --k;
-                }
-            }
+            // Only inject the value into our response if it is within the sample size window
+            if (j < _sampleSize) {
+                // If our `j` key is below the `_sampleSize` we have requested, then we will
+                // need to replace the key with our new collection and all subsequent keys will
+                // shift down by 1, and any keys above the `_sampleSize` will be deleted.
+                for (k = _sampleSize - 1; k > j;) {
+                    collections[k] = collections[k - 1];
+                    amounts[k] = amounts[k - 1];
 
-            // Update the new max element and update the corresponding vote power. We can safely
-            // cast our `amounts` value to a `uint` as it will always be a positive number.
-            collections[k] = approvedCollections[i];
-            amounts[k] = uint(votes(approvedCollections[i], epoch));
+                    unchecked {
+                        --k;
+                    }
+                }
+
+                // Update the new max element and update the corresponding vote power. We can safely
+                // cast our `amounts` value to a `uint` as it will always be a positive number.
+                collections[k] = approvedCollections[i];
+                amounts[k] = uint(_votes);
+            }
 
             unchecked {
                 ++i;

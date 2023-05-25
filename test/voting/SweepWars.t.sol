@@ -378,9 +378,7 @@ contract SweepWarsTest is FloorTest {
         _createCollectionVault(approvedCollection3, 'Vault 3');
         _createCollectionVault(approvedCollection3, 'Vault 4');
 
-        vm.startPrank(address(treasury));
         (address[] memory collections, uint[] memory amounts) = sweepWars.snapshot(10000 ether, 0);
-        vm.stopPrank();
 
         assertEq(collections.length, 3);
         assertEq(amounts.length, 3);
@@ -389,9 +387,9 @@ contract SweepWarsTest is FloorTest {
         assertEq(collections[1], approvedCollection2);
         assertEq(collections[2], approvedCollection3);
 
-        assertEq(amounts[0], 4950 ether);
-        assertEq(amounts[1], 3300 ether);
-        assertEq(amounts[2], 1750 ether);
+        assertEq(amounts[0], 4545454545454545450000);
+        assertEq(amounts[1], 3030303030303030300000);
+        assertEq(amounts[2], 2424242424242424250000);
 
         assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
     }
@@ -453,7 +451,65 @@ contract SweepWarsTest is FloorTest {
         assertEq(sweepWars.votes(approvedCollection1, 105), 0);
     }
 
-    function test_CanExcludeZeroOrNegativeCollectionVotesFromSnapshot() external {}
+    function test_CanExcludeZeroOrNegativeCollectionVotesFromSnapshot() external {
+        vm.startPrank(alice);
+        sweepWars.vote(approvedCollection1, 2 ether, false);
+        sweepWars.vote(approvedCollection2, 10 ether, false);
+        sweepWars.vote(approvedCollection3, 6 ether, false);
+        sweepWars.vote(floorTokenCollection, 5 ether, false);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        sweepWars.vote(approvedCollection1, 1 ether, false);
+        sweepWars.vote(approvedCollection3, 4 ether, true);
+        sweepWars.vote(floorTokenCollection, 10 ether, true);
+        vm.stopPrank();
+
+        assertEq(sweepWars.votes(approvedCollection1), 3 ether);
+        assertEq(sweepWars.votes(approvedCollection2), 10 ether);
+        assertEq(sweepWars.votes(approvedCollection3), 2 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), -5 ether);
+
+        sweepWars.setSampleSize(2);
+
+        // Create a vault for our collections
+        _createCollectionVault(approvedCollection1, 'Vault 1');
+        _createCollectionVault(approvedCollection2, 'Vault 2');
+        _createCollectionVault(approvedCollection3, 'Vault 3');
+        _createCollectionVault(approvedCollection3, 'Vault 4');
+
+        (address[] memory collections, uint[] memory amounts) = sweepWars.snapshot(10000 ether, 0);
+
+        assertEq(collections.length, 2);
+        assertEq(amounts.length, 2);
+
+        assertEq(collections[0], approvedCollection2);
+        assertEq(collections[1], approvedCollection1);
+
+        assertEq(amounts[0], 7692307692307692300000);
+        assertEq(amounts[1], 2307692307692307700000);
+
+        assertEq(amounts[0] + amounts[1], 10000 ether);
+
+        // Now add a higher snapshot sample size to ensure that negative votes are negated
+        sweepWars.setSampleSize(5);
+
+        // Retake our snapshot and confirm that it does not include negative values
+        (collections, amounts) = sweepWars.snapshot(10000 ether, 0);
+
+        assertEq(collections.length, 3);
+        assertEq(amounts.length, 3);
+
+        assertEq(collections[0], approvedCollection2);
+        assertEq(collections[1], approvedCollection1);
+        assertEq(collections[2], approvedCollection3);
+
+        assertAlmostEqual(amounts[0], 6666 ether, 1e2);
+        assertEq(amounts[1], 2000 ether);
+        assertAlmostEqual(amounts[2], 1333 ether, 1e2);
+
+        assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
+    }
 
     /**
      * ...
