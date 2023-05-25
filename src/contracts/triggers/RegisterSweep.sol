@@ -24,6 +24,7 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
  * at a later date.
  *
  * @dev Requires `TREASURY_MANAGER` role.
+ * @dev Requires `COLLECTION_MANAGER` role.
  */
 contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 

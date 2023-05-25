@@ -16,7 +16,6 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
-import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
@@ -228,8 +227,11 @@ contract EpochManagerTest is FloorTest {
         registerSweepTrigger.setEpochManager(address(epochManager));
         epochManager.setEpochEndTrigger(address(registerSweepTrigger), true);
 
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        // Assign required roles for our trigger and epoch manager contracts
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
         sweepWars.setSampleSize(5);
