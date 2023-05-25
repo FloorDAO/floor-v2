@@ -94,12 +94,6 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     mapping(address => uint) private totalUserVotes;
 
     /**
-     * Set up a vote cache that is referenced when finding top collections. This is
-     * expected to be overwritten at will.
-     */
-    mapping (address => int) private voteCache;
-
-    /**
      * Sets up our contract parameters.
      *
      * @param _collectionRegistry Address of our {CollectionRegistry}
@@ -358,7 +352,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * @return address[] The collections that were granted rewards
      * @return amounts[] The vote values of each collection
      */
-    function snapshot(uint tokens, uint epoch) external returns (address[] memory, uint[] memory) {
+    function snapshot(uint tokens, uint epoch) external view returns (address[] memory, uint[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
@@ -405,7 +399,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * @return Array of collections limited to sample size
      * @return Respective vote power for each collection
      */
-    function _topCollections(uint epoch) internal returns (address[] memory, uint[] memory) {
+    function _topCollections(uint epoch) internal view returns (address[] memory, uint[] memory) {
         // Get all of our collections
         address[] memory approvedCollections = this.voteOptions();
         uint length = approvedCollections.length;
@@ -416,12 +410,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         uint positiveCollections;
 
         for (uint i; i < length;) {
-            // Store our vote cache
-            voteCache[approvedCollections[i]] = votes(approvedCollections[i], epoch);
-
             // If our vote amount is over zero, then we count this to compare against
             // the sample size later.
-            if (voteCache[approvedCollections[i]] > 0) {
+            if (votes(approvedCollections[i], epoch) > 0) {
                 unchecked { ++positiveCollections; }
             }
 
@@ -451,7 +442,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // If we have a vote power that is not positive, then we don't need to process
             // any further logic as we definitely won't be including the collection in our
             // response.
-            if (voteCache[approvedCollections[i]] <= 0) {
+            if (votes(approvedCollections[i], epoch) <= 0) {
                 unchecked { ++i; }
                 continue;
             }
@@ -461,7 +452,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             for (j = 0; j < _sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (voteCache[approvedCollections[i]] > voteCache[collections[j]]) {
+                if (votes(approvedCollections[i], epoch) > votes(collections[j], epoch)) {
                     break;
                 }
 
@@ -484,7 +475,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // Update the new max element and update the corresponding vote power. We can safely
             // cast our `amounts` value to a `uint` as it will always be a positive number.
             collections[k] = approvedCollections[i];
-            amounts[k] = uint(voteCache[approvedCollections[i]]);
+            amounts[k] = uint(votes(approvedCollections[i], epoch));
 
             unchecked {
                 ++i;
