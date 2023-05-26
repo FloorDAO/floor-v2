@@ -110,7 +110,7 @@ contract RevenueStakingStrategy is BaseStrategy {
         IERC20(token).transfer(recipient, amount);
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(token, amount, msg.sender);
+        emit Withdraw(token, amount, recipient);
 
         // As we have a 1:1 mapping of tokens, we can just return the initial withdrawal amount
         return amount;
