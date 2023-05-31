@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
@@ -227,7 +225,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
     /**
      * When an epoch ends, we have the ability to register a sweep against the {Treasury}
-     * via the {EpochManager}. This will store a DAO sweep that will need to be actioned
+     * via an approved contract. This will store a DAO sweep that will need to be actioned
      * using the `sweepEpoch` function.
      *
      * @param epoch The current epoch that the sweep is generated from
@@ -236,7 +234,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType)
         external
-        onlyEpochManager
+        onlyRole(TREASURY_MANAGER)
     {
         epochSweeps[epoch] = Sweep({sweepType: sweepType, collections: collections, amounts: amounts, completed: false, message: ''});
 
@@ -278,7 +276,6 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             require(floor.balanceOf(msg.sender) >= 5000, 'Insufficient FLOOR holding');
         }
 
-        console.log('STARTING SWEEP CALL');
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
     }
 
@@ -306,22 +303,15 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         uint msgValue;
         uint collectionsLength = epochSweep.collections.length;
 
-        console.log('AAA');
-
         // Ensure we have a valid sweep index
         require(collectionsLength != 0, 'No collections to sweep');
-
-        console.log('BBB');
 
         // Confirm that our sweeper has been approved
         require(approvedSweepers[sweeper], 'Sweeper contract not approved');
 
-        console.log('CCC');
-
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
         if (mercSweep != 0) {
-            console.log('DDD');
             require(
                 epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions'
             );
@@ -329,14 +319,14 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
 
             msgValue = epochSweep.amounts[0];
         } else {
-            console.log('EEE');
             // If this is COLLECTION_ADDITION, we will only ever a single collection, so
             // no need for a loop.
             if (epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION) {
                 msgValue = epochSweep.amounts[0];
             } else {
-                console.log('FFF');
-                // Find the total amount to send to the sweeper and transfer it before the call
+                // Find the total amount to send to the sweeper and transfer it before the call. We
+                // should always have at least one amount in the sweep, so we can save gas with a
+                // dowhile loop.
                 uint i;
                 do {
                     msgValue += epochSweep.amounts[i];
@@ -344,16 +334,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
                         ++i;
                     }
                 } while (i < collectionsLength);
-                console.log('GGG');
             }
         }
 
-        console.log('HHH');
-
         // Unwrap enough WETH to power the upcoming sweeps
         weth.withdraw(msgValue);
-
-        console.log('III');
 
         // If we have specified mercenary staked NFTs to be swept then we need to
         // action that sweep and remove the value swept from the future sweep amount.

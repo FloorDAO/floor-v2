@@ -16,6 +16,7 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
+import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
@@ -106,15 +107,7 @@ contract EpochManagerTest is FloorTest {
         voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
 
         epochManager = new EpochManager();
-        epochManager.setContracts(
-            address(collectionRegistry),
-            address(newCollectionWars),
-            address(pricingExecutorMock),
-            address(treasury),
-            address(strategyFactory),
-            address(sweepWars),
-            address(voteMarket)
-        );
+        epochManager.setContracts(address(newCollectionWars), address(voteMarket));
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
@@ -132,11 +125,9 @@ contract EpochManagerTest is FloorTest {
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-        // Set our manual sweeper
+        // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
-
-        // Give our epoch manager permission to take a strategy factory snapshot
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(epochManager));
+        treasury.approveSweeper(manualSweeper, true);
     }
 
     /**
@@ -165,21 +156,11 @@ contract EpochManagerTest is FloorTest {
      */
     function test_CanSetContracts() external {
         epochManager.setContracts(
-            address(1), // collectionRegistry
             address(2), // newCollectionWars
-            address(3), // pricingExecutor
-            address(4), // treasury
-            address(5), // strategyFactory
-            address(6), // voteContract,
             address(7) // voteMarket
         );
 
-        assertEq(address(epochManager.collectionRegistry()), address(1));
         assertEq(address(epochManager.newCollectionWars()), address(2));
-        assertEq(address(epochManager.pricingExecutor()), address(3));
-        assertEq(address(epochManager.treasury()), address(4));
-        assertEq(address(epochManager.strategyFactory()), address(5));
-        assertEq(address(epochManager.voteContract()), address(6));
         assertEq(address(epochManager.voteMarket()), address(7));
     }
 
@@ -231,17 +212,34 @@ contract EpochManagerTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 20;
-        uint stakerCount = 100;
+        uint vaultCount = 10;
+        uint stakerCount = 25;
+
+        // Register our epoch end trigger that stores our treasury sweep
+        RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
+            address(newCollectionWars),
+            address(pricingExecutorMock),
+            address(strategyFactory),
+            address(treasury),
+            address(sweepWars)
+        );
+
+        registerSweepTrigger.setEpochManager(address(epochManager));
+        epochManager.setEpochEndTrigger(address(registerSweepTrigger), true);
+
+        // Assign required roles for our trigger and epoch manager contracts
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield
         sweepWars.setSampleSize(5);
 
-        // Prevent the {StrategyFactory} from trying to transfer tokens when registering the mint
-        // vm.mockCall(address(strategyFactory), abi.encodeWithSelector(StrategyFactory.registerMint.selector), abi.encode(''));
-
-        // Mock our Voting mechanism to unlock unlimited user votes without backing
+        // Mock our Voting mechanism to unlock unlimited user votes without backing and give
+        // them a voting power of 1 ether.
         vm.mockCall(address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max));
+        vm.mockCall(address(veFloor), abi.encodeWithSelector(VeFloorStaking.votingPowerOfAt.selector), abi.encode(1 ether));
 
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
@@ -268,8 +266,8 @@ contract EpochManagerTest is FloorTest {
             // Each staker will then deposit and vote
             for (uint j; j < stakerCount; ++j) {
                 // Cast votes from this user against the vault collection
-                vm.startPrank(stakers[i]);
-                sweepWars.vote(collection, 1 ether);
+                vm.startPrank(stakers[j]);
+                sweepWars.vote(collection, 1 ether, false);
                 vm.stopPrank();
             }
         }

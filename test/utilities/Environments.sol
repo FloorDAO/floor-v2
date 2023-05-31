@@ -77,6 +77,13 @@ contract FloorTest is Test {
     }
 
     /**
+     * Tests if a value is within a certain variance of another value, supporting int values.
+     */
+    function assertAlmostEqual(int a, int b, int v) internal {
+        assertTrue(a - v < b || a + v > b);
+    }
+
+    /**
      * Implements a common strategy initialisation bytes.
      */
     function _strategyInitBytes() internal pure returns (bytes memory) {

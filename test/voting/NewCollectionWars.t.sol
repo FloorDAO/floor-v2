@@ -15,6 +15,7 @@ import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NewCollectionNftOptionVotingPowerCalculator} from '@floor/voting/calculators/NewCollectionNftOptionVotingPower.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {NewCollectionWarOptions} from '@floor/voting/NewCollectionWarOptions.sol';
@@ -120,12 +121,7 @@ contract NewCollectionWarsTest is FloorTest {
         treasury.setEpochManager(address(epochManager));
 
         epochManager.setContracts(
-            address(collectionRegistry),
             address(newCollectionWars),
-            address(pricingExecutorMock),
-            address(treasury),
-            address(strategyFactory),
-            address(sweepWars),
             address(0) // Vote Market not needed for these tests
         );
 
@@ -148,6 +144,28 @@ contract NewCollectionWarsTest is FloorTest {
         // Deploy our NFT option calculator
         NewCollectionNftOptionVotingPowerCalculator calculator = new NewCollectionNftOptionVotingPowerCalculator();
         newCollectionWarOptions.setNftVotingPowerCalculator(address(calculator));
+
+        // Register our epoch end trigger that stores our treasury sweep
+        RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
+            address(newCollectionWars),
+            address(pricingExecutorMock),
+            address(strategyFactory),
+            address(treasury),
+            address(sweepWars)
+        );
+        registerSweepTrigger.setEpochManager(address(epochManager));
+        epochManager.setEpochEndTrigger(address(registerSweepTrigger), true);
+
+        // Grant required roles for our trigger to work
+        /* Allows our trigger to register a sweep in the {Treasury} */
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
+
+        /* Allows our trigger to take a snapshot of the strategies */
+        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+
+        /* Allows our trigger and the epoch manager to end a floor war */
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
     }
 
     function setUp() public {
