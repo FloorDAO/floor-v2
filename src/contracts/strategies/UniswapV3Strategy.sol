@@ -147,8 +147,8 @@ contract UniswapV3Strategy is BaseStrategy {
         params.token0.approveToken(params.positionManager, 0);
         params.token1.approveToken(params.positionManager, 0);
 
-        emit Deposit(params.token0, amount0Desired, amount0, msg.sender);
-        emit Deposit(params.token1, amount1Desired, amount1, msg.sender);
+        emit Deposit(params.token0, amount0, msg.sender);
+        emit Deposit(params.token1, amount1, msg.sender);
 
         return (liquidity, amount0, amount1);
     }
