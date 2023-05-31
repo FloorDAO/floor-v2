@@ -333,7 +333,7 @@ contract NftStakingLockerTest is FloorTest {
     }
 
     function test_CanClaimRewards() external {
-        // TODO: ..
+        // There will never be rewards claimable, as this is just a locker.
     }
 
     function _singleAmountArray(uint length) internal pure returns (uint[] memory amounts) {

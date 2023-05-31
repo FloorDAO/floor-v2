@@ -73,7 +73,6 @@ contract VeFloorStakingTest is FloorTest {
         uint balanceaddr = floor.balanceOf(address(this));
         uint balanceAddr1 = floor.balanceOf(alice);
 
-        // TODO: Is this right?
         vm.prank(alice);
         veFloor.deposit(0, 6);
 

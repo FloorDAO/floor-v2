@@ -260,9 +260,6 @@ contract EpochManagerTest is FloorTest {
             uint[] memory amounts = new uint[](1);
             amounts[0] = 1 ether;
 
-            // Set up a mock that will set rewards to be a static amount of ether
-            // TODO: ..
-
             // Each staker will then deposit and vote
             for (uint j; j < stakerCount; ++j) {
                 // Cast votes from this user against the vault collection
