@@ -6,7 +6,7 @@
 !.yarn/sdks
 !.yarn/versions
 **/cache
-**/docs
+# **/docs
 **/node_modules
 **/out
 
