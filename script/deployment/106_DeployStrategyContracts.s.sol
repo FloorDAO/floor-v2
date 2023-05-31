@@ -8,26 +8,34 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 /**
- * Deploys our strategies and vault factory contracts.
+ * Deploys our strategies and factory contracts.
  */
-contract DeployVaultContracts is DeploymentScript {
+contract DeployStrategyContracts is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
+        address treasury = requireDeployment('Treasury');
 
-        // Deploy vault strategies
+        // Deploy strategy strategies
         NFTXInventoryStakingStrategy inventoryStaking = new NFTXInventoryStakingStrategy();
+        NFTXLiquidityPoolStakingStrategy liquidityStaking = new NFTXLiquidityPoolStakingStrategy();
         RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
+        UniswapV3Strategy uniswapV3Staking = new UniswapV3Strategy();
 
         // Store our strategies deployment address
         storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
+        storeDeployment('NFTXLiquidityPoolStakingStrategy', address(liquidityStaking));
         storeDeployment('RevenueStakingStrategy', address(revenueStaking));
+        storeDeployment('UniswapV3Strategy', address(uniswapV3Staking));
 
-        // Deploy our vault factory
+        // Deploy our strategy factory
         StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry);
 
-        // Store our vault factory
+        // Store our strategy factory
         storeDeployment('StrategyFactory', address(strategyFactory));
+
+        // Set our {Treasury} against the {StrategyFactory}
+        strategyFactory.setTreasury(treasury);
     }
 }
