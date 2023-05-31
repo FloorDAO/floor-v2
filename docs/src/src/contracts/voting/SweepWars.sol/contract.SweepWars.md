@@ -1,5 +1,5 @@
 # SweepWars
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/c8169a0594ad07a37d169672a50f4155c41be809/src/contracts/voting/SweepWars.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/445b96358cc205e432e359914c1681c0f44048b0/src/contracts/voting/SweepWars.sol)
 
 **Inherits:**
 [AuthorityControl](/src/contracts/authorities/AuthorityControl.sol/contract.AuthorityControl.md), [EpochManaged](/src/contracts/utils/EpochManaged.sol/contract.EpochManaged.md), [ISweepWars](/src/interfaces/voting/SweepWars.sol/contract.ISweepWars.md)
