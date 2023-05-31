@@ -1,5 +1,5 @@
 # NewCollectionWars
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/contracts/voting/NewCollectionWars.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/c8169a0594ad07a37d169672a50f4155c41be809/src/contracts/voting/NewCollectionWars.sol)
 
 **Inherits:**
 [AuthorityControl](/src/contracts/authorities/AuthorityControl.sol/contract.AuthorityControl.md), [EpochManaged](/src/contracts/utils/EpochManaged.sol/contract.EpochManaged.md), [INewCollectionWars](/src/interfaces/voting/NewCollectionWars.sol/contract.INewCollectionWars.md)

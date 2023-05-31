@@ -1,5 +1,5 @@
 # IStrategyFactory
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/interfaces/strategies/StrategyFactory.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/c8169a0594ad07a37d169672a50f4155c41be809/src/interfaces/strategies/StrategyFactory.sol)
 
 Allows for vaults to be created, pairing them with a {Strategy} and an approved
 collection. The vault creation script needs to be as highly optimised as possible
