@@ -10,13 +10,15 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
 
 import {BaseStrategy, InsufficientPosition, ZeroAmountReceivedFromWithdraw} from '@floor/strategies/BaseStrategy.sol';
 
+import {ITimelockRewardDistributionToken} from '@floor-interfaces/nftx/TimelockRewardDistributionToken.sol';
 import {INFTXVault} from '@floor-interfaces/nftx/NFTXVault.sol';
-import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
+import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking.sol';
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
-import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingInventoryZap.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
+
 
 /**
- * Supports an Inventory Staking position against a single NFTX vault. This strategy
+ * Supports an Liquidity Staking position against a single NFTX vault. This strategy
  * will hold the corresponding xToken against deposits.
  *
  * The contract will extend the {BaseStrategy} to ensure it conforms to the required
@@ -25,35 +27,32 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
  *
  * @dev This contract does not support PUNK tokens. If a strategy needs to be established
  * then it should be done through another, bespoke contract.
- *
- * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
-contract NFTXInventoryStakingStrategy is BaseStrategy {
+contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
     /// The underlying token will be the same as the address of the NFTX vault.
     address public underlyingToken;
 
-    /// The reward yield will be a vault xToken as defined by the InventoryStaking contract.
+    /// The yield token will be a vault xToken as defined by the LP contract.
     address public yieldToken;
+
+    /// The reward token will be a vToken as defined by the LP contract.
+    address public rewardToken;
 
     /// The ERC721 / ERC1155 token asset for the NFTX vault
     address public assetAddress;
 
-    /// Address of the NFTX Inventory Staking contract
-    INFTXInventoryStaking public inventoryStaking;
-
     /// The NFTX zap addresses
+    INFTXLiquidityStaking public liquidityStaking;
     INFTXStakingZap public stakingZap;
-    INFTXUnstakingInventoryZap public unstakingZap;
 
     /// Track the amount of deposit token
     uint private deposits;
 
-    /// Stores the temporary recipient of any ERC721 and ERC1155 tokens that are received
-    /// by the contract.
-    address private _nftReceiver;
+    // Store our WETH reference
+    IWETH public WETH;
 
     /**
      * Sets up our contract variables.
@@ -74,21 +73,25 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             uint _vaultId,
             address _underlyingToken,
             address _yieldToken,
-            address _inventoryStaking,
+            address _rewardToken,
+            address _liquidityStaking,
             address _stakingZap,
-            address _unstakingZap
-        ) = abi.decode(_initData, (uint, address, address, address, address, address));
+            address _weth
+        ) = abi.decode(_initData, (uint, address, address, address, address, address, address));
 
         // Map our NFTX information
         vaultId = _vaultId;
         underlyingToken = _underlyingToken;
         yieldToken = _yieldToken;
+        rewardToken = _rewardToken;
         stakingZap = INFTXStakingZap(_stakingZap);
-        unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
-        inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
+        liquidityStaking = INFTXLiquidityStaking(_liquidityStaking);
+
+        // Register our WETH contract address
+        WETH = IWETH(_weth);
 
         // Set our ERC721 / ERC1155 token asset address
-        assetAddress = INFTXVault(_underlyingToken).assetAddress();
+        assetAddress = INFTXVault(_rewardToken).assetAddress();
 
         // Set the underlying token as valid to process
         _validTokens[underlyingToken] = true;
@@ -98,35 +101,39 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     }
 
     /**
-     * Deposit underlying token or yield token to corresponding strategy.
+     * Deposit the underlying token into the LP staking pool.
      *
-     * Requirements:
-     *  - Caller should make sure the token is already transfered into the strategy contract.
-     *  - Caller should make sure the deposit amount is greater than zero.
-     *
-     * - Get the vault ID from the underlying address (vault address)
-     * - InventoryStaking.deposit(uint256 vaultId, uint256 _amount)
-     *   - This deposit will be timelocked
-     * - We receive xToken back to the strategy
+     * @return amount_ Amount of yield token returned from NFTX
      */
-    function depositErc20(uint amount) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
+    function depositErc20(uint amount) external nonReentrant whenNotPaused updatesPosition(yieldToken) returns (uint amount_) {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
         }
+
+        // Capture our starting balance
+        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
 
         // Transfer the underlying token from our caller
         IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(address(inventoryStaking), amount);
+        IERC20(underlyingToken).approve(address(liquidityStaking), amount);
 
         // Deposit the token into the NFTX contract
-        inventoryStaking.deposit(vaultId, amount);
+        liquidityStaking.deposit(vaultId, amount);
+
+        // Determine the amount of yield token returned from our deposit
+        amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+
+        // Increase the user's position and the total position for the vault
+        unchecked {
+            position[yieldToken] += amount_;
+        }
     }
 
-    function depositErc721(uint[] calldata tokenIds) external updatesPosition(yieldToken) {
+    function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
         // Pull tokens in
         uint tokensLength = tokenIds.length;
         for (uint i; i < tokensLength;) {
@@ -136,22 +143,30 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             }
         }
 
-        // Approve stakingZap
-        IERC721(assetAddress).setApprovalForAll(address(stakingZap), true);
+        // Pull our WETH from the sender
+        WETH.transferFrom(msg.sender, address(this), wethIn);
 
-        // Push tokens out
-        stakingZap.provideInventory721(vaultId, tokenIds);
+        // Approve stakingZap and WETH allocation
+        IERC721(assetAddress).setApprovalForAll(address(stakingZap), true);
+        IERC20(WETH).approve(address(stakingZap), wethIn);
+
+        // Push tokens out with WETH allocation
+        stakingZap.addLiquidity721To(vaultId, tokenIds, minWethIn, wethIn, address(this));
     }
 
-    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external updatesPosition(yieldToken) {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
-        // Approve stakingZap
+        // Pull our WETH from the sender
+        WETH.transferFrom(msg.sender, address(this), wethIn);
+
+        // Approve stakingZap and WETH allocation
         IERC1155(assetAddress).setApprovalForAll(address(stakingZap), true);
+        IERC20(WETH).approve(address(stakingZap), wethIn);
 
         // Push tokens out
-        stakingZap.provideInventory1155(vaultId, tokenIds, amounts);
+        stakingZap.addLiquidity1155To(vaultId, tokenIds, amounts, minWethIn, wethIn, address(this));
     }
 
     /**
@@ -176,7 +191,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
 
         // Process our withdrawal against the NFTX contract
-        inventoryStaking.withdraw(vaultId, amount);
+        liquidityStaking.withdraw(vaultId, amount);
 
         // Determine the amount of `underlyingToken` received
         amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
@@ -195,35 +210,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         }
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(underlyingToken, amount_, recipient);
-    }
-
-    function withdrawErc721(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
-        _unstakeInventory(_recipient, _numNfts, _partial);
-    }
-
-    function withdrawErc1155(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
-        _unstakeInventory(_recipient, _numNfts, _partial);
-    }
-
-    function _unstakeInventory(address _recipient, uint _numNfts, uint _partial) internal {
-        // Before we can withdraw, we need to allow the contract to manage our ERC20
-        IERC20(yieldToken).approve(address(unstakingZap), type(uint).max);
-
-        // Set our NFT receiver so that our safe transfer will pass it on
-        _nftReceiver = _recipient;
-
-        // Unstake our ERC721's and partial remaining tokens
-        unstakingZap.unstakeInventory(vaultId, _numNfts, _partial);
-
-        // Delete our NFT receiver to prevent unexpected transactions
-        delete _nftReceiver;
-
-        // If we have requested `_partial` token to be returned, then we need to send
-        // this over.
-        if (_partial > 0) {
-            IERC20(underlyingToken).transfer(_recipient, _partial - 1);
-        }
+        emit Withdraw(underlyingToken, amount_, msg.sender);
     }
 
     /**
@@ -239,7 +226,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         // Get the xToken balance held by the strategy that is in addition to the amount
         // deposited. This should show only the gain / rewards generated.
-        amounts_[0] = IERC20(yieldToken).balanceOf(address(this)) - position[yieldToken];
+        amounts_[0] = ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
     }
 
     /**
@@ -250,11 +237,11 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         (, uint[] memory amounts) = this.available();
 
         if (amounts[0] != 0) {
-            // Withdraw our xToken to return vToken from the NFTX inventory staking contract
-            inventoryStaking.withdraw(vaultId, amounts[0]);
+            // Withdraw our xToken to return vToken from the NFTX staking contract
+            liquidityStaking.claimRewards(vaultId);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(underlyingToken).transfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
+            IERC20(rewardToken).transfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];
@@ -296,51 +283,32 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         emit Deposit(token, amount, msg.sender);
     }
 
-    /**
-     * Allows the contract to receive ERC721 tokens.
-     */
-    function onERC721Received(address, /* _from */ address, /* _to */ uint _id, bytes memory /* _data */ ) public returns (bytes4) {
-        require(msg.sender == assetAddress, 'Invalid asset');
+    modifier refundsWeth() {
+        // Capture our starting balance
+        uint startBalance = WETH.balanceOf(address(this));
 
-        if (_nftReceiver != address(0)) {
-            IERC721(assetAddress).safeTransferFrom(address(this), _nftReceiver, _id);
+        _;
+
+        // Determine the amount of remaining WETH token to be returned
+        uint amount = WETH.balanceOf(address(this)) - startBalance;
+        if (amount != 0) {
+            WETH.transfer(msg.sender, amount);
         }
-
-        return this.onERC721Received.selector;
     }
 
     /**
      * Allows the contract to receive ERC1155 tokens.
      */
-    function onERC1155Received(address, /* _from */ address, /* _to */ uint _id, uint _value, bytes calldata _data)
-        public
-        returns (bytes4)
-    {
+    function onERC1155Received(address, address, uint, uint, bytes calldata) public view returns (bytes4) {
         require(msg.sender == assetAddress, 'Invalid asset');
-
-        if (_nftReceiver != address(0)) {
-            IERC1155(assetAddress).safeTransferFrom(address(this), _nftReceiver, _id, _value, _data);
-        }
-
         return this.onERC1155Received.selector;
     }
 
     /**
      * Allows the contract to receive batch ERC1155 tokens.
      */
-    function onERC1155BatchReceived(
-        address, /* _from */
-        address, /* _to */
-        uint[] calldata _ids,
-        uint[] calldata _values,
-        bytes calldata _data
-    ) external returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint[] calldata, uint[] calldata, bytes calldata) external view returns (bytes4) {
         require(msg.sender == assetAddress, 'Invalid asset');
-
-        if (_nftReceiver != address(0)) {
-            IERC1155(assetAddress).safeBatchTransferFrom(address(this), _nftReceiver, _ids, _values, _data);
-        }
-
         return this.onERC1155BatchReceived.selector;
     }
 }
