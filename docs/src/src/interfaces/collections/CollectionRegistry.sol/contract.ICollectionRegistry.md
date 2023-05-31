@@ -1,5 +1,5 @@
 # ICollectionRegistry
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/interfaces/collections/CollectionRegistry.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/interfaces/collections/CollectionRegistry.sol)
 
 Allows collection contracts to be approved and revoked by addresses holding the
 {CollectionManager} role. Only once approved can these collections be applied to

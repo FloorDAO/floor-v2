@@ -1,5 +1,5 @@
 # NFTXInventoryStakingStrategy
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/contracts/strategies/NFTXInventoryStakingStrategy.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/contracts/strategies/NFTXInventoryStakingStrategy.sol)
 
 **Inherits:**
 [BaseStrategy](/src/contracts/strategies/BaseStrategy.sol/contract.BaseStrategy.md)
@@ -17,7 +17,7 @@ https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProx
 
 ## State Variables
 ### vaultId
-The NFTX vault ID that the strategy is attached to.
+The NFTX vault ID that the strategy is attached to
 
 
 ```solidity

@@ -1,5 +1,5 @@
 # StoreEpochCollectionVotesTrigger
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/contracts/triggers/StoreEpochCollectionVotes.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/contracts/triggers/StoreEpochCollectionVotes.sol)
 
 **Inherits:**
 [EpochManaged](/src/contracts/utils/EpochManaged.sol/contract.EpochManaged.md), [IEpochEndTriggered](/src/interfaces/utils/EpochEndTriggered.sol/contract.IEpochEndTriggered.md)

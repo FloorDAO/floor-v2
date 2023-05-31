@@ -1,5 +1,5 @@
 # FLOOR
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/contracts/tokens/Floor.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/contracts/tokens/Floor.sol)
 
 **Inherits:**
 [AuthorityControl](/src/contracts/authorities/AuthorityControl.sol/contract.AuthorityControl.md), ERC20, ERC20Burnable, ERC20Permit, [IFLOOR](/src/interfaces/tokens/Floor.sol/contract.IFLOOR.md)

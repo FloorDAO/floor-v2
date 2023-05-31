@@ -1,5 +1,5 @@
 # ISweepWars
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/interfaces/voting/SweepWars.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/interfaces/voting/SweepWars.sol)
 
 The GWV will allow users to assign their veFloor position to a vault, or
 optionally case it to a veFloor, which will use a constant value. As the

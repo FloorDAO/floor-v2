@@ -1,5 +1,5 @@
 # NftStakingLocker
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/contracts/staking/strategies/NftStakingLocker.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/contracts/staking/strategies/NftStakingLocker.sol)
 
 **Inherits:**
 [INftStakingStrategy](/src/interfaces/staking/strategies/NftStakingStrategy.sol/contract.INftStakingStrategy.md), Ownable

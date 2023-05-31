@@ -1,5 +1,5 @@
 # IBaseStrategy
-[Git Source](https://github.com/FloorDAO/floor-v2/blob/fd4de86a192de96d73fe2e56a84ec542b57b1c69/src/interfaces/strategies/BaseStrategy.sol)
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/fce0c6edadd90eef36eb24d13cfb5b386eeb9d00/src/interfaces/strategies/BaseStrategy.sol)
 
 Strategies will hold the logic for interacting with external platforms to stake
 and harvest reward yield. Each vault will require its own strategy implementation
