@@ -2,8 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
+import {NFTXLiquidityPoolStakingStrategy} from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
