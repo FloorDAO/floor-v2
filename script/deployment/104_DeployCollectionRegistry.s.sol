@@ -12,8 +12,6 @@ contract DeployCollectionRegistry is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
-        address floorNft = requireDeployment('FloorNft');
-        address floorNftxToken = address(0);
 
         // Deploy our {CollectionRegistry} contract
         CollectionRegistry collectionRegistry = new CollectionRegistry(authorityControl);
@@ -21,6 +19,7 @@ contract DeployCollectionRegistry is DeploymentScript {
         // Store our collection registry deployment address
         storeDeployment('CollectionRegistry', address(collectionRegistry));
 
+        /*
         // Set up our approved collections
         collectionRegistry.approveCollection(
             // PUNK
@@ -69,8 +68,9 @@ contract DeployCollectionRegistry is DeploymentScript {
         );
         collectionRegistry.approveCollection(
             // FLOOR
-            floorNft,
-            floorNftxToken
+            requireDeployment('FloorNft'),
+            address(0) // floorNftxToken
         );
+        */
     }
 }
