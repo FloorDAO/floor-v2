@@ -41,6 +41,10 @@ contract DeployCoreContracts is DeploymentScript {
         storeDeployment('NftStakingLocker', address(new NftStakingLocker(address(nftStaking))));
         storeDeployment('NftStakingNFTXV2', address(new NftStakingNFTXV2(address(nftStaking))));
 
+        // Set our base NFT Staking variables
+        nftStaking.setBoostCalculator(requireDeployment('NftStakingBoostCalculator'));
+        nftStaking.setStakingStrategy(requireDeployment('NftStakingLocker'));
+
         // Deploy our veFloor staking contracts
         storeDeployment('VeFloorStaking', address(new VeFloorStaking(IERC20(floor), treasury)));
     }

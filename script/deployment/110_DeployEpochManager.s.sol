@@ -5,6 +5,7 @@ import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {NftStaking} from '@floor/staking/NftStaking.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
+import {NewCollectionWarOptions} from '@floor/voting/NewCollectionWarOptions.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
@@ -14,10 +15,11 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 /**
  * Deploys our treasury actions.
  */
-contract DeployCoreContracts is DeploymentScript {
+contract DeployEpochManager is DeploymentScript {
     function run() external deployer {
         // Load our required contract addresses
         address newCollectionWars = requireDeployment('NewCollectionWars');
+        address newCollectionWarOptions = requireDeployment('NewCollectionWarOptions');
         address nftStaking = requireDeployment('NftStaking');
         address sweepWars = requireDeployment('SweepWars');
         address payable treasury = requireDeployment('Treasury');
@@ -32,6 +34,7 @@ contract DeployCoreContracts is DeploymentScript {
 
         // Assign our epoch manager to our existing contracts
         NewCollectionWars(newCollectionWars).setEpochManager(address(epochManager));
+        NewCollectionWarOptions(newCollectionWarOptions).setEpochManager(address(epochManager));
         NftStaking(nftStaking).setEpochManager(address(epochManager));
         SweepWars(sweepWars).setEpochManager(address(epochManager));
         Treasury(treasury).setEpochManager(address(epochManager));

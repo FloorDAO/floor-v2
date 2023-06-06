@@ -18,10 +18,12 @@ contract AddContractPermissions is DeploymentScript {
         // Ensure we have required contracts already deployed that will receive roles
         address migrateFloorToken = requireDeployment('MigrateFloorToken');
         address treasury = requireDeployment('Treasury');
+        address vestingClaim = requireDeployment('VestingClaim');
 
         // Allow our specified contracts to mint Floor tokens
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), migrateFloorToken);
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), treasury);
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), vestingClaim);
 
         // Allow specified contracts and wallets permission to interact with Treasury
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), treasury);

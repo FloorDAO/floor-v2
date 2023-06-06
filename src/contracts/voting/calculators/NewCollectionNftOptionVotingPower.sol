@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface INftVotingPowerCalculator {
-    function calculate(uint warIndex, address collection, uint spotPrice, uint exercisePercent) external pure returns (uint);
-}
+import {INftVotingPowerCalculator} from '@floor-interfaces/voting/calculators/NftVotingPowerCalculator.sol';
+
 
 /**
  * Calculates the voting power applied from a created option, factoring in the spot
@@ -16,7 +15,7 @@ contract NewCollectionNftOptionVotingPowerCalculator is INftVotingPowerCalculato
      * Performs the calculation to return the vote power given from an
      * exercisable option.
      */
-    function calculate(uint, /* warIndex */ address, /* collection */ uint spotPrice, uint exercisePercent) external pure returns (uint) {
+    function calculate(uint /* warIndex */, address /* collection */, uint spotPrice, uint exercisePercent) external pure returns (uint) {
         // If the user has matched our spot price, then we return full value
         if (exercisePercent == 100) {
             return spotPrice;

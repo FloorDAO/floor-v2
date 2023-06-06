@@ -32,7 +32,7 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 /**
  * Deploys our treasury actions.
  */
-contract DeployTreasuryActionsPartOne is DeploymentScript {
+contract DeployTreasuryActions is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         address newCollectionWars = requireDeployment('NewCollectionWars');
