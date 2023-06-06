@@ -12,7 +12,7 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract AddContractPermissions is DeploymentScript {
     function run() external deployer {
         // Load and reference our live authority contracts
-        IAuthorityControl authorityControl = IAuthorityControl(requireDeployment('AuthorityRegistry'));
+        IAuthorityControl authorityControl = IAuthorityControl(requireDeployment('AuthorityControl'));
         IAuthorityRegistry authorityRegistry = IAuthorityRegistry(requireDeployment('AuthorityRegistry'));
 
         // Ensure we have required contracts already deployed that will receive roles

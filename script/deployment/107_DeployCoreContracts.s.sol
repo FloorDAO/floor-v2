@@ -20,7 +20,7 @@ contract DeployCoreContracts is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         address collectionRegistry = requireDeployment('CollectionRegistry');
-        address floor = requireDeployment('Floor');
+        address floor = requireDeployment('FloorToken');
         address treasury = requireDeployment('Treasury');
 
         // Define our oracle wallet that will vote market bribe attributions

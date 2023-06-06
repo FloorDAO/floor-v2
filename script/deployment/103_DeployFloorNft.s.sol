@@ -8,7 +8,7 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 /**
  * Deploys our Floor NFT contract.
  */
-contract DeployNftRegistry is DeploymentScript {
+contract DeployFloorNft is DeploymentScript {
     function run() external deployer {
         // Create our default Floor NFT contract with an initial max supply
         FloorNft floorNft = new FloorNft(

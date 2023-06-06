@@ -18,18 +18,17 @@ contract DeployFloorWarsContracts is DeploymentScript {
         address collectionRegistry = requireDeployment('CollectionRegistry');
         address floorNft = requireDeployment('FloorNft');
         address treasury = requireDeployment('Treasury');
-        address vaultFactory = requireDeployment('VaultFactory');
+        address strategyFactory = requireDeployment('StrategyFactory');
         address veFloorStaking = requireDeployment('VeFloorStaking');
-        address voteStaking = requireDeployment('VoteStaking');
 
         NewCollectionWars newCollectionWars = new NewCollectionWars(
             authorityControl,   // address _authority
-            voteStaking         // address _veFloor
+            veFloorStaking      // address _veFloor
         );
 
         SweepWars sweepWars = new SweepWars(
             collectionRegistry,     // address _collectionRegistry
-            vaultFactory,           // address _vaultFactory
+            strategyFactory,        // address _strategyFactory
             veFloorStaking,         // address _veFloor
             authorityControl,       // address _authority
             treasury                // address _treasury
