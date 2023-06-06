@@ -19,3 +19,26 @@ The FLOOR token acts as the gatekeeper of the Floor treasury. It allows the hold
 With sufficient yield generated from NFT-Fi strategies and protocol-owned products, the value of each week’s sweep will help to position FLOOR holders as kingmakers of new NFT collections.
 
 Ultimately, FLOOR is a token that coordinates capital to solve the inherent liquidity and financial utility issues of NFT collections.
+
+## Deployment
+
+When deploying the network, there is a sequential deployment process in `script/deployment`. These should be run in numerical order and all latest deployment addresses will be stored in `deployment-addresses.json` when deployed.
+
+The private wallet key that will fund the deployment and become the owner of any `Ownable` contracts is stored in the `.privatekey` file.
+
+The following `forge script` parameters should be used (of course varying the file and class name):
+
+```
+source .env
+forge script script/deployment/101_DeployAuthorityRegistry.s.sol:DeployAuthorityRegistry --broadcast --verify --chain-id=5 --rpc-url=${GOERLI_RPC_URL} --optimize --optimizer-runs=200
+```
+
+When we come to deploy finalised contracts then it could be beneficial to persist contract addresses across networks. To do this in Foundry we can use the following guide:
+https://pyk.sh/tutorials/how-to-deploy-smart-contract-to-the-same-address-across-networks/
+
+### Chain IDs
+Additional chain IDs can be found here: https://chainlist.org/
+
+- Mainnet: 1
+- Goerli: 5
+- Sepolia: 11155111
