@@ -88,13 +88,5 @@ interface IEpochManager {
      * all of the contracts that are {EpochManaged}, but only needs to set ones that the
      * {EpochManager} needs to interact with.
      */
-    function setContracts(
-        address _collectionRegistry,
-        address _newCollectionWars,
-        address _pricingExecutor,
-        address _treasury,
-        address _vaultFactory,
-        address _voteContract,
-        address _voteMarket
-    ) external;
+    function setContracts(address _newCollectionWars, address _voteMarket) external;
 }

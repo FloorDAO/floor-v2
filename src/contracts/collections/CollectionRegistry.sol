@@ -67,7 +67,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      *
      * The caller must have the `COLLECTION_MANAGER` role.
      *
-     * @param contractAddr Address of unapproved collection
+     * @param contractAddr Address of unapproved collection to approve
      */
     function approveCollection(address contractAddr, address underlyingToken) external onlyRole(COLLECTION_MANAGER) {
         // Prevent a null contract being added
@@ -75,18 +75,55 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
             revert CannotApproveNullCollection();
         }
 
-        // If we haven't already got this collection added, then store it internally
-        if (!collections[contractAddr]) {
-            // Validate the liquidity of the collection before we can add it
-            if (address(pricingExecutor) != address(0) && liquidityThreshold != 0) {
-                require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
+        // Check if our collection is already approved to prevent unrequired gas usage
+        require(!collections[contractAddr], 'Collection is already approved');
+
+        // Validate the liquidity of the collection before we can add it
+        if (address(pricingExecutor) != address(0) && liquidityThreshold != 0) {
+            require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
+        }
+
+        // Approve our collection
+        collections[contractAddr] = true;
+        _approvedCollections.push(contractAddr);
+        emit CollectionApproved(contractAddr);
+    }
+
+    /**
+     * Unapproves a collection contract to be used for vaults.
+     *
+     * This will prevent the collection from being used in any future strategies.
+     *
+     * The caller must have the `COLLECTION_MANAGER` role.
+     *
+     * @param contractAddr Address of approved collection to unapprove
+     */
+    function unapproveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
+        // Ensure that our collection is approved
+        require(collections[contractAddr], 'Collection is not approved');
+
+        // Unapprove our collection
+        collections[contractAddr] = false;
+
+        // Iterate through our approved collections to find our index to delete
+        uint index;
+        uint length = _approvedCollections.length;
+        for (uint i; i < length;) {
+            if (_approvedCollections[i] == contractAddr) {
+                index = i;
+                break;
             }
 
-            // Approve our collection
-            collections[contractAddr] = true;
-            _approvedCollections.push(contractAddr);
-            emit CollectionApproved(contractAddr);
+            unchecked { ++i; }
         }
+
+        // Now that we have the index we can move the last item to the deleted position
+        // and just pop the array. The array is unordered so this won't be an issue.
+        _approvedCollections[index] = _approvedCollections[length - 1];
+        _approvedCollections.pop();
+
+        // Emit our event to notify watchers
+        emit CollectionRevoked(contractAddr);
     }
 
     /**

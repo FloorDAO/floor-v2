@@ -117,7 +117,7 @@ contract DeploymentScript is Script {
      */
     modifier deployer() {
         // Load our seed phrase from a protected file
-        uint privateKey = _stringToUint(vm.readFile('.privatekey'));
+        uint privateKey = vm.envUint("PRIVATE_KEY");
 
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.
@@ -151,15 +151,4 @@ contract DeploymentScript is Script {
         return string(_string);
     }
 
-    function _stringToUint(string memory s) internal pure returns (uint) {
-        bytes memory b = bytes(s);
-        uint result = 0;
-        for (uint i = 0; i < b.length; i++) {
-            uint c = uint(uint8(b[i]));
-            if (c >= 48 && c <= 57) {
-                result = result * 10 + (c - 48);
-            }
-        }
-        return result;
-    }
 }

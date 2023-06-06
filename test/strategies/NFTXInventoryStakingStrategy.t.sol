@@ -164,7 +164,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.depositErc20(1 ether);
+        strategy.depositErc20(1 ether);
 
         vm.stopPrank();
 
@@ -178,14 +178,20 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Confirm that we cannot claim more than our token balance / position
         vm.expectRevert('Unable to withdraw'); // InsufficientPosition
-        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, depositAmount + 1));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 100 ether));
+
+        // Confirm our token holdings before we process a withdrawal
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(treasury), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 597372952018122478);
 
         // We can now claim rewards via the strategy that will eat away from our
         // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
         // back our underlying token.
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
 
-        // The strategy should now hold token
+        // The strategy should now hold a reduced amount of token and our {Treasury}
+        // should hold the reward.
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(treasury), 836998056759743485);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 97372952018122478);
     }
 
@@ -199,7 +205,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
-        uint depositAmount = strategy.depositErc20(1 ether);
+        strategy.depositErc20(1 ether);
 
         vm.stopPrank();
 
@@ -209,7 +215,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // We can now exit via the strategy. This will burn all of our xToken and
         // we will just have our `underlyingToken` back in the strategy.
-        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, depositAmount));
+        uint position = strategy.position(strategy.yieldToken());
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, position));
 
         // The strategy should now hold token and xToken. However, we need to accomodate
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
@@ -256,7 +263,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(lifetimeRewardsAvailable[0], 5013135239909387609);
 
         // Get the {Treasury} starting balance of the reward token
-        uint treasuryStartBalance = IERC20(strategy.underlyingToken()).balanceOf(users[1]);
+        uint treasuryStartBalance = IERC20(strategy.underlyingToken()).balanceOf(treasury);
         assertEq(treasuryStartBalance, 0);
 
         // Claim our rewards via the strategy factory
@@ -266,16 +273,13 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         (, uint[] memory newRewardsAvailable) = strategy.available();
         assertEq(newRewardsAvailable[0], 0);
 
-        /*
         // Check our lifetime rewards reflect this even after claiming
         (, uint[] memory newLifetimeRewardsAvailable) = strategy.totalRewards();
-        assertEq(newLifetimeRewardsAvailable[0], 3161096210124820848);
+        assertEq(newLifetimeRewardsAvailable[0], 5013135239909387609);
 
         // Confirm that the {Treasury} has received the rewards
-        // TODO: This should always go to Treasury, not the caller
         uint treasuryEndBalance = IERC20(strategy.underlyingToken()).balanceOf(treasury);
-        assertEq(treasuryEndBalance, 3161096210124820848);
-        */
+        assertEq(treasuryEndBalance, 8391968908155895774);
     }
 
     /**

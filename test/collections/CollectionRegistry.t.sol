@@ -93,13 +93,57 @@ contract CollectionRegistryTest is FloorTest {
 
     /**
      * If a collection is already approved, if we try and approve it
-     * again then the process will complete but the state won't change.
+     * again then the process should revert.
      *
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveAlreadyApprovedCollection() public {
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        vm.expectRevert('Collection is already approved');
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+    }
+
+    /**
+     * We need to ensure that we can unapprove a collection that has been approved.
+     *
+     * This should emit {CollectionRevoked}.
+     */
+    function test_CanUnapproveAnApprovedCollection() public {
+        assertFalse(collectionRegistry.isApproved(USDC));
+
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        assertTrue(collectionRegistry.isApproved(USDC));
+
+        collectionRegistry.unapproveCollection(USDC);
+        assertFalse(collectionRegistry.isApproved(USDC));
+    }
+
+    /**
+     * If a collection is not approved when it is unapproved, then we expect the call
+     * to be reverted.
+     *
+     * This should not emit {CollectionRevoked}.
+     */
+    function test_CannotUnapproveAnUnapprovedCollection() public {
+        vm.expectRevert('Collection is not approved');
+        collectionRegistry.unapproveCollection(USDC);
+    }
+
+    /**
+     * Only addresses that have been granted the `CollectionManager`
+     * role should be able to unapprove collections. If the user does
+     * not have the role, then the call should be reverted.
+     *
+     * This should not emit {CollectionRevoked}.
+     */
+    function testFail_CannotUnapproveCollectionWithoutPermissions() public {
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        vm.prank(alice);
+        collectionRegistry.unapproveCollection(USDC);
+
+        assertTrue(collectionRegistry.isApproved(USDC));
     }
 
     /**

@@ -19,7 +19,6 @@ contract SweepWarsMock {
     address[] internal approvedCollections;
 
     /// Hardcoded address to map to the FLOOR token vault
-    /// TODO: Can we update this?
     address public constant FLOOR_TOKEN_VOTE = address(1);
 
     constructor(address _collectionRegistry, address _treasury) {

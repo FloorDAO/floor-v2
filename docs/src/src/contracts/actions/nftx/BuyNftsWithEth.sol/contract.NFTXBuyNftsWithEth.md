@@ -1,0 +1,92 @@
+# NFTXBuyNftsWithEth
+[Git Source](https://github.com/FloorDAO/floor-v2/blob/445b96358cc205e432e359914c1681c0f44048b0/src/contracts/actions/nftx/BuyNftsWithEth.sol)
+
+**Inherits:**
+[Action](/src/contracts/actions/Action.sol/contract.Action.md)
+
+This action allows us to batch sell ERC721 NFT tokens from the {Treasury}
+into a specific NFTX vault.
+This uses the NFTX Marketplace Zap to facilitate the trade, allowing us to
+specify a minimum amount of ETH to receive in return.
+
+
+## State Variables
+### marketplaceZap
+The NFTX Marketplace Zap contract
+
+
+```solidity
+INFTXMarketplaceZap public immutable marketplaceZap;
+```
+
+
+### _nftReceiver
+Stores our NFT recipient so that we can hook into safe transfer callbacks
+
+
+```solidity
+address private _nftReceiver;
+```
+
+
+## Functions
+### constructor
+
+We assign any variable contract addresses in our constructor, allowing us
+to have multiple deployed actions if any parameters change.
+
+
+```solidity
+constructor(address _marketplaceZap);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_marketplaceZap`|`address`|Address of the NFTX Marketplace Zap|
+
+
+### execute
+
+Buys an `amount` of ERC721 tokens from the NFTX vault collection.
+
+
+```solidity
+function execute(bytes calldata _request) public payable override whenNotPaused returns (uint);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`_request`|`bytes`|Packed bytes that will map to our `ActionRequest` struct|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint The amount of ETH spent on the execution|
+
+
+### onERC721Received
+
+Allows the contract to receive ERC721 tokens from our {Treasury}.
+
+
+```solidity
+function onERC721Received(address, address, uint tokenId, bytes memory) public virtual returns (bytes4);
+```
+
+## Structs
+### ActionRequest
+Store our required information to action a buy.
+
+
+```solidity
+struct ActionRequest {
+    uint vaultId;
+    uint amount;
+    uint[] specificIds;
+    address[] path;
+}
+```
+

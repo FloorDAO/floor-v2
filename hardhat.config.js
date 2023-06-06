@@ -21,6 +21,16 @@ module.exports = {
       accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
       timeout: 60000
     },
+    goerli: {
+      url: process.env.GOERLI_RPC_URL,
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      timeout: 60000
+    }
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts: [`0x${process.env.DEV_PRIVATE_KEY}`],
+      timeout: 60000
+    }
   },
   solidity: {
     version: '0.8.17',

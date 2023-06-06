@@ -72,7 +72,7 @@ contract RevenueStakingStrategy is BaseStrategy {
 
         // Emit our event to followers. We need to emit both a `Deposit` and `Harvest` as this
         // strategy essentially merges the two.
-        emit Deposit(token, amount, amount, msg.sender);
+        emit Deposit(token, amount, msg.sender);
         emit Harvest(token, amount);
 
         // As we have a 1:1 mapping of tokens, we can just return the initial deposit amount
@@ -110,7 +110,7 @@ contract RevenueStakingStrategy is BaseStrategy {
         IERC20(token).transfer(recipient, amount);
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(token, amount, msg.sender);
+        emit Withdraw(token, amount, recipient);
 
         // As we have a 1:1 mapping of tokens, we can just return the initial withdrawal amount
         return amount;

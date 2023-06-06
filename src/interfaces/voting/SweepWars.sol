@@ -19,10 +19,14 @@ interface ISweepWars {
     event VotesRevoked(address account, address collection);
 
     /**
-     * ..
+     * Gets the number of votes for a collection at the current epoch.
      */
-    function votes(address) external view returns (uint);
-    function votes(address, uint) external view returns (uint);
+    function votes(address) external view returns (int);
+
+    /**
+     * Gets the number of votes for a collection at a specific epoch.
+     */
+    function votes(address, uint) external view returns (int);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
@@ -60,7 +64,7 @@ interface ISweepWars {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(address _collection, uint _amount) external;
+    function vote(address _collection, uint _amount, bool _against) external;
 
     /**
      * Allows a user to revoke their votes from vaults. This will free up the
