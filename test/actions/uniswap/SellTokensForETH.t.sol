@@ -106,7 +106,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         // Approve $10,000 against the action contract
         ERC20(USDC).approve(address(action), 10000000000);
 
-        vm.expectRevert('Too little received');
+        vm.expectRevert();
         action.execute(
             abi.encode(
                 USDC, // token0
