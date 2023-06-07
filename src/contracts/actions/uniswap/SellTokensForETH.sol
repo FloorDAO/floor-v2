@@ -8,19 +8,9 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {Action} from '@floor/actions/Action.sol';
 
+import {IPermit2} from '@floor-interfaces/uniswap/IPermit2.sol';
 import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
 
-
-interface IPermit2 {
-    /// @notice Approves the spender to use up to amount of the specified token up until the expiration
-    /// @param token The token to approve
-    /// @param spender The spender address to approve
-    /// @param amount The approved amount of the token
-    /// @param expiration The timestamp at which the approval is no longer valid
-    /// @dev The packed allowance also holds a nonce, which will stay unchanged in approve
-    /// @dev Setting amount to type(uint160).max sets an unlimited approval
-    function approve(address token, address spender, uint160 amount, uint48 expiration) external;
-}
 
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.
@@ -70,8 +60,7 @@ contract UniswapSellTokensForETH is Action {
     }
 
     /**
-     * Swaps a fixed amount of our `token0` for a maximum possible amount of WETH using the
-     * USDC/WETH 0.05% pool, by calling `exactInputSingle` in the swap router.
+     * Swaps a fixed amount of our `token0` for a maximum possible amount of WETH.
      *
      * @dev The calling address must approve this contract to spend at least `amountIn` worth of its
      * `token0` for this function to succeed.
@@ -101,8 +90,10 @@ contract UniswapSellTokensForETH is Action {
             false
         );
 
+        // Sends the command to make a V3 token swap
         // @dev https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol
         universalRouter.execute(abi.encodePacked(bytes1(uint8(0x80))), inputs, request.deadline);
+
         return 0;
     }
 }
