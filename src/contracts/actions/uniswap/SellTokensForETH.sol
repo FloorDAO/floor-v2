@@ -2,12 +2,25 @@
 
 pragma solidity ^0.8.0;
 
-import {ISwapRouter} from '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {Action} from '@floor/actions/Action.sol';
+
+import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
+
+
+interface IPermit2 {
+    /// @notice Approves the spender to use up to amount of the specified token up until the expiration
+    /// @param token The token to approve
+    /// @param spender The spender address to approve
+    /// @param amount The approved amount of the token
+    /// @param expiration The timestamp at which the approval is no longer valid
+    /// @dev The packed allowance also holds a nonce, which will stay unchanged in approve
+    /// @dev Setting amount to type(uint160).max sets an unlimited approval
+    function approve(address token, address spender, uint160 amount, uint48 expiration) external;
+}
 
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.
@@ -16,10 +29,11 @@ import {Action} from '@floor/actions/Action.sol';
  * routing to accomplish this.
  *
  * https://docs.uniswap.org/contracts/v3/guides/swaps/single-swaps
+ * https://docs.uniswap.org/contracts/universal-router/technical-reference
  */
 contract UniswapSellTokensForETH is Action {
-    /// The interface of the Uniswap router
-    ISwapRouter public immutable swapRouter;
+    /// The interface of the Uniswap Universal Router
+    IUniversalRouter public immutable universalRouter;
 
     /// Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -49,10 +63,10 @@ contract UniswapSellTokensForETH is Action {
      * We assign any variable contract addresses in our constructor, allowing us
      * to have multiple deployed actions if any parameters change.
      *
-     * @param _swapRouter The UniSwap {SwapRouter} contract
+     * @param _universalRouter The UniSwap {UniversalRouter} contract
      */
-    constructor(address _swapRouter) {
-        swapRouter = ISwapRouter(_swapRouter);
+    constructor(address _universalRouter) {
+        universalRouter = IUniversalRouter(_universalRouter);
     }
 
     /**
@@ -70,29 +84,25 @@ contract UniswapSellTokensForETH is Action {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
-        // Transfer the specified amount of token0 to this contract from the sender
-        TransferHelper.safeTransferFrom(request.token0, msg.sender, address(this), request.amountIn);
+        // Transfer the specified amount of token0 to the universal router from the sender
+        TransferHelper.safeTransferFrom(request.token0, msg.sender, address(universalRouter), request.amountIn);
 
-        // Approve the router to spend the desired token
-        TransferHelper.safeApprove(request.token0, address(swapRouter), request.amountIn);
-
-        // Set up our swap parameters based on `execute` parameters
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(
-            request.token0, // tokenIn
-            WETH, // tokenOut
-            request.fee, // fee
-            msg.sender, // recipient
-            request.deadline, // deadline
-            request.amountIn, // amountIn
-            request.amountOutMinimum, // amountOutMinimum
-            0 // sqrtPriceLimitX96
+        // Set up our data input
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(
+            msg.sender,
+            request.amountIn,
+            request.amountOutMinimum,
+            abi.encodePacked(
+                request.token0,
+                request.fee,
+                WETH
+            ),
+            false
         );
 
-        // The call to `exactInputSingle` executes the swap
-        uint amountOut = swapRouter.exactInputSingle(params);
-
-        // We return just the amount of WETH generated in the swap, which will have
-        // already been transferred to the {Treasury} during the swap itself.
-        return amountOut;
+        // @dev https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol
+        universalRouter.execute(abi.encodePacked(bytes1(uint8(0x80))), inputs, request.deadline);
+        return 0;
     }
 }
