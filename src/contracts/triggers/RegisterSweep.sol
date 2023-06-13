@@ -38,8 +38,11 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     /// Store our token prices, set by our `pricingExecutor`
     mapping(address => uint) internal tokenEthPrice;
 
+    /// Stores yield generated in the epoch for temporary held calculations
+    mapping(address => uint) internal yield;
+
     /**
-     * ..
+     * Define our required contracts.
      */
     constructor (
         address _newCollectionWars,
@@ -59,6 +62,11 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 
         // Get our strategies
         address[] memory strategies = strategyFactory.strategies();
+
+        // Reset our yield monitoring
+        for (uint i; i < strategies.length; i++) {
+            yield[strategies[i]] = 0;
+        }
 
         // Get our approved collections
         address[] memory approvedCollections = voteContract.voteOptions();
@@ -84,9 +92,7 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         // Iterate through our list and store it to our internal mapping
         for (uint i; i < tokenEthPrices.length;) {
             tokenEthPrice[approvedCollections[i]] = tokenEthPrices[i];
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
 
         // Store the amount of rewards generated in ETH
@@ -94,25 +100,31 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 
         // Create our variables that we will reallocate during our loop to save gas
         IBaseStrategy strategy;
-        uint strategyId;
         uint tokensLength;
 
         // Iterate over strategies
         uint strategiesLength = strategies.length;
+
+        // Define our token and amount variables outside of loop
+        address[] memory tokens;
+        uint[] memory amounts;
 
         for (uint i; i < strategiesLength;) {
             // Parse our vault address into the Vault interface
             strategy = IBaseStrategy(strategies[i]);
 
             // Pull out rewards and transfer into the {Treasury}
-            strategyId = strategy.strategyId();
-            (address[] memory tokens, uint[] memory amounts) = strategyFactory.snapshot(strategyId);
+            uint strategyId = strategy.strategyId();
+            (tokens, amounts) = strategyFactory.snapshot(strategyId);
 
             // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
             tokensLength = tokens.length;
             for (uint k; k < tokensLength;) {
                 if (amounts[k] > 0) {
-                    ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
+                    unchecked {
+                        ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
+                        yield[tokens[k]] += tokenEthPrice[tokens[k]] * amounts[k];
+                    }
                 }
 
                 unchecked { ++k; }
@@ -152,11 +164,25 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         } else {
             // Process the snapshot to find the floor war collection winners and the allocated amount
             // of the sweep.
-            (address[] memory collections, uint[] memory amounts) = voteContract.snapshot(ethRewards, epoch);
+            (address[] memory collections, uint[] memory snapshotAmounts) = voteContract.snapshot(ethRewards, epoch);
+
+            // We can now remove yield from our collections based on the yield that they generated
+            // in the previous epoch.
+            for (uint i; i < collections.length;) {
+                unchecked {
+                    if (snapshotAmounts[i] > yield[collections[i]]) {
+                        snapshotAmounts[i] -= yield[collections[i]];
+                    } else {
+                        snapshotAmounts[i] = 0;
+                    }
+
+                    ++i;
+                }
+            }
 
             // Now that we have the results of the snapshot we can register them against our
             // pending sweeps.
-            treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+            treasury.registerSweep(epoch, collections, snapshotAmounts, TreasuryEnums.SweepType.SWEEP);
         }
     }
 
