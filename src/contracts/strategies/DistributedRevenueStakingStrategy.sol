@@ -50,12 +50,16 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         strategyId = _strategyId;
 
         // Extract information from our initialisation bytes data
+        address _epochManager;
         address token;
-        (token, maxEpochYield) = abi.decode(_initData, (address, uint));
+        (token, maxEpochYield, _epochManager) = abi.decode(_initData, (address, uint, address));
 
         // Set the underlying token as valid to process
         _tokens.push(token);
         _validTokens[token] = true;
+
+        // Set our epoch manager
+        _setEpochManager(_epochManager);
 
         // Transfer ownership to the caller
         _transferOwnership(msg.sender);
@@ -113,13 +117,11 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
     /**
      * Withdraws an amount of our position from the strategy.
      *
-     * @param recipient ..
+     * @param recipient The recipient address of the withdrawal
      *
      * @return uint Amount of the token returned
-     *
-     * TODO: onlyOwner
      */
-    function withdrawErc20(address recipient) external nonReentrant /* onlyOwner */ onlyValidToken(_tokens[0]) returns (uint) {
+    function withdrawErc20(address recipient) external nonReentrant onlyOwner onlyValidToken(_tokens[0]) returns (uint) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 

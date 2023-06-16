@@ -107,7 +107,6 @@ contract EpochManager is IEpochManager, Ownable {
         // it here.
         uint triggersLength = epochEndTriggers.length;
         for (uint i; i < triggersLength;) {
-            // TODO: TRY / CATCH TO ALLOW FAILURE?
             IEpochEndTriggered(epochEndTriggers[i]).endEpoch(currentEpoch);
             unchecked { ++i; }
         }

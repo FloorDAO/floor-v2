@@ -4,20 +4,22 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-/**
- * TODO:
- * - IF DEPOSIT AT EPOCH 0, THEN THIS SHOULD REFLECT THE YIELD FOR THAT SAME EPOCH.
- */
-
 contract DistributedRevenueStakingStrategyTest is FloorTest {
     // Store our staking strategy
+    CollectionRegistry collectionRegistry;
     DistributedRevenueStakingStrategy strategy;
     EpochManager epochManager;
+    StrategyFactory strategyFactory;
+
+    /// Store our strategy ID
+    uint strategyId;
 
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_126_124;
@@ -31,15 +33,31 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     constructor() forkBlock(BLOCK_NUMBER) {}
 
     function setUp() public {
+        // Create our {EpochManager}
         epochManager = new EpochManager();
 
-        strategy = new DistributedRevenueStakingStrategy();
-        strategy.setEpochManager(address(epochManager));
-        strategy.initialize(
+        // Create our {CollectionRegistry} and approve our collection
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5, 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
+
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+
+        // Deploy our strategy
+        (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
-            0, // Strategy ID
-            abi.encode(WETH, 20 ether)
+            address(new DistributedRevenueStakingStrategy()),
+            abi.encode(
+                WETH,
+                20 ether,
+                address(epochManager)
+            ),
+            0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
+
+        // Cast our strategy to the NFTX Inventory Staking Strategy contract
+        strategy = DistributedRevenueStakingStrategy(_strategy);
+        strategyId = _strategyId;
     }
 
     /**
@@ -105,7 +123,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 20 ether);
 
         // Using our snapshot call, register the tokens to be distributed
-        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategy.snapshot();
+        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 20 ether);
 
@@ -113,12 +131,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // allocation of our rewards.
         epochManager.setCurrentEpoch(1);
 
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 20 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
 
@@ -129,12 +147,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Our last snapshot call should only hold the remaining 20 + 10 ETH
         epochManager.setCurrentEpoch(2);
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 10 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
 
@@ -145,7 +163,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Shifting to after our epoch deposits, we should no longer have rewards
         epochManager.setCurrentEpoch(3);
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
     }
@@ -203,20 +221,23 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         strategy.depositErc20(50 ether);
         vm.stopPrank();
 
+        // For the purposes of this test, we set the {Treasury} to this test contract
+        strategyFactory.setTreasury(address(this));
+
         // Try and withdraw from current epoch
-        strategy.withdrawErc20(address(this));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 0);
 
         // Move our epoch forwards
         epochManager.setCurrentEpoch(1);
 
         // Confirm we can withdraw from past epoch
-        strategy.withdrawErc20(address(this));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
 
         // Withdraw from same epoch, which should yield no additional ether, but also
         // not revert.
-        strategy.withdrawErc20(address(this));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
 
         // Move our epoch forward to last one
@@ -224,7 +245,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Confirm we can withdraw from past epochs, but trying to withdraw from
         // current epoch will revert.
-        strategy.withdrawErc20(address(this));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 50 ether);
     }
 
