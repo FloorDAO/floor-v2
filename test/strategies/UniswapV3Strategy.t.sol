@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
+import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {CannotDepositZeroAmount} from '@floor/utils/Errors.sol';
 
@@ -28,8 +30,13 @@ contract UniswapV3StrategyTest is FloorTest {
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_989_012;
 
-    /// Store our staking strategy
+    /// Store our internal contracts
+    CollectionRegistry collectionRegistry;
+    StrategyFactory strategyFactory;
     UniswapV3Strategy strategy;
+
+    /// Store our strategy ID
+    uint strategyId;
 
     /// Store a {Treasury} wallet address
     address treasury;
@@ -38,11 +45,20 @@ contract UniswapV3StrategyTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Set up our pricing executor
-        strategy = new UniswapV3Strategy();
-        strategy.initialize(
+        // Create our {CollectionRegistry} and approve our collection
+        collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        // Approve our ERC721 collection
+        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5, 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
+        // Approve our ERC1155 collection
+        collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA);
+
+        // Create our {StrategyFactory}
+        strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+
+        // Deploy our strategy
+        (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH UV3 Pool'),
-            2, // Strategy ID
+            address(new UniswapV3Strategy()),
             abi.encode(
                 TOKEN_A,  // address token0
                 TOKEN_B,  // address token1
@@ -52,8 +68,13 @@ contract UniswapV3StrategyTest is FloorTest {
                 887270,  // int24 tickUpper
                 address(0),  // address pool
                 UNISWAP_POSITION_MANAGER  // address positionManager
-            )
+            ),
+            0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
+
+        // Cast our strategy to the NFTX Inventory Staking Strategy contract
+        strategy = UniswapV3Strategy(_strategy);
+        strategyId = _strategyId;
 
         // Deal some additional USDC and WETH tokens
         deal(TOKEN_A, LIQUIDITY_HOLDER, 100_000_000000);
@@ -83,7 +104,7 @@ contract UniswapV3StrategyTest is FloorTest {
      *
      */
     function test_CanGetStrategyId() public {
-        assertEq(strategy.strategyId(), 2);
+        assertEq(strategy.strategyId(), 0);
     }
 
     /**
@@ -127,14 +148,14 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(IERC20(TOKEN_B).balanceOf(treasury), 0);
 
         // We can now withdraw from the strategy
-        strategy.withdraw(treasury, 0, 0, block.timestamp, uint128(liquidity / 4));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 4)));
 
         // Confirm that we now hold the token we expect
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 933834213);
         assertEq(IERC20(TOKEN_B).balanceOf(treasury), 499999999999994240);
 
         // We can also make a subsequent withdrawal
-        strategy.withdraw(treasury, 0, 0, block.timestamp, uint128(liquidity / 2));
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 2)));
 
         // Confirm that we now hold the token we expect
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 2801502640);
@@ -232,6 +253,31 @@ contract UniswapV3StrategyTest is FloorTest {
 
         // As we were unable to successfully deposit, will still won't have any token minted
         assertEq(strategy.tokenId(), 0);
+    }
+
+    function test_CanWithdrawPercentage() public {
+        vm.startPrank(LIQUIDITY_HOLDER);
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), 100000_000000);
+        IERC20(TOKEN_B).approve(address(strategy), 100 ether);
+
+        // Make our initial deposit that will mint our token (5000 USDC + 2 WETH). As this is
+        // our first deposit, we will also mint a token.
+        strategy.deposit(5000_000000, 2 ether, 0, 0, block.timestamp);
+
+        vm.stopPrank();
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 3);
+        assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 4);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 5);
+        assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 6);
     }
 
 }

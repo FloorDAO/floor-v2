@@ -521,6 +521,32 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(tokens[0], strategy.underlyingToken());
     }
 
+    function test_CanWithdrawPercentage() public {
+        // Deposit into our strategy
+        vm.startPrank(erc20Holder);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.depositErc20(1 ether);
+        vm.stopPrank();
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 199999999999999998);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 477898361614497983);
+
+        // Confirm that the strategy has an accurate record of the deposits
+        uint deposits = strategy.deposits();
+        assertEq(deposits, 800000000000000002);
+    }
+
     function assertRewards(
         NFTXInventoryStakingStrategy _strategy,
         uint _rewardAmount,

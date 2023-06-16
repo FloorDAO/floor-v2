@@ -173,4 +173,5 @@ contract RevenueStakingStrategyTest is FloorTest {
         strategy.depositErc20(address(0), 0);
         vm.stopPrank();
     }
+
 }

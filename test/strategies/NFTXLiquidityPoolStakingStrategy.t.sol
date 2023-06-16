@@ -541,6 +541,37 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(tokens[0], strategy.underlyingToken());
     }
 
+    function test_CanWithdrawPercentage() public {
+        // Confirm that our tests don't have any residual tokens to start with
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Deposit into our strategy
+        vm.startPrank(erc20Holder);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.depositErc20(1 ether);
+        vm.stopPrank();
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 2e17);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 8e17);
+
+        // Confirm that the strategy has an accurate record of the deposits
+        uint deposits = strategy.deposits();
+        assertEq(deposits, 8e17);
+    }
+
     function assertRewards(
         NFTXLiquidityPoolStakingStrategy _strategy,
         uint _rewardAmount,

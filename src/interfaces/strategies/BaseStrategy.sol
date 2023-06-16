@@ -69,6 +69,11 @@ interface IBaseStrategy {
     function validTokens() external view returns (address[] memory);
 
     /**
+     * ..
+     */
+    function withdrawPercentage(address recipient, uint percentage) external returns (address[] memory, uint[] memory);
+
+    /**
      * Pauses deposits from being made into the vault. This should only be called by
      * a guardian or governor.
      *

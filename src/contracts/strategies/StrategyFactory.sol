@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
@@ -35,7 +37,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
 
     /// Mappings to aide is discoverability
     mapping(uint => address) private strategyIds;
-    mapping(address => address[]) public collectionStrategies;
+
+    /// Mapping of collection to strategy addresses
+    mapping(address => address[]) internal _collectionStrategies;
 
     /**
      * Store our registries, mapped to their interfaces.
@@ -55,6 +59,13 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      */
     function strategies() external view returns (address[] memory) {
         return _strategies;
+    }
+
+    /**
+     *
+     */
+    function collectionStrategies(address _collection) external view returns (address[] memory) {
+        return _collectionStrategies[_collection];
     }
 
     /**
@@ -112,7 +123,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
 
         // Add our mappings for onchain discoverability
         strategyIds[strategyId_] = strategyAddr_;
-        collectionStrategies[_collection].push(strategyAddr_);
+        _collectionStrategies[_collection].push(strategyAddr_);
 
         // Finally we can emit our event to notify watchers of a new vault
         emit VaultCreated(strategyId_, strategyAddr_, _collection);
@@ -186,6 +197,24 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
 
         // If our call failed, return a standardised message rather than decoding
         require(success, 'Unable to withdraw');
+    }
+
+    /**
+     * Makes a call to a strategy withdraw function.
+     *
+     * @param _strategy Strategy address to be updated
+     * @param _percentage The percentage of position to withdraw from
+     */
+    function withdrawPercentage(address _strategy, uint _percentage) external onlyRole(VAULT_MANAGER) returns (address[] memory, uint[] memory) {
+        console.log('111');
+        // Ensure our percentage is valid (less than 100% to 2 decimal places)
+        require(_percentage > 0, 'Invalid percentage');
+        console.log('222');
+        require(_percentage <= 10000, 'Invalid percentage');
+        console.log('333');
+
+        // Calls our strategy to withdraw a percentage of the holdings
+        return IBaseStrategy(_strategy).withdrawPercentage(msg.sender, _percentage);
     }
 
     /**

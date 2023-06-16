@@ -31,6 +31,11 @@ interface IStrategyFactory {
     function strategies() external view returns (address[] memory);
 
     /**
+     * ..
+     */
+    function collectionStrategies(address _collection) external view returns (address[] memory);
+
+    /**
      * Provides a strategy against the provided `strategyId` (index). If the index does not exist,
      * then address(0) will be returned.
      *
@@ -102,6 +107,14 @@ interface IStrategyFactory {
      * @param _data Strategy withdraw function call, using `encodeWithSelector`
      */
     function withdraw(uint _strategyId, bytes calldata _data) external;
+
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param _strategy Strategy address to be updated
+     * @param _percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address _strategy, uint _percentage) external returns (address[] memory, uint[] memory);
 
     /**
      * Allows the {Treasury} contract address to be updated. All withdrawals will
