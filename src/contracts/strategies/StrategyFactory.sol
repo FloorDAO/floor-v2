@@ -62,7 +62,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     }
 
     /**
+     * Returns an array of all strategies that belong to a specific collection.
      *
+     * @param _collection The address of the collection to query
+     *
+     * @return address[] Array of strategy addresses
      */
     function collectionStrategies(address _collection) external view returns (address[] memory) {
         return _collectionStrategies[_collection];

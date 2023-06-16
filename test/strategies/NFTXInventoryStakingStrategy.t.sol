@@ -109,7 +109,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -514,6 +514,9 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
     }
 
+    /**
+     * Ensures that we have the correct tokens attached to the strategy.
+     */
     function test_CanGetValidTokens() public {
         address[] memory tokens = strategy.validTokens();
 

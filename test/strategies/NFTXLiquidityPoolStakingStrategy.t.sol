@@ -132,14 +132,14 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensure we can get our reward token address.
      */
     function test_CanGetRewardToken() public {
         assertEq(strategy.rewardToken(), 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -534,6 +534,9 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
     }
 
+    /**
+     * Ensures that we have the correct tokens attached to the strategy.
+     */
     function test_CanGetValidTokens() public {
         address[] memory tokens = strategy.validTokens();
 

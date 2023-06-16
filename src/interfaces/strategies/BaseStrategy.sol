@@ -69,7 +69,13 @@ interface IBaseStrategy {
     function validTokens() external view returns (address[] memory);
 
     /**
-     * ..
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Strategy address to be updated
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     *
+     * @return address[] Array of tokens withdrawn
+     * @return uint[] Amounts of respective tokens withdrawn
      */
     function withdrawPercentage(address recipient, uint percentage) external returns (address[] memory, uint[] memory);
 
@@ -82,7 +88,8 @@ interface IBaseStrategy {
     function pause(bool _p) external;
 
     /**
-     * ..
+     * Gets a read of new yield since the last call. This is what can be called when
+     * the epoch ends to determine the amount generated within the epoch.
      */
     function snapshot() external returns (address[] memory, uint[] memory);
 }

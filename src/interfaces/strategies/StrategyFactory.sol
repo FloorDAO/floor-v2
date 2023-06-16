@@ -31,7 +31,7 @@ interface IStrategyFactory {
     function strategies() external view returns (address[] memory);
 
     /**
-     * ..
+     * Returns an array of all strategies that belong to a specific collection.
      */
     function collectionStrategies(address _collection) external view returns (address[] memory);
 

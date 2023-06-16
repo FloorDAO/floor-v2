@@ -160,11 +160,13 @@ contract UniswapV3Strategy is BaseStrategy {
     }
 
     /**
-     * ..
+     * Makes a withdrawal of both tokens from our Uniswap token position.
      *
-     * @param amount0Min - The minimum amount of token0 that should be accounted for the burned liquidity
-     * @param amount1Min - The minimum amount of token1 that should be accounted for the burned liquidity
-     * @param deadline - The time by which the transaction must be included to effect the change
+     * @param recipient The recipient of the withdrawal
+     * @param amount0Min The minimum amount of token0 that should be accounted for the burned liquidity
+     * @param amount1Min The minimum amount of token1 that should be accounted for the burned liquidity
+     * @param deadline The time by which the transaction must be included to effect the change
+     * @param liquidity The amount of liquidity to withdraw against
      */
     function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) external nonReentrant onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
         return _withdraw(recipient, amount0Min, amount1Min, deadline, liquidity);

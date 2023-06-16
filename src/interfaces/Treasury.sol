@@ -128,28 +128,33 @@ interface ITreasury {
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
-     * ..
+     * Actions a sweep to be used against a contract that implements {ISweeper}. This
+     * will fulfill the sweep and we then mark the sweep as completed.
      */
     function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
-     * ..
+     * Allows the DAO to resweep an already swept "Sweep" struct, using a contract that
+     * implements {ISweeper}. This will fulfill the sweep again and keep the sweep marked
+     * as completed.
      */
     function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
-     * ..
+     * When an epoch ends, we have the ability to register a sweep against the {Treasury}
+     * via an approved contract. This will store a DAO sweep that will need to be actioned
+     * using the `sweepEpoch` function.
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType)
         external;
 
     /**
-     * ..
+     * The minimum sweep amount that can be implemented, or excluded, as desired by the DAO.
      */
     function minSweepAmount() external returns (uint);
 
     /**
-     * ..
+     * Allows the mercenary sweeper contract to be updated.
      */
     function setMercenarySweeper(address _mercSweeper) external;
 }

@@ -46,7 +46,7 @@ interface IBasePricingExecutor {
     function getLatestFloorPrice(address token) external view returns (uint);
 
     /**
-     * ..
+     * If applicable, gets the amount of liquidity held in a pairing.
      */
     function getLiquidity(address token) external returns (uint);
 }

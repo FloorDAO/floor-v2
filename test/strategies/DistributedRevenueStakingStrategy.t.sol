@@ -68,7 +68,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensures that we have the correct tokens attached to the strategy.
      */
     function test_CanGetTokens() public {
         address[] memory tokens = strategy.validTokens();
@@ -76,7 +76,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -168,6 +168,10 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(snapshotAmounts[0], 0 ether);
     }
 
+    /**
+     * If we make deposits over multple epochs, we need to ensure that the amounts start
+     * from the current epoch and then stagger over the coming epochs if there is overflow.
+     */
     function test_CanMakeStaggeredDeposits() public {
         // Confirm our test user's starting balance
         assertEq(IERC20(WETH).balanceOf(testUser), 78.4 ether);
@@ -214,6 +218,9 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(strategy.epochYield(3), 5 ether);
     }
 
+    /**
+     * Ensure that we can only withdraw in valid, past epochs that have available yield
+     */
     function test_CanWithdrawInValidEpochs() public {
         // Deposit enough ETH to fill all our upcoming epochs
         vm.startPrank(testUser);

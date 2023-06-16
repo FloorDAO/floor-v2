@@ -511,9 +511,6 @@ contract SweepWarsTest is FloorTest {
         assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
     }
 
-    /**
-     * ...
-     */
     function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
         // Approvals aren't needed and may throw issues with our mocked setups
         vm.mockCall(collection, abi.encodeWithSelector(IERC20.approve.selector), abi.encode(true));

@@ -5,9 +5,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-/**
- * ..
- */
 contract DeploymentScriptTest is DeploymentScript, FloorTest {
     function test_CanRequireDeployment() external {
         // Cannot access unknown value

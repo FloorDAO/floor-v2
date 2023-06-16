@@ -92,7 +92,7 @@ contract UniswapV3StrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensures that we have the correct tokens attached to the strategy.
      */
     function test_CanGetTokens() public {
         address[] memory tokens = strategy.validTokens();
@@ -101,14 +101,14 @@ contract UniswapV3StrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
     }
 
     /**
-     *
+     * Ensure that we can deposit and withdraw against the strategy as expected.
      */
     function test_CanDepositAndWithdraw() public {
         // Confirm our test user's starting balance
@@ -255,6 +255,9 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(strategy.tokenId(), 0);
     }
 
+    /**
+     * Ensure that we can withdraw a specific percentage value form the strategy.
+     */
     function test_CanWithdrawPercentage() public {
         vm.startPrank(LIQUIDITY_HOLDER);
 
