@@ -48,7 +48,11 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     }
 
     /**
-     * TODO: When the epoch ends, ..
+     * When the epoch ends, we check to see if any collections received negative votes. If
+     * we do, then we find the collection with the most negative votes and liquidate a percentage
+     * of the position for that collection based on a formula.
+     *
+     * @dev The output of the liquidation will be sent to a {DistributedRevenueStakingStrategy}.
      *
      * @param epoch The epoch that is ending
      */
