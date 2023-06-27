@@ -54,6 +54,9 @@ contract SudoswapSellNftsForEth is Action {
             }
         }
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('SudoswapSellNftsForEth', _request);
+
         // Sell the NFTs and send the tokens to the sender
         return LSSVMPair(pair).swapNFTsForToken({
             nftIds: nftIds,
@@ -62,5 +65,12 @@ contract SudoswapSellNftsForEth is Action {
             isRouter: false,
             routerCaller: msg.sender
         });
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

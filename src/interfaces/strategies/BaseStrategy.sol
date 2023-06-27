@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 /**
  * Strategies will hold the logic for interacting with external platforms to stake
- * and harvest reward yield. Each vault will require its own strategy implementation
+ * and harvest reward yield. Each strategy will require its own strategy implementation
  * to allow for different immutable variables to be defined during construct.
  *
  * This will follow a similar approach to how NFTX offer their eligibility module
@@ -24,7 +24,7 @@ interface IBaseStrategy {
     event Withdraw(address token, uint amount, address caller);
 
     /**
-     * Allows the vault to be initialised.
+     * Allows the strategy to be initialised.
      */
     function initialize(bytes32 name, uint strategyId, bytes calldata initData) external;
 
@@ -34,7 +34,7 @@ interface IBaseStrategy {
     function name() external view returns (bytes32);
 
     /**
-     * The numerical ID of the vault that acts as an index for the {StrategyFactory}.
+     * The numerical ID of the strategy that acts as an index for the {StrategyFactory}.
      */
     function strategyId() external view returns (uint);
 
@@ -69,10 +69,10 @@ interface IBaseStrategy {
     function validTokens() external view returns (address[] memory);
 
     /**
-     * Pauses deposits from being made into the vault. This should only be called by
+     * Pauses deposits from being made into the strategy. This should only be called by
      * a guardian or governor.
      *
-     * @param _p Boolean value for if the vault should be paused
+     * @param _p Boolean value for if the strategy should be paused
      */
     function pause(bool _p) external;
 

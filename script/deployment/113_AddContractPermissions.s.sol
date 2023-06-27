@@ -29,7 +29,7 @@ contract AddContractPermissions is DeploymentScript {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), treasury);
 
         // Allow specified contracts and wallets permission to create and pause Vaults
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), treasury);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), treasury);
 
         // Transfer ownership of any required contracts
         // None currently required..

@@ -43,13 +43,13 @@ interface ITreasury {
     /// @dev When native network token is withdrawn from the Treasury
     event Deposit(uint amount);
 
-    /// @dev When an ERC20 is depositted into the vault
+    /// @dev When an ERC20 is depositted into the Treasury
     event DepositERC20(address token, uint amount);
 
-    /// @dev When an ERC721 is depositted into the vault
+    /// @dev When an ERC721 is depositted into the Treasury
     event DepositERC721(address token, uint tokenId);
 
-    /// @dev When an ERC1155 is depositted into the vault
+    /// @dev When an ERC1155 is depositted into the Treasury
     event DepositERC1155(address token, uint tokenId, uint amount);
 
     /// @dev When native network token is withdrawn from the Treasury
@@ -61,7 +61,7 @@ interface ITreasury {
     /// @dev When an ERC721 token is withdrawn from the Treasury
     event WithdrawERC721(address token, uint tokenId, address recipient);
 
-    /// @dev When an ERC1155 is withdrawn from the vault
+    /// @dev When an ERC1155 is withdrawn from the Treasury
     event WithdrawERC1155(address token, uint tokenId, uint amount, address recipient);
 
     /// @dev When FLOOR is minted
@@ -113,17 +113,17 @@ interface ITreasury {
     function withdraw(address recipient, uint amount) external;
 
     /**
-     * Allows an approved user to withdraw and ERC20 token from the vault.
+     * Allows an approved user to withdraw and ERC20 token from the Treasury.
      */
     function withdrawERC20(address recipient, address token, uint amount) external;
 
     /**
-     * Allows an approved user to withdraw and ERC721 token from the vault.
+     * Allows an approved user to withdraw and ERC721 token from the Treasury.
      */
     function withdrawERC721(address recipient, address token, uint tokenId) external;
 
     /**
-     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     * Allows an approved user to withdraw an ERC1155 token(s) from the Treasury.
      */
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 

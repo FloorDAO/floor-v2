@@ -34,7 +34,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract DeployTreasuryActions is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
-        address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
 
         // Set up some live uniswap contracts

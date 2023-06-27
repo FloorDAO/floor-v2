@@ -77,8 +77,8 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
          * Updates our FLOOR <-> token price mapping to determine the amount of FLOOR to allocate
          * as user rewards.
          *
-         * The vault will handle its own internal price calculation and stale caching logic based
-         * on a {VaultPricingStrategy} tied to the strategy.
+         * The strategy will handle its own internal price calculation and stale caching logic based
+         * on a {PricingStrategy} tied to it.
          *
          * @dev Our FLOOR ETH price is determined by:
          * https://app.uniswap.org/#/swap?outputCurrency=0xf59257E961883636290411c11ec5Ae622d19455e&inputCurrency=ETH&chain=Mainnet
@@ -110,14 +110,14 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         uint[] memory amounts;
 
         for (uint i; i < strategiesLength;) {
-            // Parse our vault address into the Vault interface
+            // Parse our strategy address into the {BaseStrategy} interface
             strategy = IBaseStrategy(strategies[i]);
 
             // Pull out rewards and transfer into the {Treasury}
             uint strategyId = strategy.strategyId();
             (tokens, amounts) = strategyFactory.snapshot(strategyId);
 
-            // Calculate our vault yield and convert it to ETH equivalency that will fund the sweep
+            // Calculate our strategy yield and convert it to ETH equivalency that will fund the sweep
             tokensLength = tokens.length;
             for (uint k; k < tokensLength;) {
                 if (amounts[k] > 0) {

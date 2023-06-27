@@ -102,7 +102,7 @@ contract EpochManagerTest is FloorTest {
         newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(veFloor));
 
         epochManager = new EpochManager();
-        epochManager.setContracts(address(newCollectionWars), address(7));
+        epochManager.setContracts(address(newCollectionWars), address(0));
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
@@ -224,7 +224,7 @@ contract EpochManagerTest is FloorTest {
         // Assign required roles for our trigger and epoch manager contracts
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
 
         // Set our sample size of the GWV and to retain 50% of {Treasury} yield

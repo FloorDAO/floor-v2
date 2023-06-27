@@ -49,6 +49,9 @@ contract UniswapAddLiquidity is UniswapActionBase {
      * Adds liquidity to an existing ERC721 position.
      */
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
+        // Emit our `ActionEvent`
+        emit ActionEvent('SushiswapAddLiquidity', _request);
+
         // Unpack the request bytes data into our struct and call our internal execute logic
         return _execute(abi.decode(_request, (ActionRequest)));
     }
@@ -83,5 +86,12 @@ contract UniswapAddLiquidity is UniswapActionBase {
         request.token1.approveToken(address(positionManager), 0);
 
         return uint(liquidity);
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

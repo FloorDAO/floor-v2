@@ -146,7 +146,7 @@ contract NewCollectionWarsTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
 
         /* Allows our trigger to take a snapshot of the strategies */
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
 
         /* Allows our trigger and the epoch manager to end a floor war */
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));

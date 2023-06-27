@@ -13,6 +13,15 @@ contract WrapEth is Action {
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /**
+     * Store our required information to action a swap.
+     *
+     * @param amount The amount of ETH to wrap into WETH
+     */
+    struct ActionRequest {
+        uint amount;
+    }
+
+    /**
      * Wraps a fixed amount of ETH into WETH.
      *
      * @return uint The amount of ETH wrapped into WETH by the execution
@@ -21,8 +30,18 @@ contract WrapEth is Action {
         IWETH(WETH).deposit{value: msg.value}();
         IWETH(WETH).transfer(msg.sender, msg.value);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UtilsWrapEth', abi.encode(msg.value));
+
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury}.
         return msg.value;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

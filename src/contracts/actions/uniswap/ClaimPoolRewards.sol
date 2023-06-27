@@ -38,9 +38,10 @@ contract UniswapClaimPoolRewards is UniswapActionBase {
      * @dev The contract must hold the erc721 token before it can collect fees.
      */
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
-        // Unpack the request bytes data into our struct
-        ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return _execute(request);
+        // Emit our `ActionEvent`
+        emit ActionEvent('SushiswapAddLiquidity', _request);
+
+        return _execute(abi.decode(_request, (ActionRequest)));
     }
 
     function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
@@ -56,5 +57,12 @@ contract UniswapClaimPoolRewards is UniswapActionBase {
 
         // Empty return value, as we have 2 forms of fees returned
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

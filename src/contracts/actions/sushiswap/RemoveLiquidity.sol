@@ -67,7 +67,17 @@ contract SushiswapRemoveLiquidity is Action {
             request.tokenA, request.tokenB, request.liquidity, request.amountAMin, request.amountBMin, request.to, request.deadline
         );
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('SushiswapRemoveLiquidity', _request);
+
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
 }

@@ -76,8 +76,18 @@ contract NFTXBuyNftsWithEth is Action {
             require(success, 'Address: unable to send value, recipient may have reverted');
         }
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('NftxBuyNftsWithEth', _request);
+
         // We return just the amount of tokens bought
         return amount;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
     /**
