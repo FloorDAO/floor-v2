@@ -13,6 +13,9 @@ import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
  */
 contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
 
+    /// Emitted when our collection votes are stored
+    event EpochVotesSnapshot(uint epoch, address[] collections, int[] votes);
+
     /**
      * Holds the data for each epoch to show collections and their votes.
      *
@@ -68,6 +71,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
 
         // Store our epoch snapshots
         epochSnapshots[epoch] = EpochSnapshot(epoch, collectionAddrs, collectionVotes);
+        emit EpochVotesSnapshot(epoch, collectionAddrs, collectionVotes);
     }
 
     /**
