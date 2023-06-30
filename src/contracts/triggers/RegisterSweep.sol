@@ -115,7 +115,7 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 
             // Pull out rewards and transfer into the {Treasury}
             uint strategyId = strategy.strategyId();
-            (tokens, amounts) = strategyFactory.snapshot(strategyId);
+            (tokens, amounts) = strategyFactory.snapshot(strategyId, epoch);
 
             // Calculate our strategy yield and convert it to ETH equivalency that will fund the sweep
             tokensLength = tokens.length;

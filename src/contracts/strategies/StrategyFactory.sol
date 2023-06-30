@@ -139,9 +139,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @return tokens Tokens that have been generated as yield
      * @return amounts The amount of yield generated for the corresponding token
      */
-    function snapshot(uint _strategyId) external onlyRole(STRATEGY_MANAGER) returns (address[] memory tokens, uint[] memory amounts) {
+    function snapshot(uint _strategyId, uint _epoch) external onlyRole(STRATEGY_MANAGER) returns (address[] memory tokens, uint[] memory amounts) {
         (tokens, amounts) = IBaseStrategy(strategyIds[_strategyId]).snapshot();
-        emit StrategySnapshot(_strategyId, tokens, amounts);
+        emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
     }
 
     /**
