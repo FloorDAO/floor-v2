@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "forge-std/console.sol";
+
 import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
@@ -187,27 +189,6 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         _deposit(msg.sender, amount, epochs);
     }
 
-    /**
-     * @notice Stakes given amount on behalf of provided account without locking or extending lock
-     * @param account The account to stake for
-     * @param amount The amount to stake
-     */
-    function depositFor(address account, uint amount) external {
-        _deposit(account, amount, 0);
-    }
-
-    /**
-     * @notice Stakes given amount on behalf of provided account without locking or extending
-     * lock with permit.
-     * @param account The account to stake for
-     * @param amount The amount to stake
-     * @param permit Permit given by the caller
-     */
-    function depositForWithPermit(address account, uint amount, bytes calldata permit) external {
-        floor.safePermit(permit);
-        _deposit(account, amount, 0);
-    }
-
     function _deposit(address account, uint amount, uint epochs) private {
         // If emergency exit is enabled, then we don't accept deposits
         if (emergencyExit) revert DepositsDisabled();
@@ -313,12 +294,18 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     }
 
     function _earlyWithdrawLoss(Depositor memory depositor, uint depAmount) private view returns (uint loss, uint ret) {
-        uint remaining = depositor.epochCount;
-        if (currentEpoch() > depositor.epochStart + depositor.epochCount) {
+        // If the current epoch is after the end of the lock, then we can assume there is
+        // no early exit loss as their stake is now fully available.
+        uint _currentEpoch = currentEpoch();
+        if (_currentEpoch > depositor.epochStart + depositor.epochCount) {
             return (0, depAmount);
         }
 
-        ret = ( depAmount * ( depositor.epochCount - remaining ) ) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+        // Determine the number of epochs remaining in the stake
+        uint remaining = depositor.epochCount - (_currentEpoch - depositor.epochStart);
+
+        // Calculate the early withdrawal fee
+        ret = (depAmount * (depositor.epochCount - remaining)) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
         loss = depAmount - ret;
     }
 

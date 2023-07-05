@@ -107,10 +107,14 @@ contract EpochManagerTest is FloorTest {
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
         sweepWars.setEpochManager(address(epochManager));
+        veFloor.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
+
+        // Set our war contracts on the veFloor staking contract
+        veFloor.setVotingContracts(address(newCollectionWars), address(sweepWars));
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
