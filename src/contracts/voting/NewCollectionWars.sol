@@ -134,6 +134,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             userVotes[warUser] += votesAvailable;
         }
 
+        // Trigger our potential restake due to vote action
+        veFloor.restake(msg.sender);
+
         emit VoteCast(msg.sender, collection, userVotes[warUser], collectionVotes[warCollection]);
     }
 
