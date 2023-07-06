@@ -303,7 +303,7 @@ contract VeFloorStakingTest is FloorTest {
 
     function test_CanExemptCallerFromEarlyWithdrawFees() external {
         // Lock 1 token for 24 weeks
-        veFloor.deposit(1 ether, 4);
+        veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
         // Shift our epoch to 12 weeks
         epochManager.setCurrentEpoch(12);
@@ -364,6 +364,174 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(loss, 0 ether);
         assertEq(ret, 100 ether);
         assertEq(canWithdraw, true);
+    }
+
+    // Example 1 : Lock for 12 epochs, call refresh with 0 epochs passed. Should not change.
+    function test_CanRefreshLock_1(uint160 _startEpoch) external {
+        // Set our current epoch to our test value
+        epochManager.setCurrentEpoch(_startEpoch);
+
+        // Set our voting contracts. The actual address does not matter, as we only need to
+        // use it to prank the caller.
+        veFloor.setVotingContracts(address(1), address(2));
+
+        veFloor.deposit(1 ether, 3);
+        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+
+        vm.prank(address(1));
+        veFloor.refreshLock(address(this));
+
+        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+    }
+
+    // Example 2 : Lock for 12 epochs, call refresh with 10 epochs passed. Should not change.
+    function test_CanRefreshLock_2(uint160 _startEpoch) external {
+        // Ensure we don't get value overflow for our starting epoch
+        vm.assume(_startEpoch < type(uint160).max - 10);
+
+        // Set our current epoch to our test value
+        epochManager.setCurrentEpoch(_startEpoch);
+
+        // Set our voting contracts. The actual address does not matter, as we only need to
+        // use it to prank the caller.
+        veFloor.setVotingContracts(address(1), address(2));
+
+        veFloor.deposit(1 ether, 3);
+        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+
+        // Move our epoch forward after the deposit
+        epochManager.setCurrentEpoch(_startEpoch + 10);
+
+        vm.prank(address(1));
+        veFloor.refreshLock(address(this));
+
+        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+    }
+
+    // Example 3 : Lock for 12 epochs, call refresh with 11 epochs passed. Should change.
+    function test_CanRefreshLock_3(uint160 _startEpoch) external {
+        // Ensure we don't get value overflow for our starting epoch
+        vm.assume(_startEpoch < type(uint160).max - 11);
+
+        // Set our current epoch to our test value
+        epochManager.setCurrentEpoch(_startEpoch);
+
+        // Set our voting contracts. The actual address does not matter, as we only need to
+        // use it to prank the caller.
+        veFloor.setVotingContracts(address(1), address(2));
+
+        veFloor.deposit(1 ether, 3);
+        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+
+        // Move our epoch forward after the deposit
+        epochManager.setCurrentEpoch(_startEpoch + 11);
+
+        vm.prank(address(1));
+        veFloor.refreshLock(address(this));
+
+        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, epochManager.currentEpoch() - 10);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+    }
+
+    // Example 4 : Lock for 12 epochs, call refresh with 12 epochs passed. Should change.
+    function test_CanRefreshLock_4(uint160 _startEpoch) external {
+        // Ensure we don't get value overflow for our starting epoch
+        vm.assume(_startEpoch < type(uint160).max - 12);
+
+        // Set our current epoch to our test value
+        epochManager.setCurrentEpoch(_startEpoch);
+
+        // Set our voting contracts. The actual address does not matter, as we only need to
+        // use it to prank the caller.
+        veFloor.setVotingContracts(address(1), address(2));
+
+        veFloor.deposit(1 ether, 3);
+        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+
+        // Move our epoch forward after the deposit
+        epochManager.setCurrentEpoch(_startEpoch + 10);
+
+        vm.prank(address(1));
+        veFloor.refreshLock(address(this));
+
+        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, epochManager.currentEpoch() - 10);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+    }
+
+    // Example 5 : Lock for 12 epochs, call refresh with 24 epochs passed. Should change.
+    function test_CanRefreshLock_5(uint160 _startEpoch) external {
+        // Ensure we don't get value overflow for our starting epoch
+        vm.assume(_startEpoch < type(uint160).max - 24);
+
+        // Set our current epoch to our test value
+        epochManager.setCurrentEpoch(_startEpoch);
+
+        // Set our voting contracts. The actual address does not matter, as we only need to
+        // use it to prank the caller.
+        veFloor.setVotingContracts(address(1), address(2));
+
+        veFloor.deposit(1 ether, 3);
+        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, _startEpoch);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+
+        // Move our epoch forward after the deposit
+        epochManager.setCurrentEpoch(_startEpoch + 24);
+
+        vm.prank(address(1));
+        veFloor.refreshLock(address(this));
+
+        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
+        assertEq(startEpoch, epochManager.currentEpoch() - 10);
+        assertEq(epochCount, 12);
+        assertEq(amount, 1 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+    }
+
+    function test_CannotRefreshLockFromUnknownCaller(address caller) external {
+        // Set our voting contracts to specific addresses
+        veFloor.setVotingContracts(address(1), address(2));
+
+        // Ensure that the caller is not one of the voting contracts that we defined
+        vm.assume(caller != address(1));
+        vm.assume(caller != address(2));
+
+        // Prank call as the random address and confirm that it is reverted
+        vm.prank(caller);
+        vm.expectRevert('Invalid caller');
+        veFloor.refreshLock(address(this));
     }
 
     function _assertBalances(address _account, uint _balance, uint _epoch) internal {

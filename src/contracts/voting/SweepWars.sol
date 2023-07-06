@@ -202,7 +202,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         collectionVotes[_collection] = collectionVote;
 
         // Trigger our potential restake due to vote action
-        veFloor.restake(msg.sender);
+        veFloor.refreshLock(msg.sender);
 
         emit VoteCast(msg.sender, _collection, _amount);
     }

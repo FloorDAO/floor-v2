@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {SafeERC20} from '@1inch/solidity-utils/contracts/libraries/SafeERC20.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
@@ -351,29 +349,37 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
         _burn(msg.sender, balance);
 
-        // TODO: Test?
-        emit Withdraw(msg.sender, depositor.amount);
+        emit Withdraw(msg.sender, balance);
     }
 
     /**
      * When a vote or action is cast in the system, then we need to reset the token lock
      * period to ensure that the minimum locking threshold is met.
      */
-    function restake(address account) external {
+    function refreshLock(address account) external {
         require(msg.sender == address(newCollectionWars) || msg.sender == address(sweepWars), 'Invalid caller');
 
         // Load our depositor with a single SLOAD
         Depositor memory depositor = depositors[account];
 
-        // If the user has not passed the minimum threshold, then
+        // Capture our current epoch to prevent multiple future reads
         uint currentEpoch = currentEpoch();
-        if ((currentEpoch - depositor.epochStart) + LOCK_PERIODS[0] < depositor.epochCount) {
+
+        // If we have implemented delayed staking, then this sense check will prevent
+        // unexpected revert errors.
+        if (depositor.epochStart > currentEpoch) {
+            return;
+        }
+
+        // Ensure that the user is within, or has gone past, the smallest lock window
+        if ((currentEpoch - depositor.epochStart) + LOCK_PERIODS[0] <= depositor.epochCount) {
             return;
         }
 
         // Update the depositor lock to the current epoch
-        depositor.epochStart = uint160(currentEpoch);
-        depositor.epochCount = LOCK_PERIODS[0];
+        // (11 + 2) - 12 = 1
+        depositor.epochStart = uint160((currentEpoch + LOCK_PERIODS[0]) - depositor.epochCount);
+        // depositor.epochCount = LOCK_PERIODS[0];
 
         // SSTORE our updated depositor data
         depositors[account] = depositor;
