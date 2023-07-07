@@ -14,7 +14,6 @@ import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity
 import {CowSwapSweeper} from '@floor/sweepers/CowSwap.sol';
 import {GemSweeper} from '@floor/sweepers/Gem.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
-import {MercenarySweeper} from '@floor/sweepers/Mercenary.sol';
 import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
 import {UniswapClaimPoolRewards} from '@floor/actions/uniswap/ClaimPoolRewards.sol';
 import {UniswapCreatePool} from '@floor/actions/uniswap/CreatePool.sol';
@@ -35,7 +34,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract DeployTreasuryActions is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
-        address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
 
         // Set up some live uniswap contracts
@@ -66,7 +64,6 @@ contract DeployTreasuryActions is DeploymentScript {
         storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury)));
         storeDeployment('GemSweeper', address(new GemSweeper()));
         storeDeployment('ManualSweeper', address(new ManualSweeper()));
-        storeDeployment('MercenarySweeper', address(new MercenarySweeper(newCollectionWars)));
 
         storeDeployment('UniswapAddLiquidity', address(new UniswapAddLiquidity(uniswapPositionManager)));
         storeDeployment('UniswapClaimPoolRewards', address(new UniswapClaimPoolRewards(uniswapPositionManager)));

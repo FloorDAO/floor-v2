@@ -23,18 +23,16 @@ import {Action} from '@floor/actions/Action.sol';
 contract SudoswapCreatePair is Action {
     /**
      * @param token The ERC20 to stake against the NFT. Zero if ETH will be paired.
-     * @param _nft The NFT contract of the collection the pair trades
-     * @param _bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
-     * @param _assetRecipient The address that will receive the assets traders give during trades.
-     * If set to address(0), assets will be sent to the pool address. Not available to TRADE pools.
-     * @param _poolType TOKEN, NFT, or TRADE
-     * @param _delta The delta value used by the bonding curve. The meaning of delta depends
+     * @param nft The NFT contract of the collection the pair trades
+     * @param bondingCurve The bonding curve for the pair to price NFTs, must be whitelisted
+     * @param poolType TOKEN, NFT, or TRADE
+     * @param delta The delta value used by the bonding curve. The meaning of delta depends
      * on the specific curve.
-     * @param _fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
-     * @param _spotPrice The initial selling spot price
-     * @param _initialTokenBalance The initial token balance sent from the sender to the new pair. This
+     * @param fee The fee taken by the LP in each trade. Can only be non-zero if _poolType is Trade.
+     * @param spotPrice The initial selling spot price
+     * @param initialTokenBalance The initial token balance sent from the sender to the new pair. This
      * should be zero if ETH is paired
-     * @param _initialNftIds The list of IDs of NFTs to transfer from the sender to the pair
+     * @param initialNftIds The list of IDs of NFTs to transfer from the sender to the pair
      */
     struct ActionRequest {
         address token;
@@ -66,7 +64,7 @@ contract SudoswapCreatePair is Action {
      *
      * @return uint Integer representation of the created pair address
      */
-    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused sendEvent(_request) returns (uint) {
         // Unpack the request bytes data into individual variables, as mapping it directly
         // to the struct is buggy due to memory -> storage array mapping.
         (
@@ -101,7 +99,9 @@ contract SudoswapCreatePair is Action {
             }
         }
 
-        // Determine the asset recipient, based on the pool type
+        // Determine the asset recipient, based on the pool type. The address that will receive the
+        // assets traders give during trades. If set to address(0), assets will be sent to the pool
+        // address. Not available to TRADE pools.
         address payable assetRecipient;
         if (poolType == LSSVMPair.PoolType.NFT) {
             assetRecipient = payable(msg.sender);
@@ -151,5 +151,20 @@ contract SudoswapCreatePair is Action {
 
         // Return our integer address equivalent
         return uint(uint160(address(pair)));
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
+    }
+
+    /**
+     * To avoid a variable "Stack too long" issues we had to emit this event via a modifier.
+     */
+    modifier sendEvent(bytes memory _request) {
+        _;
+        emit ActionEvent('SudoswapCreatePair', _request);
     }
 }

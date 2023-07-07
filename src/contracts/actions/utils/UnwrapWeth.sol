@@ -43,9 +43,19 @@ contract UnwrapWeth is Action {
         (bool success,) = payable(msg.sender).call{value: request.amount}('');
         require(success, 'Eth send fail');
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UtilsUnwrapWeth', _request);
+
         // We return just the amount of WETH generated in the swap, which will have
         // already been transferred to the {Treasury}.
         return request.amount;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
     /**

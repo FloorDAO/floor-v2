@@ -88,9 +88,19 @@ contract NFTXSellNftsForEth is Action {
         // Set up our swap parameters based on `execute` parameters
         marketplaceZap.mintAndSell721(vaultId, tokenIds, minEthOut, path, msg.sender);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('NftxSellNftsForEth', _request);
+
         // We return just the amount of ETH generated in the swap, which will have
         // already been transferred to the {Treasury} during the swap itself.
         return address(msg.sender).balance - startBalance;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
     /**

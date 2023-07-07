@@ -64,20 +64,20 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
 
-    /// Hardcoded address to map to the FLOOR token vault
+    /// Hardcoded address to map to the FLOOR token
     address public constant FLOOR_TOKEN_VOTE = address(1);
 
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
-    IStrategyFactory immutable vaultFactory;
+    IStrategyFactory immutable strategyFactory;
     VeFloorStaking immutable veFloor;
     ITreasury immutable treasury;
     INftStaking public nftStaking;
 
     /**
      * We will need to maintain an internal structure to map the voters against
-     * a vault address so that we can determine vote growth and reallocation. We
-     * will additionally maintain a mapping of vault address to total amount that
+     * a strategy address so that we can determine vote growth and reallocation. We
+     * will additionally maintain a mapping of strategy address to total amount that
      * will better allow for snapshots to be taken for less gas.
      *
      * This will result in a slightly increased write, to provide a greatly
@@ -97,15 +97,15 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * Sets up our contract parameters.
      *
      * @param _collectionRegistry Address of our {CollectionRegistry}
-     * @param _vaultFactory Address of our {VaultFactory}
+     * @param _strategyFactory Address of our {StrategyFactory}
      * @param _veFloor Address of our {veFLOOR}
      * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority, address _treasury)
+    constructor(address _collectionRegistry, address _strategyFactory, address _veFloor, address _authority, address _treasury)
         AuthorityControl(_authority)
     {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-        vaultFactory = IStrategyFactory(_vaultFactory);
+        strategyFactory = IStrategyFactory(_strategyFactory);
         veFloor = VeFloorStaking(_veFloor);
 
         treasury = ITreasury(_treasury);
@@ -250,7 +250,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     }
 
     /**
-     * Allows a user to revoke their votes from vaults. This will free up the
+     * Allows a user to revoke their votes from strategies. This will free up the
      * user's available votes that can subsequently be voted again with.
      *
      * @param _collections[] The collection address(es) being revoked
@@ -331,21 +331,12 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     /**
      * The snapshot function will need to iterate over all collections that have
      * more than 0 votes against them. With that we will need to find each
-     * vault's percentage share within each collection, in relation to others.
-     *
-     * This percentage share will instruct the {Treasury} on how much additional
-     * FLOOR to allocate to the users staked in the vaults. These rewards will be
-     * distributed via the {VaultXToken} attached to each {Vault} that implements
-     * the collection that is voted for.
+     * strategy percentage share within each collection, in relation to others.
      *
      * We check against the `sampleSize` that has been set to only select the first
-     * _x_ top voted collections. We find the vaults that align to the collection
+     * _x_ top voted collections. We find the strategies that align to the collection
      * and give them a sub-percentage of the collection's allocation based on the
      * total number of rewards generated within that collection.
-     *
-     * This would distribute the vaults allocated rewards against the staked
-     * percentage in the vault. Any Treasury holdings that would be given in rewards
-     * are just deposited into the {Treasury} as FLOOR tokens.
      *
      * @param tokens The number of tokens rewards in the snapshot
      *

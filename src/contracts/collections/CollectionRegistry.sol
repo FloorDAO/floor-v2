@@ -13,7 +13,7 @@ error CannotApproveNullCollection();
 /**
  * Allows collection contracts to be approved and revoked by addresses holding the
  * {CollectionManager} role. Only once approved can these collections be applied to
- * new or existing vaults. They will only need to be stored as a mapping of address
+ * new or existing strategies. They will only need to be stored as a mapping of address
  * to boolean.
  */
 contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
@@ -60,7 +60,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     }
 
     /**
-     * Approves a collection contract to be used for vaults.
+     * Approves a collection contract to be used for strategies.
      *
      * The collection address cannot be null, and if it is already approved then no changes
      * will be made.
@@ -90,7 +90,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     }
 
     /**
-     * Unapproves a collection contract to be used for vaults.
+     * Unapproves a collection contract to be used for strategies.
      *
      * This will prevent the collection from being used in any future strategies.
      *

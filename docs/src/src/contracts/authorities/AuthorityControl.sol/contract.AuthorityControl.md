@@ -64,12 +64,12 @@ bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
 ```
 
 
-### VAULT_MANAGER
-VaultManager - Can create new vaults against approved strategies and collections
+### STRATEGY_MANAGER
+StrategyManager - Can create new vaults against approved strategies and collections
 
 
 ```solidity
-bytes32 public constant VAULT_MANAGER = keccak256('VaultManager');
+bytes32 public constant STRATEGY_MANAGER = keccak256('StrategyManager');
 ```
 
 

@@ -94,6 +94,16 @@ contract UniswapSellTokensForETH is Action {
         // @dev https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol
         universalRouter.execute(abi.encodePacked(bytes1(uint8(0x80))), inputs, request.deadline);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UniswapSellTokensForETH', _request);
+
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

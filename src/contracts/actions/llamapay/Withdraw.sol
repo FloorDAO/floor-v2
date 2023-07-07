@@ -37,6 +37,17 @@ contract LlamapayWithdraw is Action {
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
+        // Emit our `ActionEvent`
+        emit ActionEvent('LlamapayWithdraw', _request);
+
         return llamapayRouter.withdraw(msg.sender, request.token, request.amount);
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

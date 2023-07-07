@@ -38,6 +38,16 @@ contract CharmWithdraw is Action {
             to: msg.sender
         });
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CharmfiWithdraw', _request);
+
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

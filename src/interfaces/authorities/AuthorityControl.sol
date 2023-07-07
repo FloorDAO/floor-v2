@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 interface IAuthorityControl {
-    /// CollectionManager - Can approve token addresses to be allowed to be used in vaults
+    /// CollectionManager - Can approve token addresses to be allowed to be used in strategies
     function COLLECTION_MANAGER() external returns (bytes32);
 
     /// FloorManager - Can mint and manage Floor and VeFloor tokens
@@ -20,8 +20,8 @@ interface IAuthorityControl {
     /// TreasuryManager - Access to Treasury asset management
     function TREASURY_MANAGER() external returns (bytes32);
 
-    /// VaultManager - Can create new vaults against approved strategies and collections
-    function VAULT_MANAGER() external returns (bytes32);
+    /// StrategyManager - Can create new strategies against approved strategies and collections
+    function STRATEGY_MANAGER() external returns (bytes32);
 
     /// VoteManager - Can manage account votes
     function VOTE_MANAGER() external returns (bytes32);

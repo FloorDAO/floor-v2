@@ -12,6 +12,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * @notice Buy tokens on 0x using another token.
  */
 contract BuyTokensWithTokens is Action {
+    /// Useful contract constants
     address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -91,5 +92,14 @@ contract BuyTokensWithTokens is Action {
         if (sellTokenDust != 0) {
             sellToken.transfer(msg.sender, sellTokenDust);
         }
+
+        emit ActionEvent('0xBuyTokensWithTokens', _request);
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

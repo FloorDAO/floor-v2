@@ -110,7 +110,17 @@ contract CowSwapCreateOrder is Action, ICoWSwapOnchainOrders {
 
         emit OrderPlacement(address(instance), order, signature, '');
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CowswapCreateOrder', _request);
+
         // Return an empty string as no message to store
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

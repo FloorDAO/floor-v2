@@ -33,7 +33,7 @@ contract AuthorityControlTest is FloorTest {
     function test_ExpectedRolesCreatedOnConstruct() public {
         // Our expected roles are defined in our test contract
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), utilities.deployer()));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), utilities.deployer()));
@@ -59,7 +59,7 @@ contract AuthorityControlTest is FloorTest {
     function testFail_CannotGrantRoleWithoutPermissions() public {
         // Set our requesting user to be Alice, who does not have permissions
         vm.startPrank(alice);
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), bob);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
         vm.stopPrank();
     }
 
@@ -105,10 +105,10 @@ contract AuthorityControlTest is FloorTest {
      */
     function test_UserCanHaveMultipleRoles() public {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), carol);
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), carol);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), carol);
 
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), carol));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), carol));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), carol));
 
         assertFalse(authorityControl.hasRole(authorityControl.GOVERNOR(), carol));
         assertFalse(authorityControl.hasRole(authorityControl.GUARDIAN(), carol));
@@ -129,7 +129,7 @@ contract AuthorityControlTest is FloorTest {
 
         // This will give Bob access to all _known_ and _unknown_ roles
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
@@ -146,7 +146,7 @@ contract AuthorityControlTest is FloorTest {
         // Bob, as Guardian, will have access to all _known_ and _unknown_ roles,
         // apart from the Governor role.
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
