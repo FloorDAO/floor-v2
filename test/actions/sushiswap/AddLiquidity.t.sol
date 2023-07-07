@@ -38,25 +38,16 @@ contract SushiswapAddLiquidityTest is FloorTest {
         ERC20(TOKEN_B).approve(address(action), 50 ether);
     }
 
-    /**
-     * ..
-     */
     function test_CanAddEthLiquidityAsTokenA() public {
         uint liquidity = _addLiquidity(TOKEN_A, ETH_TOKEN, 1 ether);
         assertEq(liquidity, 7824599337399158);
     }
 
-    /**
-     * ..
-     */
     function test_CannotAddEthLiquidityAsTokenB() public {
         vm.expectRevert('ETH token must be token B');
         _addLiquidity(ETH_TOKEN, TOKEN_B, 1 ether);
     }
 
-    /**
-     * ..
-     */
     function test_CanAddTokenLiquidity() external {
         uint liquidity = _addLiquidity(TOKEN_A, TOKEN_B, 0);
 
@@ -64,9 +55,6 @@ contract SushiswapAddLiquidityTest is FloorTest {
         assertEq(liquidity, 999999999999999000);
     }
 
-    /**
-     * ..
-     */
     function _addLiquidity(address tokenA, address tokenB, uint msgValue) internal returns (uint) {
         return action.execute{value: msgValue}(
             abi.encode(
@@ -82,9 +70,6 @@ contract SushiswapAddLiquidityTest is FloorTest {
         );
     }
 
-    /**
-     * ..
-     */
     receive() external payable {
         assertEq(msg.value, 999880756991001119);
     }

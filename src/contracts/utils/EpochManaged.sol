@@ -14,6 +14,10 @@ abstract contract EpochManaged is Ownable {
      * Allows an updated {EpochManager} address to be set.
      */
     function setEpochManager(address _epochManager) external virtual onlyOwner {
+        _setEpochManager(_epochManager);
+    }
+
+    function _setEpochManager(address _epochManager) internal virtual {
         epochManager = IEpochManager(_epochManager);
     }
 

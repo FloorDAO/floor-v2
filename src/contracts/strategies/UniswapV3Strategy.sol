@@ -11,6 +11,7 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
 import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
+import {IUniswapV3Pool} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
@@ -71,11 +72,11 @@ contract UniswapV3Strategy is BaseStrategy {
     /**
     * Adds liquidity against an existing Uniswap ERC721 position.
     *
-    /// @param amount0Desired - The desired amount of token0 that should be supplied,
-    /// @param amount1Desired - The desired amount of token1 that should be supplied,
-    /// @param amount0Min - The minimum amount of token0 that should be supplied,
-    /// @param amount1Min - The minimum amount of token1 that should be supplied,
-    /// @param deadline - The time by which the transaction must be included to effect the change
+    * @param amount0Desired - The desired amount of token0 that should be supplied
+    * @param amount1Desired - The desired amount of token1 that should be supplied
+    * @param amount0Min - The minimum amount of token0 that should be supplied
+    * @param amount1Min - The minimum amount of token1 that should be supplied
+    * @param deadline - The time by which the transaction must be included to effect the change
     */
     function deposit(
         uint amount0Desired,
@@ -150,13 +151,28 @@ contract UniswapV3Strategy is BaseStrategy {
         emit Deposit(params.token0, amount0, msg.sender);
         emit Deposit(params.token1, amount1, msg.sender);
 
+        // Update our position with the allocated amounts
+        position[params.token0] = amount0;
+        position[params.token1] = amount1;
+        position[address(0)] = liquidity;
+
         return (liquidity, amount0, amount1);
     }
 
-    /// @param amount0Min - The minimum amount of token0 that should be accounted for the burned liquidity,
-    /// @param amount1Min - The minimum amount of token1 that should be accounted for the burned liquidity,
-    /// @param deadline - The time by which the transaction must be included to effect the change
-    function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) external nonReentrant onlyOwner {
+    /**
+     * Makes a withdrawal of both tokens from our Uniswap token position.
+     *
+     * @param recipient The recipient of the withdrawal
+     * @param amount0Min The minimum amount of token0 that should be accounted for the burned liquidity
+     * @param amount1Min The minimum amount of token1 that should be accounted for the burned liquidity
+     * @param deadline The time by which the transaction must be included to effect the change
+     * @param liquidity The amount of liquidity to withdraw against
+     */
+    function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) external nonReentrant onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
+        return _withdraw(recipient, amount0Min, amount1Min, deadline, liquidity);
+    }
+
+    function _withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) internal returns (address[] memory tokens_, uint[] memory amounts_) {
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
         (uint amount0, uint amount1) = positionManager.decreaseLiquidity(
@@ -184,11 +200,18 @@ contract UniswapV3Strategy is BaseStrategy {
 
         if (amount0 != 0) {
             emit Withdraw(params.token0, amount0Collected, recipient);
+            position[params.token0] -= amount0Collected;
         }
 
         if (amount1 != 0) {
             emit Withdraw(params.token1, amount1Collected, recipient);
+            position[params.token1] -= amount1Collected;
         }
+
+        tokens_ = this.validTokens();
+        amounts_ = new uint[](2);
+        amounts_[0] = amount0Collected;
+        amounts_[1] = amount1Collected;
     }
 
     /**
@@ -225,6 +248,25 @@ contract UniswapV3Strategy is BaseStrategy {
             lifetimeRewards[params.token1] += amount1;
             emit Harvest(params.token1, amount1);
         }
+    }
+
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory, uint[] memory) {
+        // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
+        // of the token.
+        uint amount0 = (position[params.token0] * percentage) / 10000;
+        uint amount1 = (position[params.token1] * percentage) / 10000;
+
+        // Calculate our liquidity
+        uint liquidity = (position[address(0)] * percentage) / 10000;
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        return _withdraw(recipient, amount0, amount1, block.timestamp, uint128(liquidity));
     }
 
     /**

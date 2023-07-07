@@ -33,9 +33,6 @@ contract GemSweepTest is FloorTest {
      */
     constructor() forkBlock(BLOCK_NUMBER) {}
 
-    /**
-     * ..
-     */
     function setUp() public {
         action = new GemSweep();
     }
