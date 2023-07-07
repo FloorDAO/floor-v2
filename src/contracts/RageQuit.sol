@@ -10,15 +10,9 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 
 /**
  * Allows tokens to be deposited into the contract and FLOOR to be burned against it
- * to redeem a share of the assets within the contract.
- *
- * For example, if you deposit $400 worth of tokens, this will be mapped to a TVL value
- * that may be around $700. The user will then receive a value the equivalent of this
- * TVL value.
- *
- * Each funding token that is offered in the contract must maintain the same value when
- * multipled by the amount. For example, if 100eth of xPUNK token is added, then the same
- * 100eth value of WETH must be added, and the same is true of all subsequent tokens.
+ * to redeem a share of the assets within the contract. This share is based on the total
+ * supply of floor tokens in the ecosystem at point of deployment (no more should be
+ * minted) against the total number of tokens deployed into the contract.
  */
 contract RageQuit is Ownable, Pausable {
     /// Emitted when funds are added to the contract
@@ -32,10 +26,10 @@ contract RageQuit is Ownable, Pausable {
 
     /// Store an iterable list of token addresses that are distributed when
     /// someone ragequits.
-    address[] internal _tokens;
+    address[] private _tokens;
 
-    /// Maps the value of a token to ETH value
-    mapping(address => uint) public tokenValue;
+    /// Store the total supply of tokens that we have available for claim
+    mapping (address => uint) public tokenSupply;
 
     /**
      * Defines our FLOOR token that will be burnt for rage quitting.
@@ -43,31 +37,29 @@ contract RageQuit is Ownable, Pausable {
      * @param _floor The FLOOR token address that will be burnt
      */
     constructor(address _floor) {
+        // Register our FLOOR token and capture the total supply
         floor = FLOOR(_floor);
+        tokenSupply[_floor] = floor.totalSupply();
+
+        // Start our contract paused
+        _pause();
     }
 
     /**
-     * Adds tokens to our contract and sets the value. The value of the funding token
-     * will be used in the calculation of the FLOOR <-> funding token conversion, so it
-     * is important that all token values are taken from the same block for provable
-     * faireness.
-     *
-     * @dev Value should be set in terms of ETH for a single token. If just the token
-     * value wants to be updated without funding additional tokens, then a zero `amount`
-     * can be passed.
+     * Adds tokens to our contract that will be redeemed against when a user burns floor.
      *
      * @param token The token address used for funding
      * @param amount The amount of token to be transferred into the funding
-     * @param value The ETH value of a single token
      */
-    function fund(address token, uint amount, uint value) public onlyOwner {
-        // Transfer the approved token into this contract
-        if (amount != 0) {
-            IERC20(token).transferFrom(msg.sender, address(this), amount);
-        }
+    function fund(address token, uint amount) public onlyOwner whenPaused {
+        // Ensure that an amount supply has been set
+        require(amount != 0, 'No supply');
 
-        // Assign our token value in ETH terms
-        tokenValue[token] = value;
+        // Transfer the approved token into this contract
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+
+        // Increase the total supply held in the contract
+        tokenSupply[token] += amount;
 
         // Check if the token needs adding to our tokens array
         bool found;
@@ -90,17 +82,6 @@ contract RageQuit is Ownable, Pausable {
     }
 
     /**
-     * Allows the TVL FLOOR value to be updated.
-     *
-     * @dev This should be set in ETH terms.
-     *
-     * @param _floorValue ETH value of a single FLOOR token
-     */
-    function setFloorValue(uint _floorValue) public onlyOwner {
-        tokenValue[address(floor)] = _floorValue;
-    }
-
-    /**
      * Burns FLOOR tokens from the user in exchange for receipt of funding tokens to the
      * same value.
      *
@@ -116,7 +97,10 @@ contract RageQuit is Ownable, Pausable {
         // Iterate over all funding tokens and distribue a share of them to the caller
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
-            IERC20(_tokens[i]).transfer(msg.sender, ((tokenValue[address(floor)] * amount) / tokenValue[_tokens[i]]) / tokenCount);
+            IERC20(_tokens[i]).transfer(
+                msg.sender,
+                (amount * 1e9 * tokenSupply[_tokens[i]]) / (tokenSupply[address(floor)] * 1e9)
+            );
 
             unchecked {
                 ++i;
@@ -138,6 +122,7 @@ contract RageQuit is Ownable, Pausable {
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
             IERC20(_tokens[i]).transfer(msg.sender, IERC20(_tokens[i]).balanceOf(address(this)));
+            tokenSupply[_tokens[i]] = 0;
             unchecked {
                 ++i;
             }
@@ -148,17 +133,11 @@ contract RageQuit is Ownable, Pausable {
     }
 
     /**
-     * Allows our contract to be paused or unpaused. When paused this will stop rage quits
-     * from taking place and will allow for the `rescue` function to be called.
-     *
-     * @param _paused If the contract should be paused, or unpaused
+     * Allows our contract to be unpaused when it is ready to be used. This action is
+     * not reversable and fully decentralises the contract.
      */
-    function pause(bool _paused) public onlyOwner {
-        if (_paused) {
-            _pause();
-        } else {
-            _unpause();
-        }
+    function unpause() public onlyOwner whenPaused {
+        _unpause();
     }
 
     /**
