@@ -49,7 +49,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     INFTXStakingZap public stakingZap;
 
     /// Track the amount of deposit token
-    uint private deposits;
+    uint public deposits;
 
     // Store our WETH reference
     IWETH public WETH;
@@ -126,11 +126,6 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Determine the amount of yield token returned from our deposit
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
-
-        // Increase the user's position and the total position for the strategy
-        unchecked {
-            position[yieldToken] += amount_;
-        }
     }
 
     function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
@@ -182,6 +177,10 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             revert CannotWithdrawZeroAmount();
         }
 
+        return _withdrawErc20(recipient, amount);
+    }
+
+    function _withdrawErc20(address recipient, uint amount) internal returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
         if (amount > position[yieldToken]) {
             revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
@@ -249,6 +248,24 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         emit Harvest(yieldToken, amounts[0]);
+    }
+
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
+        // Get the total amount of underlyingToken that has been deposited. From that, take
+        // the percentage of the token.
+        uint amount = (position[yieldToken] * percentage) / 10000;
+
+        tokens_ = this.validTokens();
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        amounts_ = new uint[](1);
+        amounts_[0] = _withdrawErc20(recipient, amount);
     }
 
     /**

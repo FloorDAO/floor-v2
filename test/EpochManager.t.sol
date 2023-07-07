@@ -107,10 +107,14 @@ contract EpochManagerTest is FloorTest {
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
         sweepWars.setEpochManager(address(epochManager));
+        veFloor.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
+
+        // Set our war contracts on the veFloor staking contract
+        veFloor.setVotingContracts(address(newCollectionWars), address(sweepWars));
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
@@ -124,9 +128,6 @@ contract EpochManagerTest is FloorTest {
         treasury.approveSweeper(manualSweeper, true);
     }
 
-    /**
-     * ..
-     */
     function test_CanSetCurrentEpoch(uint epoch) external {
         // Confirm we have a default epoch of zero
         assertEq(epochManager.currentEpoch(), 0);
@@ -136,18 +137,12 @@ contract EpochManagerTest is FloorTest {
         assertEq(epochManager.currentEpoch(), epoch);
     }
 
-    /**
-     * ..
-     */
     function test_CannotSetCurrentEpochWithoutPermission() external {
         vm.expectRevert('Ownable: caller is not the owner');
         vm.prank(alice);
         epochManager.setCurrentEpoch(3);
     }
 
-    /**
-     * ..
-     */
     function test_CanSetContracts() external {
         epochManager.setContracts(
             address(2), // newCollectionWars

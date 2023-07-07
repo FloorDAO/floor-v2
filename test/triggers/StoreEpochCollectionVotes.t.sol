@@ -6,28 +6,21 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {StoreEpochCollectionVotesTrigger} from '@floor/triggers/StoreEpochCollectionVotes.sol';
-import {
-    CannotVoteWithZeroAmount,
-    CollectionNotApproved,
-    SweepWars,
-    InsufficientVotesAvailable,
-    SampleSizeCannotBeZero
-} from '@floor/voting/SweepWars.sol';
+import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
-import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
-import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
-
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract SweepWarsTest is FloorTest {
+contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
+
+    // Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 4;
 
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
@@ -92,6 +85,9 @@ contract SweepWarsTest is FloorTest {
         sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
+        // Set our war contracts against our staking contract
+        veFloor.setVotingContracts(address(0), address(sweepWars));
+
         // Register our epoch end trigger that stores our treasury sweep
         storeEpochCollectionVotesTrigger = new StoreEpochCollectionVotesTrigger(
             address(sweepWars)
@@ -117,12 +113,12 @@ contract SweepWarsTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
     }
 

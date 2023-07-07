@@ -132,14 +132,14 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensure we can get our reward token address.
      */
     function test_CanGetRewardToken() public {
         assertEq(strategy.rewardToken(), 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -534,11 +534,45 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
     }
 
+    /**
+     * Ensures that we have the correct tokens attached to the strategy.
+     */
     function test_CanGetValidTokens() public {
         address[] memory tokens = strategy.validTokens();
 
         assertEq(tokens.length, 1);
         assertEq(tokens[0], strategy.underlyingToken());
+    }
+
+    function test_CanWithdrawPercentage() public {
+        // Confirm that our tests don't have any residual tokens to start with
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Deposit into our strategy
+        vm.startPrank(erc20Holder);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.depositErc20(1 ether);
+        vm.stopPrank();
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 2e17);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 8e17);
+
+        // Confirm that the strategy has an accurate record of the deposits
+        uint deposits = strategy.deposits();
+        assertEq(deposits, 8e17);
     }
 
     function assertRewards(

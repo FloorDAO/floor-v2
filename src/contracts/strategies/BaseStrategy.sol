@@ -136,6 +136,26 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     }
 
     /**
+     * Allows for liquidation of the strategy based on a percentage value. This withdraws the
+     * percentage of the underlying tokens that were initially deposited, using the relevant
+     * withdraw functions.
+     *
+     * The tokens will be withdrawn to the caller of the function, so relevant permissions should
+     * be checked.
+     *
+     * @dev This must be implemented in each strategy.
+     *
+     * @param recipient The recipient of the withdrawal
+     * @param percentage The percentage to withdraw of underlying tokens
+     *
+     * @return The tokens that have been withdrawn
+     * @return The amount of tokens withdrawn
+     */
+    function withdrawPercentage(address recipient, uint percentage) external virtual onlyOwner returns (address[] memory, uint[] memory) {
+        /*  */
+    }
+
+    /**
      * Pauses deposits from being made into the strategy.
      *
      * @dev This should only be called by a guardian or governor.

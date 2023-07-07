@@ -29,6 +29,9 @@ contract NewCollectionWarsTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
+    // Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 4;
+
     // Contract references to be deployed
     EpochManager epochManager;
     FLOOR floor;
@@ -114,6 +117,9 @@ contract NewCollectionWarsTest is FloorTest {
             address(0) // Vote Market not needed for these tests
         );
 
+        // Set our war contracts against our staking contract
+        veFloor.setVotingContracts(address(newCollectionWars), address(sweepWars));
+
         // Create some mock tokens
         mock721 = new ERC721Mock();
         mock1155 = new ERC1155Mock();
@@ -191,12 +197,12 @@ contract NewCollectionWarsTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 50 ether);
-        veFloor.deposit(50 ether, 6);
+        veFloor.deposit(50 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
     }
 
