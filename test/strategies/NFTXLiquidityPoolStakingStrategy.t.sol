@@ -502,7 +502,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 7000000000000000000);
 
         // Snapshot the rewards
-        strategyFactory.snapshot(strategyId);
+        strategyFactory.snapshot(strategyId, 0);
 
         // Withdraw another xToken
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether));

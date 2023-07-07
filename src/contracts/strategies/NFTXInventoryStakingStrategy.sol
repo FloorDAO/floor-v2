@@ -63,7 +63,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      * @param _initData Encoded data to be decoded
      */
     function initialize(bytes32 _name, uint _strategyId, bytes calldata _initData) public initializer {
-        // Set our vault name
+        // Set our strategy name
         name = _name;
 
         // Set our strategy ID
@@ -194,7 +194,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         unchecked {
             deposits -= amount_;
 
-            // We can now reduce the users position and total position held by the vault
+            // We can now reduce the users position and total position held by the strategy
             position[yieldToken] -= amount;
         }
 
@@ -311,7 +311,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Determine the amount of yield token returned from our deposit
         uint amount = IERC20(token).balanceOf(address(this)) - startBalance;
 
-        // Increase the user's position and the total position for the vault
+        // Increase the user's position and the total position for the strategy
         unchecked {
             position[token] += amount;
         }

@@ -3,9 +3,9 @@
 pragma solidity ^0.8.0;
 
 /**
- * The GWV will allow users to assign their veFloor position to a vault, or
+ * The GWV will allow users to assign their veFloor position to a strategy, or
  * optionally case it to a veFloor, which will use a constant value. As the
- * vaults will be rendered as an address, the veFloor vote will take a NULL
+ * strategies will be rendered as an address, the veFloor vote will take a NULL
  * address value.
  *
  * At point of development this can take influence from:
@@ -67,7 +67,7 @@ interface ISweepWars {
     function vote(address _collection, uint _amount, bool _against) external;
 
     /**
-     * Allows a user to revoke their votes from vaults. This will free up the
+     * Allows a user to revoke their votes from strategies. This will free up the
      * user's available votes that can subsequently be voted again with.
      */
     function revokeVotes(address[] memory _collection) external;
@@ -79,16 +79,16 @@ interface ISweepWars {
     function revokeAllUserVotes(address _account) external;
 
     /**
-     * The snapshot function will need to iterate over all vaults that have
+     * The snapshot function will need to iterate over all strategies that have
      * more than 0 votes against them. With that we will need to find each
-     * vault's percentage share in relation to other vaults.
+     * strategy percentage share in relation to other strategies.
      *
      * This percentage share will instruct the {Treasury} on how much additional
-     * FLOOR to allocate to the users staked in the vaults. These rewards will
+     * FLOOR to allocate to the users staked in the strategies. These rewards will
      * become available in the {RewardLedger}.
      *
      * +----------------+-----------------+-------------------+-------------------+
-     * | Voter          | veFloor         | Vote Weight       | Vault             |
+     * | Voter          | veFloor         | Vote Weight       | Strategy          |
      * +----------------+-----------------+-------------------+-------------------+
      * | Alice          | 30              | 40                | 1                 |
      * | Bob            | 20              | 30                | 2                 |
@@ -99,10 +99,10 @@ interface ISweepWars {
      *
      * With the above information, and assuming that the {Treasury} has allocated
      * 1000 FLOOR tokens to be additionally distributed in this snapshot, we would
-     * have the following allocations going to the vaults.
+     * have the following allocations going to the strategies.
      *
      * +----------------+-----------------+-------------------+-------------------+
-     * | Vault          | Votes Total     | Vote Percent      | veFloor Rewards   |
+     * | Strategy       | Votes Total     | Vote Percent      | veFloor Rewards   |
      * +----------------+-----------------+-------------------+-------------------+
      * | 0 (veFloor)    | 35              | 17.5%             | 175               |
      * | 1              | 40              | 20%               | 200               |
@@ -111,8 +111,8 @@ interface ISweepWars {
      * | 4              | 0               | 0%                | 0                 |
      * +----------------+-----------------+-------------------+-------------------+
      *
-     * This would distribute the vaults allocated rewards against the staked
-     * percentage in the vault. Any Treasury holdings that would be given in rewards
+     * This would distribute the strategies allocated rewards against the staked
+     * percentage in the strategy. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
     function snapshot(uint tokens, uint epoch) external returns (address[] memory collections, uint[] memory amounts);

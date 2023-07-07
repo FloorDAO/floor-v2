@@ -39,14 +39,22 @@ contract RawTx is Action {
             require(success, 'Refund of dust eth failed');
         }
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UtilsRawTx', _request);
+
         // We don't expect any response here, so just return zero value
         return 0;
     }
 
     /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
+    }
+
+    /**
      * Allow us to receive any refunds from the transaction back into our account.
      */
-    receive() external payable {
-        //
-    }
+    receive() external payable {}
 }

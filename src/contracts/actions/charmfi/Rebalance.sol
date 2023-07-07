@@ -33,6 +33,16 @@ contract CharmRebalance is Action {
             IStrategy(request.strategy).rebalance();
         }
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CharmfiRebalance', _request);
+
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

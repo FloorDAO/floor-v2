@@ -135,7 +135,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows an approved user to withdraw an ERC20 token from the vault.
+     * Allows an approved user to withdraw an ERC20 token from the Treasury.
      *
      * @param recipient The user that will receive the ERC20 tokens
      * @param token ERC20 token address to be withdrawn
@@ -151,7 +151,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows an approved user to withdraw an ERC721 token from the vault.
+     * Allows an approved user to withdraw an ERC721 token from the Treasury.
      *
      * @param recipient The user that will receive the ERC721 tokens
      * @param token ERC721 token address to be withdrawn
@@ -163,7 +163,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     * Allows an approved user to withdraw an ERC1155 token(s) from the Treasury.
      *
      * @param recipient The user that will receive the ERC1155 tokens
      * @param token ERC1155 token address to be withdrawn
@@ -176,7 +176,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Apply an action against the vault. If we need any tokens to be approved before the
+     * Apply an action against the Treasury. If we need any tokens to be approved before the
      * action is called, then these are approved before our call and approval is removed
      * afterwards for 1155s.
      *

@@ -80,6 +80,16 @@ contract UniswapMintPosition is UniswapActionBase {
         request.token0.approveToken(address(positionManager), 0);
         request.token1.approveToken(address(positionManager), 0);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UniswapMintPosition', _request);
+
         return tokenId;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

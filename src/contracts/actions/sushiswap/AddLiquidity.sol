@@ -49,6 +49,9 @@ contract SushiswapAddLiquidity is Action {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('SushiswapAddLiquidity', _request);
+
         // Check if a requested token is ETH
         if (request.tokenA == ETH_TOKEN || request.tokenB == ETH_TOKEN) {
             require(request.tokenA != ETH_TOKEN, 'ETH token must be token B');
@@ -113,6 +116,13 @@ contract SushiswapAddLiquidity is Action {
         request.tokenB.withdrawTokens(msg.sender, request.amountBDesired - amountB);
 
         return liquidity;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
     /**

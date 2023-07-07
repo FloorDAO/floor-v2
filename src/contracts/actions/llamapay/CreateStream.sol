@@ -46,6 +46,17 @@ contract LlamapayCreateStream is Action {
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
+        // Emit our `ActionEvent`
+        emit ActionEvent('LlamapayCreateStream', _request);
+
         return llamapayRouter.createStream(msg.sender, request.to, request.token, request.amountToDeposit, uint216(request.amountPerSec));
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

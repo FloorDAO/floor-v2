@@ -35,7 +35,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     bytes32 public name;
 
     /**
-     * The numerical ID of the vault that acts as an index for the {StrategyFactory}.
+     * The numerical ID of the strategy that acts as an index for the {StrategyFactory}.
      *
      * @dev This must be set in the initializer function call.
      */
@@ -160,7 +160,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
      *
      * @dev This should only be called by a guardian or governor.
      *
-     * @param _p Boolean value for if the vault should be paused
+     * @param _p Boolean value for if the strategy should be paused
      */
     function pause(bool _p) external onlyOwner {
         if (_p) _pause();

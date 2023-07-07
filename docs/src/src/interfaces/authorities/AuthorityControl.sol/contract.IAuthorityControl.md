@@ -50,13 +50,13 @@ TreasuryManager - Access to Treasury asset management
 function TREASURY_MANAGER() external returns (bytes32);
 ```
 
-### VAULT_MANAGER
+### STRATEGY_MANAGER
 
-VaultManager - Can create new vaults against approved strategies and collections
+StrategyManager - Can create new vaults against approved strategies and collections
 
 
 ```solidity
-function VAULT_MANAGER() external returns (bytes32);
+function STRATEGY_MANAGER() external returns (bytes32);
 ```
 
 ### VOTE_MANAGER
