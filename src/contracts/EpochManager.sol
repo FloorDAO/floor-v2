@@ -108,7 +108,9 @@ contract EpochManager is IEpochManager, Ownable {
         uint triggersLength = epochEndTriggers.length;
         for (uint i; i < triggersLength;) {
             IEpochEndTriggered(epochEndTriggers[i]).endEpoch(currentEpoch);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         unchecked {

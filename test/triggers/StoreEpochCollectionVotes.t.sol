@@ -163,5 +163,4 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
         assertEq(collections.length, 0);
         assertEq(votes.length, 0);
     }
-
 }

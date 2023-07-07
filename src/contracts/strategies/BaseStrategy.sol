@@ -23,7 +23,6 @@ error ZeroAmountReceivedFromWithdraw();
 /// @param position The amount available to withdraw for the caller
 error InsufficientPosition(address token, uint amount, uint position);
 
-
 /**
  * Provides underlying logic for all strategies that handles common logic. This includes
  * storing the total pending rewards and taking snapshots to maintain epoch earned yield.
@@ -122,7 +121,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
      *
      * @dev The recipient _should_ always be set to the {Treasury} by the {StrategyFactory}.
      */
-    function harvest(address /* _recipient */) external virtual onlyOwner {
+    function harvest(address /* _recipient */ ) external virtual onlyOwner {
         revert('Not implemented');
     }
 

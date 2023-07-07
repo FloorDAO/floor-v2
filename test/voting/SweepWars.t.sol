@@ -445,7 +445,6 @@ contract SweepWarsTest is FloorTest {
         vm.prank(bob);
         sweepWars.vote(approvedCollection1, 10 ether, false);
 
-
         // Check how many votes we will have at current epoch when vote was cast
         assertEq(sweepWars.votes(approvedCollection1), -5 ether);
 

@@ -8,7 +8,6 @@ import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
 
-
 /**
  * Allows tokens to be deposited into the contract and FLOOR to be burned against it
  * to redeem a share of the assets within the contract.
@@ -22,7 +21,6 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
  * 100eth value of WETH must be added, and the same is true of all subsequent tokens.
  */
 contract RageQuit is Ownable, Pausable {
-
     /// Emitted when funds are added to the contract
     event FundsAdded(address token, uint amount);
 
@@ -37,14 +35,14 @@ contract RageQuit is Ownable, Pausable {
     address[] internal _tokens;
 
     /// Maps the value of a token to ETH value
-    mapping (address => uint) public tokenValue;
+    mapping(address => uint) public tokenValue;
 
     /**
      * Defines our FLOOR token that will be burnt for rage quitting.
      *
      * @param _floor The FLOOR token address that will be burnt
      */
-    constructor (address _floor) {
+    constructor(address _floor) {
         floor = FLOOR(_floor);
     }
 
@@ -78,7 +76,9 @@ contract RageQuit is Ownable, Pausable {
                 found = true;
                 break;
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         if (!found) {
@@ -116,12 +116,11 @@ contract RageQuit is Ownable, Pausable {
         // Iterate over all funding tokens and distribue a share of them to the caller
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
-            IERC20(_tokens[i]).transfer(
-                msg.sender,
-                ((tokenValue[address(floor)] * amount)/ tokenValue[_tokens[i]]) / tokenCount
-            );
+            IERC20(_tokens[i]).transfer(msg.sender, ((tokenValue[address(floor)] * amount) / tokenValue[_tokens[i]]) / tokenCount);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Goodbye, old friend.
@@ -139,7 +138,9 @@ contract RageQuit is Ownable, Pausable {
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
             IERC20(_tokens[i]).transfer(msg.sender, IERC20(_tokens[i]).balanceOf(address(this)));
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Remove our tokens array so we can start fresh next time
@@ -168,5 +169,4 @@ contract RageQuit is Ownable, Pausable {
     function tokens() public view returns (address[] memory) {
         return _tokens;
     }
-
 }

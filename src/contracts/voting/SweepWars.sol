@@ -232,10 +232,8 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         // to catch this and just return 0.
         int burnAmount = collectionVote.powerBurn * int(_baseEpoch - epoch);
 
-        if (
-            uint(burnAmount < 0 ? -burnAmount : burnAmount) >
-            uint(collectionVote.power < 0 ? -collectionVote.power : collectionVote.power)
-        ) {
+        if (uint(burnAmount < 0 ? -burnAmount : burnAmount) > uint(collectionVote.power < 0 ? -collectionVote.power : collectionVote.power))
+        {
             return 0;
         }
 
@@ -363,7 +361,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
             totalRelevantVotes += collectionVotePowers[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Iterate over our collections
@@ -407,10 +407,14 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // If our vote amount is over zero, then we count this to compare against
             // the sample size later.
             if (votes(approvedCollections[i], epoch) > 0) {
-                unchecked { ++positiveCollections; }
+                unchecked {
+                    ++positiveCollections;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Check if the number of positive collections is smaller than the sample size. If it
@@ -438,7 +442,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // response.
             int _votes = votes(approvedCollections[i], epoch);
             if (_votes <= 0) {
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 

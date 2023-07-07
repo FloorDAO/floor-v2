@@ -30,12 +30,17 @@ interface INewCollectionWarOptions {
     /// Sent when Collection Addition War NFTs are exercised
     event CollectionExercised(uint warIndex, address collection, uint value);
 
-    function createOption(uint war, address collection, uint[] calldata tokenIds, uint40[] calldata amounts, uint56[] calldata exercisePercents) external;
+    function createOption(
+        uint war,
+        address collection,
+        uint[] calldata tokenIds,
+        uint40[] calldata amounts,
+        uint56[] calldata exercisePercents
+    ) external;
 
     function reclaimOptions(uint war, address collection, uint56[] calldata exercisePercents, uint[][] calldata indexes) external;
 
     function exerciseOptions(uint war, uint amount) external payable;
 
     function nftVotingPower(uint war, address collection, uint spotPrice, uint exercisePercent) external view returns (uint);
-
 }

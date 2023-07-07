@@ -11,7 +11,6 @@ import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
-
 /**
  * If the current epoch is a Collection Addition, then the floor war is ended and the
  * winning collection is chosen. The losing collections are released to be claimed, but
@@ -27,7 +26,6 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
  * @dev Requires `COLLECTION_MANAGER` role.
  */
 contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
-
     /// Holds our internal contract references
     IBasePricingExecutor public pricingExecutor;
     INewCollectionWars public newCollectionWars;
@@ -44,13 +42,7 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     /**
      * Define our required contracts.
      */
-    constructor (
-        address _newCollectionWars,
-        address _pricingExecutor,
-        address _strategyFactory,
-        address _treasury,
-        address _voteContract
-    ) {
+    constructor(address _newCollectionWars, address _pricingExecutor, address _strategyFactory, address _treasury, address _voteContract) {
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         strategyFactory = IStrategyFactory(_strategyFactory);
@@ -59,7 +51,6 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     }
 
     function endEpoch(uint epoch) external onlyEpochManager {
-
         // Get our strategies
         address[] memory strategies = strategyFactory.strategies();
 
@@ -92,7 +83,9 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         // Iterate through our list and store it to our internal mapping
         for (uint i; i < tokenEthPrices.length;) {
             tokenEthPrice[approvedCollections[i]] = tokenEthPrices[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Store the amount of rewards generated in ETH
@@ -127,10 +120,14 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
                     }
                 }
 
-                unchecked { ++k; }
+                unchecked {
+                    ++k;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // We want the ability to set a minimum sweep amount, so that when we are first
@@ -185,5 +182,4 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
             treasury.registerSweep(epoch, collections, snapshotAmounts, TreasuryEnums.SweepType.SWEEP);
         }
     }
-
 }

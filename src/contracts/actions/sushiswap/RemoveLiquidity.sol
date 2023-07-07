@@ -79,5 +79,4 @@ contract SushiswapRemoveLiquidity is Action {
     function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
         params = abi.decode(_callData, (ActionRequest));
     }
-
 }

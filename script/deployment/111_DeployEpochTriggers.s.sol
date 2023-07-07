@@ -24,7 +24,8 @@ contract DeployEpochTriggers is DeploymentScript {
         address veFloorStaking = requireDeployment('VeFloorStaking');
 
         // Deploy our triggers
-        RegisterSweepTrigger registerSweep = new RegisterSweepTrigger(newCollectionWars, pricingExecutor, strategyFactory, treasury, veFloorStaking);
+        RegisterSweepTrigger registerSweep =
+            new RegisterSweepTrigger(newCollectionWars, pricingExecutor, strategyFactory, treasury, veFloorStaking);
         StoreEpochCollectionVotesTrigger storeEpochVotes = new StoreEpochCollectionVotesTrigger(sweepWars);
 
         // Register our epoch triggers

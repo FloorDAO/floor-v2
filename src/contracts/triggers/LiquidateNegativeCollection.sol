@@ -14,13 +14,11 @@ import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol'
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
 
-
 /**
  * When an epoch ends, the vote with the most negative votes will be liquidated to an amount
  * relative to the number of negative votes it received.
  */
 contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered {
-
     IWETH public constant WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     /// The sweep war contract used by this contract
@@ -59,12 +57,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     /**
      * Sets our internal contracts.
      */
-    constructor (
-        address _sweepWars,
-        address _strategyFactory,
-        address _revenueStrategy,
-        address _uniswapUniversalRouter
-    ) {
+    constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy, address _uniswapUniversalRouter) {
         sweepWars = ISweepWars(_sweepWars);
         strategyFactory = StrategyFactory(_strategyFactory);
         revenueStrategy = DistributedRevenueStakingStrategy(_revenueStrategy);
@@ -105,7 +98,9 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
             // Keep track of the gross number of votes for calculation purposes
             grossVotes += (votes >= 0) ? votes : -votes;
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // We then need to calculate the amount we exit our position by, depending on the number
@@ -116,7 +111,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
         if (percentage < THRESHOLD) {
             // If we are below the threshold then we don't register any WETH
             epochSnapshot[epoch] = EpochSnapshot(worstCollection, negativeCollectionVotes, 0);
-            return ;
+            return;
         }
 
         // We need to determine the holdings across our strategies and exit our positions sufficiently
@@ -142,11 +137,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
                             address(this),
                             amounts[k],
                             0, // Minimum output
-                            abi.encodePacked(
-                                tokens[k],
-                                uint24(10000),
-                                address(WETH)
-                            ),
+                            abi.encodePacked(tokens[k], uint24(10000), address(WETH)),
                             false
                         )
                     );
@@ -155,10 +146,14 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
                     IERC20(tokens[k]).transfer(address(uniswapUniversalRouter), amounts[k]);
                 }
 
-                unchecked { ++k; }
+                unchecked {
+                    ++k;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // If we had no amounts, then avoid zero deposits
@@ -183,5 +178,4 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
         delete commands;
         delete inputs;
     }
-
 }

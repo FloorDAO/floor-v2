@@ -68,27 +68,19 @@ contract UniswapV3Strategy is BaseStrategy {
         _transferOwnership(msg.sender);
     }
 
-
     /**
-    * Adds liquidity against an existing Uniswap ERC721 position.
-    *
-    * @param amount0Desired - The desired amount of token0 that should be supplied
-    * @param amount1Desired - The desired amount of token1 that should be supplied
-    * @param amount0Min - The minimum amount of token0 that should be supplied
-    * @param amount1Min - The minimum amount of token1 that should be supplied
-    * @param deadline - The time by which the transaction must be included to effect the change
-    */
-    function deposit(
-        uint amount0Desired,
-        uint amount1Desired,
-        uint amount0Min,
-        uint amount1Min,
-        uint deadline
-    ) external returns (
-        uint liquidity,
-        uint amount0,
-        uint amount1
-    ) {
+     * Adds liquidity against an existing Uniswap ERC721 position.
+     *
+     * @param amount0Desired - The desired amount of token0 that should be supplied
+     * @param amount1Desired - The desired amount of token1 that should be supplied
+     * @param amount0Min - The minimum amount of token0 that should be supplied
+     * @param amount1Min - The minimum amount of token1 that should be supplied
+     * @param deadline - The time by which the transaction must be included to effect the change
+     */
+    function deposit(uint amount0Desired, uint amount1Desired, uint amount0Min, uint amount1Min, uint deadline)
+        external
+        returns (uint liquidity, uint amount0, uint amount1)
+    {
         // Check that we aren't trying to deposit nothing
         if (amount0Desired + amount1Desired == 0) {
             revert CannotDepositZeroAmount();
@@ -168,11 +160,19 @@ contract UniswapV3Strategy is BaseStrategy {
      * @param deadline The time by which the transaction must be included to effect the change
      * @param liquidity The amount of liquidity to withdraw against
      */
-    function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) external nonReentrant onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
+    function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity)
+        external
+        nonReentrant
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
         return _withdraw(recipient, amount0Min, amount1Min, deadline, liquidity);
     }
 
-    function _withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity) internal returns (address[] memory tokens_, uint[] memory amounts_) {
+    function _withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity)
+        internal
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
         (uint amount0, uint amount1) = positionManager.decreaseLiquidity(
@@ -289,5 +289,4 @@ contract UniswapV3Strategy is BaseStrategy {
 
         return this.onERC721Received.selector;
     }
-
 }

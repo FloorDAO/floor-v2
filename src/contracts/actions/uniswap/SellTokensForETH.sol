@@ -11,7 +11,6 @@ import {Action} from '@floor/actions/Action.sol';
 import {IPermit2} from '@floor-interfaces/uniswap/IPermit2.sol';
 import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
 
-
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.
  *
@@ -78,17 +77,8 @@ contract UniswapSellTokensForETH is Action {
 
         // Set up our data input
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(
-            msg.sender,
-            request.amountIn,
-            request.amountOutMinimum,
-            abi.encodePacked(
-                request.token0,
-                request.fee,
-                WETH
-            ),
-            false
-        );
+        inputs[0] =
+            abi.encode(msg.sender, request.amountIn, request.amountOutMinimum, abi.encodePacked(request.token0, request.fee, WETH), false);
 
         // Sends the command to make a V3 token swap
         // @dev https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol

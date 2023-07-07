@@ -6,7 +6,12 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
+import {
+    CannotDepositZeroAmount,
+    CannotWithdrawZeroAmount,
+    InsufficientPosition,
+    DistributedRevenueStakingStrategy
+} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
@@ -47,11 +52,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
             address(new DistributedRevenueStakingStrategy()),
-            abi.encode(
-                WETH,
-                20 ether,
-                address(epochManager)
-            ),
+            abi.encode(WETH, 20 ether, address(epochManager)),
             0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
 
@@ -265,5 +266,4 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         vm.expectRevert(CannotDepositZeroAmount.selector);
         strategy.depositErc20(0);
     }
-
 }

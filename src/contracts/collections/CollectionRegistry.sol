@@ -114,7 +114,9 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
                 break;
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Now that we have the index we can move the last item to the deleted position

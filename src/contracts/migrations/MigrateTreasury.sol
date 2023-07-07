@@ -18,7 +18,6 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * to make these migrations. This role must be assigned to this contract after deployment.
  */
 contract MigrateTreasury is Ownable {
-
     /// Contract addresses of our new and old {Treasury} contracts
     ILegacyTreasury public immutable oldTreasury;
     ITreasury public immutable newTreasury;
@@ -58,7 +57,9 @@ contract MigrateTreasury is Ownable {
             // that it isn't a zero amount.
             received = token.balanceOf(address(oldTreasury));
             if (received == 0) {
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -76,7 +77,9 @@ contract MigrateTreasury is Ownable {
             // Fire an event to show the amount of token received and sent
             emit TokenMigrated(address(token), received, sent);
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 }

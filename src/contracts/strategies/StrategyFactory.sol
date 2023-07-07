@@ -152,7 +152,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @return tokens Tokens that have been generated as yield
      * @return amounts The amount of yield generated for the corresponding token
      */
-    function snapshot(uint _strategyId, uint _epoch) external onlyRole(STRATEGY_MANAGER) returns (address[] memory tokens, uint[] memory amounts) {
+    function snapshot(uint _strategyId, uint _epoch)
+        external
+        onlyRole(STRATEGY_MANAGER)
+        returns (address[] memory tokens, uint[] memory amounts)
+    {
         (tokens, amounts) = IBaseStrategy(strategyIds[_strategyId]).snapshot();
         emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
     }
@@ -207,7 +211,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _strategy Strategy address to be updated
      * @param _percentage The percentage of position to withdraw from
      */
-    function withdrawPercentage(address _strategy, uint _percentage) external onlyRole(STRATEGY_MANAGER) returns (address[] memory, uint[] memory) {
+    function withdrawPercentage(address _strategy, uint _percentage)
+        external
+        onlyRole(STRATEGY_MANAGER)
+        returns (address[] memory, uint[] memory)
+    {
         // Ensure our percentage is valid (less than 100% to 2 decimal places)
         require(_percentage > 0, 'Invalid percentage');
         require(_percentage <= 10000, 'Invalid percentage');

@@ -49,7 +49,7 @@ contract UniswapSellTokensForETHTest is FloorTest {
         vm.startPrank(treasury);
 
         // Approve our entire USDC balance
-        ERC20(USDC).approve(address(action), type(uint256).max);
+        ERC20(USDC).approve(address(action), type(uint).max);
 
         // Confirm our starting balances
         assertEq(ERC20(USDC).balanceOf(treasury), 76980271562891);

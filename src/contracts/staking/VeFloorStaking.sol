@@ -387,7 +387,6 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         emit Deposit(account, 0);
     }
 
-
     /**
      * Allows our voting contract addresses to be updated.
      */

@@ -12,7 +12,6 @@ import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
  * were a part of it and the respective vote power attached to each.
  */
 contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
-
     /// Emitted when our collection votes are stored
     event EpochVotesSnapshot(uint epoch, address[] collections, int[] votes);
 
@@ -42,7 +41,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
      *
      * @param _sweepWars The {SweepWars} contract being referenced
      */
-    constructor (address _sweepWars) {
+    constructor(address _sweepWars) {
         sweepWars = ISweepWars(_sweepWars);
     }
 
@@ -66,7 +65,9 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
         for (uint i; i < length;) {
             // Get the number of votes at the current epoch that is closing
             collectionVotes[i] = sweepWars.votes(collectionAddrs[i], epoch);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Store our epoch snapshots
@@ -80,5 +81,4 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
     function epochSnapshot(uint epoch) external view returns (address[] memory, int[] memory) {
         return (epochSnapshots[epoch].collections, epochSnapshots[epoch].votes);
     }
-
 }

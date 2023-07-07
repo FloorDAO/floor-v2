@@ -16,7 +16,6 @@ import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
-
 /**
  * Supports an Liquidity Staking position against a single NFTX vault. This strategy
  * will hold the corresponding xToken against deposits.
@@ -149,7 +148,11 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         stakingZap.addLiquidity721To(vaultId, tokenIds, minWethIn, wethIn, address(this));
     }
 
-    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn)
+        external
+        updatesPosition(yieldToken)
+        refundsWeth
+    {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
@@ -256,7 +259,12 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
      * @param recipient Recipient of the withdrawal
      * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
-    function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
         // Get the total amount of underlyingToken that has been deposited. From that, take
         // the percentage of the token.
         uint amount = (position[yieldToken] * percentage) / 10000;

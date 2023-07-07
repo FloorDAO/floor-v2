@@ -283,7 +283,12 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      * @param recipient Recipient of the withdrawal
      * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
-    function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory tokens_, uint[] memory amounts_) {
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
         // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
         // of the token.
         uint amount = (position[yieldToken] * percentage) / 10000;

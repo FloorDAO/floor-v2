@@ -368,7 +368,6 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         newCollectionWarOptions = INewCollectionWarOptions(_contract);
     }
 
-
     /**
      * Check if a collection is in a FloorWar.
      */

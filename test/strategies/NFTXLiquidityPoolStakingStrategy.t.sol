@@ -20,7 +20,6 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-
 contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     // Store our strategy information
     NFTXLiquidityPoolStakingStrategy strategy;
@@ -34,8 +33,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 17_240_153;
 
     /// Define a number of ERC holders that we can test with
-    address erc20Holder;   // This will be set to `alice` during `setUp`
-    address erc721Holder = 0xd938a84aD8CDB8385b68851350d5a84aA52D9C06;  // Holds 411
+    address erc20Holder; // This will be set to `alice` during `setUp`
+    address erc721Holder = 0xd938a84aD8CDB8385b68851350d5a84aA52D9C06; // Holds 411
     address erc1155Holder = 0xB45470a9688ec3bdBB572B27c305E8c45E014e75; // Holds ???
 
     /// Set up a {Treasury} contract address
@@ -74,7 +73,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
                 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _rewardToken         // MILADY
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
-                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2  // _weth
+                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 // _weth
             ),
             0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
@@ -379,7 +378,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
                 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, // _rewardToken         // CURIO
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
-                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2  // _weth
+                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 // _weth
             ),
             0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313
         );
@@ -415,7 +414,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm that, although we sent 5 WETH that we have received an amount back. This
         // account started with 100 WETH, so we can use that as a base to test from.
-        assertEq(WETH.balanceOf(erc1155Holder), 99732516493129423305);  // 100 ether - 2.7~ ether
+        assertEq(WETH.balanceOf(erc1155Holder), 99732516493129423305); // 100 ether - 2.7~ ether
 
         // Confirm that the ERC721s are now held by the vault
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 1), 0);

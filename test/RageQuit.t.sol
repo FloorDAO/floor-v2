@@ -9,13 +9,11 @@ import {RageQuit} from '@floor/RageQuit.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
 
-
 contract RageQuitTest is FloorTest {
-
     /// Set our constant token prices
     uint constant FLOOR_PRICE = 2400000000000000;
-    uint constant FUND1_PRICE = 68180900000000000000;  // PUNK
-    uint constant FUND2_PRICE = 1000000000000000000;   // WETH
+    uint constant FUND1_PRICE = 68180900000000000000; // PUNK
+    uint constant FUND2_PRICE = 1000000000000000000; // WETH
 
     /// Our funding tokens
     ERC20Mock fundToken1;
@@ -120,14 +118,14 @@ contract RageQuitTest is FloorTest {
         rageQuit.ragequit(10_000 ether);
 
         assertEq(floor.balanceOf(alice), 90_000 ether);
-        assertEq(fundToken1.balanceOf(alice), 176002370165251558);   // 0.1760 PUNK
+        assertEq(fundToken1.balanceOf(alice), 176002370165251558); // 0.1760 PUNK
         assertEq(fundToken2.balanceOf(alice), 12000000000000000000); // 12.000 WETH
 
         vm.prank(alice);
         rageQuit.ragequit(20_000 ether);
 
         assertEq(floor.balanceOf(alice), 70_000 ether);
-        assertEq(fundToken1.balanceOf(alice), 528007110495754675);   // 0.5280 PUNK
+        assertEq(fundToken1.balanceOf(alice), 528007110495754675); // 0.5280 PUNK
         assertEq(fundToken2.balanceOf(alice), 36000000000000000000); // 36.000 WETH
     }
 
@@ -198,5 +196,4 @@ contract RageQuitTest is FloorTest {
         vm.expectRevert();
         rageQuit.rescue();
     }
-
 }

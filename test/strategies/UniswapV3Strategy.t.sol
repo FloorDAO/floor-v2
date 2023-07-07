@@ -60,14 +60,14 @@ contract UniswapV3StrategyTest is FloorTest {
             bytes32('USDC/WETH UV3 Pool'),
             address(new UniswapV3Strategy()),
             abi.encode(
-                TOKEN_A,  // address token0
-                TOKEN_B,  // address token1
-                POOL_FEE,  // uint24 fee
-                0,  // uint96 sqrtPriceX96
-                -887270,  // int24 tickLower
-                887270,  // int24 tickUpper
-                address(0),  // address pool
-                UNISWAP_POSITION_MANAGER  // address positionManager
+                TOKEN_A, // address token0
+                TOKEN_B, // address token1
+                POOL_FEE, // uint24 fee
+                0, // uint96 sqrtPriceX96
+                -887270, // int24 tickLower
+                887270, // int24 tickUpper
+                address(0), // address pool
+                UNISWAP_POSITION_MANAGER // address positionManager
             ),
             0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
@@ -148,14 +148,18 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(IERC20(TOKEN_B).balanceOf(treasury), 0);
 
         // We can now withdraw from the strategy
-        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 4)));
+        strategyFactory.withdraw(
+            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 4))
+        );
 
         // Confirm that we now hold the token we expect
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 933834213);
         assertEq(IERC20(TOKEN_B).balanceOf(treasury), 499999999999994240);
 
         // We can also make a subsequent withdrawal
-        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 2)));
+        strategyFactory.withdraw(
+            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 2))
+        );
 
         // Confirm that we now hold the token we expect
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 2801502640);
@@ -171,8 +175,8 @@ contract UniswapV3StrategyTest is FloorTest {
         // Mock some rewards against our pool. When we call collect it will be the UV3 pool that
         // sends the tokens, not the position manager. So we give the tokens to the pool, but update
         // the position on our {PositionManager}.
-        deal(TOKEN_A, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 10000_000000);  // $10,000
-        deal(TOKEN_B, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 5 ether);    // 5 WETH
+        deal(TOKEN_A, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 10000_000000); // $10,000
+        deal(TOKEN_B, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 5 ether); // 5 WETH
 
         // Update our returned positions to modify the tokens owed to our strategy. We don't reference
         // any of the other variables, so we can just give them nulled values for now.
@@ -282,5 +286,4 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 5);
         assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 6);
     }
-
 }

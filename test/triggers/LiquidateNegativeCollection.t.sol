@@ -108,11 +108,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
             address(new DistributedRevenueStakingStrategy()),
-            abi.encode(
-                WETH,
-                1 ether,
-                address(epochManager)
-            ),
+            abi.encode(WETH, 1 ether, address(epochManager)),
             approvedCollection1
         );
 
@@ -244,10 +240,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         // Set up a strategy
         (, address _strategy) = strategyFactory.deployStrategy(
-            bytes32('Collection Strategy'),
-            address(new RevenueStakingStrategy()),
-            abi.encode(tokens),
-            collection
+            bytes32('Collection Strategy'), address(new RevenueStakingStrategy()), abi.encode(tokens), collection
         );
 
         // Set up a mock for the percentage output
@@ -259,8 +252,11 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         // Give our trigger sufficient tokens
         for (uint i; i < tokens.length; ++i) {
-            deal(tokens[i], address(liquidateNegativeCollectionTrigger), IERC20(tokens[i]).balanceOf(address(liquidateNegativeCollectionTrigger)) + amounts[i]);
+            deal(
+                tokens[i],
+                address(liquidateNegativeCollectionTrigger),
+                IERC20(tokens[i]).balanceOf(address(liquidateNegativeCollectionTrigger)) + amounts[i]
+            );
         }
     }
-
 }

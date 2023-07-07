@@ -4,7 +4,12 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
+import {
+    CannotDepositZeroAmount,
+    CannotWithdrawZeroAmount,
+    InsufficientPosition,
+    RevenueStakingStrategy
+} from '@floor/strategies/RevenueStakingStrategy.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -176,5 +181,4 @@ contract RevenueStakingStrategyTest is FloorTest {
         strategy.depositErc20(address(0), 0);
         vm.stopPrank();
     }
-
 }

@@ -53,10 +53,10 @@ interface INewCollectionWars {
     function floorWarWinner(uint _epoch) external view returns (address);
 
     /// Stores if a collection has been flagged as ERC1155
-    function is1155(address) external returns(bool);
+    function is1155(address) external returns (bool);
 
     /// Stores the unlock epoch of a collection in a floor war
-    function collectionEpochLock(bytes32) external returns(uint);
+    function collectionEpochLock(bytes32) external returns (uint);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
@@ -150,5 +150,4 @@ interface INewCollectionWars {
      * Check if a collection is in a FloorWar.
      */
     function isCollectionInWar(bytes32 warCollection) external view returns (bool);
-
 }

@@ -30,7 +30,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
     uint public maxEpochYield;
 
     /// Track the amount of token that will be available, and in which epoch
-    mapping (uint => uint) public epochYield;
+    mapping(uint => uint) public epochYield;
 
     /// Keep track of the epochs that have > 0 yield
     uint[] private _activeEpochs;
@@ -134,9 +134,10 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
                 // Remove element
                 _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
                 _activeEpochs.pop();
-            }
-            else {
-                unchecked { ++i; }
+            } else {
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -169,7 +170,9 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
                 amount += epochYield[_activeEpochs[i]];
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         tokens_ = _tokens;
@@ -190,5 +193,4 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
     function validTokens() external view override returns (address[] memory) {
         return _tokens;
     }
-
 }
