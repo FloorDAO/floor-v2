@@ -133,7 +133,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionTrigger), true);
 
         // Give the liquidation trigger sufficient privleges
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(liquidateNegativeCollectionTrigger));
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(liquidateNegativeCollectionTrigger));
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);

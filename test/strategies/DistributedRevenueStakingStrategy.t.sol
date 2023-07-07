@@ -123,7 +123,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 20 ether);
 
         // Using our snapshot call, register the tokens to be distributed
-        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 20 ether);
 
@@ -131,12 +131,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // allocation of our rewards.
         epochManager.setCurrentEpoch(1);
 
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 20 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
 
@@ -147,12 +147,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Our last snapshot call should only hold the remaining 20 + 10 ETH
         epochManager.setCurrentEpoch(2);
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 10 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
 
@@ -163,7 +163,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Shifting to after our epoch deposits, we should no longer have rewards
         epochManager.setCurrentEpoch(3);
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
     }
