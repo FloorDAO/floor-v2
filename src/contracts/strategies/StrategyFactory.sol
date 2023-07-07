@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
-
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
@@ -210,12 +208,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _percentage The percentage of position to withdraw from
      */
     function withdrawPercentage(address _strategy, uint _percentage) external onlyRole(VAULT_MANAGER) returns (address[] memory, uint[] memory) {
-        console.log('111');
         // Ensure our percentage is valid (less than 100% to 2 decimal places)
         require(_percentage > 0, 'Invalid percentage');
-        console.log('222');
         require(_percentage <= 10000, 'Invalid percentage');
-        console.log('333');
 
         // Calls our strategy to withdraw a percentage of the holdings
         return IBaseStrategy(_strategy).withdrawPercentage(msg.sender, _percentage);
