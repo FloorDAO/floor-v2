@@ -15,9 +15,12 @@ import {Treasury} from '@floor/Treasury.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract SweepWarsTest is FloorTest {
+contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
+
+    // Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 4;
 
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
@@ -82,6 +85,9 @@ contract SweepWarsTest is FloorTest {
         sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
+        // Set our war contracts against our staking contract
+        veFloor.setVotingContracts(address(0), address(sweepWars));
+
         // Register our epoch end trigger that stores our treasury sweep
         storeEpochCollectionVotesTrigger = new StoreEpochCollectionVotesTrigger(
             address(sweepWars)
@@ -107,12 +113,12 @@ contract SweepWarsTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
     }
 

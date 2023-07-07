@@ -35,8 +35,6 @@ interface IVeFloorStaking {
 
     function setEmergencyExit(bool emergencyExit_) external;
 
-    // function votingPowerOf(address account) external view returns (uint);
-
     function votingPowerAt(address account, uint epoch) external view returns (uint);
 
     function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint);
@@ -44,10 +42,6 @@ interface IVeFloorStaking {
     function deposit(uint amount, uint epochs) external;
 
     function depositWithPermit(uint amount, uint epochs, bytes calldata permit) external;
-
-    function depositFor(address account, uint amount) external;
-
-    function depositForWithPermit(address account, uint amount, bytes calldata permit) external;
 
     function earlyWithdraw(uint minReturn, uint maxLoss) external;
 

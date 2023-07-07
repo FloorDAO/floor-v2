@@ -29,6 +29,9 @@ contract SweepWarsTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
+    // Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 4;
+
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
@@ -95,6 +98,9 @@ contract SweepWarsTest is FloorTest {
         sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
+        // Set our war contracts against our staking contract
+        veFloor.setVotingContracts(address(0), address(sweepWars));
+
         // Define our strategy implementations
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
 
@@ -124,12 +130,12 @@ contract SweepWarsTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         votePower[alice] = veFloor.balanceOf(alice);
