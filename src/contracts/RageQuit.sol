@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
@@ -56,7 +56,7 @@ contract RageQuit is Ownable, Pausable {
         require(amount != 0, 'No supply');
 
         // Transfer the approved token into this contract
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        ERC20(token).transferFrom(msg.sender, address(this), amount);
 
         // Increase the total supply held in the contract
         tokenSupply[token] += amount;
@@ -96,10 +96,15 @@ contract RageQuit is Ownable, Pausable {
 
         // Iterate over all funding tokens and distribue a share of them to the caller
         uint tokenCount = _tokens.length;
+        uint decimalDifference;
+
         for (uint i; i < tokenCount;) {
-            IERC20(_tokens[i]).transfer(
+            // Determine the decimal difference
+            decimalDifference = 1 ** (ERC20(_tokens[i]).decimals() - 9);
+
+            ERC20(_tokens[i]).transfer(
                 msg.sender,
-                (amount * 1e9 * tokenSupply[_tokens[i]]) / (tokenSupply[address(floor)] * 1e9)
+                (amount * decimalDifference * tokenSupply[_tokens[i]]) / (tokenSupply[address(floor)] * decimalDifference)
             );
 
             unchecked {
@@ -121,7 +126,7 @@ contract RageQuit is Ownable, Pausable {
         // Loop through all funding tokens and extract them to caller
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
-            IERC20(_tokens[i]).transfer(msg.sender, IERC20(_tokens[i]).balanceOf(address(this)));
+            ERC20(_tokens[i]).transfer(msg.sender, ERC20(_tokens[i]).balanceOf(address(this)));
             tokenSupply[_tokens[i]] = 0;
             unchecked {
                 ++i;
