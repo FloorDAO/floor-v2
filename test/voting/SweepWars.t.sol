@@ -448,12 +448,11 @@ contract SweepWarsTest is FloorTest {
         // Check how many votes we will have at current epoch when vote was cast
         assertEq(sweepWars.votes(approvedCollection1), -5 ether);
 
-        // Check how many votes we will have at a specific epoch (half way)
-        assertAlmostEqual(sweepWars.votes(approvedCollection1, 52), -2.5 ether, 1e2);
-
-        // At the end of the epoch duration, we can confirm that it should be zero
-        assertAlmostEqual(sweepWars.votes(approvedCollection1, 104), 0, 1e2);
-        assertEq(sweepWars.votes(approvedCollection1, 105), 0);
+        // Check how many votes we will have at at specific epochs, which should be
+        // the same as we no longer have any power burn.
+        assertEq(sweepWars.votes(approvedCollection1, 52), -5 ether);
+        assertEq(sweepWars.votes(approvedCollection1, 104), -5 ether);
+        assertEq(sweepWars.votes(approvedCollection1, 208), -5 ether);
     }
 
     function test_CanExcludeZeroOrNegativeCollectionVotesFromSnapshot() external {

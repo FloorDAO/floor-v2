@@ -32,6 +32,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
+    // Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 4;
+
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     // Contract references to be deployed
@@ -104,6 +107,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
+        // Assign relevant war contracts
+        veFloor.setVotingContracts(address(0), address(sweepWars));
+
         // Set up a revenue strategy
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
@@ -142,12 +148,12 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         vm.startPrank(alice);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
 
         vm.startPrank(bob);
         floor.approve(address(veFloor), 100 ether);
-        veFloor.deposit(100 ether, 6);
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
         vm.stopPrank();
     }
 
