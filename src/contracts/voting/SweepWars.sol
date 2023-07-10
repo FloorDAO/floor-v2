@@ -49,12 +49,10 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * to calculate current vote power at any epoch with minimal gas usage.
      *
      * @param power The amount of vote power assigned to a collection
-     * @param powerBurn The amount of vote power lost per epoch
      * @param lastVoteEpoch The last epoch that a vote was placed for this collection
      */
     struct CollectionVote {
         int power;
-        int powerBurn;
         uint lastVoteEpoch;
     }
 
@@ -187,10 +185,8 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         uint epoch = currentEpoch();
         if (_against) {
             collectionVote.power -= int(veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epoch));
-            collectionVote.powerBurn -= int(_amount / 104);
         } else {
             collectionVote.power += int(veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epoch));
-            collectionVote.powerBurn += int(_amount / 104);
         }
 
         // Set the last epoch iteration to have updated
@@ -225,15 +221,6 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         // If we are looking for a date in the past, just return 0
         uint epoch = currentEpoch();
         if (epoch > _baseEpoch) {
-            return 0;
-        }
-
-        // If we look to a point that would turn the returned value negative, then we need
-        // to catch this and just return 0.
-        int burnAmount = collectionVote.powerBurn * int(_baseEpoch - epoch);
-
-        if (uint(burnAmount < 0 ? -burnAmount : burnAmount) > uint(collectionVote.power < 0 ? -collectionVote.power : collectionVote.power))
-        {
             return 0;
         }
 
@@ -296,12 +283,10 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
                 unchecked {
                     if (userForVotes[collectionHash] != 0) {
                         collectionVote.power -= int(veFloor.votingPowerOfAt(_account, uint88(userForVotes[collectionHash]), epoch));
-                        collectionVote.powerBurn -= int(userForVotes[collectionHash] / 104);
                     }
 
                     if (userAgainstVotes[collectionHash] != 0) {
                         collectionVote.power += int(veFloor.votingPowerOfAt(_account, uint88(userAgainstVotes[collectionHash]), epoch));
-                        collectionVote.powerBurn += int(userAgainstVotes[collectionHash] / 104);
                     }
 
                     // Reduce the number of votes cast by the user as a whole
