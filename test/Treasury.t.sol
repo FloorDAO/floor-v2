@@ -521,7 +521,7 @@ contract TreasuryTest is FloorTest {
         erc1155.mint(address(treasury), 1, 3, '');
         erc1155.mint(address(treasury), 2, 2, '');
 
-        address action = address(new WrapEth());
+        WrapEth action = new WrapEth();
 
         ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](5);
 
@@ -571,7 +571,7 @@ contract TreasuryTest is FloorTest {
         assertEq(address(treasury).balance, 20 ether);
 
         // Confirm the amount of WETH received
-        assertEq(IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 20 ether);
+        assertEq(IWETH(action.WETH()).balanceOf(address(treasury)), 30 ether);
 
         // Test that ERC20 allowance reduced by 20 ether to 10 ether remaining
         assertEq(erc20.allowance(address(treasury), address(action)), 0);

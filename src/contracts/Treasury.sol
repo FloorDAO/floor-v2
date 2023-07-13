@@ -188,10 +188,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         external
         onlyRole(TREASURY_MANAGER)
     {
+        uint ethValue;
+
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
-                (bool sent,) = payable(action).call{value: approvals[i].amount}('');
-                require(sent, 'Unable to fund action');
+                ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
@@ -205,7 +206,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
-        IAction(action).execute(data);
+        IAction(action).execute{value: ethValue}(data);
 
         // Remove ERC1155 global approval after execution
         for (uint i; i < approvals.length;) {
