@@ -6,6 +6,7 @@ import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -22,7 +23,7 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 /**
  * The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
+contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, ReentrancyGuard {
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
@@ -249,7 +250,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public {
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public nonReentrant {
         // Load the stored sweep at our epoch index
         Sweep memory epochSweep = epochSweeps[epochIndex];
 
@@ -292,7 +293,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) {
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) nonReentrant {
         return _sweepEpoch(epochIndex, sweeper, epochSweeps[epochIndex], data, mercSweep);
     }
 
@@ -354,13 +355,13 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
+        // Mark our sweep as completed
+        epochSweep.completed = true;
+
         // Action our sweep. If we don't hold enough ETH to supply the message value then
         // we expect this call to revert. This call may optionally return a message that
         // will be stored against the struct.
         string memory message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
-
-        // Mark our sweep as completed
-        epochSweep.completed = true;
 
         // If we returned a message, then we write it to our sweep
         epochSweep.message = message;
