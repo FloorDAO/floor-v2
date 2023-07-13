@@ -2,23 +2,29 @@
 
 pragma solidity ^0.8.0;
 
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 
 /**
  * Interacts with the Gem.xyz protocol to fulfill a sweep order.
  */
-contract GemSweeper is ISweeper {
+contract GemSweeper is ISweeper, Ownable {
+    /// The Gem Swap contract that will be called for the sweep
+    address payable public gemSwap;
+
+    /**
+     * Passes the request data to the `gemSwap` contract to action and refunds any
+     * remaining ETH.
+     */
     function execute(address[] calldata, /* collections */ uint[] calldata, /* amounts */ bytes calldata data)
         external
         payable
         override
         returns (string memory)
     {
-        // Unpack the call data into sweep data
-        (address gemSwap, bytes memory request) = abi.decode(data, (address, bytes));
-
         // Sweeps from GemSwap
-        (bool success,) = payable(gemSwap).call{value: msg.value}(request);
+        (bool success,) = payable(gemSwap).call{value: msg.value}(data);
         require(success, 'Unable to sweep');
 
         // Return any remaining ETH
@@ -26,6 +32,13 @@ contract GemSweeper is ISweeper {
 
         // Return an empty string as no message to store
         return '';
+    }
+
+    /**
+     * Allows our Gem contract to be set
+     */
+    function setGemSwapContract(address payable _gemSwap) external onlyOwner {
+        gemSwap = _gemSwap;
     }
 
     /**
