@@ -149,7 +149,15 @@ contract EpochManager is IEpochManager, Ownable {
             }
 
             require(deleteIndex != -1, 'Not found');
-            delete epochEndTriggers[uint(deleteIndex)];
+
+            // Shift the elements after the deleted element by one position
+            for (i = uint(deleteIndex); i < triggersLength - 1;) {
+                epochEndTriggers[i] = epochEndTriggers[i + 1];
+                unchecked { ++i; }
+            }
+
+            // Reduce the length of the array by 1
+            epochEndTriggers.pop();
         }
     }
 
