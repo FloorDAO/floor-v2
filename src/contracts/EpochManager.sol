@@ -37,7 +37,7 @@ contract EpochManager is IEpochManager, Ownable {
     mapping(uint => uint) public collectionEpochs;
 
     /// Store our epoch triggers
-    address[] public epochEndTriggers;
+    address[] private _epochEndTriggers;
 
     /**
      * Allows a new epoch to be set. This should, in theory, only be set to one
@@ -105,9 +105,9 @@ contract EpochManager is IEpochManager, Ownable {
 
         // If we have any logic that needs to be triggered when an epoch ends, then we include
         // it here.
-        uint triggersLength = epochEndTriggers.length;
+        uint triggersLength = _epochEndTriggers.length;
         for (uint i; i < triggersLength;) {
-            IEpochEndTriggered(epochEndTriggers[i]).endEpoch(currentEpoch);
+            IEpochEndTriggered(_epochEndTriggers[i]).endEpoch(currentEpoch);
             unchecked {
                 ++i;
             }
@@ -137,27 +137,30 @@ contract EpochManager is IEpochManager, Ownable {
      */
     function setEpochEndTrigger(address contractAddr, bool enabled) external onlyOwner {
         if (enabled) {
-            epochEndTriggers.push(contractAddr);
+            _epochEndTriggers.push(contractAddr);
         } else {
             int deleteIndex = -1;
-            uint triggersLength = epochEndTriggers.length;
-            for (uint i; i < triggersLength;) {
-                if (epochEndTriggers[i] == contractAddr) {
+            uint triggersLength = _epochEndTriggers.length;
+            uint i;
+
+            for (i; i < triggersLength;) {
+                if (_epochEndTriggers[i] == contractAddr) {
                     deleteIndex = int(i);
                     break;
                 }
+                unchecked { ++i; }
             }
 
             require(deleteIndex != -1, 'Not found');
 
             // Shift the elements after the deleted element by one position
             for (i = uint(deleteIndex); i < triggersLength - 1;) {
-                epochEndTriggers[i] = epochEndTriggers[i + 1];
+                _epochEndTriggers[i] = _epochEndTriggers[i + 1];
                 unchecked { ++i; }
             }
 
             // Reduce the length of the array by 1
-            epochEndTriggers.pop();
+            _epochEndTriggers.pop();
         }
     }
 
@@ -188,5 +191,13 @@ contract EpochManager is IEpochManager, Ownable {
     function setContracts(address _newCollectionWars, address _voteMarket) external onlyOwner {
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         voteMarket = IVoteMarket(_voteMarket);
+    }
+
+    /**
+     * Provides a complete list of all epoch end triggers, in the order that they
+     * are executed.
+     */
+    function epochEndTriggers() public view returns (address[] memory) {
+        return _epochEndTriggers;
     }
 }

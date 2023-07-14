@@ -290,4 +290,31 @@ contract EpochManagerTest is FloorTest {
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
     }
+
+    function test_CanSetAndDeleteEpochEndTriggers(uint8 _delete) external {
+        // Set up epoch end triggers
+        uint expectedTriggers = type(uint8).max;
+
+        // Create address 0 - 255 (this means 256 in total as 0 is included)
+        for (uint160 i; i <= expectedTriggers; i++) {
+            epochManager.setEpochEndTrigger(address(i), true);
+            emit log_address(address(i));
+        }
+
+        emit log_uint(epochManager.epochEndTriggers().length);
+
+        // Now try to delete a trigger against the generated number
+        epochManager.setEpochEndTrigger(address(uint160(_delete)), false);
+
+        // We should be able to confirm that the trigger has been deleted and that the
+        // length is as expected.
+        address[] memory triggers = epochManager.epochEndTriggers();
+        assertEq(triggers.length, 255);
+
+        // Loop through the remaining triggers and confirm we no longer have the
+        // deleted index.
+        for (uint160 i; i < triggers.length; i++) {
+            assertFalse(triggers[i] == address(uint160(_delete)));
+        }
+    }
 }
