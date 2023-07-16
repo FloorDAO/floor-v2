@@ -80,6 +80,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerOf(address(this)), 50 ether);
 
         veFloor.deposit(0, MAX_EPOCH_INDEX);
+        /// Audit Note - May be good to check with non zero here to ensure amount goes up
 
         (epochStart, epochCount, amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 2);
@@ -98,9 +99,13 @@ contract VeFloorStakingTest is FloorTest {
         epochManager.setCurrentEpoch(2);
 
         veFloor.earlyWithdrawTo(address(this), 0 ether, 100 ether);
+        /// Audit Note - Should be checking the amount received is correct.
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
+        /// Audit Note - Not deleting the epoc count on withdraw is interesting, and could create
+        ///              weird issues. IE: user A deposit for 24 weeks and then withdraws and comes back later
+        //               their address cannot deposit for less than 24 weeks.
         assertEq(epochCount, 8);
         assertEq(amount, 0 ether);
 

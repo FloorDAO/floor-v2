@@ -496,4 +496,7 @@ contract TreasuryTest is FloorTest {
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
     }
+
+    /// Audit note - Missing testing of the registerSweep's permissions and of the permissions on executeSweep.
+    ///              Would strongly recommend adding these as the code is critical path and the 5000 floor req is unique.
 }

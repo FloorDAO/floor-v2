@@ -78,6 +78,7 @@ contract CollectionRegistryTest is FloorTest {
 
         // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
+        /// Audit Note - Missing state checks for the array push
     }
 
     /**
@@ -117,6 +118,7 @@ contract CollectionRegistryTest is FloorTest {
 
         collectionRegistry.unapproveCollection(USDC);
         assertFalse(collectionRegistry.isApproved(USDC));
+        /// Audit Note - Misses state checks for the array changes
     }
 
     /**
@@ -155,6 +157,7 @@ contract CollectionRegistryTest is FloorTest {
      */
     function testFail_CannotApproveCollectionWithoutPermissions() public {
         vm.prank(alice);
+        /// Audit Note - Would suggest selector testing here in expect revert
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
@@ -184,4 +187,7 @@ contract CollectionRegistryTest is FloorTest {
         collectionRegistry.setCollectionLiquidityThreshold(0);
         collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
+
+   /// Audit Note - Would recommend tests that setter functions are also only
+   ///              callable by the relevant roles.
 }

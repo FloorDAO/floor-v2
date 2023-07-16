@@ -201,6 +201,7 @@ contract EpochManagerTest is FloorTest {
     }
 
     function test_CanHandleEpochStressTest() public {
+        /// Audit Note - Good test, would be ideal to see more in this style [ie more integration-y]
         uint vaultCount = 10;
         uint stakerCount = 25;
 

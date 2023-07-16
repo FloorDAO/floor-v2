@@ -118,6 +118,8 @@ contract StrategyFactoryTest is FloorTest {
 
         assertEq(vaultId, 0);
         require(vault != address(0), 'Invalid vault address');
+        /// Audit note, you may want to check that the vault's ext code matches the clone proxy bytecode and
+        /// the field is set to the strategy's reference address correctly.
     }
 
     /**
@@ -141,4 +143,8 @@ contract StrategyFactoryTest is FloorTest {
         vm.expectRevert(abi.encodeWithSelector(CollectionNotApproved.selector, collection));
         strategyFactory.deployStrategy('Test Strategy', approvedStrategy, _strategyInitBytes(), collection);
     }
+
+    /// Audit note - In the strategy tests you have checks that the various funct6ions which are called through this
+    ///              work. But there aren't any tests that this will prevent unauthorized users from calling them.
+    ///              I would recommend adding those role failure checks as those functions are critical path.
 }

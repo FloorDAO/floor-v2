@@ -121,6 +121,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
+        /// Audit Note - In the comment you say this should revert but don't expect revert and this isn't a 'testFail'
         uint[] memory prices = executor.getETHPrices(tokens);
         assertEq(prices.length, 0);
     }
@@ -202,6 +203,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_FloorPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
+        /// Audit Note - Comment expects a revert but the test passes
         uint[] memory prices = executor.getFloorPrices(tokens);
         assertEq(prices.length, 0);
     }

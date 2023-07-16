@@ -245,6 +245,8 @@ contract NewCollectionWarsTest is FloorTest {
 
         vm.prank(carol);
         newCollectionWars.vote(address(mock1155));
+
+        /// Audit note - Would recommend checking the various state changes this causes
     }
 
     function test_CanRevote() external {
@@ -252,6 +254,8 @@ contract NewCollectionWarsTest is FloorTest {
         newCollectionWars.vote(address(mock721));
         newCollectionWars.vote(address(mock1155));
         vm.stopPrank();
+
+        /// Audit note - Would recommend checking the various state changes this causes
     }
 
     function test_CannotVoteOnInvalidWarCollection() external {
@@ -262,6 +266,8 @@ contract NewCollectionWarsTest is FloorTest {
 
     function test_CanCreateFloorWar() external {
         // This is tested in the instantiation of the test
+        /// Audit note - Would recommend if you have a deployment test that you should check
+        ///              the various deployment details properly.
     }
 
     function test_CanEndFloorWar(uint currentEpoch) external {
@@ -272,6 +278,8 @@ contract NewCollectionWarsTest is FloorTest {
 
         vm.prank(address(epochManager));
         newCollectionWars.endFloorWar();
+        /// Audit note - Would recommend checking the various state changes this causes
+        ///              I would also recommend an expect revert for non authorized case
     }
 
     function test_CannotEndFloorWarThatDoesNotExist() external {
@@ -293,6 +301,9 @@ contract NewCollectionWarsTest is FloorTest {
         vm.expectRevert('Invalid collection');
         newCollectionWars.updateCollectionFloorPrice(address(6), 1 ether);
     }
+
+    /// Audit note - Would recommend adding tests of revoke vote and iterative tests with
+    ///              multiple votes over multiple periods.
 
     /**
      * Allows our contract to receive dust ETH back from sweeps.

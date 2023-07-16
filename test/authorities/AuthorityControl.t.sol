@@ -59,6 +59,8 @@ contract AuthorityControlTest is FloorTest {
     function testFail_CannotGrantRoleWithoutPermissions() public {
         // Set our requesting user to be Alice, who does not have permissions
         vm.startPrank(alice);
+        /// Audit Note - Would recommend vm.expectRevert(selector) so that you check your revert
+        ///              happens where you expect.
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
         vm.stopPrank();
     }
@@ -74,6 +76,7 @@ contract AuthorityControlTest is FloorTest {
 
         // We now want to try giving Alice the same role again, won't do anything
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), alice);
+        /// Audit Note - without any state checks this only checks a very narrow case
     }
 
     /**
@@ -168,6 +171,8 @@ contract AuthorityControlTest is FloorTest {
 
         authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
         assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+
+        /// Audit Note - Checks that the universal roles when revoked revoke all roles as well?
     }
 
     /**

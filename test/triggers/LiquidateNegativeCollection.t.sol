@@ -196,6 +196,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         assertEq(collection, approvedCollection3);
         assertEq(votes, -4 ether);
         assertEq(weth, 166_134540194015727009); // 166.13 WETH
+        /// Audit note - The comment doesn't match  but this test seems right.
     }
 
     function test_CanDetectNoNegativeVotes() external {

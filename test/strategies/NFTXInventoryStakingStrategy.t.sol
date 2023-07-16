@@ -222,6 +222,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        /// Audit note - May want to add a check that the amount withdrawn went to the right place
     }
 
     /**

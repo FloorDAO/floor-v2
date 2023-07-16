@@ -233,6 +233,7 @@ contract SweepWarsTest is FloorTest {
 
         // Check how many votes we will have at a specific epoch (half way)
         assertAlmostEqual(uint(sweepWars.votes(approvedCollection1, 52)), 5 ether, 1e2);
+        /// Audit note - Would recommend checking for the other state changes as well
     }
 
     function test_canVoteOnFloorTokenAddress() public {
@@ -249,6 +250,7 @@ contract SweepWarsTest is FloorTest {
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 15 ether);
+        /// Audit note - Would recommend checking on the user's account data and other expected state changes
     }
 
     function test_canVoteOnMultipleApprovedCollections() public {
@@ -261,6 +263,7 @@ contract SweepWarsTest is FloorTest {
         assertEq(sweepWars.votes(approvedCollection1), 10 ether);
         assertEq(sweepWars.votes(approvedCollection2), 5 ether);
         assertEq(sweepWars.votes(approvedCollection3), 15 ether);
+        /// Audit note - Would recommend checking on the user's account data and other expected state changes
     }
 
     function test_canRevokeVoteOnUnvotedCollection() public {
@@ -288,6 +291,7 @@ contract SweepWarsTest is FloorTest {
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 0);
+        /// Audit note - Would recommend checking on the user's account data and other expected state changes
     }
 
     function test_canRevokeVotesFromMultipleCollections() public {
@@ -303,6 +307,7 @@ contract SweepWarsTest is FloorTest {
 
         assertEq(sweepWars.votes(approvedCollection1), 0);
         assertEq(sweepWars.votes(approvedCollection2), 0);
+        /// Audit note - Would recommend checking on the user's account data and other expected state changes
     }
 
     function test_canRevokeAllUserVotesWithoutAnyVotes() public {
