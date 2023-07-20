@@ -128,21 +128,6 @@ contract EpochManagerTest is FloorTest {
         treasury.approveSweeper(manualSweeper, true);
     }
 
-    function test_CanSetCurrentEpoch(uint epoch) external {
-        // Confirm we have a default epoch of zero
-        assertEq(epochManager.currentEpoch(), 0);
-
-        // Set our epoch and confirm that it has changed correctly
-        epochManager.setCurrentEpoch(epoch);
-        assertEq(epochManager.currentEpoch(), epoch);
-    }
-
-    function test_CannotSetCurrentEpochWithoutPermission() external {
-        vm.expectRevert('Ownable: caller is not the owner');
-        vm.prank(alice);
-        epochManager.setCurrentEpoch(3);
-    }
-
     function test_CanSetContracts() external {
         epochManager.setContracts(
             address(2), // newCollectionWars
