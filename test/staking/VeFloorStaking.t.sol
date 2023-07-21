@@ -534,8 +534,49 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.refreshLock(address(this));
     }
 
+    /**
+     * Tests that a user can deposit for a second time, as long as the duration of the total
+     * staking period is the same or greater.
+     *
+     * This means that a user can stake for a shorter amount of time, as long as the ending
+     * lock time is greater or equal that the existing one.
+     */
+    function test_CanDepositTwiceAsLongAsNewDurationIsGreaterOrEqualToRemaining(
+        uint8 firstIndex,
+        uint8 secondIndex,
+        uint128 _startEpoch,
+        uint128 _intermediaryEpoch
+    ) public {
+        // Map our epochs to uint
+        uint startEpoch = uint(_startEpoch);
+        uint intermediaryEpoch = uint(_intermediaryEpoch);
+
+        // Set our expected index range
+        vm.assume(firstIndex <= MAX_EPOCH_INDEX);
+        vm.assume(secondIndex <= MAX_EPOCH_INDEX);
+
+        // Ensure our intermediary is >= the start epoch
+        vm.assume(intermediaryEpoch >= startEpoch);
+
+        // Set our initial epoch
+        epochManager.setCurrentEpoch(startEpoch);
+
+        // Make an initial deposit of a set index
+        veFloor.deposit(10 ether, firstIndex);
+
+        // Update the current epoch
+        epochManager.setCurrentEpoch(intermediaryEpoch);
+
+        // Determine if this second deposit should fail
+        if (startEpoch + veFloor.LOCK_PERIODS(firstIndex) > intermediaryEpoch + veFloor.LOCK_PERIODS(secondIndex)) {
+            vm.expectRevert('Cannot stake less epochs');
+        }
+
+        // Make another deposit of another set index
+        veFloor.deposit(10 ether, secondIndex);
+    }
+
     function _assertBalances(address _account, uint _balance, uint _epoch) internal {
-        // (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(_account);
         assertEq(veFloor.votingPowerAt(_account, _epoch), _balance);
     }
 }

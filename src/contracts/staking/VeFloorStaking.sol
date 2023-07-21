@@ -197,11 +197,13 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         // Validate our epoch index key
         require(epochs < LOCK_PERIODS.length, 'Invalid epoch index');
 
-        // Ensure that the user is not trying to stake for less than existing
-        require(depositor.epochCount <= LOCK_PERIODS[epochs], 'Cannot stake less epochs');
+        // Ensure that the user is not trying to stake for less than the duration of epochs
+        // that are currently remaining on their stake.
+        uint _currentEpoch = currentEpoch();
+        require(_currentEpoch + LOCK_PERIODS[epochs] >= depositor.epochStart + depositor.epochCount, 'Cannot stake less epochs');
 
         // Update the depositor lock to the current epoch
-        depositor.epochStart = uint160(currentEpoch());
+        depositor.epochStart = uint160(_currentEpoch);
         depositor.epochCount = LOCK_PERIODS[epochs];
 
         // If we are staking additional tokens, then transfer the based FLOOR from the user
