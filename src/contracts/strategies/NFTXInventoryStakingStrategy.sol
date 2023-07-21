@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -29,6 +29,8 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 contract NFTXInventoryStakingStrategy is BaseStrategy {
+    using SafeERC20 for IERC20;
+
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
@@ -116,11 +118,11 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         }
 
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(address(inventoryStaking), amount);
+        IERC20(underlyingToken).safeApprove(address(inventoryStaking), amount);
 
         // Deposit the token into the NFTX contract
         inventoryStaking.deposit(vaultId, amount);
@@ -189,7 +191,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         }
 
         // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(recipient, amount_);
+        IERC20(underlyingToken).safeTransfer(recipient, amount_);
 
         unchecked {
             deposits -= amount_;
@@ -226,7 +228,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // If we have requested `_partial` token to be returned, then we need to send
         // this over.
         if (_partial > 0) {
-            IERC20(underlyingToken).transfer(_recipient, _partial - 1);
+            IERC20(underlyingToken).safeTransfer(_recipient, _partial - 1);
         }
     }
 
@@ -258,7 +260,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             inventoryStaking.withdraw(vaultId, amounts[0]);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(underlyingToken).transfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
+            IERC20(underlyingToken).safeTransfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];

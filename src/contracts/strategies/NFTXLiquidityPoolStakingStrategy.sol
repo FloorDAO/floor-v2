@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -28,6 +28,8 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * then it should be done through another, bespoke contract.
  */
 contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
+    using SafeERC20 for IERC20;
+
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
@@ -114,11 +116,11 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
 
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(address(liquidityStaking), amount);
+        IERC20(underlyingToken).safeApprove(address(liquidityStaking), amount);
 
         // Deposit the token into the NFTX contract
         liquidityStaking.deposit(vaultId, amount);
@@ -142,7 +144,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Approve stakingZap and WETH allocation
         IERC721(assetAddress).setApprovalForAll(address(stakingZap), true);
-        IERC20(WETH).approve(address(stakingZap), wethIn);
+        IERC20(WETH).safeApprove(address(stakingZap), wethIn);
 
         // Push tokens out with WETH allocation
         stakingZap.addLiquidity721To(vaultId, tokenIds, minWethIn, wethIn, address(this));
@@ -161,7 +163,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Approve stakingZap and WETH allocation
         IERC1155(assetAddress).setApprovalForAll(address(stakingZap), true);
-        IERC20(WETH).approve(address(stakingZap), wethIn);
+        IERC20(WETH).safeApprove(address(stakingZap), wethIn);
 
         // Push tokens out
         stakingZap.addLiquidity1155To(vaultId, tokenIds, amounts, minWethIn, wethIn, address(this));
@@ -202,7 +204,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(recipient, amount_);
+        IERC20(underlyingToken).safeTransfer(recipient, amount_);
 
         unchecked {
             deposits -= amount_;
@@ -243,7 +245,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             liquidityStaking.claimRewards(vaultId);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(rewardToken).transfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
+            IERC20(rewardToken).safeTransfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];

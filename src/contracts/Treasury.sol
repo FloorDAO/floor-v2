@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -23,6 +23,8 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
+    using SafeERC20 for IERC20;
+
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
@@ -86,11 +88,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param amount The amount of the token to be deposited
      */
     function depositERC20(address token, uint amount) external {
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens into the {Treasury}. This call will revert if it fails.
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit DepositERC20(token, amount);
     }
 
@@ -142,11 +141,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param amount The number of tokens to withdraw
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
-        bool success = IERC20(token).transfer(recipient, amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens to the recipient. This call will revert if it fails.
+        IERC20(token).safeTransfer(recipient, amount);
         emit WithdrawERC20(token, amount, recipient);
     }
 
@@ -193,7 +189,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
                 (bool sent,) = payable(action).call{value: approvals[i].amount}('');
                 require(sent, 'Unable to fund action');
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
-                IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
+                IERC20(approvals[i].assetContract).safeApprove(action, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
                 IERC721(approvals[i].assetContract).approve(action, approvals[i].tokenId);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
