@@ -104,7 +104,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     /**
      * @notice Sets the maximum allowed loss ratio for early withdrawal. If the ratio is not met, actual is more than allowed,
      * then early withdrawal will revert.
-     * Example: maxLossRatio = 90% and 1000 staked 1inch tokens means that a user can execute early withdrawal only
+     * Example: maxLossRatio = 90% and 1000 staked floor tokens means that a user can execute early withdrawal only
      * if his loss is less than or equals 90% of his stake, which is 900 tokens. Thus, if a user loses 900 tokens he is allowed
      * to do early withdrawal and not if the loss is greater.
      * @param maxLossRatio_ The maximum loss allowed (9 decimals).
@@ -254,11 +254,14 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         }
 
         // Check if stake is already fully unlocked, meaning that we don't need to early exit
-        if (emergencyExit || currentEpoch() >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
+        uint _currentEpoch = currentEpoch();
+        if (emergencyExit || _currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
 
-        // Determine when our earliest exit epoch is and validate
-        uint allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
-        if (currentEpoch() < allowedExitTime) revert MinLockPeriodRatioNotReached();
+        // Determine when our earliest exit epoch is ensures that we have passed it. This is
+        // determined by the `minLockPeriodRatio` variable to calculate how much for the `epochCount`
+        // has passed from the `epochStart`.
+        uint allowedExitEpoch = depositor.epochStart + depositor.epochCount * minLockPeriodRatio / _ONE_E9;
+        if (_currentEpoch < allowedExitEpoch) revert MinLockPeriodRatioNotReached();
 
         // Check if the called is exempt from being required to pay early withdrawal fees
         if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
