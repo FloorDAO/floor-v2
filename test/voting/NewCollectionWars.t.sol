@@ -53,7 +53,9 @@ contract NewCollectionWarsTest is FloorTest {
     ERC721Mock mock721;
     ERC1155Mock mock1155;
 
-    uint[][] indexes;
+    address[] collections;
+    bool[] isErc1155;
+    uint[] floorPrices;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our mock pricing executor
@@ -161,21 +163,21 @@ contract NewCollectionWarsTest is FloorTest {
 
     function setUp() public {
         // Set up a collections array
-        address[] memory collections = new address[](5);
+        collections = new address[](5);
         collections[0] = address(1);
         collections[1] = address(mock721);
         collections[2] = address(mock1155);
         collections[3] = address(4);
         collections[4] = address(5);
 
-        bool[] memory isErc1155 = new bool[](5);
+        isErc1155 = new bool[](5);
         isErc1155[0] = false;
         isErc1155[1] = false;
         isErc1155[2] = true;
         isErc1155[3] = false;
         isErc1155[4] = false;
 
-        uint[] memory floorPrices = new uint[](5);
+        floorPrices = new uint[](5);
         floorPrices[0] = 1 ether;
         floorPrices[1] = 0.75 ether;
         floorPrices[2] = 1 ether;
@@ -334,6 +336,69 @@ contract NewCollectionWarsTest is FloorTest {
         assertEq(newCollectionWars.userCollectionVote(_warUser(war, bob)), address(0));
 
         vm.stopPrank();
+    }
+
+    /**
+     * When the initial vote is cast, it will assign a war collection to the user. We need
+     * to ensure that when we enter the next, or any subsequent epoch, that the user will
+     * be able to update their vote without a revert.
+     *
+     * Once a war has finished, their vote should no longer be allocated to that collection
+     * and would need to be recast. This will also be covered in this test.
+     */
+    function test_CanRevoteInNextEpoch() external {
+        // Set up an addition war that will occur in the next epoch. It will consist
+        // of the same collections as the existing one. We are still, however, currently
+        // in our first war until we end the epoch later in this test.
+        uint nextWar = newCollectionWars.createFloorWar(2, collections, isErc1155, floorPrices);
+
+        // Cast our vote on the first collection in the first war
+        vm.prank(alice);
+        newCollectionWars.vote(address(mock721));
+
+        // Confirm our user's current vote position and the votes attributed to
+        // each collection.
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 0);
+        assertEq(newCollectionWars.userVotesAvailable(nextWar, alice), 100 ether);
+        assertEq(newCollectionWars.userVotes(_warUser(war, alice)), 100 ether);
+        assertEq(newCollectionWars.userVotes(_warUser(nextWar, alice)), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock721))), 100 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock721))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock1155))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock1155))), 0);
+        assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(mock721));
+        assertEq(newCollectionWars.userCollectionVote(_warUser(nextWar, alice)), address(0));
+
+        // Move to our next epoch to activate the next war and finish the first one
+        epochManager.endEpoch();
+
+        // We should see that the vote values are still the same
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 0);
+        assertEq(newCollectionWars.userVotesAvailable(nextWar, alice), 100 ether);
+        assertEq(newCollectionWars.userVotes(_warUser(war, alice)), 100 ether);
+        assertEq(newCollectionWars.userVotes(_warUser(nextWar, alice)), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock721))), 100 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock721))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock1155))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock1155))), 0);
+        assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(mock721));
+        assertEq(newCollectionWars.userCollectionVote(_warUser(nextWar, alice)), address(0));
+
+        // The user now casts their new vote, voting for another collection
+        vm.prank(alice);
+        newCollectionWars.vote(address(mock1155));
+
+        // We can now see the new user's vote hitting the `nextWar` values
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 0);
+        assertEq(newCollectionWars.userVotesAvailable(nextWar, alice), 0);
+        assertEq(newCollectionWars.userVotes(_warUser(war, alice)), 100 ether);
+        assertEq(newCollectionWars.userVotes(_warUser(nextWar, alice)), 100 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock721))), 100 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock721))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock1155))), 0);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(nextWar, address(mock1155))), 100 ether);
+        assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(mock721));
+        assertEq(newCollectionWars.userCollectionVote(_warUser(nextWar, alice)), address(mock1155));
     }
 
     function test_CanRevokeVotes() external {
