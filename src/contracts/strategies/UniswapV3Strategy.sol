@@ -4,14 +4,15 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
-
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '@floor/utils/Errors.sol';
-
 import {UniswapActionBase} from '@floor/actions/utils/UniswapActionBase.sol';
+import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
+import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '@floor/utils/Errors.sol';
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
 import {IUniswapV3Pool} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {LiquidityAmounts} from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
 /**
@@ -143,11 +144,6 @@ contract UniswapV3Strategy is BaseStrategy {
         emit Deposit(params.token0, amount0, msg.sender);
         emit Deposit(params.token1, amount1, msg.sender);
 
-        // Update our position with the allocated amounts
-        position[params.token0] = amount0;
-        position[params.token1] = amount1;
-        position[address(0)] = liquidity;
-
         return (liquidity, amount0, amount1);
     }
 
@@ -200,12 +196,10 @@ contract UniswapV3Strategy is BaseStrategy {
 
         if (amount0 != 0) {
             emit Withdraw(params.token0, amount0Collected, recipient);
-            position[params.token0] -= amount0Collected;
         }
 
         if (amount1 != 0) {
             emit Withdraw(params.token1, amount1Collected, recipient);
-            position[params.token1] -= amount1Collected;
         }
 
         tokens_ = this.validTokens();
@@ -257,16 +251,38 @@ contract UniswapV3Strategy is BaseStrategy {
      * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
     function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory, uint[] memory) {
+        // Get our balances
+        (uint balance0, uint balance1, uint liquidity0) = tokenBalances();
+
         // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
         // of the token.
-        uint amount0 = (position[params.token0] * percentage) / 10000;
-        uint amount1 = (position[params.token1] * percentage) / 10000;
+        uint amount0 = (balance0 * percentage) / 10000;
+        uint amount1 = (balance1 * percentage) / 10000;
 
         // Calculate our liquidity
-        uint liquidity = (position[address(0)] * percentage) / 10000;
+        uint liquidity = (liquidity0 * percentage) / 10000;
 
         // Call our internal {withdrawErc20} function to move tokens to the caller
         return _withdraw(recipient, amount0, amount1, block.timestamp, uint128(liquidity));
+    }
+
+    /**
+     * ..
+     */
+    function tokenBalances() public view returns (uint token0Amount, uint token1Amount, uint128 liquidity) {
+        // Get our `sqrtPriceX96` from the `slot0`
+        IUniswapV3Pool pool = IUniswapV3Pool(params.pool);
+        (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
+
+        // Using TickMath, we can get the sqrtRatio for each token
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(params.tickLower);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(params.tickUpper);
+
+        // Get our liquidity for our position
+        (,,,,,,, liquidity,,,,) = positionManager.positions(tokenId);
+
+        // Calculate the token amounts for the given liquidity
+        (token0Amount, token1Amount) = LiquidityAmounts.getAmountsForLiquidity(sqrtPriceX96, sqrtRatioAX96, sqrtRatioBX96, liquidity);
     }
 
     /**
