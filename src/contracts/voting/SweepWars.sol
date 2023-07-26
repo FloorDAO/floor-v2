@@ -62,9 +62,6 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
 
-    /// Hardcoded address to map to the FLOOR token
-    address public constant FLOOR_TOKEN_VOTE = address(1);
-
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
     IStrategyFactory immutable strategyFactory;
@@ -163,7 +160,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
         // Confirm that the collection being voted for is approved and valid, if we
         // aren't voting for a zero address (which symbolises FLOOR).
-        if (_collection != FLOOR_TOKEN_VOTE && !collectionRegistry.isApproved(_collection)) {
+        if (!collectionRegistry.isApproved(_collection)) {
             revert CollectionNotApproved(_collection);
         }
 
@@ -501,10 +498,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
     /**
      * Provides a list of collection addresses that can be voted on. This will pull in
-     * all approved collections as well as appending the {FLOOR} vote on the end, which
-     * is a hardcoded address.
+     * all approved collections, which should include the {FLOOR} token as well.
      *
-     * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
+     * @return collections_ Collections (and {FLOOR}) that can be voted on
      */
     function voteOptions() external view returns (address[] memory) {
         return collectionRegistry.approvedCollections();
