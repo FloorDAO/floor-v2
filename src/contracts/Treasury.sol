@@ -270,6 +270,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
          */
 
         uint _currentEpoch = currentEpoch();
+        require(epochIndex < _currentEpoch, 'Epoch has not finished');
+
         if (epochIndex + 1 == _currentEpoch) {
             require(this.hasRole(this.TREASURY_MANAGER(), msg.sender), 'Only DAO may currently execute');
         } else {
@@ -299,7 +301,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /**
      * Handles the logic to action a sweep.
      */
-    function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep, bytes calldata data, uint mercSweep) internal {
+    function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep, bytes calldata data, uint mercSweep) internal burnFloorTokens {
         uint msgValue;
         uint collectionsLength = epochSweep.collections.length;
 
@@ -368,6 +370,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;
 
+        // Fire an event for anyone listening to sweeps
         emit EpochSwept(epochIndex);
     }
 
@@ -400,6 +403,21 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      */
     function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
         minSweepAmount = _minSweepAmount;
+    }
+
+    /**
+     * Checks if any FLOOR tokens have been received during the transaction and then
+     * burns them afterwards.
+     */
+    modifier burnFloorTokens() {
+        uint startBalance = floor.balanceOf(address(this));
+
+        _;
+
+        uint endBalance = floor.balanceOf(address(this));
+        if (endBalance > startBalance) {
+            floor.burn(endBalance - startBalance);
+        }
     }
 
     /**
