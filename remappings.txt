@@ -14,3 +14,4 @@ forge-std/=lib/forge-std/src/
 @floor/=src/contracts/
 @floor-interfaces/=src/interfaces/
 @floor-scripts/=script/
+@ERC721A/=lib/ERC721A/contracts/

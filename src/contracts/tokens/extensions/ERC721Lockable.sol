@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {ERC721A} from '@ERC721A/ERC721A.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
@@ -16,7 +16,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * a user to soft lock their token, without the token being in direct ownership of
  * the calling user. It will, however, require that the
  */
-abstract contract ERC721Lockable is ERC721, Ownable {
+abstract contract ERC721Lockable is ERC721A, Ownable {
     /**
      * Holds information about our token locks.
      */
@@ -65,10 +65,10 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      */
     function approveLocker(address to, uint tokenId) external {
         address currentOwner = ownerOf(tokenId);
-        require(to != currentOwner, 'ERC721: approval to current owner');
+        require(to != currentOwner, 'ERC721A: approval to current owner');
 
         if (currentOwner != msg.sender && (heldStakes[tokenId] != msg.sender || !_isApprovedStaker(currentOwner))) {
-            revert('ERC721: approve caller is not token owner');
+            revert('ERC721A: approve caller is not token owner');
         }
 
         approvedLockers[tokenId] = to;
@@ -139,7 +139,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      * Before a token is transferred, we need to check if it is being sent to an approved
      * staking contract to maintain.
      */
-    function _beforeTokenTransfer(address from, address to, uint firstTokenId, uint batchSize) internal virtual override (ERC721) {
+    function _beforeTokenTransfers(address from, address to, uint firstTokenId, uint batchSize) internal virtual override (ERC721A) {
         // If we are sending the token to an approved staker, then we want to hold ownership
         // against the user that sent it, to allow future softlocking. If the token is already
         // marked as staked by a user, then we maintain the current holder, otherwise we update
@@ -155,7 +155,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
         }
 
         // We can now process the transfer
-        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        super._beforeTokenTransfers(from, to, firstTokenId, batchSize);
     }
 
     /**

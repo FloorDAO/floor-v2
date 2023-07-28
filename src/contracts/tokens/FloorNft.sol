@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import {ERC721, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
+import {ERC721A, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 
 contract FloorNft is ERC721Lockable {
     /// Maintain an index of our current supply
@@ -41,16 +41,9 @@ contract FloorNft is ERC721Lockable {
      * @param _maxSupply The maximum number of tokens mintable
      * @param _maxMintAmountPerTx The maximum number of tokens mintable per transaction
      */
-    constructor(string memory _name, string memory _symbol, uint _maxSupply, uint _maxMintAmountPerTx) ERC721(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, uint _maxSupply, uint _maxMintAmountPerTx) ERC721A(_name, _symbol) {
         maxSupply = _maxSupply;
         maxMintAmountPerTx = _maxMintAmountPerTx;
-    }
-
-    /**
-     * Returns the current supply of the collection.
-     */
-    function totalSupply() public view returns (uint) {
-        return supply;
     }
 
     /**
@@ -61,8 +54,7 @@ contract FloorNft is ERC721Lockable {
     function mint(uint _mintAmount) public payable mintCompliance(_mintAmount) {
         require(!paused, 'The contract is paused');
         require(msg.value >= cost * _mintAmount, 'Insufficient funds');
-
-        _mintLoop(msg.sender, _mintAmount);
+        _mint(msg.sender, _mintAmount);
     }
 
     /**
@@ -83,19 +75,7 @@ contract FloorNft is ERC721Lockable {
         whitelistClaimed[msg.sender] = true;
 
         // Mint to our user
-        _mintLoop(msg.sender, 1);
-    }
-
-    /**
-     * Returns the Token URI with Metadata for specified token ID.
-     *
-     * @param _tokenId The token ID to get the metadata URI for
-     *
-     * @return The metadata URI for the token ID
-     */
-    function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), 'ERC721Metadata: URI query for nonexistent token');
-        return bytes(uri).length > 0 ? string(abi.encodePacked(uri, Strings.toString(_tokenId), '.json')) : '';
+        _mint(msg.sender, 1);
     }
 
     /**
@@ -151,23 +131,6 @@ contract FloorNft is ERC721Lockable {
     function withdraw() public onlyOwner {
         (bool os,) = payable(owner()).call{value: address(this).balance}('');
         require(os);
-    }
-
-    /**
-     * Helper function to process looped minting from different external functions.
-     *
-     * @param _receiver Recipient of the NFT
-     * @param _mintAmount Number of tokens to mint to the receiver
-     */
-    function _mintLoop(address _receiver, uint _mintAmount) internal {
-        for (uint i; i < _mintAmount;) {
-            _safeMint(_receiver, supply + i);
-            unchecked {
-                i++;
-            }
-        }
-
-        supply += _mintAmount;
     }
 
     /**
