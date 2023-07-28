@@ -64,9 +64,13 @@ contract CollectionRegistryTest is FloorTest {
      *
      * This should emit {CollectionApproved}.
      */
-    function test_ApproveCollection() public {
+    function test_CanApproveCollection() public {
         // Confirm that we start in an unapproved state
         assertFalse(collectionRegistry.isApproved(DAI));
+
+        // Get the number of approved collections
+        address[] memory collections = collectionRegistry.approvedCollections();
+        assertEq(collections.length, 0);
 
         // Confirm that we are firing our collection event when our
         // collection is approved.
@@ -78,7 +82,10 @@ contract CollectionRegistryTest is FloorTest {
 
         // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
+
         /// Audit Note - Missing state checks for the array push
+        collections = collectionRegistry.approvedCollections();
+        assertEq(collections.length, 1);
     }
 
     /**
@@ -87,7 +94,7 @@ contract CollectionRegistryTest is FloorTest {
      *
      * This should not emit {CollectionApproved}.
      */
-    function test_ApproveNullAddressCollection() public {
+    function test_CannotApproveNullAddressCollection() public {
         vm.expectRevert(CannotApproveNullCollection.selector);
         collectionRegistry.approveCollection(address(0), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
@@ -111,14 +118,53 @@ contract CollectionRegistryTest is FloorTest {
      * This should emit {CollectionRevoked}.
      */
     function test_CanUnapproveAnApprovedCollection() public {
+        // Confirm that we start without `USDC` being approved
         assertFalse(collectionRegistry.isApproved(USDC));
 
+        // Approve our `USDC` collection
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
         assertTrue(collectionRegistry.isApproved(USDC));
 
+        // Get the number of approved collections
+        address[] memory collections = collectionRegistry.approvedCollections();
+        assertEq(collections.length, 1);
+
+        // We can now unapprove our `USDC` collection
         collectionRegistry.unapproveCollection(USDC);
         assertFalse(collectionRegistry.isApproved(USDC));
+
         /// Audit Note - Misses state checks for the array changes
+        collections = collectionRegistry.approvedCollections();
+        assertEq(collections.length, 0);
+    }
+
+    function test_CanUnapproveASandwichedCollection(uint8 topBreadSize, uint8 bottomBreadSize) public {
+        for (uint160 i; i < topBreadSize; ++i) {
+            collectionRegistry.approveCollection(address(i + 1), SUFFICIENT_LIQUIDITY_COLLECTION);
+        }
+
+        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        for (uint160 i = topBreadSize; i < uint160(topBreadSize) + bottomBreadSize; ++i) {
+            collectionRegistry.approveCollection(address(i + 1), SUFFICIENT_LIQUIDITY_COLLECTION);
+        }
+
+        // Confirm that we have an expected array length
+        assertEq(collectionRegistry.approvedCollections().length, uint(topBreadSize) + bottomBreadSize + 1);
+
+        // Unapprove our USDC collection
+        collectionRegistry.unapproveCollection(USDC);
+
+        // Confirm that our stored collections are as expected. We don't maintain the order
+        // of the collections, so we don't try and check this is maintained. Instead, we just
+        // iterate over the collection addresses that will have been approved and boolean check.
+        address[] memory collections = collectionRegistry.approvedCollections();
+        for (uint160 i; i < uint(topBreadSize) + bottomBreadSize; ++i) {
+            assertTrue(collectionRegistry.isApproved(address(i + 1)));
+        }
+
+        // Confirm that by unapproving the collection, we have the expected length
+        assertEq(collections.length, uint(topBreadSize) + bottomBreadSize);
     }
 
     /**
@@ -155,9 +201,11 @@ contract CollectionRegistryTest is FloorTest {
      *
      * This should not emit {CollectionApproved}.
      */
-    function testFail_CannotApproveCollectionWithoutPermissions() public {
+    function test_CannotApproveCollectionWithoutPermissions() public {
         vm.prank(alice);
+
         /// Audit Note - Would suggest selector testing here in expect revert
+        vm.expectRevert();
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
@@ -188,6 +236,18 @@ contract CollectionRegistryTest is FloorTest {
         collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
-   /// Audit Note - Would recommend tests that setter functions are also only
-   ///              callable by the relevant roles.
+    /// Audit Note - Would recommend tests that setter functions are also only
+    function test_CannotSetPricingExecutorWithoutPermission() public {
+        address pricingExecutor = address(new PricingExecutorMock());
+
+        vm.prank(alice);
+        vm.expectRevert();
+        collectionRegistry.setPricingExecutor(pricingExecutor);
+    }
+
+    function test_CannotSetCollectionLiquidityThresholdWithoutPermission() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        collectionRegistry.setCollectionLiquidityThreshold(1 ether);
+    }
 }

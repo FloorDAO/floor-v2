@@ -71,12 +71,15 @@ contract AuthorityControlTest is FloorTest {
      * will just fail without emitting.
      */
     function test_CannotBeGrantedExistingRole() public {
+        assertFalse(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
+
         // We initially give Alice the `TreasuryManager` role
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), alice);
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
 
         // We now want to try giving Alice the same role again, won't do anything
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), alice);
-        /// Audit Note - without any state checks this only checks a very narrow case
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
     }
 
     /**
@@ -171,8 +174,37 @@ contract AuthorityControlTest is FloorTest {
 
         authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
         assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+    }
 
-        /// Audit Note - Checks that the universal roles when revoked revoke all roles as well?
+    /**
+     * Checks that when a universal role is revoked, all sub roles are also revoked.
+     */
+    function test_CanRevokeAllRolesWhenUniversalRoleIsRevoked() public {
+        // As the deployer we can now grant Bob the role of Guardian
+        authorityRegistry.grantRole(authorityControl.GUARDIAN(), bob);
+
+        // Bob, as Guardian, will have access to all _known_ and _unknown_ roles,
+        // apart from the Governor role.
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
+        assertTrue(authorityControl.hasRole(UNKNOWN, bob));
+
+        // We can't revoke an individual role from Bob, as these are inherited from
+        // the Guardian role. So even though we revoke, we still see it is `true`.
+        authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), bob);
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+
+        // When we revoke Bob's Guardian role, we then need to make sure that all
+        // of these inherited roles are also revoked.
+        authorityRegistry.revokeRole(authorityControl.GUARDIAN(), bob);
+
+        assertFalse(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
+        assertFalse(authorityControl.hasRole(UNKNOWN, bob));
     }
 
     /**

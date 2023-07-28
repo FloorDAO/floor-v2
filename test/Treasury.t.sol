@@ -14,23 +14,28 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
+import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
 
 contract TreasuryTest is FloorTest {
-    // We want to store a small number of specific users for testing
+    // Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 16_616_037;
+
+    /// We want to store a small number of specific users for testing
     address alice;
     address bob;
     address carol;
 
     address approvedCollection;
 
-    // Track our internal contract addresses
+    /// Track our internal contract addresses
     FLOOR floor;
     VeFloorStaking veFloor;
     ERC20Mock erc20;
@@ -43,7 +48,10 @@ contract TreasuryTest is FloorTest {
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
 
-    constructor() {
+    /// Store our sweeper
+    address manualSweeper;
+
+    constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 
@@ -74,6 +82,9 @@ contract TreasuryTest is FloorTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
+        // Move some WETH to the Treasury to fund sweep tests
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
+
         // Create our Gauge Weight Vote contract
         sweepWars = new SweepWars(
             address(collectionRegistry),
@@ -88,6 +99,7 @@ contract TreasuryTest is FloorTest {
 
         // Set our epoch manager
         sweepWars.setEpochManager(address(epochManager));
+        treasury.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
@@ -107,9 +119,9 @@ contract TreasuryTest is FloorTest {
         // Give Bob the `TREASURY_MANAGER` role so that he can withdraw if needed
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), bob);
 
-        // Wipe first token set up gas munch
-        floor.mint(address(this), 1 ether);
-        floor.transfer(address(1), 1 ether);
+        // Set our manual sweeper and approve it for use
+        manualSweeper = address(new ManualSweeper());
+        treasury.approveSweeper(manualSweeper, true);
     }
 
     /**
@@ -130,7 +142,7 @@ contract TreasuryTest is FloorTest {
      * This should not emit {FloorMinted}.
      */
     function test_CannotMintFloorWithoutPermissions() public {
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
         vm.prank(alice);
         treasury.mint(100 ether);
 
@@ -499,4 +511,209 @@ contract TreasuryTest is FloorTest {
 
     /// Audit note - Missing testing of the registerSweep's permissions and of the permissions on executeSweep.
     ///              Would strongly recommend adding these as the code is critical path and the 5000 floor req is unique.
+
+    function test_CanRegisterSweep(uint160 epoch) external {
+        // We need to ensure there is a valid epoch after the fuzzy value
+        vm.assume(epoch < type(uint160).max);
+
+        address[] memory collections = new address[](3);
+        collections[0] = address(1);
+        collections[1] = address(2);
+        collections[2] = address(3);
+
+        uint[] memory amounts = new uint[](3);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+        amounts[2] = 3 ether;
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+        treasury.registerSweep(epoch + 1, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+
+        // treasury.epochSweeps(epoch);
+        // treasury.epochSweeps(epoch + 1);
+    }
+
+    function test_CanOverwriteRegisteredSweep(uint epoch) external {
+        address[] memory collections = new address[](3);
+        collections[0] = address(1);
+        collections[1] = address(2);
+        collections[2] = address(3);
+
+        uint[] memory amounts = new uint[](3);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+        amounts[2] = 3 ether;
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+
+        amounts[2] = 4 ether;
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+    }
+
+    function test_CannotRegisterSweepWithoutPermissions(uint160 epoch) external {
+        address[] memory collections = new address[](3);
+        collections[0] = address(1);
+        collections[1] = address(2);
+        collections[2] = address(3);
+
+        uint[] memory amounts = new uint[](3);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+        amounts[2] = 3 ether;
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        vm.stopPrank();
+    }
+
+    function test_CannotRegisterSweepWithoutCollections(uint160 epoch) external {
+        address[] memory collections = new address[](0);
+        uint[] memory amounts = new uint[](0);
+
+        vm.expectRevert('No collections provided');
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+    }
+
+    function test_CannotRegisterSweepWithMismatchedCollectionsAndAmounts(uint160 epoch, uint8 _collections, uint8 _amounts) external {
+        // Ensure that we have at least 1 collection
+        vm.assume(_collections >= 1);
+
+        // Ensure that our two array lengths are different
+        vm.assume(_collections != _amounts);
+
+        // We iterate over a uint160 loop so that it can be cast directly onto an address. We
+        // increment our index by 1 for the address to avoid null address.
+        address[] memory collections = new address[](_collections);
+        for (uint160 i; i < _collections; ++i) {
+            collections[i] = address(i + 1);
+        }
+
+        // Iterate over our amounts and give them slightly different values
+        uint[] memory amounts = new uint[](_amounts);
+        for (uint i; i < _amounts; ++i) {
+            amounts[i] = i * 1 ether;
+        }
+
+        vm.expectRevert('Collections =/= amounts');
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+    }
+
+    function test_CanExecuteSweep(uint160 epoch) external {
+        // We can't have a max value, as we need to increase it by 1
+        vm.assume(epoch < type(uint160).max);
+
+        // Register a sweep at the zero epoch
+        _registerSweep(epoch);
+
+        // Move to the next epoch to unlock
+        epochManager.setCurrentEpoch(epoch + 1);
+
+        // Sweep our epoch
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+    }
+
+    function test_CannotExecuteSweepBeforeEpochHasPassed(uint160 epoch, uint160 sweepEpoch) external {
+        // Ensure that the sweep is registered before we try and sweep
+        vm.assume(sweepEpoch < epoch);
+
+        // Register a sweep at the zero epoch
+        _registerSweep(epoch);
+
+        // Set our current epoch to one before the sweep is registered
+        epochManager.setCurrentEpoch(sweepEpoch);
+
+        // Confirm that we cannot sweep as the epoch has not yet passed
+        vm.expectRevert('Epoch has not passed');
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+    }
+
+    function test_CanExecuteSweepAsFloorHolder(uint160 epoch, uint160 sweepEpoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+        vm.assume(epoch <= type(uint160).max - 2);
+        vm.assume(sweepEpoch > epoch + 2);
+
+        // Set our minimum floor balance requirement
+        vm.assume(floorBalance >= treasury.FLOOR_SWEEP_REQUIREMENT());
+
+        _registerSweep(epoch);
+        epochManager.setCurrentEpoch(sweepEpoch);
+
+        vm.startPrank(alice);
+
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+
+        // Confirm we cannot sweep again
+        vm.expectRevert('Epoch sweep already completed');
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+
+        vm.stopPrank();
+    }
+
+    function test_CannotExecuteSweepAsFloorHolderWithoutSufficientFloor(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+        vm.assume(epoch <= type(uint160).max - 2);
+        vm.assume(floorBalance < treasury.FLOOR_SWEEP_REQUIREMENT());
+
+        _registerSweep(epoch);
+        epochManager.setCurrentEpoch(epoch + 2);
+
+        vm.expectRevert('Insufficient FLOOR holding');
+        vm.prank(alice);
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+    }
+
+    function test_CannotExecuteResweepAsFloorHolderRegardlessOfHolding(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+        vm.assume(epoch <= type(uint160).max - 2);
+        vm.assume(floorBalance > treasury.FLOOR_SWEEP_REQUIREMENT());
+
+        _registerSweep(epoch);
+        epochManager.setCurrentEpoch(epoch + 2);
+
+        vm.startPrank(alice);
+
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
+        treasury.resweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+
+        vm.stopPrank();
+    }
+
+    function test_CannotExecuteSweepAsFloorHolderBeforeExpectedEpoch(uint160 epoch) external dealFloor(alice, 5000 ether) {
+        vm.assume(epoch < type(uint160).max - 1);
+
+        _registerSweep(epoch);
+        epochManager.setCurrentEpoch(epoch + 1);
+
+        vm.expectRevert('Only DAO may currently execute');
+        vm.prank(alice);
+        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+    }
+
+    function _registerSweep(uint epoch) internal {
+        address[] memory collections = new address[](3);
+        collections[0] = address(1);
+        collections[1] = address(2);
+        collections[2] = address(3);
+
+        uint[] memory amounts = new uint[](3);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+        amounts[2] = 3 ether;
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+    }
+
+    modifier dealFloor(address recipient, uint amount) {
+        // At the start of our test, we already mint 1 FLOOR token to power tests and we
+        // may need to mint additional FLOOR tokens throughout. To avoid getting arithmatic
+        // overflow, we limit the amount that is generated in the initial instance.
+        vm.assume(amount < type(uint128).max);
+
+        // Mint FLOOR tokens to the user we are testing with
+        floor.mint(recipient, amount);
+
+        _;
+    }
+
 }

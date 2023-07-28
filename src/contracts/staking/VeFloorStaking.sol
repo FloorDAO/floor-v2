@@ -337,6 +337,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
+        depositor.epochStart = 0;
+        depositor.epochCount = 0;
         depositors[msg.sender] = depositor; // SSTORE
 
         if (address(newCollectionWars) != address(0)) {

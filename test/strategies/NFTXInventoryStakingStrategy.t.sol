@@ -203,6 +203,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     function test_CanFullyExitPosition() public {
         vm.startPrank(erc20Holder);
 
+        // Get the start balance of our {Treasury}
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
         strategy.depositErc20(1 ether);
@@ -224,6 +228,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
         /// Audit note - May want to add a check that the amount withdrawn went to the right place
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether - 1);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }
 
     /**

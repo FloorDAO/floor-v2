@@ -67,46 +67,62 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerAt(address(this), 104), 100 ether);
     }
 
-    function test_ShouldIncreaseUnlockTimeForDeposit() external {
-        veFloor.deposit(100 ether, 3);
+    function test_ShouldIncreaseUnlockTimeForDeposit(uint128 initialAmount, uint128 topupAmount) external {
+        // Ensure that our initial amount is a value we can calculate power from
+        vm.assume(initialAmount > 1 ether);
+
+        // Ensure that the combination of our two values won't overflow
+        vm.assume(uint(initialAmount) + topupAmount < 100 ether);
+
+        // Deposit our initial
+        veFloor.deposit(initialAmount, 3);
 
         epochManager.setCurrentEpoch(2);
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
         assertEq(epochCount, 12);
-        assertEq(amount, 100 ether);
+        assertEq(amount, initialAmount);
 
-        assertEq(veFloor.votingPowerOf(address(this)), 50 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), initialAmount / 2);
 
-        veFloor.deposit(0, MAX_EPOCH_INDEX);
         /// Audit Note - May be good to check with non zero here to ensure amount goes up
+        veFloor.deposit(topupAmount, MAX_EPOCH_INDEX);
 
         (epochStart, epochCount, amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 2);
         assertEq(epochCount, 24);
-        assertEq(amount, 100 ether);
+        assertEq(amount, initialAmount + topupAmount);
 
-        assertEq(veFloor.votingPowerOf(address(this)), 100 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), initialAmount + topupAmount);
     }
 
     function test_ShouldDecreaseUnlockTimeWithEarlyWithdraw() external {
         veFloor.setMaxLossRatio(1000000000); // 100%
         veFloor.setFeeReceiver(address(this));
 
+        // Get our initial FLOOR token holding
+        uint floorBalance = floor.balanceOf(address(this));
+
         // Deposit for 8 epochs
         veFloor.deposit(100 ether, 2);
+
+        // Confirm that our balance has increased by 100 ether
+        assertEq(floor.balanceOf(address(this)), floorBalance - 100 ether);
+
         epochManager.setCurrentEpoch(2);
 
         veFloor.earlyWithdrawTo(address(this), 0 ether, 100 ether);
+
         /// Audit Note - Should be checking the amount received is correct.
+        assertEq(floor.balanceOf(address(this)), floorBalance);
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
         /// Audit Note - Not deleting the epoc count on withdraw is interesting, and could create
-        ///              weird issues. IE: user A deposit for 24 weeks and then withdraws and comes back later
-        //               their address cannot deposit for less than 24 weeks.
-        assertEq(epochCount, 8);
+        ///              weird issues. IE: user A deposit for 24 weeks and then withdraws and comes
+        ///              back later their address cannot deposit for less than 24 weeks.
+        assertEq(epochCount, 0);
         assertEq(amount, 0 ether);
 
         floor.approve(address(veFloor), 100 ether);

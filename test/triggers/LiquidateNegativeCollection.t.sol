@@ -191,12 +191,11 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         epochManager.endEpoch();
 
-        // Confirm that no collections were liquidated
+        // Confirm that our most negative voted collection (collection 3) is liquidated
         (address collection, int votes, uint weth) = liquidateNegativeCollectionTrigger.epochSnapshot(0);
         assertEq(collection, approvedCollection3);
         assertEq(votes, -4 ether);
         assertEq(weth, 166_134540194015727009); // 166.13 WETH
-        /// Audit note - The comment doesn't match  but this test seems right.
     }
 
     function test_CanDetectNoNegativeVotes() external {

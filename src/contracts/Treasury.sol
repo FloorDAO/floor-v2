@@ -23,6 +23,9 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
  * The Treasury will hold all assets.
  */
 contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
+    /// Sets our minimum floor holding requirement for sweeps
+    uint public FLOOR_SWEEP_REQUIREMENT = 5_000 ether;
+
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
@@ -236,6 +239,13 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         external
         onlyRole(TREASURY_MANAGER)
     {
+        // Confirm that we have collections, and that they each have an amount
+        uint collectionsLength = collections.length;
+        require(collectionsLength != 0, 'No collections provided');
+        require(collectionsLength == amounts.length, 'Collections =/= amounts');
+
+        // Register our sweep against the epoch. This value can be overwritten if another sweep
+        // is posted against the epoch, so this should be kept in mind during development.
         epochSweeps[epoch] = Sweep({sweepType: sweepType, collections: collections, amounts: amounts, completed: false, message: ''});
 
         emit SweepRegistered(epoch);
@@ -270,10 +280,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
          */
 
         uint _currentEpoch = currentEpoch();
+        require(epochIndex < _currentEpoch, 'Epoch has not passed');
         if (epochIndex + 1 == _currentEpoch) {
             require(this.hasRole(this.TREASURY_MANAGER(), msg.sender), 'Only DAO may currently execute');
         } else {
-            require(floor.balanceOf(msg.sender) >= 5000, 'Insufficient FLOOR holding');
+            require(floor.balanceOf(msg.sender) >= FLOOR_SWEEP_REQUIREMENT, 'Insufficient FLOOR holding');
         }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);

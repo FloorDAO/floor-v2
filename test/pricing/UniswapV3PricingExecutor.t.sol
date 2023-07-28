@@ -117,11 +117,11 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     }
 
     /**
-     * If we action a call with no tokens provided, then we expect a revert.
+     * If we action a call with no tokens provided, then we should just expect to
+     * receive an empty array.
      */
     function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
-        /// Audit Note - In the comment you say this should revert but don't expect revert and this isn't a 'testFail'
         uint[] memory prices = executor.getETHPrices(tokens);
         assertEq(prices.length, 0);
     }
@@ -199,11 +199,11 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     }
 
     /**
-     * If we are not sent any tokens, then we expect a revert.
+     * If we are not sent any tokens, then we should just expect an empty array
+     * in the response.
      */
     function test_FloorPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
-        /// Audit Note - Comment expects a revert but the test passes
         uint[] memory prices = executor.getFloorPrices(tokens);
         assertEq(prices.length, 0);
     }
