@@ -37,3 +37,7 @@
 [submodule "lib/lssvm"]
 	path = lib/lssvm
 	url = https://github.com/sudoswap/lssvm
+[submodule "lib/ERC721A"]
+	path = lib/ERC721A
+	url = https://github.com/chiru-labs/ERC721A
+	branch = main
