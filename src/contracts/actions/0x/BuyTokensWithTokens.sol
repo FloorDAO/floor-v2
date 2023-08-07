@@ -78,7 +78,7 @@ contract BuyTokensWithTokens is Action {
 
         // Give `swapTarget` an allowance to spend this contract's `sellToken`. This will
         // revert if it fails.
-        sellToken.safeApprove(swapTarget, sellToken.balanceOf(address(this)));
+        sellToken.approve(swapTarget, sellToken.balanceOf(address(this)));
 
         // Call the encoded swap function call on the contract at `swapTarget`
         (bool success,) = swapTarget.call(swapCallData);

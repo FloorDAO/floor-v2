@@ -120,7 +120,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).safeApprove(address(liquidityStaking), amount);
+        IERC20(underlyingToken).approve(address(liquidityStaking), amount);
 
         // Deposit the token into the NFTX contract
         liquidityStaking.deposit(vaultId, amount);
@@ -144,7 +144,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Approve stakingZap and WETH allocation
         IERC721(assetAddress).setApprovalForAll(address(stakingZap), true);
-        IERC20(WETH).safeApprove(address(stakingZap), wethIn);
+        IERC20(WETH).approve(address(stakingZap), wethIn);
 
         // Push tokens out with WETH allocation
         stakingZap.addLiquidity721To(vaultId, tokenIds, minWethIn, wethIn, address(this));
@@ -163,7 +163,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Approve stakingZap and WETH allocation
         IERC1155(assetAddress).setApprovalForAll(address(stakingZap), true);
-        IERC20(WETH).safeApprove(address(stakingZap), wethIn);
+        IERC20(WETH).approve(address(stakingZap), wethIn);
 
         // Push tokens out
         stakingZap.addLiquidity1155To(vaultId, tokenIds, amounts, minWethIn, wethIn, address(this));

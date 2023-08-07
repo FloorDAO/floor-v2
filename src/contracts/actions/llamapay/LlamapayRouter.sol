@@ -55,7 +55,7 @@ contract LlamapayRouter is Pausable {
         if (amount != 0) {
             // Transfer tokens from the {Treasury} and approve llamapay to transfer it when needed
             IERC20(token).safeTransferFrom(from, address(this), amount);
-            IERC20(token).safeApprove(predictedAddress, amount);
+            IERC20(token).approve(predictedAddress, amount);
 
             // Deposit the tokens to LlamaPay and create our stream in a single call
             llamaPay.depositAndCreate(amount, to, amountPerSec);
@@ -85,7 +85,7 @@ contract LlamapayRouter is Pausable {
 
         // Transfer tokens from the {Treasury} and approve llamapay to transfer it when needed
         IERC20(token).safeTransferFrom(from, address(this), amount);
-        IERC20(token).safeApprove(address(llamaPay), amount);
+        IERC20(token).approve(address(llamaPay), amount);
 
         // Deposit our request amount into the token stream
         llamaPay.deposit(amount);

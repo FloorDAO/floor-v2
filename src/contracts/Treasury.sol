@@ -189,7 +189,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
                 (bool sent,) = payable(action).call{value: approvals[i].amount}('');
                 require(sent, 'Unable to fund action');
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
-                IERC20(approvals[i].assetContract).safeApprove(action, approvals[i].amount);
+                IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
                 IERC721(approvals[i].assetContract).approve(action, approvals[i].tokenId);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {

@@ -71,7 +71,7 @@ contract MigrateTreasury is Ownable {
             // Get the amount of the token now held by this migration contract and approve
             // it against our new {Treasury}.
             sent = token.balanceOf(address(this));
-            token.safeApprove(address(newTreasury), sent);
+            token.approve(address(newTreasury), sent);
 
             // Transfer the token to our new {Treasury}
             newTreasury.depositERC20(address(token), sent);

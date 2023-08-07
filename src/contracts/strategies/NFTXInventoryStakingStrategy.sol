@@ -122,7 +122,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).safeApprove(address(inventoryStaking), amount);
+        IERC20(underlyingToken).approve(address(inventoryStaking), amount);
 
         // Deposit the token into the NFTX contract
         inventoryStaking.deposit(vaultId, amount);

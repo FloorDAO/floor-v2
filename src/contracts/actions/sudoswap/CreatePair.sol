@@ -136,7 +136,7 @@ contract SudoswapCreatePair is Action {
         } else {
             // For this pairing, we additionally need to transfer our ERC20 token
             IERC20(request.token).safeTransferFrom(msg.sender, address(this), request.initialTokenBalance);
-            IERC20(request.token).safeApprove(address(pairFactory), request.initialTokenBalance);
+            IERC20(request.token).approve(address(pairFactory), request.initialTokenBalance);
 
             // When we have an ERC20 defined, then we pair ERC20 <-> ERC721
             pair = pairFactory.createPairERC20(
