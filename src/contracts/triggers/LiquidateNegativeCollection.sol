@@ -32,6 +32,9 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     /// A threshold percentage that would be worth us working with
     uint public constant THRESHOLD = 1000; // 1%
 
+    /// An amount of slippage to allow in the call (defaults to 5%)
+    uint public slippage = 5000; // 5%
+
     /**
      * Holds the data for each epoch to show which collection, if any, received the most
      * negative votes, the number of negative votes it received, and the WETH amount received
@@ -128,15 +131,15 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
 
             for (uint k; k < tokens.length;) {
                 if (tokens[k] != address(WETH) && amounts[k] != 0) {
-                    // commands.push(bytes1(uint8(0x80)));
+                    // Add our swap command to the stack
                     commands.push(bytes1(uint8(0x00)));
 
-                    // TODO: Do we need to factor in some slippage?
+                    // Add our swap parameters
                     inputs.push(
                         abi.encode(
                             address(this),
                             amounts[k],
-                            0, // Minimum output
+                            amounts[k] - (amounts[k] * slippage / 100000), // Minimum output
                             abi.encodePacked(tokens[k], uint24(10000), address(WETH)),
                             false
                         )
@@ -177,5 +180,18 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
         // Delete storage
         delete commands;
         delete inputs;
+    }
+
+    /**
+     * Allows the slippage allowed in the liquidation to be set.
+     *
+     * @dev Should take 3 decimal accuracy.
+     *
+     * @param _slippage New slippage percentage
+     */
+    function setSlippage(uint _slippage) public onlyOwner {
+        require(_slippage < 100000, 'Slippage too high');
+
+        slippage = _slippage;
     }
 }
