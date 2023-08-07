@@ -7,9 +7,6 @@ import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {ERC721A, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 
 contract FloorNft is ERC721Lockable {
-    /// Maintain an index of our current supply
-    uint private supply;
-
     /// The URI of your IPFS/hosting server for the metadata folder
     string internal uri;
 
@@ -22,8 +19,8 @@ contract FloorNft is ERC721Lockable {
     /// The maximum mint amount allowed per transaction
     uint public maxMintAmountPerTx;
 
-    /// The paused state for minting
-    bool public paused = true;
+    /// The paused state for minting (1 = paused, 2 = not paused)
+    uint public paused = 2;
 
     /// The Merkle Root used for whitelist minting
     bytes32 internal merkleRoot;
@@ -52,7 +49,7 @@ contract FloorNft is ERC721Lockable {
      * @param _mintAmount The number of tokens to mint
      */
     function mint(uint _mintAmount) public payable mintCompliance(_mintAmount) {
-        require(!paused, 'The contract is paused');
+        require(paused == 2, 'The contract is paused');
         require(msg.value >= cost * _mintAmount, 'Insufficient funds');
         _mint(msg.sender, _mintAmount);
     }
@@ -62,6 +59,8 @@ contract FloorNft is ERC721Lockable {
      * requiring a payment.
      */
     function whitelistMint(bytes32[] calldata _merkleProof) public payable mintCompliance(1) {
+        require(paused == 2, 'The contract is paused');
+
         // Ensure that the user has not already claimed their whitelist spot
         require(!whitelistClaimed[msg.sender], 'Address has already claimed');
 
@@ -103,7 +102,7 @@ contract FloorNft is ERC721Lockable {
      * to take place.
      */
     function setPaused(bool _state) public onlyOwner {
-        paused = _state;
+        paused = (_state) ? 1 : 2;
     }
 
     /**
@@ -148,7 +147,7 @@ contract FloorNft is ERC721Lockable {
      */
     modifier mintCompliance(uint _mintAmount) {
         require(_mintAmount > 0 && _mintAmount <= maxMintAmountPerTx, 'Invalid mint amount');
-        require(supply + _mintAmount <= maxSupply, 'Max supply exceeded');
+        require(_totalMinted() + _mintAmount <= maxSupply, 'Max supply exceeded');
         _;
     }
 

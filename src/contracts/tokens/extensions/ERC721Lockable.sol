@@ -40,7 +40,7 @@ abstract contract ERC721Lockable is ERC721A, Ownable {
     /**
      * Checks if the token ID is currently locked, based on the lock timestamp.
      */
-    function isLocked(uint tokenId) external view returns (bool) {
+    function isLocked(uint tokenId) public view returns (bool) {
         return tokenLocks[tokenId].unlocksAt > block.timestamp;
     }
 
@@ -48,8 +48,8 @@ abstract contract ERC721Lockable is ERC721A, Ownable {
      * The address of the staker that has locked the token ID. If the token is not
      * currently locked, then a zero address will be returned.
      */
-    function lockedBy(uint tokenId) external view returns (address) {
-        return this.isLocked(tokenId) ? tokenLocks[tokenId].locker : address(0);
+    function lockedBy(uint tokenId) public view returns (address) {
+        return isLocked(tokenId) ? tokenLocks[tokenId].locker : address(0);
     }
 
     /**
@@ -57,11 +57,29 @@ abstract contract ERC721Lockable is ERC721A, Ownable {
      * locked then `0` will be returned.
      */
     function lockedUntil(uint tokenId) external view returns (uint) {
-        return this.isLocked(tokenId) ? tokenLocks[tokenId].unlocksAt : 0;
+        return isLocked(tokenId) ? tokenLocks[tokenId].unlocksAt : 0;
     }
 
     /**
      * Approves an address to lock the token, in the same manner that `approve` works.
+     */
+    function approveLocker(address to, uint tokenId, bool approve) external {
+        address currentOwner = ownerOf(tokenId);
+        require(to != currentOwner, 'ERC721A: approval to current owner');
+
+        if (currentOwner != msg.sender && (heldStakes[tokenId] != msg.sender || !_isApprovedStaker(currentOwner))) {
+            revert('ERC721A: approve caller is not token owner');
+        }
+
+        if (approve) {
+            approvedLockers[tokenId] = to;
+        } else {
+            delete approvedLockers[tokenId];
+        }
+    }
+
+    /**
+     * Revokes an address from locking the token, in the same manner that `approve` works.
      */
     function approveLocker(address to, uint tokenId) external {
         address currentOwner = ownerOf(tokenId);
@@ -87,7 +105,7 @@ abstract contract ERC721Lockable is ERC721A, Ownable {
         }
 
         // Check if we are already locked
-        require(!this.isLocked(tokenId), 'Token is already locked');
+        require(!isLocked(tokenId), 'Token is already locked');
 
         // Create our lock
         tokenLocks[tokenId] = TokenLock(msg.sender, unlocksAt);
@@ -98,7 +116,7 @@ abstract contract ERC721Lockable is ERC721A, Ownable {
      */
     function unlock(uint tokenId) external {
         // Ensure that the token is locked by the locker calling it
-        if (this.lockedBy(tokenId) == msg.sender) {
+        if (lockedBy(tokenId) == msg.sender) {
             delete tokenLocks[tokenId];
         }
     }
