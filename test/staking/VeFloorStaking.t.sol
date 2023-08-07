@@ -14,6 +14,9 @@ contract VeFloorStakingTest is FloorTest {
     // Store our max epoch index
     uint internal constant MAX_EPOCH_INDEX = 4;
 
+    // Allow for early withdraw inaccuracy
+    uint internal constant MAX_EARLY_WITHDRAW_INACCURACY = 20;
+
     // Test users
     address alice;
 
@@ -326,43 +329,101 @@ contract VeFloorStakingTest is FloorTest {
         assertAlmostEqual(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether, 1e4);
     }
 
-    function test_CanDetermineEarlyWithdrawLoss() external {
+    function test_CanDetermineEarlyWithdrawLossAtFullStakeDuration() external {
         veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
 
         epochManager.setCurrentEpoch(0);
         (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 100 ether);
         assertEq(ret, 0 ether);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
         epochManager.setCurrentEpoch(2);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 91666666666666666667);
-        assertEq(ret, 8333333333333333333);
+        assertAlmostEqual(loss, 91666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 8333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
         epochManager.setCurrentEpoch(4);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 83333333333333333334);
-        assertEq(ret, 16666666666666666666);
+        assertAlmostEqual(loss, 83333333333333333334, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 16666666666666666666, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
         epochManager.setCurrentEpoch(8);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 66666666666666666667);
-        assertEq(ret, 33333333333333333333);
+        assertAlmostEqual(loss, 66666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 33333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
         epochManager.setCurrentEpoch(12);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 50 ether);
-        assertEq(ret, 50 ether);
+        assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
         epochManager.setCurrentEpoch(24);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0 ether);
         assertEq(ret, 100 ether);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(25);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 0 ether);
+        assertEq(ret, 100 ether);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+    }
+
+    function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration() external {
+        veFloor.deposit(100 ether, MAX_EPOCH_INDEX - 1);
+
+        epochManager.setCurrentEpoch(0);
+        (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(2);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertAlmostEqual(loss, 41666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertAlmostEqual(ret, 58333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(4);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 33333333333333333328);
+        assertEq(ret, 66666666666666666672);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(8);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 16666666666666666664);
+        assertEq(ret, 83333333333333333336);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(12);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 0);
+        assertEq(ret, 100 ether);
+        assertEq(loss + ret, 100 ether);
+        assertEq(canWithdraw, true);
+
+        epochManager.setCurrentEpoch(13);
+        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
+        assertEq(loss, 0);
+        assertEq(ret, 100 ether);
+        assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
     }
 

@@ -235,6 +235,33 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         assertEq(weth, 0);
     }
 
+    function test_CanSetSlippage(uint slippage) public {
+        // Confirm our default slippage is 5%
+        assertEq(liquidateNegativeCollectionTrigger.slippage(), 5000);
+
+        // Ensure our slippage is a valid value
+        vm.assume(slippage < 100000);
+
+        // Update our slippage to 10%
+        liquidateNegativeCollectionTrigger.setSlippage(slippage);
+
+        // Confirm our new slippage is 10%
+        assertEq(liquidateNegativeCollectionTrigger.slippage(), slippage);
+    }
+
+    function test_CannotSetSlippageIfNotOwner() public {
+        vm.startPrank(alice);
+        vm.expectRevert('Ownable: caller is not the owner');
+        liquidateNegativeCollectionTrigger.setSlippage(5000);
+    }
+
+    function test_CannotSetSlippageAboveOneHundredPercent(uint badSlippage) public {
+        // Try and set our slippage above 100%
+        vm.assume(badSlippage >= 100000);
+        vm.expectRevert('Slippage too high');
+        liquidateNegativeCollectionTrigger.setSlippage(badSlippage);
+    }
+
     function _deployStrategy(address collection) internal {
         address[] memory tokens = new address[](2);
         tokens[0] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
