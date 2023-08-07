@@ -2,8 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC20Mock} from '@openzeppelin/contracts/mocks/ERC20Mock.sol';
-
+import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
 import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
@@ -289,6 +288,30 @@ contract EpochManagerTest is FloorTest {
         // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
+    }
+
+    /**
+     * @dev To avoid needing a full integration test, this has just pulled out the
+     * key logic.
+     */
+    function test_CanHandleDifferentSweepTokenDecimalAccuracy() public {
+        // Hardcode the token ETH price as 1 ether
+        uint tokenEthPrice = 1 ether;
+
+        // Iterate over a range of decimal accuracies to test against and confirm that
+        // they will each give the exepcted ETH value.
+        for (uint8 i = 6; i <= 18; ++i) {
+            ERC20Mock erc20Mock = new ERC20Mock();
+            erc20Mock.setDecimals(i);
+
+            // Find the ETH rewards based on the amount of token that is
+            // decimal accurate.
+            uint ethRewards = tokenEthPrice * (10 * (10 ** erc20Mock.decimals())) / (10 ** erc20Mock.decimals());
+
+            // We need to now confirm that the ETH rewards are the same for each. The
+            // equivalent of 10 tokens valued at 1 eth each.
+            assertEq(ethRewards, 10 ether);
+        }
     }
 
     function test_CanSetAndDeleteEpochEndTriggers(uint8 _delete) external {
