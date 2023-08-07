@@ -26,9 +26,13 @@ contract WrapEth is Action {
      *
      * @return uint The amount of ETH wrapped into WETH by the execution
      */
-    function execute(bytes calldata /* _request */ ) public payable override whenNotPaused returns (uint) {
+    function execute(bytes calldata /* _request */) public payable override whenNotPaused returns (uint) {
+        // Deposit the requested amount into WETH
         IWETH(WETH).deposit{value: msg.value}();
-        IWETH(WETH).transfer(msg.sender, msg.value);
+
+        // Transfer all WETH from the contract back to the sender. This will help capture
+        // any unaccounted for WETH (someone nice sent some?)
+        IWETH(WETH).transfer(msg.sender, IWETH(WETH).balanceOf(address(this)));
 
         // Emit our `ActionEvent`
         emit ActionEvent('UtilsWrapEth', abi.encode(msg.value));
@@ -43,5 +47,12 @@ contract WrapEth is Action {
      */
     function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
         params = abi.decode(_callData, (ActionRequest));
+    }
+
+    /**
+     * Allow our contract to receive native tokens.
+     */
+    receive() external payable {
+        // ..
     }
 }
