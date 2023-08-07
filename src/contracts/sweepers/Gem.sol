@@ -23,6 +23,9 @@ contract GemSweeper is ISweeper, Ownable {
         override
         returns (string memory)
     {
+        // Confirm that a GemSwap contract has been set
+        require(gemSwap != address(0), 'No GemSwap contract set');
+
         // Sweeps from GemSwap
         (bool success,) = payable(gemSwap).call{value: msg.value}(data);
         require(success, 'Unable to sweep');
