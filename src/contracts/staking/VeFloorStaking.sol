@@ -299,12 +299,25 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
             return (0, depAmount);
         }
 
-        // Determine the number of epochs remaining in the stake
+        // Determine the power that is actually applied to the user currently based on their
+        // staked amount and the comparative lock length.
+        uint power = (depAmount * depositor.epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+
+        // If we still have the full duration remaining then we don't need to do any
+        // further calculations.
+        if (depositor.epochStart == _currentEpoch) {
+            return (power, depAmount - power);
+        }
+
+        // Determine the number of epochs remaining in the stake. This is already overflow
+        // checked from the above conditional.
         uint remaining = depositor.epochCount - (_currentEpoch - depositor.epochStart);
 
-        // Calculate the early withdrawal fee
-        ret = (depAmount * (depositor.epochCount - remaining)) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-        loss = depAmount - ret;
+        // Calculate the early withdrawal fee by determining the "per epoch" power generated
+        // and then charging a penalty for the number of remaining epochs. This determines the
+        // penalty based on the power, and not the total amount deposited.
+        loss = (power / depositor.epochCount) * remaining;
+        ret = depAmount - loss;
     }
 
     /**
