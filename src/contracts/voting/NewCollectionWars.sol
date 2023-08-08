@@ -117,9 +117,10 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         // Check if user has already voted. If they have, then we first need to
         // remove this existing vote before reallocating.
         bytes32 warUser = keccak256(abi.encode(currentWar.index, msg.sender));
-        if (userCollectionVote[warUser] != address(0)) {
+        address userVote = userCollectionVote[warUser];
+        if (userVote != address(0)) {
             unchecked {
-                collectionVotes[keccak256(abi.encode(currentWar.index, userCollectionVote[warUser]))] -= userVotes[warUser];
+                collectionVotes[keccak256(abi.encode(currentWar.index, userVote))] -= userVotes[warUser];
             }
         }
 
