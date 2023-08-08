@@ -279,9 +279,15 @@ contract EpochManagerTest is FloorTest {
         // Move some funds to the Treasury
         deal(address(treasury), 1000 ether);
 
+        // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
+        uint startBalance = address(treasury).balance;
+
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
         // as complete).
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
+
+        // Confirm that no ETH was spent
+        assertEq(startBalance, address(treasury).balance);
 
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);

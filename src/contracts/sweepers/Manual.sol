@@ -11,10 +11,11 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  * This can be used to allow for multiple fractional sweeps from multiple epoch votes to be
  * completed in a single transaction.
  *
- * @dev The Manual Sweeper shouldn't receive ETH as part of the process as it should just allow
- * a tx code to be passed in. This sweeper would assume that the sweeping would be done
- * externally and this would just provide reference to the external sweep. For example, if we
- * were to sweep OTC, then we may just link to the tx.
+ * @dev The Manual Sweeper shouldn't receive and hold/spend ETH as part of the process as it
+ * should just allow a tx code to be passed in. This sweeper would assume that the sweeping would
+ * be done externally and this would just provide reference to the external sweep. For example,
+ * if we were to sweep OTC, then we may just link to the tx. For this reason, any ETH received in
+ * the `msg.value` should be returned to the sender.
  */
 contract ManualSweeper is ISweeper {
     /**
@@ -27,11 +28,14 @@ contract ManualSweeper is ISweeper {
         override
         returns (string memory)
     {
-        // Ensure that no ETH is sent in the call
-        require(msg.value == 0, 'ETH should not be sent in call');
-
         // Ensure that we have been provided data parameters
         require(data.length != 0, 'Invalid data parameter');
+
+        // Return any fees from the sender. This ensures that no fees are retained in the contract
+        if (msg.value != 0) {
+            payable(msg.sender).transfer(msg.value);
+        }
+
         return string(data);
     }
 }

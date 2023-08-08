@@ -51,20 +51,30 @@ contract ManualSweeperTest is FloorTest {
     }
 
     /**
-     * Test that we cannot pass any transaction value in the sweep execution. We do not
-     * have any access to any ETH or tokens that are passed into the contract, so we shouldn't
-     * be able to send any that would essentially lock it / burn it.
+     * Test that any transaction value passed in the sweep is refunded back to the
+     * sender. This ensures that if a manual sweeper is used in the Treasury sweep,
+     * then all funds will be safely returned.
      */
-    function test_CannotSendEthWhenRegisteringManualSweep(uint amount) public {
-        // Only test with values above zero
-        vm.assume(amount > 0);
+    function test_EthIsRefundedWhenRegisteringManualSweep(uint amount) public {
+        // Assume that our account has enough ETH for gas costs
+        vm.assume(amount >= 1 ether);
 
         // Ensure our test has enough ETH
         deal(address(this), amount);
 
-        // When calling with a `msg.value`, we expect it to revert
-        vm.expectRevert('ETH should not be sent in call');
+        // Capture the balance of our user before the sweep call
+        uint startBalance = address(this).balance;
+
+        // Execute our sweeper call, sending an amount of ETH
         manualSweeper.execute{value: amount}(collections, amounts, 'test');
+
+        // Capture our closing balance of ETH for the account. This needs to allow
+        // for a marginal offset used for gas in the execution. The cost of this
+        // execution in gas is not factored into Foundry tests, so we don't
+        // accommodate for it.
+        assertEq(startBalance, address(this).balance);
     }
+
+    receive () external payable {}
 
 }
