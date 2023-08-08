@@ -130,7 +130,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // If we shift our epoch forwards we should see that we now have 20 ether
         // allocation of our rewards.
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
@@ -147,7 +147,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 40 ether);
 
         // Our last snapshot call should only hold the remaining 20 + 10 ETH
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 10 ether);
@@ -163,7 +163,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 50 ether);
 
         // Shifting to after our epoch deposits, we should no longer have rewards
-        epochManager.setCurrentEpoch(3);
+        setCurrentEpoch(address(epochManager), 3);
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
@@ -206,7 +206,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Wait until the third epoch and then deposit an additional ether to show that
         // it is distributed from the current epoch onwards.
-        epochManager.setCurrentEpoch(3);
+        setCurrentEpoch(address(epochManager), 3);
 
         // Deposit another 5 ether
         vm.prank(testUser);
@@ -237,7 +237,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(IERC20(WETH).balanceOf(address(this)), 0);
 
         // Move our epoch forwards
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         // Confirm we can withdraw from past epoch
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
@@ -249,7 +249,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
 
         // Move our epoch forward to last one
-        epochManager.setCurrentEpoch(3);
+        setCurrentEpoch(address(epochManager), 3);
 
         // Confirm we can withdraw from past epochs, but trying to withdraw from
         // current epoch will revert.

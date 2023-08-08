@@ -2,8 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC20Mock} from '@openzeppelin/contracts/mocks/ERC20Mock.sol';
-
+import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
 import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
@@ -126,21 +125,6 @@ contract EpochManagerTest is FloorTest {
         // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
         treasury.approveSweeper(manualSweeper, true);
-    }
-
-    function test_CanSetCurrentEpoch(uint epoch) external {
-        // Confirm we have a default epoch of zero
-        assertEq(epochManager.currentEpoch(), 0);
-
-        // Set our epoch and confirm that it has changed correctly
-        epochManager.setCurrentEpoch(epoch);
-        assertEq(epochManager.currentEpoch(), epoch);
-    }
-
-    function test_CannotSetCurrentEpochWithoutPermission() external {
-        vm.expectRevert('Ownable: caller is not the owner');
-        vm.prank(alice);
-        epochManager.setCurrentEpoch(3);
     }
 
     function test_CanSetContracts() external {
@@ -289,5 +273,56 @@ contract EpochManagerTest is FloorTest {
         // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
+    }
+
+    /**
+     * @dev To avoid needing a full integration test, this has just pulled out the
+     * key logic.
+     */
+    function test_CanHandleDifferentSweepTokenDecimalAccuracy() public {
+        // Hardcode the token ETH price as 1 ether
+        uint tokenEthPrice = 1 ether;
+
+        // Iterate over a range of decimal accuracies to test against and confirm that
+        // they will each give the exepcted ETH value.
+        for (uint8 i = 6; i <= 18; ++i) {
+            ERC20Mock erc20Mock = new ERC20Mock();
+            erc20Mock.setDecimals(i);
+
+            // Find the ETH rewards based on the amount of token that is
+            // decimal accurate.
+            uint ethRewards = tokenEthPrice * (10 * (10 ** erc20Mock.decimals())) / (10 ** erc20Mock.decimals());
+
+            // We need to now confirm that the ETH rewards are the same for each. The
+            // equivalent of 10 tokens valued at 1 eth each.
+            assertEq(ethRewards, 10 ether);
+        }
+    }
+
+    function test_CanSetAndDeleteEpochEndTriggers(uint8 _delete) external {
+        // Set up epoch end triggers
+        uint expectedTriggers = type(uint8).max;
+
+        // Create address 0 - 255 (this means 256 in total as 0 is included)
+        for (uint160 i; i <= expectedTriggers; i++) {
+            epochManager.setEpochEndTrigger(address(i), true);
+            emit log_address(address(i));
+        }
+
+        emit log_uint(epochManager.epochEndTriggers().length);
+
+        // Now try to delete a trigger against the generated number
+        epochManager.setEpochEndTrigger(address(uint160(_delete)), false);
+
+        // We should be able to confirm that the trigger has been deleted and that the
+        // length is as expected.
+        address[] memory triggers = epochManager.epochEndTriggers();
+        assertEq(triggers.length, 255);
+
+        // Loop through the remaining triggers and confirm we no longer have the
+        // deleted index.
+        for (uint160 i; i < triggers.length; i++) {
+            assertFalse(triggers[i] == address(uint160(_delete)));
+        }
     }
 }

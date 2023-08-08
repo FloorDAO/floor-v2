@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
@@ -115,7 +117,8 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
             for (uint k; k < tokensLength;) {
                 if (amounts[k] > 0) {
                     unchecked {
-                        ethRewards += tokenEthPrice[tokens[k]] * amounts[k];
+                        // This logic should be replicated for tests in: `test_CanHandleDifferentSweepTokenDecimalAccuracy`
+                        ethRewards += tokenEthPrice[tokens[k]] * amounts[k] / (10 ** ERC20(tokens[k]).decimals());
                         yield[tokens[k]] += tokenEthPrice[tokens[k]] * amounts[k];
                     }
                 }
