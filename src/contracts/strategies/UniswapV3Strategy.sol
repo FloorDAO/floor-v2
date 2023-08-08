@@ -267,7 +267,11 @@ contract UniswapV3Strategy is BaseStrategy {
     }
 
     /**
-     * ..
+     * Gets the token balance currently in the Uniswap V3 pool.
+     *
+     * @return token0Amount The amount of token0 in the pool
+     * @return token1Amount The amount of token0 in the pool
+     * @return liquidity The amount of liquidity for the tokens
      */
     function tokenBalances() public view returns (uint token0Amount, uint token1Amount, uint128 liquidity) {
         // Get our `sqrtPriceX96` from the `slot0`
