@@ -8,6 +8,7 @@ import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
 
+import {WrapEth} from '@floor/actions/utils/WrapEth.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -18,11 +19,16 @@ import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
+import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {FloorTest} from './utilities/Environments.sol';
 
 contract TreasuryTest is FloorTest {
+    // Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 17_641_210;
+
     // We want to store a small number of specific users for testing
     address alice;
     address bob;
@@ -43,7 +49,7 @@ contract TreasuryTest is FloorTest {
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
 
-    constructor() {
+    constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 
@@ -495,5 +501,87 @@ contract TreasuryTest is FloorTest {
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(carol), authorityControl.TREASURY_MANAGER()));
         vm.prank(carol);
         treasury.withdrawERC1155(bob, address(erc1155), 1, 3);
+    }
+
+    /**
+     * Test actions can be triggered via the {Treasury}. Although this test will just
+     * use a simple action that wraps WETH, we will additionally send multiple ERC
+     * standards to be approved to test that logic also.
+     */
+    function test_CanCallAction() public {
+        // Send some native token to the Treasury contract
+        vm.prank(alice);
+        (bool sent,) = address(treasury).call{value: 50 ether}('');
+        assertEq(sent, true);
+
+        // Give the {Treasury} some tokens to facilitate the test
+        erc20.mint(address(treasury), 100 ether);
+        erc721.mint(address(treasury), 1);
+        erc721.mint(address(treasury), 2);
+        erc1155.mint(address(treasury), 1, 3, '');
+        erc1155.mint(address(treasury), 2, 2, '');
+
+        WrapEth action = new WrapEth();
+
+        ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](5);
+
+        approvals[0] = ITreasury.ActionApproval(
+            TreasuryEnums.ApprovalType.NATIVE, // Token type
+            address(0), // address assetContract
+            0, // uint tokenId
+            30 ether // uint amount
+        );
+
+        approvals[1] = ITreasury.ActionApproval(
+            TreasuryEnums.ApprovalType.ERC20, // Token type
+            address(erc20), // address assetContract
+            0, // uint tokenId
+            50 ether // uint amount
+        );
+
+        approvals[2] = ITreasury.ActionApproval(
+            TreasuryEnums.ApprovalType.ERC721, // Token type
+            address(erc721), // address assetContract
+            1, // uint tokenId
+            0 // uint amount
+        );
+
+        approvals[3] = ITreasury.ActionApproval(
+            TreasuryEnums.ApprovalType.ERC1155, // Token type
+            address(erc1155), // address assetContract
+            1, // uint tokenId
+            2 // uint amount
+        );
+
+        approvals[4] = ITreasury.ActionApproval(
+            TreasuryEnums.ApprovalType.ERC1155, // Token type
+            address(erc1155), // address assetContract
+            2, // uint tokenId
+            2 // uint amount
+        );
+
+        treasury.processAction(
+            payable(action), // address payable action
+            approvals, // ActionApproval[] calldata approvals
+            abi.encodePacked(uint(20 ether)), // bytes calldata data
+            0 // uint linkedSweepEpoch
+        );
+
+        // Confirm the amount of ETH remaining
+        assertEq(address(treasury).balance, 20 ether);
+
+        // Confirm the amount of WETH received
+        assertEq(IWETH(action.WETH()).balanceOf(address(treasury)), 30 ether);
+
+        // Test that ERC20 allowance reduced by 20 ether to 10 ether remaining
+        assertEq(erc20.allowance(address(treasury), address(action)), 0);
+
+        // ERC721 tokens should have no approvals as they will have been revoked if they
+        // remained in the {Treasury}.
+        assertEq(erc721.getApproved(1), address(0));
+        assertEq(erc721.getApproved(2), address(0));
+
+        // ERC1155 gets unapproved after
+        assertEq(erc1155.isApprovedForAll(address(treasury), address(action)), false);
     }
 }

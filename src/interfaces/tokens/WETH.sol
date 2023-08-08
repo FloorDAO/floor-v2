@@ -4,18 +4,18 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-abstract contract IWETH is IERC20 {
-    function allowance(address, address) public view virtual returns (uint);
+interface IWETH is IERC20 {
+    function allowance(address, address) external view returns (uint);
 
-    function balanceOf(address) public view virtual returns (uint);
+    function balanceOf(address) external view returns (uint);
 
-    function approve(address, uint) public virtual returns (bool);
+    function approve(address, uint) external returns (bool);
 
-    function transfer(address, uint) public virtual returns (bool);
+    function transfer(address, uint) external returns (bool);
 
-    function transferFrom(address, address, uint) public virtual returns (bool);
+    function transferFrom(address, address, uint) external returns (bool);
 
-    function deposit() public payable virtual;
+    function deposit() external payable;
 
-    function withdraw(uint) public virtual;
+    function withdraw(uint) external;
 }

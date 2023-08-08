@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
@@ -23,6 +23,8 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
 contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
+    using SafeERC20 for IERC20;
+
     /// An array of tokens supported by the strategy
     address[] private _tokens;
 
@@ -79,7 +81,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         }
 
         // Transfer the underlying token from our caller
-        IERC20(_tokens[0]).transferFrom(msg.sender, address(this), amount);
+        IERC20(_tokens[0]).safeTransferFrom(msg.sender, address(this), amount);
 
         // Emit our event to followers. We need to emit both a `Deposit` and `Harvest` as this
         // strategy essentially merges the two.
@@ -143,7 +145,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
         if (amount != 0) {
             // Transfer the received token to the caller
-            IERC20(_tokens[0]).transfer(recipient, amount);
+            IERC20(_tokens[0]).safeTransfer(recipient, amount);
 
             // Fire an event to show amount of token claimed and the recipient
             emit Withdraw(_tokens[0], amount, recipient);

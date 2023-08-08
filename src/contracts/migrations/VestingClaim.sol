@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {IFLOOR} from '@floor-interfaces/tokens/Floor.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
@@ -14,6 +14,8 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * be allocated, and to which addresses.
  */
 contract VestingClaim is Ownable {
+    using SafeERC20 for IERC20;
+
     IFLOOR public immutable FLOOR;
     IERC20 public immutable WETH;
     ITreasury private immutable treasury;
@@ -43,7 +45,7 @@ contract VestingClaim is Ownable {
         require(allocation[msg.sender] >= _amount, 'Insufficient allocation');
 
         // Transfer the WETH to the {Treasury}
-        WETH.transferFrom(msg.sender, address(treasury), _amount / 1e3);
+        WETH.safeTransferFrom(msg.sender, address(treasury), _amount / 1e3);
 
         // Reduce the allocation amount from the user. This has already been sanitized
         unchecked {

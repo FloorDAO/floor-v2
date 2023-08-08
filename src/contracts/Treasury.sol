@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -22,7 +23,9 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 /**
  * The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
+contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
@@ -86,11 +89,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param amount The amount of the token to be deposited
      */
     function depositERC20(address token, uint amount) external {
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens into the {Treasury}. This call will revert if it fails.
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit DepositERC20(token, amount);
     }
 
@@ -142,11 +142,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param amount The number of tokens to withdraw
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
-        bool success = IERC20(token).transfer(recipient, amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens to the recipient. This call will revert if it fails.
+        IERC20(token).safeTransfer(recipient, amount);
         emit WithdrawERC20(token, amount, recipient);
     }
 
@@ -188,10 +185,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         external
         onlyRole(TREASURY_MANAGER)
     {
+        uint ethValue;
+
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
-                (bool sent,) = payable(action).call{value: approvals[i].amount}('');
-                require(sent, 'Unable to fund action');
+                ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
@@ -205,13 +203,21 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
-        IAction(action).execute(data);
+        IAction(action).execute{value: ethValue}(data);
 
         // Remove ERC1155 global approval after execution
         for (uint i; i < approvals.length;) {
-            if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
+            if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
+                IERC20(approvals[i].assetContract).approve(action, 0);
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
+                if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
+                    IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
+                }
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
             }
+
+            unchecked { ++i; }
         }
 
         emit ActionProcessed(action, data);
@@ -249,7 +255,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public {
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public nonReentrant {
         // Load the stored sweep at our epoch index
         Sweep memory epochSweep = epochSweeps[epochIndex];
 
@@ -294,7 +300,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) {
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) nonReentrant {
         return _sweepEpoch(epochIndex, sweeper, epochSweeps[epochIndex], data, mercSweep);
     }
 
@@ -356,13 +362,13 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
+        // Mark our sweep as completed
+        epochSweep.completed = true;
+
         // Action our sweep. If we don't hold enough ETH to supply the message value then
         // we expect this call to revert. This call may optionally return a message that
         // will be stored against the struct.
         string memory message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
-
-        // Mark our sweep as completed
-        epochSweep.completed = true;
 
         // If we returned a message, then we write it to our sweep
         epochSweep.message = message;

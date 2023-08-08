@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
 
@@ -23,6 +23,8 @@ error NoTokensAvailableToMigrate();
  * should be made prior to calling this contract function.
  */
 contract MigrateFloorToken is IMigrateFloorToken {
+    using SafeERC20 for IERC20;
+
     /// List of FLOOR V1 token contract addresses on mainnet
     address[] private MIGRATED_TOKENS = [
         0xf59257E961883636290411c11ec5Ae622d19455e, // Floor
@@ -65,8 +67,11 @@ contract MigrateFloorToken is IMigrateFloorToken {
             // Get the user's balance of the token
             tokenBalance = token.balanceOf(msg.sender);
 
-            // Transfer the token into our contract
-            if (tokenBalance > 0 && token.transferFrom(msg.sender, address(this), tokenBalance)) {
+            // Ensure that there is a balance to transfer
+            if (tokenBalance > 0) {
+                // Transfer all tokens to the contract
+                token.safeTransferFrom(msg.sender, address(this), tokenBalance);
+
                 // If we have a gFLOOR token, then we need to find the underlying FLOOR that
                 // is staked and mint that for the user.
                 if (address(token) == 0xb1Cc59Fc717b8D4783D41F952725177298B5619d) {
