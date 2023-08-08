@@ -22,7 +22,6 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} f
 
 import {ERC1155Mock} from '../mocks/erc/ERC1155Mock.sol';
 import {ERC721Mock} from '../mocks/erc/ERC721Mock.sol';
-import {SweeperMock} from '../mocks/Sweeper.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract NewCollectionWarsTest is FloorTest {

@@ -6,6 +6,7 @@ import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
 import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
+import {SweeperMock} from './mocks/Sweeper.sol';
 
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
@@ -28,22 +29,27 @@ import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 import {FloorTest} from './utilities/Environments.sol';
 
 contract EpochManagerTest is FloorTest {
-    // Store our mainnet fork information
+    /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
+    /// @dev Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /// Defines a test user
     address alice;
 
+    /// Define an approved strategy and collection
     address approvedStrategy;
     address approvedCollection;
 
+    /// Defines our sweeper addresses
     address manualSweeper;
+    address sweeperMock;
 
     // Track our internal contract addresses
     FLOOR floor;
     VeFloorStaking veFloor;
     ERC20Mock erc20;
-    ERC721Mock erc721;
-    ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
     FloorNft floorNft;
@@ -125,6 +131,13 @@ contract EpochManagerTest is FloorTest {
         // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
         treasury.approveSweeper(manualSweeper, true);
+
+        // Set up our sweeper mock that will return tokens
+        sweeperMock = address(new SweeperMock(address(treasury)));
+        treasury.approveSweeper(sweeperMock, true);
+
+        // Define our ERC20 token
+        erc20 = new ERC20Mock();
     }
 
     function test_CanSetContracts() external {
@@ -276,6 +289,92 @@ contract EpochManagerTest is FloorTest {
     }
 
     /**
+     * When there are no FLOOR tokens in the sweep, then we shouldn't have any burn
+     * mechanics triggered, nor the sweep triggered.
+     */
+    function test_NoFloorTokensReceivedInSweepDoesNotRaiseBurnErrors(uint startBalance) external {
+        // Provide the {Treasury} with sufficient WETH to fulfil the sweep
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 15 ether);
+
+        // Provide the {Treasury} with the starting FLOOR balance
+        deal(address(floor), address(treasury), startBalance);
+
+        // Set up our collections and amounts to just use the {ERC20Mock}
+        address[] memory collections = new address[](2);
+        collections[0] = address(erc20);
+        collections[1] = address(erc20);
+
+        uint[] memory amounts = new uint[](2);
+        amounts[0] = 10 ether;
+        amounts[1] = 5 ether;
+
+        // Register a sweep that does not include any FLOOR token amounts
+        treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        epochManager.setCurrentEpoch(1);
+
+        // Sweep the epoch
+        treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that we still hold our starting balance and nothing has been burnt
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+    }
+
+    /**
+     * When FLOOR tokens are received in the sweep, we should burn any received, whilst
+     * still maintaining any initially held balance.
+     */
+    function test_FloorTokensReceivedInSweepAreBurned(uint startBalance, uint sweepAmount) external {
+        // Ensure that the combination of start balance and sweep amount won't exceed
+        // the max uint value and overflow.
+        vm.assume(startBalance < 10000 ether);
+        vm.assume(sweepAmount < 10000 ether);
+
+        // Provide the {Treasury} with sufficient WETH to fulfil the sweep and the
+        // subsequent resweep.
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), (10 ether + sweepAmount) * 2);
+
+        // Provide the {Treasury} with the starting FLOOR balance
+        deal(address(floor), address(treasury), startBalance);
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+
+        // Set up our collections and amounts to use {ERC20Mock} and {FLOOR} tokens
+        address[] memory collections = new address[](2);
+        collections[0] = address(erc20);
+        collections[1] = address(floor);
+
+        uint[] memory amounts = new uint[](2);
+        amounts[0] = 10 ether;
+        amounts[1] = sweepAmount;
+
+        // Register a sweep that does not include any FLOOR token amounts
+        treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        epochManager.setCurrentEpoch(1);
+
+        // Confirm that our event will be triggered in the sweep
+        if (amounts[1] > 0) {
+            vm.expectEmit(true, true, false, true, address(floor));
+            emit Transfer(address(treasury), address(0), sweepAmount);
+        }
+
+        // Run our sweeper
+        treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that, due to the burn, we still have the same starting balance
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+
+        // Confirm that our event will be triggered in the resweep
+        if (amounts[1] > 0) {
+            vm.expectEmit(true, true, false, true, address(floor));
+            emit Transfer(address(treasury), address(0), sweepAmount);
+        }
+
+        // Resweep the epoch using the sweeper mock again
+        treasury.resweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that, due to the burn, we still have the same starting balance
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+
+    /*
      * @dev To avoid needing a full integration test, this has just pulled out the
      * key logic.
      */
