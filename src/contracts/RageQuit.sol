@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 
@@ -15,6 +16,8 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
  * minted) against the total number of tokens deployed into the contract.
  */
 contract RageQuit is Ownable, Pausable {
+    using SafeERC20 for IERC20;
+
     /// Emitted when funds are added to the contract
     event FundsAdded(address token, uint amount);
 
@@ -56,7 +59,7 @@ contract RageQuit is Ownable, Pausable {
         require(amount != 0, 'No supply');
 
         // Transfer the approved token into this contract
-        ERC20(token).transferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
         // Increase the total supply held in the contract
         tokenSupply[token] += amount;
@@ -102,7 +105,7 @@ contract RageQuit is Ownable, Pausable {
             // Determine the decimal difference
             decimalDifference = 1 ** (ERC20(_tokens[i]).decimals() - 9);
 
-            ERC20(_tokens[i]).transfer(
+            IERC20(_tokens[i]).safeTransfer(
                 msg.sender,
                 (amount * decimalDifference * tokenSupply[_tokens[i]]) / (tokenSupply[address(floor)] * decimalDifference)
             );
@@ -126,7 +129,7 @@ contract RageQuit is Ownable, Pausable {
         // Loop through all funding tokens and extract them to caller
         uint tokenCount = _tokens.length;
         for (uint i; i < tokenCount;) {
-            ERC20(_tokens[i]).transfer(msg.sender, ERC20(_tokens[i]).balanceOf(address(this)));
+            IERC20(_tokens[i]).safeTransfer(msg.sender, IERC20(_tokens[i]).balanceOf(address(this)));
             tokenSupply[_tokens[i]] = 0;
             unchecked {
                 ++i;

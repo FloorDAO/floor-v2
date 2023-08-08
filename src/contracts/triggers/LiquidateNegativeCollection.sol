@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
@@ -19,6 +19,8 @@ import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
  * relative to the number of negative votes it received.
  */
 contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered {
+    using SafeERC20 for IERC20;
+
     IWETH public constant WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     /// The sweep war contract used by this contract
@@ -146,7 +148,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
                     );
 
                     // Transfer the specified amount of token to the universal router
-                    IERC20(tokens[k]).transfer(address(uniswapUniversalRouter), amounts[k]);
+                    IERC20(tokens[k]).safeTransfer(address(uniswapUniversalRouter), amounts[k]);
                 }
 
                 unchecked {
