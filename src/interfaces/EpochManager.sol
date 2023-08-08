@@ -26,14 +26,6 @@ interface IEpochManager {
     function collectionEpochs(uint _epoch) external view returns (uint);
 
     /**
-     * Allows a new epoch to be set. This should, in theory, only be set to one
-     * above the existing `currentEpoch`.
-     *
-     * @param _currentEpoch The new epoch to set
-     */
-    function setCurrentEpoch(uint _currentEpoch) external;
-
-    /**
      * Will return if the current epoch is a collection addition vote.
      *
      * @return If the current epoch is a collection addition

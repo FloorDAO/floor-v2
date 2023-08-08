@@ -478,7 +478,7 @@ contract NewCollectionWarsTest is FloorTest {
         vm.assume(currentEpoch > 0);
         vm.assume(currentEpoch <= 10);
 
-        epochManager.setCurrentEpoch(currentEpoch);
+        setCurrentEpoch(address(epochManager), currentEpoch);
 
         vm.prank(address(epochManager));
         newCollectionWars.endFloorWar();
