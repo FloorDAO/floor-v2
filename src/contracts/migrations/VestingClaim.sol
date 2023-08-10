@@ -16,13 +16,21 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
 contract VestingClaim is Ownable {
     using SafeERC20 for IERC20;
 
+    /// Stores assigned interfaces
     IFLOOR public immutable FLOOR;
     IERC20 public immutable WETH;
     ITreasury private immutable treasury;
 
-    // Tracks available allocations
+    /// Tracks available allocations
     mapping(address => uint) internal allocation;
 
+    /**
+     * Allows our contracts to be set.
+     *
+     * @param _floor The new {FLOOR} token contract address
+     * @param _weth The WETH contract address
+     * @param _treasury The {Treasury} contract address
+     */
     constructor(address _floor, address _weth, address _treasury) {
         require(_floor != address(0), 'Zero address: FLOOR');
         require(_weth != address(0), 'Zero address: WETH');
@@ -34,8 +42,12 @@ contract VestingClaim is Ownable {
     }
 
     /**
-     * Allows wallet to claim FLOOR. We multiply by 1e6 as we convert the FLOOR from
-     * a WETH finney.
+     * Allows wallet to claim FLOOR. FLOOR can be claimed by paying a backing of 0.001
+     * WETH. So if, for example, 1000 FLOOR tokens are to be claimed, then 1 WETH will
+     * be transferred to the {Treasury} via this contract.
+     *
+     * @dev We divide by 1e3 as we convert the 18 decimal FLOOR to a WETH finney, which
+     * is 0.001 of an 18 decimal token.
      *
      * @param _to address The address that is claiming
      * @param _amount uint256 The amount being claimed in FLOOR (18 decimals)
@@ -44,7 +56,8 @@ contract VestingClaim is Ownable {
         // Ensure that we have sufficient FLOOR allocation to claim against
         require(allocation[msg.sender] >= _amount, 'Insufficient allocation');
 
-        // Transfer the WETH to the {Treasury}
+        // Transfer the WETH to the {Treasury}. This will need to have already been
+        // approved by the sender.
         WETH.safeTransferFrom(msg.sender, address(treasury), _amount / 1e3);
 
         // Reduce the allocation amount from the user. This has already been sanitized
@@ -68,7 +81,9 @@ contract VestingClaim is Ownable {
     }
 
     /**
-     * Assign a range of FLOOR allocation to addresses.
+     * Assign a range of FLOOR allocation to addresses. This does not use a merkle
+     * approach as there is only a small number of addresses that will be available
+     * to make a claim against the contract.
      *
      * @dev The token does not need to be transferred with this call as it is minted
      * at point of claim.
