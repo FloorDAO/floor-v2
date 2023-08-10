@@ -57,6 +57,7 @@ contract SweepWarsTest is FloorTest {
     // Store some test user wallets
     address alice;
     address bob;
+    address carol;
 
     // Store vote power from setUp
     mapping(address => uint) votePower;
@@ -101,6 +102,9 @@ contract SweepWarsTest is FloorTest {
         // Set our war contracts against our staking contract
         veFloor.setVotingContracts(address(0), address(sweepWars));
 
+        // Approve our VeFloor staking contract to revoke war votes
+        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloor));
+
         // Define our strategy implementations
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
 
@@ -111,7 +115,7 @@ contract SweepWarsTest is FloorTest {
         collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
         // Set up shorthand for our test users
-        (alice, bob) = (users[0], users[1]);
+        (alice, bob, carol) = (users[0], users[1], users[2]);
 
         // Label our approved collections for easier traces
         vm.label(floorTokenCollection, 'floorTokenCollection');
@@ -514,6 +518,89 @@ contract SweepWarsTest is FloorTest {
 
         assertEq(amounts[0] + amounts[1] + amounts[2], 10000 ether);
     }
+
+    /**
+     * The sweep wars contract records a user's voting power based on the ratio at the beginning
+     * of their vote. When votes are removed the contract calculates the user's current voting
+     * power based on their current locking ratio and then either removes those votes if the vote
+     * is for for a collection or adds them if the vote is against a collection.
+     *
+     * The consequence of this is if a user can either increase or reduce their voting power after
+     * voting some remainder will be left when they withdraw at the end because the voting power
+     * ratio at the end of the locking period is not equal to what it was at the beginning. This
+     * allows vote duplication via the following steps:
+     *
+     *   1) Deposit at the lowest possible lock length (2 weeks)
+     *   2) Vote in the opposite of the preferred direction (with 1/12 ie about 8.6% of total votes)
+     *   3) Extend lock by depositing again to the longest lock length (24 weeks)
+     *   4) Wait for lock to end and withdraw causing the correction to overshoot because the user's
+     *      current voting power is 100% of what was deposited (by aprox 91.4% with current constants)
+     *   5) Deposit and vote again and you will have added 191% of your voting power to your preferred
+     *      collection.
+     *
+     * Severity Estimate: Critical [Impact: High, Likelihood: High]
+     * Remediation Recommendation: Store real user votes not their total amount of floor voted.
+     */
+    function test_CannotDuplicateVote() external {
+        // Give Carol some FLOOR tokens to use
+        floor.mint(carol, 100 ether);
+
+        vm.startPrank(carol);
+
+        // Approve our FLOOR tokens for use
+        floor.approve(address(veFloor), 100 ether);
+
+        assertEq(sweepWars.userVotingPower(carol), 0);
+        assertEq(sweepWars.userVotesAvailable(carol), 0);
+        assertEq(sweepWars.votes(floorTokenCollection), 0);
+
+        // 1) Deposit at the lowest possible lock length (2 weeks)
+        veFloor.deposit(10 ether, 1);
+
+        assertEq(sweepWars.userVotingPower(carol), 10 ether);
+        assertEq(sweepWars.userVotesAvailable(carol), 10 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), 0);
+
+        // 2) Vote in the opposite of the preferred direction (with 1/12 ie about 8.6% of total votes)
+        sweepWars.vote(floorTokenCollection, 1 ether, true);
+
+        assertEq(sweepWars.userVotingPower(carol), 10 ether);
+        assertEq(sweepWars.userVotesAvailable(carol), 9 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), -166666666666666666);
+
+        // 3) Extend lock by depositing again to the longest lock length (24 weeks)
+        veFloor.deposit(10 ether, MAX_EPOCH_INDEX);
+
+        assertEq(sweepWars.userVotingPower(carol), 20 ether);
+        assertEq(sweepWars.userVotesAvailable(carol), 19 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), -166666666666666666);
+
+        vm.stopPrank();
+
+        // 4) Wait for lock to end and withdraw causing the correction to overshoot because the user's
+        // current voting power is 100% of what was deposited (by aprox 91.4% with current constants)
+        epochManager.setCurrentEpoch(24);
+
+        vm.startPrank(carol);
+
+        veFloor.withdraw();
+
+        assertEq(sweepWars.userVotingPower(carol), 0);
+        assertEq(sweepWars.userVotesAvailable(carol), 0);
+        assertEq(sweepWars.votes(floorTokenCollection), 0);
+
+        // 5) Deposit and vote again and you will have added 191% of your voting power to your
+        // preferred collection.
+        veFloor.deposit(10 ether, MAX_EPOCH_INDEX);
+        sweepWars.vote(floorTokenCollection, 10 ether, false);
+
+        assertEq(sweepWars.userVotingPower(carol), 10 ether);
+        assertEq(sweepWars.userVotesAvailable(carol), 0);
+        assertEq(sweepWars.votes(floorTokenCollection), 10 ether);
+
+        vm.stopPrank();
+    }
+
 
     function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
         // Approvals aren't needed and may throw issues with our mocked setups
