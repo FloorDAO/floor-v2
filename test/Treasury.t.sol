@@ -584,4 +584,162 @@ contract TreasuryTest is FloorTest {
         // ERC1155 gets unapproved after
         assertEq(erc1155.isApprovedForAll(address(treasury), address(action)), false);
     }
+
+    function test_CanRegisterSweep(uint epoch) external {
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+
+        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epoch);
+
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
+        assertEq(completed, false);
+        assertEq(message, '');
+    }
+
+    function test_CanOverwriteTheRegisteredSweep(uint epoch) external {
+        // Write our initial sweep
+        (address[] memory collectionsA, uint[] memory amountsA) = _collectionsAndAmounts(3);
+        treasury.registerSweep(epoch, collectionsA, amountsA, TreasuryEnums.SweepType.SWEEP);
+
+        // Overwrite the sweep by registering the same epoch
+        (address[] memory collectionsB, uint[] memory amountsB) = _collectionsAndAmounts(4);
+        treasury.registerSweep(epoch, collectionsB, amountsB, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+
+        // Confirm that the information has updated
+        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epoch);
+        assertTrue(sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION);
+        assertEq(completed, false);
+        assertEq(message, '');
+    }
+
+    function test_CanRegisterCollectionAdditionSweep(uint epoch) external {
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+
+        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epoch);
+
+        assertTrue(sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION);
+        assertEq(completed, false);
+        assertEq(message, '');
+    }
+
+    function test_CannotRegisterSweepWithoutPermissions(address sender, uint epoch) external {
+        // Don't let the sender have permissions
+        vm.assume(sender != address(this) && sender != bob);
+
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        vm.startPrank(sender);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, sender, authorityControl.TREASURY_MANAGER()));
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        vm.stopPrank();
+    }
+
+    function test_CanSweepEpochOnlyWithCorrectPermissions(uint epoch, uint publicEpoch, uint validTokenHolding, uint invalidTokenHolding) external {
+        // Get some test collections and amounts
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        // Smaller uint range that max so we can add to it
+        vm.assume(epoch < type(uint128).max);
+        vm.assume(publicEpoch >= epoch + 2);
+
+        // Set our token holder ranges
+        vm.assume(validTokenHolding >= treasury.SWEEP_EXECUTE_TOKENS());
+        vm.assume(invalidTokenHolding < treasury.SWEEP_EXECUTE_TOKENS());
+
+        // Give test user Alice the valid token holding
+        deal(address(floor), alice, validTokenHolding);
+
+        // Give test user Carol the invalid token holding
+        deal(address(floor), carol, invalidTokenHolding);
+
+        // Register a sweep to test against
+        // treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+
+        // Cannot sweep at this point as we would need to progress the epoch
+        // treasury.sweepEpoch(epoch);
+
+        // Move forward so that our current pointer is epoch + 1
+
+        // We can now sweep as the DAO..
+
+        // .. but cannot sweep as a token holder
+
+        // Move forward so that our current pointer is greater than epoch + 1
+
+        // We can still sweep as the DAO..
+
+        // .. but can now also sweep as a token holder ..
+        // vm.prank(alice);
+
+        // .. but we can never sweep as a public member without token holdings
+        // vm.prank(bob);
+    }
+
+    function test_CannotSweepCompletedEpoch() external {}
+
+    function test_CanResweepEpochWithCorrectPermissions() external {}
+
+    function test_CanResweepCompletedEpoch() external {}
+
+    function test_CanSetMercenarySweeper(address mercSweeper) external {
+        treasury.setMercenarySweeper(mercSweeper);
+        assertEq(address(treasury.mercSweeper()), mercSweeper);
+    }
+
+    function test_CannotSetMercenarySweeperWithoutPermissions(address mercSweeper) external {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
+        treasury.setMercenarySweeper(mercSweeper);
+        vm.stopPrank();
+    }
+
+    function test_CanApproveSweeper(address sweeper) external {
+        // Confirm that the sweeper starts unapproved
+        assertFalse(treasury.approvedSweepers(sweeper));
+
+        // Approve our sweeper and confirm that it has applied
+        treasury.approveSweeper(sweeper, true);
+        assertTrue(treasury.approvedSweepers(sweeper));
+
+        // Confirm that we can approve and already approved sweeper
+        treasury.approveSweeper(sweeper, true);
+        assertTrue(treasury.approvedSweepers(sweeper));
+
+        // Unapprove our sweeper and confirm it was applied
+        treasury.approveSweeper(sweeper, false);
+        assertFalse(treasury.approvedSweepers(sweeper));
+
+        // Confirm that we can unapprove and already unapproved sweeper
+        treasury.approveSweeper(sweeper, false);
+        assertFalse(treasury.approvedSweepers(sweeper));
+
+        // Finally, confirm that we can re-approve a sweeper
+        treasury.approveSweeper(sweeper, true);
+        assertTrue(treasury.approvedSweepers(sweeper));
+    }
+
+    function test_CanSetMinSweepAmount(uint minAmount) external {
+        treasury.setMinSweepAmount(minAmount);
+        assertEq(treasury.minSweepAmount(), minAmount);
+    }
+
+    function test_CannotSetMinSweepAmountWithoutPermissions(uint minAmount) external {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
+        treasury.setMinSweepAmount(minAmount);
+        vm.stopPrank();
+    }
+
+    function _collectionsAndAmounts(uint count) internal pure returns (address[] memory collections, uint[] memory amounts) {
+        collections = new address[](count);
+        amounts = new uint[](count);
+
+        for (uint160 i; i < count; ++i) {
+            collections[i] = address(i + 1);
+            amounts[i] = (i + 1) * 1 ether;
+        }
+    }
 }

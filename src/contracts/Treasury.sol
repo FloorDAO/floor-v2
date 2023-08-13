@@ -37,6 +37,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     /// the DAO.
     uint public minSweepAmount;
 
+    /// Set a sweep power that is required for public sweep execution
+    uint public constant SWEEP_EXECUTE_TOKENS = 5000 ether;
+
     /// Stores our Mercenary sweeper contract address
     IMercenarySweeper public mercSweeper;
 
@@ -269,19 +272,23 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
          *  Sweep       Current
          *  3           3           Not ended yet
          *  3           4           Only DAO
-         *  3           5           5,000 FLOOR
+         *  3           5           DAO or 5,000 FLOOR
          *
          * If the grace period has ended, then a user that holds 5,000 FLOOR tokens can action
          * the sweep to take place.
          */
 
         uint _currentEpoch = currentEpoch();
-        require(epochIndex < _currentEpoch, 'Epoch has not finished');
 
-        if (epochIndex + 1 == _currentEpoch) {
-            require(this.hasRole(this.TREASURY_MANAGER(), msg.sender), 'Only DAO may currently execute');
-        } else {
-            require(floor.balanceOf(msg.sender) >= 5000, 'Insufficient FLOOR holding');
+        // First we need to check that the epoch index has finished
+        require(epochIndex <= _currentEpoch, 'Epoch has not finished');
+
+        // We can then assume that a `TreasuryManager` can always sweep the epoch
+        if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
+            // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute
+            if (epochIndex + 1 < _currentEpoch) {
+                require(floor.balanceOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
+            }
         }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
