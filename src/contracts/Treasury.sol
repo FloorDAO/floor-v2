@@ -281,14 +281,17 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         uint _currentEpoch = currentEpoch();
 
         // First we need to check that the epoch index has finished
-        require(epochIndex <= _currentEpoch, 'Epoch has not finished');
+        require(epochIndex < _currentEpoch, 'Epoch has not finished');
 
         // We can then assume that a `TreasuryManager` can always sweep the epoch
         if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
-            // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute
-            if (epochIndex + 1 < _currentEpoch) {
-                require(floor.balanceOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
+            // If we are in the subsequent epoch, then we cannot allow a non-DAO sweep
+            if (epochIndex + 1 == _currentEpoch) {
+                revert('Only DAO can sweep subsequent epoch');
             }
+
+            // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute
+            require(floor.balanceOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
         }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
@@ -308,6 +311,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param data Additional meta data to send to the sweeper
      */
     function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) nonReentrant {
+        // Ensure that the epoch has already been swept. This ensures that we don't have to
+        // implement the same epoch constraints as these would have been present in the
+        // initial sweep.
+        require(epochSweeps[epochIndex].completed, 'Epoch not swept');
+
         return _sweepEpoch(epochIndex, sweeper, epochSweeps[epochIndex], data, mercSweep);
     }
 
@@ -327,12 +335,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
         if (mercSweep != 0) {
-            require(
-                epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions'
-            );
-            require(mercSweep <= epochSweep.amounts[0], 'Merc Sweep cannot be higher than msg.value');
+            require(epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions');
+            require(address(mercSweeper) != address(0), 'Merc Sweeper not set');
 
             msgValue = epochSweep.amounts[0];
+            require(mercSweep <= msgValue, 'Merc Sweep cannot be higher than msg.value');
         } else {
             // If this is COLLECTION_ADDITION, we will only ever a single collection, so
             // no need for a loop.
@@ -361,12 +368,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
             // Fire our request to our mercenary sweeper contract, which will return the
             // amount actually spent on the sweep. We should only have a single value in
             // the collections and amounts arrays, but the sweeper will handle this.
-            uint spend = mercSweeper.execute{value: mercSweep}(epochManager.collectionEpochs(epochIndex), mercSweep);
+            uint spend = mercSweeper.execute{value: msgValue}(epochManager.collectionEpochs(epochIndex), mercSweep);
 
             // Reduce the remaining message value sent to the subsequent sweeper
-            unchecked {
-                msgValue -= spend;
-            }
+            unchecked { msgValue -= spend; }
+            epochSweep.amounts[0] = msgValue;
         }
 
         // Mark our sweep as completed
@@ -375,10 +381,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         // Action our sweep. If we don't hold enough ETH to supply the message value then
         // we expect this call to revert. This call may optionally return a message that
         // will be stored against the struct.
-        string memory message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
-
-        // If we returned a message, then we write it to our sweep
-        epochSweep.message = message;
+        if (msgValue != 0) {
+            epochSweep.message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
+        }
 
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;
