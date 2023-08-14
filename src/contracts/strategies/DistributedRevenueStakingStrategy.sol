@@ -159,16 +159,13 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
     /**
      * Gets rewards that are available to harvest.
-     *
-     * @dev This will always return two empty arrays as we will never have
-     * tokens available to harvest.
      */
     function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] <= _currentEpoch) {
+            if (_activeEpochs[i] < _currentEpoch) {
                 amount += epochYield[_activeEpochs[i]];
             }
 
@@ -179,7 +176,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
         tokens_ = _tokens;
         amounts_ = new uint[](1);
-        amounts_[0] = amount + lifetimeRewards[tokens_[0]];
+        amounts_[0] = amount;
     }
 
     /**

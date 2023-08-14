@@ -316,7 +316,7 @@ contract EpochManagerTest is FloorTest {
 
         // Register a sweep that does not include any FLOOR token amounts
         treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         // Sweep the epoch
         treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
@@ -354,7 +354,7 @@ contract EpochManagerTest is FloorTest {
 
         // Register a sweep that does not include any FLOOR token amounts
         treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         // Confirm that our event will be triggered in the sweep
         if (amounts[1] > 0) {
@@ -379,6 +379,7 @@ contract EpochManagerTest is FloorTest {
 
         // Confirm that, due to the burn, we still have the same starting balance
         assertEq(floor.balanceOf(address(treasury)), startBalance);
+    }
 
     /*
      * @dev To avoid needing a full integration test, this has just pulled out the
