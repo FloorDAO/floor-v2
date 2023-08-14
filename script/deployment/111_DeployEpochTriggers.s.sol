@@ -8,7 +8,7 @@ import {EpochManager} from '@floor/EpochManager.sol';
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
 /**
- * Deploys our treasury actions.
+ * Deploys our epoch triggers.
  */
 contract DeployEpochTriggers is DeploymentScript {
     function run() external deployer {
