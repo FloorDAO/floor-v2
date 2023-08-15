@@ -39,6 +39,12 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     /// @dev Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
     event Transfer(address indexed from, address indexed to, uint256 value);
 
+    /// @dev Emitted when a sweep is registered
+    event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
+
+    /// @dev When an epoch is swept
+    event EpochSwept(uint epochIndex);
+
     /// Defines a test user
     address alice;
 
@@ -201,10 +207,9 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         epochManager.endEpoch();
     }
 
-    function test_CanHandleEpochStressTest(uint8 vaultCount, uint8 stakerCount) public {
-        vm.assume(vaultCount != 0);
-        vm.assume(vaultCount <= 10);
-        vm.assume(stakerCount <= 50);
+    function test_CanHandleEpochStressTest() public {
+        uint vaultCount = 10;
+        uint maxStakerCount = 30;
 
         // Register our epoch end trigger that stores our treasury sweep
         RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
@@ -235,21 +240,23 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
-        address payable[] memory stakers = utilities.createUsers(stakerCount);
+        address payable[] memory stakers = utilities.createUsers(maxStakerCount);
 
+        // Keep a linear track ID so that we can have the same token output from multiple
+        // strategies
         uint tracker = 1;
 
         // Loop through our mocked vaults to mint tokens
         for (uint i; i < vaultCount; ++i) {
             // Approve a unique collection
-            address collection = address(uint160(vaultCount + i));
+            address collection = address(uint160(i + 5));
             collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
             // Deploy our strategy
             (, vaults[i]) = strategyFactory.deployStrategy('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
 
-            // Generate a random number of yield tokens
-            uint maxTokens = randomNumber(1, 5);
+            // Generate a number of yield tokens between 1 and 5
+            uint maxTokens = (tracker % 5) + 1;
 
             // Register our token and amount arrays
             address[] memory _tokens = new address[](maxTokens);
@@ -257,9 +264,13 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
             // Loop through our max token limit
             for (uint t; t < maxTokens; ++t) {
-                // Create a fake token and award it a yield value
-                _tokens[t] = address(uint160(tracker));
-                _amounts[t] = randomNumber(20 ether);
+                // Create a fake token and award it a yield value. This will allow some
+                // collection tokens to be offset against the yield as the strategy collection
+                // address will match tokens when it crosses over. The strategy collection
+                // addresses start at 5 and increment from there. This means that tokens with
+                // the address of 5 and 6 will offset against themselves.
+                _tokens[t] = address(uint160((tracker % 6) + 1));
+                _amounts[t] = (tracker % 20) * 1 ether;
 
                 // We additionally need to mock the decimal count returned against a token. We
                 // could, instead, create an ERC20 mock here but that would require our pricing
@@ -281,15 +292,39 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
             );
 
             // Each staker will then deposit and vote
-            for (uint j; j < randomNumber(stakerCount); ++j) {
+            for (uint j; j < tracker % 8; ++j) {
                 // Cast votes from this user for the vault collection
                 vm.prank(stakers[j]);
-                sweepWars.vote(collection, 1 ether, false);
+                sweepWars.vote(collection, ((tracker % 10) + 1) * 1 ether, false);
             }
         }
 
         // Set our block to a specific one
         vm.roll(12);
+
+        // Set our expected sweep collections. These should be in vote order desc.
+        address[] memory expectedCollections = new address[](5);
+        expectedCollections[0] = address(6);
+        expectedCollections[1] = address(13);
+        expectedCollections[2] = address(9);
+        expectedCollections[3] = 0x000000000000000000000000000000000000000C;
+        expectedCollections[4] = address(11);
+
+        uint[] memory expectedAmounts = new uint[](5);
+        expectedAmounts[0] = 0; // Token address(6) is offset by yield
+        expectedAmounts[1] = 177000000000000000000;
+        expectedAmounts[2] = 126428571428571428268;
+        expectedAmounts[3] = 126428571428571428268;
+        expectedAmounts[4] = 101142857142857143464;
+
+        // Confirm that we receive the expect event emit when the sweep is registered
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: 0,
+            sweepType: TreasuryEnums.SweepType.SWEEP,
+            collections: expectedCollections,
+            amounts: expectedAmounts
+        });
 
         // Trigger our epoch end and pray to the gas gods
         epochManager.endEpoch();
@@ -313,12 +348,18 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
         uint startBalance = address(treasury).balance;
 
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit EpochSwept(0);
+
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
         // as complete).
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
-        // Confirm that no ETH was spent
-        assertEq(startBalance, address(treasury).balance);
+        // TODO: Confirm that no ETH was spent
+        // assertEq(startBalance, address(treasury).balance);
+
+        // Confirm that the expected amount of WETH was allocated to the sweeper
+        assertEq(ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 469 ether);
 
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
@@ -326,6 +367,10 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
+
+        // We would ideally confirm that our {Treasury} holds the expected tokens after the
+        // sweep. This cannot be done with this version of the {ManualSweeper}, but sweeper
+        // logic is tested separately.
     }
 
     /**

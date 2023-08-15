@@ -244,7 +244,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     {
         epochSweeps[epoch] = Sweep({sweepType: sweepType, collections: collections, amounts: amounts, completed: false, message: ''});
 
-        emit SweepRegistered(epoch);
+        emit SweepRegistered(epoch, sweepType, collections, amounts);
     }
 
     /**
