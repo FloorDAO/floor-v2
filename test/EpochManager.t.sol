@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+
 import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
 import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
@@ -26,9 +28,11 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} f
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
+import {FoundryRandom} from "foundry-random/FoundryRandom.sol";
+
 import {FloorTest} from './utilities/Environments.sol';
 
-contract EpochManagerTest is FloorTest {
+contract EpochManagerTest is FloorTest, FoundryRandom {
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
@@ -197,9 +201,10 @@ contract EpochManagerTest is FloorTest {
         epochManager.endEpoch();
     }
 
-    function test_CanHandleEpochStressTest() public {
-        uint vaultCount = 10;
-        uint stakerCount = 25;
+    function test_CanHandleEpochStressTest(uint8 vaultCount, uint8 stakerCount) public {
+        vm.assume(vaultCount != 0);
+        vm.assume(vaultCount <= 10);
+        vm.assume(stakerCount <= 50);
 
         // Register our epoch end trigger that stores our treasury sweep
         RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
@@ -219,7 +224,7 @@ contract EpochManagerTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
 
-        // Set our sample size of the GWV and to retain 50% of {Treasury} yield
+        // Set our sample size of the GWV to allow the top 5 collections to receive a share
         sweepWars.setSampleSize(5);
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing and give
@@ -232,26 +237,54 @@ contract EpochManagerTest is FloorTest {
         address[] memory vaults = new address[](vaultCount);
         address payable[] memory stakers = utilities.createUsers(stakerCount);
 
+        uint tracker = 1;
+
         // Loop through our mocked vaults to mint tokens
         for (uint i; i < vaultCount; ++i) {
             // Approve a unique collection
-            address collection = address(uint160(uint(vaultCount + i)));
+            address collection = address(uint160(vaultCount + i));
             collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-            // Deploy our vault
+            // Deploy our strategy
             (, vaults[i]) = strategyFactory.deployStrategy('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
 
-            address[] memory tokens = new address[](1);
-            tokens[0] = collection;
-            uint[] memory amounts = new uint[](1);
-            amounts[0] = 1 ether;
+            // Generate a random number of yield tokens
+            uint maxTokens = randomNumber(1, 5);
+
+            // Register our token and amount arrays
+            address[] memory _tokens = new address[](maxTokens);
+            uint[] memory _amounts = new uint[](maxTokens);
+
+            // Loop through our max token limit
+            for (uint t; t < maxTokens; ++t) {
+                // Create a fake token and award it a yield value
+                _tokens[t] = address(uint160(tracker));
+                _amounts[t] = randomNumber(20 ether);
+
+                // We additionally need to mock the decimal count returned against a token. We
+                // could, instead, create an ERC20 mock here but that would require our pricing
+                // executor to be mocked instead. This seemed like a simpler approach.
+                vm.mockCall(
+                    _tokens[t],
+                    abi.encodeWithSelector(ERC20.decimals.selector),
+                    abi.encode(uint(18))
+                );
+
+                ++tracker;
+            }
+
+            // Mock our tokens and amounts to be returned in the snapshot
+            vm.mockCall(
+                vaults[i],
+                abi.encodeWithSelector(BaseStrategy.snapshot.selector),
+                abi.encode(_tokens, _amounts)
+            );
 
             // Each staker will then deposit and vote
-            for (uint j; j < stakerCount; ++j) {
-                // Cast votes from this user against the vault collection
-                vm.startPrank(stakers[j]);
+            for (uint j; j < randomNumber(stakerCount); ++j) {
+                // Cast votes from this user for the vault collection
+                vm.prank(stakers[j]);
                 sweepWars.vote(collection, 1 ether, false);
-                vm.stopPrank();
             }
         }
 
@@ -267,14 +300,15 @@ contract EpochManagerTest is FloorTest {
         // The epoch will have incremented in `endEpoch`, so we minus 1.
         (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, false);
         assertEq(message, '');
 
         vm.roll(23);
 
-        // Move some funds to the Treasury
+        // Give the Treasury both WETH and ETH
         deal(address(treasury), 1000 ether);
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
 
         // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
         uint startBalance = address(treasury).balance;
@@ -289,7 +323,7 @@ contract EpochManagerTest is FloorTest {
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
     }
@@ -316,7 +350,7 @@ contract EpochManagerTest is FloorTest {
 
         // Register a sweep that does not include any FLOOR token amounts
         treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         // Sweep the epoch
         treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
@@ -354,7 +388,7 @@ contract EpochManagerTest is FloorTest {
 
         // Register a sweep that does not include any FLOOR token amounts
         treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         // Confirm that our event will be triggered in the sweep
         if (amounts[1] > 0) {
@@ -379,6 +413,7 @@ contract EpochManagerTest is FloorTest {
 
         // Confirm that, due to the burn, we still have the same starting balance
         assertEq(floor.balanceOf(address(treasury)), startBalance);
+    }
 
     /*
      * @dev To avoid needing a full integration test, this has just pulled out the
