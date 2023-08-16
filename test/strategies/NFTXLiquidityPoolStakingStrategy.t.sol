@@ -255,7 +255,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
-        /// Audit note - May want to check here for the sent value as well
+        // Check here for the sent value as well
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }

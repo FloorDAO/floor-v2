@@ -83,9 +83,10 @@ contract CollectionRegistryTest is FloorTest {
         // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
 
-        /// Audit Note - Missing state checks for the array push
+        // State checks for the array push
         collections = collectionRegistry.approvedCollections();
         assertEq(collections.length, 1);
+        assertEq(collections[0], DAI);
     }
 
     /**
@@ -133,7 +134,7 @@ contract CollectionRegistryTest is FloorTest {
         collectionRegistry.unapproveCollection(USDC);
         assertFalse(collectionRegistry.isApproved(USDC));
 
-        /// Audit Note - Misses state checks for the array changes
+        // State checks for the array changes
         collections = collectionRegistry.approvedCollections();
         assertEq(collections.length, 0);
     }
@@ -202,11 +203,12 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_CannotApproveCollectionWithoutPermissions() public {
-        vm.prank(alice);
+        vm.startPrank(alice);
 
-        /// Audit Note - Would suggest selector testing here in expect revert
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
         collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+
+        vm.stopPrank();
     }
 
     /**
@@ -236,18 +238,19 @@ contract CollectionRegistryTest is FloorTest {
         collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
     }
 
-    /// Audit Note - Would recommend tests that setter functions are also only
     function test_CannotSetPricingExecutorWithoutPermission() public {
         address pricingExecutor = address(new PricingExecutorMock());
 
-        vm.prank(alice);
-        vm.expectRevert();
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
         collectionRegistry.setPricingExecutor(pricingExecutor);
+        vm.stopPrank();
     }
 
     function test_CannotSetCollectionLiquidityThresholdWithoutPermission() public {
-        vm.prank(alice);
-        vm.expectRevert();
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
         collectionRegistry.setCollectionLiquidityThreshold(1 ether);
+        vm.stopPrank();
     }
 }

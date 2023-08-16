@@ -227,7 +227,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
 
-        /// Audit note - May want to add a check that the amount withdrawn went to the right place
+        // Check that the amount withdrawn went to the right place
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether - 1);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }

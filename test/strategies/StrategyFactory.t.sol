@@ -130,10 +130,6 @@ contract StrategyFactoryTest is FloorTest {
         assertEq(strategyId, 0);
         require(_strategy != address(0), 'Invalid strategy address');
 
-        /// Audit note, you may want to check that the strategy's ext code matches the clone proxy bytecode and
-        /// the field is set to the strategy's reference address correctly.
-        // assertEq(strategy.code, approvedStrategy.code);
-
         // Confirm our base information
         IBaseStrategy strategy = IBaseStrategy(_strategy);
         assertEq(strategy.name(), 'Test Strategy 1');
@@ -184,14 +180,12 @@ contract StrategyFactoryTest is FloorTest {
         strategyFactory.deployStrategy('Test Strategy', approvedStrategy, _strategyInitBytes(), unapprovedCollection);
     }
 
-    /// Audit note - In the strategy tests you have checks that the various functions which are called through this
-    ///              work. But there aren't any tests that this will prevent unauthorized users from calling them.
-    ///              I would recommend adding those role failure checks as those functions are critical path.
     function test_CannotDeployStrategyWithoutPermissions() public {
         vm.startPrank(alice);
-        vm.expectRevert();
 
-        // Create a strategy and store the address of the new clone
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.STRATEGY_MANAGER()));
         strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
+
+        vm.stopPrank();
     }
 }

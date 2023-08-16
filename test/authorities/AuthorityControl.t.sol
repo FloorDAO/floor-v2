@@ -56,11 +56,10 @@ contract AuthorityControlTest is FloorTest {
      * A role should not be able to be granted by a user that is not
      * the role admin.
      */
-    function testFail_CannotGrantRoleWithoutPermissions() public {
+    function test_CannotGrantRoleWithoutPermissions() public {
         // Set our requesting user to be Alice, who does not have permissions
         vm.startPrank(alice);
-        /// Audit Note - Would recommend vm.expectRevert(selector) so that you check your revert
-        ///              happens where you expect.
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, bob, authorityControl.GOVERNOR()));
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
         vm.stopPrank();
     }

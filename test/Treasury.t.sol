@@ -18,7 +18,6 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
-import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
@@ -57,9 +56,6 @@ contract TreasuryTest is FloorTest {
     StrategyFactory strategyFactory;
     SweeperMock sweeperMock;
     MercenarySweeperMock mercenarySweeperMock;
-
-    /// Store our sweeper
-    address manualSweeper;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our mock pricing executor
@@ -628,7 +624,7 @@ contract TreasuryTest is FloorTest {
         setCurrentEpoch(address(epochManager), epoch + 1);
 
         // Sweep our epoch
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
     function test_CannotExecuteSweepBeforeEpochHasPassed(uint160 epoch, uint160 sweepEpoch) external {
@@ -643,7 +639,7 @@ contract TreasuryTest is FloorTest {
 
         // Confirm that we cannot sweep as the epoch has not yet passed
         vm.expectRevert('Epoch has not passed');
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
     function test_CanExecuteSweepAsFloorHolder(uint160 epoch, uint160 sweepEpoch, uint floorBalance) external dealFloor(alice, floorBalance) {
@@ -658,11 +654,11 @@ contract TreasuryTest is FloorTest {
 
         vm.startPrank(alice);
 
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
 
         // Confirm we cannot sweep again
         vm.expectRevert('Epoch sweep already completed');
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
 
         vm.stopPrank();
     }
@@ -676,7 +672,7 @@ contract TreasuryTest is FloorTest {
 
         vm.expectRevert('Insufficient FLOOR holding');
         vm.prank(alice);
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
     function test_CannotExecuteResweepAsFloorHolderRegardlessOfHolding(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
@@ -688,10 +684,10 @@ contract TreasuryTest is FloorTest {
 
         vm.startPrank(alice);
 
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
 
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
-        treasury.resweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.resweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
 
         vm.stopPrank();
     }
@@ -704,7 +700,7 @@ contract TreasuryTest is FloorTest {
 
         vm.expectRevert('Only DAO may currently execute');
         vm.prank(alice);
-        treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
+        treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
     /**

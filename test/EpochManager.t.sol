@@ -208,7 +208,6 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     }
 
     function test_CanHandleEpochStressTest() public {
-        /// Audit Note - Good test, would be ideal to see more in this style [ie more integration-y]
         uint vaultCount = 10;
         uint maxStakerCount = 30;
 
