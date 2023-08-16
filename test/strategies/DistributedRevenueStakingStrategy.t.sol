@@ -87,6 +87,10 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
      * This should return an xToken that is stored in the strategy.
      */
     function test_CanDepositToRevenueStaking() public {
+        /**========================================
+         * Set up
+         */
+
         // Start with no deposits
         (address[] memory totalRewardTokens, uint[] memory totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], WETH);
@@ -121,28 +125,45 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(strategy.epochYield(2), 10 ether);
         assertEq(strategy.epochYield(3), 0 ether);
 
+        /**========================================
+         * Epoch 0 - Should have nothing available
+         */
+
         // Our total amount of rewards generated should only reflect rewards that are available
         // to collect at the current epoch. This would be zero currently as only rewards from
         // past epochs can be collected.
         (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], WETH);
-        assertEq(totalRewardAmounts[0], 20 ether);
+        assertEq(totalRewardAmounts[0], 0);
 
-        // Before the snapshot we should have 20 ether of tokens available, as this is the total
-        // amount that can be withdrawn at this epoch.
+        // Before the snapshot we should have 0 tokens available, as this is the total amount that
+        // can be withdrawn at this epoch. This would be zero currently as only rewards from past
+        // epochs can be collected.
         (availableTokens, availableAmounts) = strategy.available();
         assertEq(availableTokens[0], WETH);
-        assertEq(availableAmounts[0], 20 ether);
+        assertEq(availableAmounts[0], 0);
 
-        // Using our snapshot call, register the tokens to be distributed
+        // If we call snapshot, then we shouldn't be able to get anything as it is not ready until
+        // the next epoch.
         (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
-        assertEq(snapshotAmounts[0], 20 ether);
+        assertEq(snapshotAmounts[0], 0);
+
+        /**========================================
+         * Epoch 1 - Should have access to the epochYield at 0
+         */
 
         // If we shift our epoch forwards we should see that we now have 20 ether
         // allocation of our rewards.
         setCurrentEpoch(address(epochManager), 1);
 
+        // Our total amount of rewards generated should only reflect rewards that are available
+        // to collect at the current epoch.
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 20 ether);
+
+        // Our snapshot will now yield 20 ether
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 20 ether);
@@ -155,20 +176,25 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // We can, however, still see the total amounts of rewards generated
         (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], WETH);
-        assertEq(totalRewardAmounts[0], 40 ether);
+        assertEq(totalRewardAmounts[0], 20 ether);
 
-        // As we are now in the second epoch, we should still see that we have 40 ether available
-        // as we haven't processed a withdrawal against the strategy. We will test this logic in
-        // a subsequent test suite.
-        (availableTokens, availableAmounts) = strategy.available();
-        assertEq(availableTokens[0], WETH);
-        assertEq(availableAmounts[0], 40 ether);
+        /**========================================
+         * Epoch 3 - Should have access to the epochYield at 1 and 2
+         */
 
-        // Our last snapshot call should only hold the remaining 20 + 10 ETH
-        setCurrentEpoch(address(epochManager), 2);
+        // Our last snapshot call should only hold the remaining 20 ETH + 10 ETH
+        setCurrentEpoch(address(epochManager), 3);
+
+        // Our total amount of rewards generated, and the available yield, should reflect both
+        // the rewards from epoch 1 and epoch 2, as we did not previously claim.
+        // to collect at the current epoch.
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 50 ether);
+
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
-        assertEq(snapshotAmounts[0], 10 ether);
+        assertEq(snapshotAmounts[0], 30 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
@@ -180,11 +206,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 50 ether);
 
+        /**========================================
+         * Epoch 4 - Should have no tokens remaining to claim
+         */
+
         // Shifting to after our epoch deposits, we should no longer have rewards
-        setCurrentEpoch(address(epochManager), 3);
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
-        assertEq(snapshotAmounts[0], 0 ether);
+        setCurrentEpoch(address(epochManager), 4);
 
         // No additional rewards will have been generated, and we should see the total amounts
         // available shown in both `totalRewards` and `available`.
@@ -192,9 +219,9 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 50 ether);
 
-        (availableTokens, availableAmounts) = strategy.available();
-        assertEq(availableTokens[0], WETH);
-        assertEq(availableAmounts[0], 50 ether);
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
+        assertEq(snapshotTokens[0], WETH);
+        assertEq(snapshotAmounts[0], 0 ether);
     }
 
     /**

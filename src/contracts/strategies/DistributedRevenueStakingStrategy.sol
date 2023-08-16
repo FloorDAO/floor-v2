@@ -135,7 +135,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
 
         // Capture our starting balance
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] <= _currentEpoch) {
+            if (_activeEpochs[i] < _currentEpoch) {
                 // Add to amount we can extract
                 amount += epochYield[_activeEpochs[i]];
 
@@ -171,7 +171,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
         uint amount;
 
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] <= _currentEpoch) {
+            if (_activeEpochs[i] < _currentEpoch) {
                 amount += epochYield[_activeEpochs[i]];
             }
 
