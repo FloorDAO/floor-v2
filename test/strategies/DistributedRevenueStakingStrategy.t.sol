@@ -338,25 +338,107 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         vm.assume(_maxEpochYield1 != 0);
         vm.assume(_maxEpochYield2 != 0);
 
+        // Confirm that the correct amount is mapped on creation
         assertEq(strategy.maxEpochYield(), 20 ether);
 
+        // Confirm we can set it to a new value
         strategy.setMaxEpochYield(_maxEpochYield1);
         assertEq(strategy.maxEpochYield(), _maxEpochYield1);
 
+        // Confirm we can set it to the same value without revert
         strategy.setMaxEpochYield(_maxEpochYield1);
         assertEq(strategy.maxEpochYield(), _maxEpochYield1);
 
+        // Confirm we can change the value
         strategy.setMaxEpochYield(_maxEpochYield2);
         assertEq(strategy.maxEpochYield(), _maxEpochYield2);
 
+        // Confirm we can change it back again
         strategy.setMaxEpochYield(_maxEpochYield1);
         assertEq(strategy.maxEpochYield(), _maxEpochYield1);
 
+        // Confirm we cannot set it to a zero value
         vm.expectRevert('Cannot set zero yield');
         strategy.setMaxEpochYield(0);
 
+        // Confirm that a non-permissioned user cannot call it
         vm.prank(users[1]);
         vm.expectRevert();
         strategy.setMaxEpochYield(_maxEpochYield1);
+    }
+
+    /**
+     * Checks the distribution formula runs as expected when changing max yield.
+     */
+    function test_CanSetMaxEpochYieldRedistribution() external {
+        // Make a deposit of 70 ether into the strategy as we will need to test that the
+        // amount is reallocated correctly.
+        vm.startPrank(testUser);
+        IERC20(WETH).approve(address(strategy), 70 ether);
+        strategy.depositErc20(70 ether);
+        vm.stopPrank();
+
+        // Confirm the starting yield split
+        assertEq(strategy.epochYield(0), 20 ether);
+        assertEq(strategy.epochYield(1), 20 ether);
+        assertEq(strategy.epochYield(2), 20 ether);
+        assertEq(strategy.epochYield(3), 10 ether);
+
+        // Update our epoch yield and confirm that the redistribution has been done correctly
+        strategy.setMaxEpochYield(30 ether);
+
+        assertEq(strategy.epochYield(0), 30 ether);
+        assertEq(strategy.epochYield(1), 30 ether);
+        assertEq(strategy.epochYield(2), 10 ether);
+        assertEq(strategy.epochYield(3), 0);
+
+        // Shift our epoch 1 forward and change the distribution
+        setCurrentEpoch(address(epochManager), 1);
+
+        // The change should revert as we will need to withdraw available yield first
+        vm.expectRevert('Yield must be withdrawn');
+        strategy.setMaxEpochYield(15 ether);
+
+        // Withdraw the yield and try to run again
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
+        strategy.setMaxEpochYield(15 ether);
+
+        // Since we didn't withdraw any amount, we should just now bypass the initial epoch and
+        // begin distributing from the current epoch.
+        assertEq(strategy.epochYield(0), 0);
+        assertEq(strategy.epochYield(1), 15 ether);
+        assertEq(strategy.epochYield(2), 15 ether);
+        assertEq(strategy.epochYield(3), 15 ether);
+        assertEq(strategy.epochYield(4), 10 ether);
+        assertEq(strategy.epochYield(5), 0 ether);
+
+        // Shift forward 1; Withdraw; Redistribute
+        setCurrentEpoch(address(epochManager), 2);
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
+        strategy.setMaxEpochYield(20 ether);
+
+        assertEq(strategy.epochYield(0), 0);
+        assertEq(strategy.epochYield(1), 0);
+        assertEq(strategy.epochYield(2), 20 ether);
+        assertEq(strategy.epochYield(3), 20 ether);
+        assertEq(strategy.epochYield(4), 10 ether);
+        assertEq(strategy.epochYield(5), 0);
+
+        // Update the max yield to the same value to confirm we don't change anything
+        strategy.setMaxEpochYield(20 ether);
+
+        assertEq(strategy.epochYield(0), 0);
+        assertEq(strategy.epochYield(1), 0);
+        assertEq(strategy.epochYield(2), 20 ether);
+        assertEq(strategy.epochYield(3), 20 ether);
+        assertEq(strategy.epochYield(4), 10 ether);
+        assertEq(strategy.epochYield(5), 0);
+
+        // Update the max yield to all include in the same
+        strategy.setMaxEpochYield(100 ether);
+        assertEq(strategy.epochYield(0), 0 ether);
+        assertEq(strategy.epochYield(1), 0 ether);
+        assertEq(strategy.epochYield(2), 100 ether);
+        assertEq(strategy.epochYield(3), 0 ether);
     }
 }

@@ -94,30 +94,8 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
         emit Deposit(_tokens[0], amount, msg.sender);
         emit Harvest(_tokens[0], amount);
 
-        // Distribute our yield across the coming epochs
-        for (uint _epoch = currentEpoch();;) {
-            if (amount == 0) {
-                break;
-            }
-
-            uint epochAmount = maxEpochYield - epochYield[_epoch];
-
-            if (epochAmount != 0) {
-                if (epochYield[_epoch] == 0) {
-                    _activeEpochs.push(_epoch);
-                }
-
-                unchecked {
-                    uint k = (epochAmount < amount) ? epochAmount : amount;
-                    amount -= k;
-                    epochYield[_epoch] += k;
-                }
-            }
-
-            unchecked {
-                ++_epoch;
-            }
-        }
+        // Distribute our deposit across the epochs
+        _distributeAmount(amount, currentEpoch());
 
         return amount;
     }
@@ -139,6 +117,9 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
                 // Add to amount we can extract
                 amount += epochYield[_activeEpochs[i]];
 
+                // Unset the amount from the epochYield mapping
+                delete epochYield[_activeEpochs[i]];
+
                 // Remove element
                 _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
                 _activeEpochs.pop();
@@ -155,9 +136,9 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
 
             // Fire an event to show amount of token claimed and the recipient
             emit Withdraw(_tokens[0], amount, recipient);
-        }
 
-        lifetimeRewards[_tokens[0]] += amount;
+            lifetimeRewards[_tokens[0]] += amount;
+        }
 
         // As we have a 1:1 mapping of tokens, we can just return the initial withdrawal amount
         return amount;
@@ -166,7 +147,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
@@ -203,7 +184,53 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
      * Allows the `maxEpochYield` to be updated by an approved caller.
      */
     function setMaxEpochYield(uint _maxEpochYield) external onlyRole(STRATEGY_MANAGER) {
+        // Ensure that we aren't setting a value that will prevent distribution
         require(_maxEpochYield != 0, 'Cannot set zero yield');
+
+        // Ensure that there is no available yield waiting to be claimed
+        (, uint[] memory amounts) = available();
+        require(amounts[0] == 0, 'Yield must be withdrawn');
+
+        // Update the max epoch yield
         maxEpochYield = _maxEpochYield;
+
+        // Capture our total balance starting balance that will need to be redistributed
+        uint amount = IERC20(_tokens[0]).balanceOf(address(this));
+
+        // Delete the current epoch distribution
+        delete _activeEpochs;
+
+        // Redistribute using the new amounts
+        _distributeAmount(amount, currentEpoch());
+    }
+
+    /**
+     * Distributes an amount of tokens across epochs.
+     */
+    function _distributeAmount(uint amount, uint startEpoch) internal {
+        // Distribute our yield across the coming epochs
+        for (uint _epoch = startEpoch;;) {
+            if (amount == 0) {
+                break;
+            }
+
+            uint epochAmount = maxEpochYield - epochYield[_epoch];
+
+            if (epochAmount != 0) {
+                if (epochYield[_epoch] == 0) {
+                    _activeEpochs.push(_epoch);
+                }
+
+                unchecked {
+                    uint k = (epochAmount < amount) ? epochAmount : amount;
+                    amount -= k;
+                    epochYield[_epoch] += k;
+                }
+            }
+
+            unchecked {
+                ++_epoch;
+            }
+        }
     }
 }
