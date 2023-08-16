@@ -57,7 +57,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     error ZeroAddress();
 
     /// Set a list of locking periods that the user can lock for
-    uint8[] public LOCK_PERIODS = [uint8(2), 4, 8, 12, 24];
+    uint8[] public LOCK_PERIODS = [uint8(2), 4, 8, 12];
 
     /// Our FLOOR token
     IERC20 public immutable floor;
@@ -395,9 +395,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         }
 
         // Update the depositor lock to the current epoch
-        // (11 + 2) - 12 = 1
         depositor.epochStart = uint160((currentEpoch + LOCK_PERIODS[0]) - depositor.epochCount);
-        // depositor.epochCount = LOCK_PERIODS[0];
 
         // SSTORE our updated depositor data
         depositors[account] = depositor;
