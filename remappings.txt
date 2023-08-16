@@ -15,3 +15,4 @@ forge-std/=lib/forge-std/src/
 @floor-interfaces/=src/interfaces/
 @floor-scripts/=script/
 @ERC721A/=lib/ERC721A/contracts/
+foundry-random=lib/foundry-random/src/

@@ -41,3 +41,7 @@
 	path = lib/ERC721A
 	url = https://github.com/chiru-labs/ERC721A
 	branch = main
+[submodule "lib/foundry-random"]
+	path = lib/foundry-random
+	url = https://github.com/joejordan/foundry-random
+	branch = v1.0.2

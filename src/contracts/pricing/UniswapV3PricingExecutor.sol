@@ -58,16 +58,10 @@ interface IUniswapV3Pool {
  *
  * Multicall documentation can be found here:
  * https://github.com/Uniswap/v3-periphery/blob/main/contracts/base/Multicall.sol
- *
- * We will also find the spot price of the FLOOR:ETH pool so that we can calculate
- * TOKEN -> FLOOR via ETH as an interim.
  */
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// Maintain an immutable address of the Uniswap V3 Pool Factory contract
     IUniswapV3Factory public immutable uniswapV3PoolFactory;
-
-    /// The contract address of the Floor token
-    address public immutable floor;
 
     /// The WETH contract address used for price mappings
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -75,17 +69,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// Keep a cache of our pool addresses for gas optimisation
     mapping(address => address) internal poolAddresses;
 
-    /// Keep a cache of our latest price mappings
-    mapping(address => uint) internal floorPriceCache;
-
     /**
      * Set our immutable contract addresses.
      *
      * @dev Mainnet Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
      */
-    constructor(address _poolFactory, address _floor) {
+    constructor(address _poolFactory) {
         uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
-        floor = _floor;
     }
 
     /**
@@ -120,92 +110,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * Gets a live mapped price of a token to FLOOR, returned in the correct decimal
-     * count for the target token.
-     *
-     * We get the latest price of not only the requested token, but also for the
-     * FLOOR token. We can then determine the amount of returned token based on
-     * live price values from Token -> ETH -> FLOOR.
-     *
-     * @param token Token to find price of
-     *
-     * @return uint The FLOOR value of a singular token
-     */
-    function getFloorPrice(address token) external returns (uint) {
-        // Send our token address, as well as our FLOOR address
-        address[] memory tokens = new address[](2);
-        tokens[0] = token;
-        tokens[1] = address(floor);
-
-        // Get our token prices and find the converted value into FLOOR
-        uint[] memory prices = _getPrices(tokens);
-        return floorPriceCache[token] = _calculateFloorPrice(prices[0], prices[1]);
-    }
-
-    /**
-     * Gets a live mapped price of multiple tokens to FLOOR.
-     *
-     * @param tokens[] Tokens to find price of
-     *
-     * @return uint[] The FLOOR values of tokens passed
-     */
-    function getFloorPrices(address[] memory tokens) external returns (uint[] memory) {
-        // We first need to get our Floor price, as well as our token prices
-        uint floorPrice = _getPrice(address(floor));
-        uint[] memory prices = _getPrices(tokens);
-
-        // Gas saves by storing the array length
-        uint tokensLength = tokens.length;
-
-        // We only need to store the same number of tokens passed in, so we exclude
-        // our additional floor price request from the response.
-        uint[] memory output = new uint[](tokensLength);
-
-        // Each iteration requires us to calculate the floor price based on the token
-        // so that we can return the token amount in the correct decimal accuracy.
-        for (uint i; i < tokensLength;) {
-            output[i] = _calculateFloorPrice(prices[i], floorPrice);
-            floorPriceCache[tokens[i]] = output[i];
-            unchecked {
-                ++i;
-            }
-        }
-
-        return output;
-    }
-
-    /**
-     * Gets the latest Floor price returned. This won't make an external call and should
-     * only be used in reference when live data is not required.
-     */
-    function getLatestFloorPrice(address token) external view returns (uint) {
-        return floorPriceCache[token];
-    }
-
-    /**
      * Retrieves the amount of WETH held in the Uniswap pool.
      */
     function getLiquidity(address token) external returns (uint) {
         return IWETH(WETH).balanceOf(_poolAddress(token));
-    }
-
-    /**
-     * This helper function allows us to return the amount of FLOOR a user would receive
-     * for 1 token, returned in the decimal accuracy of the FLOOR token.
-     *
-     * @param tokenPrice Spot price of passed token contract for 1 token
-     * @param floorPrice Spot price of FLOOR for 1 token
-     *
-     * @return The amount of FLOOR returned if one token sold
-     */
-    function _calculateFloorPrice(uint tokenPrice, uint floorPrice) internal pure returns (uint) {
-        unchecked {
-            if (floorPrice > tokenPrice) {
-                return ((tokenPrice * 1e18) / floorPrice);
-            }
-
-            return ((tokenPrice * 1e18) / floorPrice) / 1e18;
-        }
     }
 
     /**
@@ -292,13 +200,13 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
 
         // Remove our fee from this amount by our 1% fee (1000 = 1%)
-        return (decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96) * 99000) / 100000;
+        return (_decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96) * 99000) / 100000;
     }
 
     /**
      * Decodes the `SqrtPriceX96` value.
      */
-    function decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
+    function _decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
         if (uint160(underlying) < uint160(WETH)) {
             price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2 ** (96 * 2)) / 1e18) / underlyingDecimalsScaler;
         } else {

@@ -73,7 +73,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldIncreaseUnlockTimeForDeposit() external {
         veFloor.deposit(100 ether, 3);
 
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
@@ -98,7 +98,7 @@ contract VeFloorStakingTest is FloorTest {
 
         // Deposit for 8 epochs
         veFloor.deposit(100 ether, 2);
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
 
         veFloor.earlyWithdrawTo(address(this), 0 ether, 100 ether);
 
@@ -133,7 +133,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_ShouldReturnZeroBeforeDepositMade() external {
-        epochManager.setCurrentEpoch(1);
+        setCurrentEpoch(address(epochManager), 1);
 
         veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
@@ -143,7 +143,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldWithdrawUsersDeposit() external {
         veFloor.deposit(100 ether, 1);
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
 
         uint balanceaddr = floor.balanceOf(address(this));
 
@@ -160,7 +160,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_ShouldWithdrawUsersDepositAndSentTokensToOtherAddress() external {
         veFloor.deposit(100 ether, 1);
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
 
         uint balanceaddr = floor.balanceOf(address(this));
         uint balanceAddr1 = floor.balanceOf(alice);
@@ -210,7 +210,7 @@ contract VeFloorStakingTest is FloorTest {
 
     function test_EarlyWithdrawToShouldNotWorkAfterUnlockTime() external {
         veFloor.deposit(1 ether, 3);
-        epochManager.setCurrentEpoch(26);
+        setCurrentEpoch(address(epochManager), 26);
 
         vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
         veFloor.earlyWithdrawTo(address(this), 1, 1);
@@ -253,7 +253,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
         // Move our epoch forward to 20 weeks
-        epochManager.setCurrentEpoch(20);
+        setCurrentEpoch(address(epochManager), 20);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
@@ -278,22 +278,22 @@ contract VeFloorStakingTest is FloorTest {
 
         (uint rest2YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
         (uint rest1HalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
         (uint rest1YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(8);
+        setCurrentEpoch(address(epochManager), 8);
         (uint restHalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(12);
+        setCurrentEpoch(address(epochManager), 12);
         (uint restMonthLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(20);
+        setCurrentEpoch(address(epochManager), 20);
         (uint restWeekLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        epochManager.setCurrentEpoch(22);
+        setCurrentEpoch(address(epochManager), 22);
         (uint restDayLoss,,) = veFloor.earlyWithdrawLoss(address(this));
 
         assertGt(rest2YearsLoss, rest1HalfYearsLoss);
@@ -309,7 +309,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
         // Shift our epoch to 12 weeks
-        epochManager.setCurrentEpoch(12);
+        setCurrentEpoch(address(epochManager), 12);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
@@ -332,49 +332,49 @@ contract VeFloorStakingTest is FloorTest {
     function test_CanDetermineEarlyWithdrawLossAtFullStakeDuration() external {
         veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
 
-        epochManager.setCurrentEpoch(0);
+        setCurrentEpoch(address(epochManager), 0);
         (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 100 ether);
         assertEq(ret, 0 ether);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 91666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 8333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 83333333333333333334, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 16666666666666666666, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(8);
+        setCurrentEpoch(address(epochManager), 8);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 66666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 33333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(12);
+        setCurrentEpoch(address(epochManager), 12);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(24);
+        setCurrentEpoch(address(epochManager), 24);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0 ether);
         assertEq(ret, 100 ether);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(25);
+        setCurrentEpoch(address(epochManager), 25);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0 ether);
         assertEq(ret, 100 ether);
@@ -385,41 +385,41 @@ contract VeFloorStakingTest is FloorTest {
     function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration() external {
         veFloor.deposit(100 ether, MAX_EPOCH_INDEX - 1);
 
-        epochManager.setCurrentEpoch(0);
+        setCurrentEpoch(address(epochManager), 0);
         (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 41666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 58333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 33333333333333333328);
         assertEq(ret, 66666666666666666672);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(8);
+        setCurrentEpoch(address(epochManager), 8);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 16666666666666666664);
         assertEq(ret, 83333333333333333336);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(12);
+        setCurrentEpoch(address(epochManager), 12);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0);
         assertEq(ret, 100 ether);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(13);
+        setCurrentEpoch(address(epochManager), 13);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0);
         assertEq(ret, 100 ether);
@@ -430,7 +430,7 @@ contract VeFloorStakingTest is FloorTest {
     // Example 1 : Lock for 12 epochs, call refresh with 0 epochs passed. Should not change.
     function test_CanRefreshLock_1(uint160 _startEpoch) external {
         // Set our current epoch to our test value
-        epochManager.setCurrentEpoch(_startEpoch);
+        setCurrentEpoch(address(epochManager), _startEpoch);
 
         // Set our voting contracts. The actual address does not matter, as we only need to
         // use it to prank the caller.
@@ -459,7 +459,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.assume(_startEpoch < type(uint160).max - 10);
 
         // Set our current epoch to our test value
-        epochManager.setCurrentEpoch(_startEpoch);
+        setCurrentEpoch(address(epochManager), _startEpoch);
 
         // Set our voting contracts. The actual address does not matter, as we only need to
         // use it to prank the caller.
@@ -473,7 +473,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
 
         // Move our epoch forward after the deposit
-        epochManager.setCurrentEpoch(_startEpoch + 10);
+        setCurrentEpoch(address(epochManager), _startEpoch + 10);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
@@ -491,7 +491,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.assume(_startEpoch < type(uint160).max - 11);
 
         // Set our current epoch to our test value
-        epochManager.setCurrentEpoch(_startEpoch);
+        setCurrentEpoch(address(epochManager), _startEpoch);
 
         // Set our voting contracts. The actual address does not matter, as we only need to
         // use it to prank the caller.
@@ -505,7 +505,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
 
         // Move our epoch forward after the deposit
-        epochManager.setCurrentEpoch(_startEpoch + 11);
+        setCurrentEpoch(address(epochManager), _startEpoch + 11);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
@@ -523,7 +523,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.assume(_startEpoch < type(uint160).max - 12);
 
         // Set our current epoch to our test value
-        epochManager.setCurrentEpoch(_startEpoch);
+        setCurrentEpoch(address(epochManager), _startEpoch);
 
         // Set our voting contracts. The actual address does not matter, as we only need to
         // use it to prank the caller.
@@ -537,7 +537,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
 
         // Move our epoch forward after the deposit
-        epochManager.setCurrentEpoch(_startEpoch + 10);
+        setCurrentEpoch(address(epochManager), _startEpoch + 10);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
@@ -555,7 +555,7 @@ contract VeFloorStakingTest is FloorTest {
         vm.assume(_startEpoch < type(uint160).max - 24);
 
         // Set our current epoch to our test value
-        epochManager.setCurrentEpoch(_startEpoch);
+        setCurrentEpoch(address(epochManager), _startEpoch);
 
         // Set our voting contracts. The actual address does not matter, as we only need to
         // use it to prank the caller.
@@ -569,7 +569,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
 
         // Move our epoch forward after the deposit
-        epochManager.setCurrentEpoch(_startEpoch + 24);
+        setCurrentEpoch(address(epochManager), _startEpoch + 24);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));

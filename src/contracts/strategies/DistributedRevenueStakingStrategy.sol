@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
@@ -23,6 +23,8 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
 contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
+    using SafeERC20 for IERC20;
+
     /// An array of tokens supported by the strategy
     address[] private _tokens;
 
@@ -54,9 +56,8 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         address token;
         (token, maxEpochYield, _epochManager) = abi.decode(_initData, (address, uint, address));
 
-        // Set the underlying token as valid to process
+        // Set the underlying token that will be used in various transfer calls
         _tokens.push(token);
-        _validTokens[token] = true;
 
         // Set our epoch manager
         _setEpochManager(_epochManager);
@@ -72,14 +73,14 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      *
      * @return uint Amount of token registered as rewards
      */
-    function depositErc20(uint amount) external nonReentrant whenNotPaused onlyValidToken(_tokens[0]) returns (uint) {
+    function depositErc20(uint amount) external nonReentrant whenNotPaused returns (uint) {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
         }
 
         // Transfer the underlying token from our caller
-        IERC20(_tokens[0]).transferFrom(msg.sender, address(this), amount);
+        IERC20(_tokens[0]).safeTransferFrom(msg.sender, address(this), amount);
 
         // Emit our event to followers. We need to emit both a `Deposit` and `Harvest` as this
         // strategy essentially merges the two.
@@ -121,7 +122,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      *
      * @return uint Amount of the token returned
      */
-    function withdrawErc20(address recipient) external nonReentrant onlyOwner onlyValidToken(_tokens[0]) returns (uint) {
+    function withdrawErc20(address recipient) external nonReentrant onlyOwner returns (uint) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
@@ -143,7 +144,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
         if (amount != 0) {
             // Transfer the received token to the caller
-            IERC20(_tokens[0]).transfer(recipient, amount);
+            IERC20(_tokens[0]).safeTransfer(recipient, amount);
 
             // Fire an event to show amount of token claimed and the recipient
             emit Withdraw(_tokens[0], amount, recipient);
@@ -157,16 +158,13 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
     /**
      * Gets rewards that are available to harvest.
-     *
-     * @dev This will always return two empty arrays as we will never have
-     * tokens available to harvest.
      */
     function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] <= _currentEpoch) {
+            if (_activeEpochs[i] < _currentEpoch) {
                 amount += epochYield[_activeEpochs[i]];
             }
 
@@ -177,7 +175,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
         tokens_ = _tokens;
         amounts_ = new uint[](1);
-        amounts_[0] = amount + lifetimeRewards[tokens_[0]];
+        amounts_[0] = amount;
     }
 
     /**

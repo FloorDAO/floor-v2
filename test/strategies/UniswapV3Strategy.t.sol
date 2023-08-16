@@ -286,4 +286,46 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 5);
         assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 6);
     }
+
+    function test_CanGetPoolTokenBalances() public {
+        vm.startPrank(LIQUIDITY_HOLDER);
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), 100000_000000);
+        IERC20(TOKEN_B).approve(address(strategy), 100 ether);
+
+        // Make our initial deposit that will mint our token (5000 USDC + 2 WETH). As this is
+        // our first deposit, we will also mint a token.
+        (uint liquidity, uint amount0, uint amount1) = strategy.deposit(5000_000000, 2 ether, 0, 0, block.timestamp);
+
+        vm.stopPrank();
+
+        assertEq(amount0, 3735336855);
+        assertEq(amount1, 1999999999999976962);
+        assertEq(liquidity, 86433059121040);
+
+        // Get our token balances and we will see a dust level difference
+        (uint token0Amount, uint token1Amount, uint128 liquidityAmount) = strategy.tokenBalances();
+        assertEq(token0Amount, 3735336854);
+        assertEq(token1Amount, 1999999999999976961);
+        assertEq(liquidityAmount, 86433059121040);
+
+        // Make another deposit
+        vm.startPrank(LIQUIDITY_HOLDER);
+        (liquidity, amount0, amount1) = strategy.deposit(2500_000000, 1 ether, 0, 0, block.timestamp);
+        vm.stopPrank();
+
+        // These values will appear to be 50% of the current holdings, as the relative
+        // values are now 50% of the total supply, rather than in the previous deposit
+        // it accounted for 100%.
+        assertEq(amount0, 1867668428);
+        assertEq(amount1, 999999999999988481);
+        assertEq(liquidity, 43216529560520);
+
+        // Our `tokenBalances` call will now show our total holdings
+        (token0Amount, token1Amount, liquidityAmount) = strategy.tokenBalances();
+        assertEq(token0Amount, 5603005281);
+        assertEq(token1Amount, 2999999999999965442);
+        assertEq(liquidityAmount, 129649588681560);
+    }
 }
