@@ -435,32 +435,31 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         strategy.setMaxEpochYield(15 ether);
 
-        // Since we didn't withdraw any amount, we should just now bypass the initial epoch and
-        // begin distributing from the current epoch.
+        // We have previously withdrawn 30 eth, so there should be 40 remaining to be
+        // distributed across epochs 1 and upwards.
         assertEq(strategy.epochYield(0), 0);
         assertEq(strategy.epochYield(1), 15 ether);
         assertEq(strategy.epochYield(2), 15 ether);
-        assertEq(strategy.epochYield(3), 15 ether);
-        assertEq(strategy.epochYield(4), 10 ether);
-        assertEq(strategy.epochYield(5), 0 ether);
+        assertEq(strategy.epochYield(3), 10 ether);
+        assertEq(strategy.epochYield(4), 0);
 
         // Shift forward 1; Withdraw; Redistribute
         setCurrentEpoch(address(epochManager), 2);
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         strategy.setMaxEpochYield(20 ether);
 
+        // We have withdrawn an additional 15 eth now, so this will leave us with 25 eth
         assertEq(strategy.epochYield(0), 0);
         assertEq(strategy.epochYield(1), 0);
         assertEq(strategy.epochYield(2), 20 ether);
-        assertEq(strategy.epochYield(3), 20 ether);
-        assertEq(strategy.epochYield(4), 10 ether);
-        assertEq(strategy.epochYield(5), 0);
+        assertEq(strategy.epochYield(3), 5 ether);
+        assertEq(strategy.epochYield(4), 0);
 
-        // Update the max yield to all include in the same
+        // Update the max yield to all include in the same epoch
         strategy.setMaxEpochYield(100 ether);
         assertEq(strategy.epochYield(0), 0 ether);
         assertEq(strategy.epochYield(1), 0 ether);
-        assertEq(strategy.epochYield(2), 100 ether);
+        assertEq(strategy.epochYield(2), 25 ether);
         assertEq(strategy.epochYield(3), 0 ether);
     }
 }
