@@ -625,7 +625,7 @@ contract TreasuryTest is FloorTest {
         _registerSweep(epoch);
 
         // Move to the next epoch to unlock
-        epochManager.setCurrentEpoch(epoch + 1);
+        setCurrentEpoch(address(epochManager), epoch + 1);
 
         // Sweep our epoch
         treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
@@ -639,7 +639,7 @@ contract TreasuryTest is FloorTest {
         _registerSweep(epoch);
 
         // Set our current epoch to one before the sweep is registered
-        epochManager.setCurrentEpoch(sweepEpoch);
+        setCurrentEpoch(address(epochManager), sweepEpoch);
 
         // Confirm that we cannot sweep as the epoch has not yet passed
         vm.expectRevert('Epoch has not passed');
@@ -654,7 +654,7 @@ contract TreasuryTest is FloorTest {
         vm.assume(floorBalance >= treasury.FLOOR_SWEEP_REQUIREMENT());
 
         _registerSweep(epoch);
-        epochManager.setCurrentEpoch(sweepEpoch);
+        setCurrentEpoch(address(epochManager), sweepEpoch);
 
         vm.startPrank(alice);
 
@@ -672,7 +672,7 @@ contract TreasuryTest is FloorTest {
         vm.assume(floorBalance < treasury.FLOOR_SWEEP_REQUIREMENT());
 
         _registerSweep(epoch);
-        epochManager.setCurrentEpoch(epoch + 2);
+        setCurrentEpoch(address(epochManager), epoch + 2);
 
         vm.expectRevert('Insufficient FLOOR holding');
         vm.prank(alice);
@@ -684,7 +684,7 @@ contract TreasuryTest is FloorTest {
         vm.assume(floorBalance > treasury.FLOOR_SWEEP_REQUIREMENT());
 
         _registerSweep(epoch);
-        epochManager.setCurrentEpoch(epoch + 2);
+        setCurrentEpoch(address(epochManager), epoch + 2);
 
         vm.startPrank(alice);
 
@@ -700,36 +700,13 @@ contract TreasuryTest is FloorTest {
         vm.assume(epoch < type(uint160).max - 1);
 
         _registerSweep(epoch);
-        epochManager.setCurrentEpoch(epoch + 1);
+        setCurrentEpoch(address(epochManager), epoch + 1);
 
         vm.expectRevert('Only DAO may currently execute');
         vm.prank(alice);
         treasury.sweepEpoch(epoch, manualSweeper, 'Test Sweep', 0);
     }
 
-    function _registerSweep(uint epoch) internal {
-        address[] memory collections = new address[](3);
-        collections[0] = address(1);
-        collections[1] = address(2);
-        collections[2] = address(3);
-
-        uint[] memory amounts = new uint[](3);
-        amounts[0] = 1 ether;
-        amounts[1] = 2 ether;
-        amounts[2] = 3 ether;
-
-        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
-    }
-
-    modifier dealFloor(address recipient, uint amount) {
-        // At the start of our test, we already mint 1 FLOOR token to power tests and we
-        // may need to mint additional FLOOR tokens throughout. To avoid getting arithmatic
-        // overflow, we limit the amount that is generated in the initial instance.
-        vm.assume(amount < type(uint128).max);
-
-        // Mint FLOOR tokens to the user we are testing with
-        floor.mint(recipient, amount);
-=======
     /**
      * Test actions can be triggered via the {Treasury}. Although this test will just
      * use a simple action that wraps WETH, we will additionally send multiple ERC
@@ -1337,6 +1314,32 @@ contract TreasuryTest is FloorTest {
             collections[i] = address(new ERC20Mock());
             amounts[i] = (i + 1) * 1 ether;
         }
+    }
+
+    function _registerSweep(uint epoch) internal {
+        address[] memory collections = new address[](3);
+        collections[0] = address(1);
+        collections[1] = address(2);
+        collections[2] = address(3);
+
+        uint[] memory amounts = new uint[](3);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+        amounts[2] = 3 ether;
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+    }
+
+    modifier dealFloor(address recipient, uint amount) {
+        // At the start of our test, we already mint 1 FLOOR token to power tests and we
+        // may need to mint additional FLOOR tokens throughout. To avoid getting arithmatic
+        // overflow, we limit the amount that is generated in the initial instance.
+        vm.assume(amount < type(uint128).max);
+
+        // Mint FLOOR tokens to the user we are testing with
+        floor.mint(recipient, amount);
+
+        _;
     }
 
     /**

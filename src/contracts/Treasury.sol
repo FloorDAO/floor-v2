@@ -26,9 +26,6 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// Sets our minimum floor holding requirement for sweeps
-    uint public FLOOR_SWEEP_REQUIREMENT = 5_000 ether;
-
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
