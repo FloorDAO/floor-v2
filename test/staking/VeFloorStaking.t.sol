@@ -574,7 +574,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(10 ether, firstIndex);
 
         // Update the current epoch
-        setCurrentEpoch(address(epochManager), intermediaryEpoch);
+        epochManager.setCurrentEpoch(intermediaryEpoch);
 
         // Determine if this second deposit should fail
         if (startEpoch + veFloor.LOCK_PERIODS(firstIndex) > intermediaryEpoch + veFloor.LOCK_PERIODS(secondIndex)) {
