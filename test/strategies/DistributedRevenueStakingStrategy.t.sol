@@ -51,7 +51,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
-            address(new DistributedRevenueStakingStrategy()),
+            address(new DistributedRevenueStakingStrategy(address(authorityRegistry))),
             abi.encode(WETH, 20 ether, address(epochManager)),
             0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
@@ -329,5 +329,34 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         vm.startPrank(testUser);
         vm.expectRevert(CannotDepositZeroAmount.selector);
         strategy.depositErc20(0);
+    }
+
+    /**
+     * Confirm that we can update the amount distributed per epoch on a strategy.
+     */
+    function test_CanSetMaxEpochYield(uint _maxEpochYield1, uint _maxEpochYield2) external {
+        vm.assume(_maxEpochYield1 != 0);
+        vm.assume(_maxEpochYield2 != 0);
+
+        assertEq(strategy.maxEpochYield(), 20 ether);
+
+        strategy.setMaxEpochYield(_maxEpochYield1);
+        assertEq(strategy.maxEpochYield(), _maxEpochYield1);
+
+        strategy.setMaxEpochYield(_maxEpochYield1);
+        assertEq(strategy.maxEpochYield(), _maxEpochYield1);
+
+        strategy.setMaxEpochYield(_maxEpochYield2);
+        assertEq(strategy.maxEpochYield(), _maxEpochYield2);
+
+        strategy.setMaxEpochYield(_maxEpochYield1);
+        assertEq(strategy.maxEpochYield(), _maxEpochYield1);
+
+        vm.expectRevert('Cannot set zero yield');
+        strategy.setMaxEpochYield(0);
+
+        vm.prank(users[1]);
+        vm.expectRevert();
+        strategy.setMaxEpochYield(_maxEpochYield1);
     }
 }

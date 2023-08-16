@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
@@ -22,7 +23,7 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  *
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
-contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
+contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, EpochManaged {
     using SafeERC20 for IERC20;
 
     /// An array of tokens supported by the strategy
@@ -36,6 +37,12 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
     /// Keep track of the epochs that have > 0 yield
     uint[] private _activeEpochs;
+
+    /**
+     * This strategy needs to be authority controlled as we need the ability to update
+     * the `maxEpochYield`.
+     */
+    constructor(address _authority) AuthorityControl(_authority) {}
 
     /**
      * Sets up our contract variables.
@@ -128,7 +135,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
         // Capture our starting balance
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] < _currentEpoch) {
+            if (_activeEpochs[i] <= _currentEpoch) {
                 // Add to amount we can extract
                 amount += epochYield[_activeEpochs[i]];
 
@@ -164,7 +171,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         uint amount;
 
         for (uint i; i < _activeEpochs.length;) {
-            if (_activeEpochs[i] < _currentEpoch) {
+            if (_activeEpochs[i] <= _currentEpoch) {
                 amount += epochYield[_activeEpochs[i]];
             }
 
@@ -190,5 +197,13 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      */
     function validTokens() external view override returns (address[] memory) {
         return _tokens;
+    }
+
+    /**
+     * Allows the `maxEpochYield` to be updated by an approved caller.
+     */
+    function setMaxEpochYield(uint _maxEpochYield) external onlyRole(STRATEGY_MANAGER) {
+        require(_maxEpochYield != 0, 'Cannot set zero yield');
+        maxEpochYield = _maxEpochYield;
     }
 }
