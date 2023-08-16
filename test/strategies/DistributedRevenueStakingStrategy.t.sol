@@ -92,6 +92,11 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 0);
 
+        // We should have nothing available for the strategy either
+        (address[] memory availableTokens, uint[] memory availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 0);
+
         // Confirm our test user's starting balance
         assertEq(IERC20(WETH).balanceOf(testUser), 78.4 ether);
 
@@ -123,6 +128,12 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 20 ether);
 
+        // Before the snapshot we should have 20 ether of tokens available, as this is the total
+        // amount that can be withdrawn at this epoch.
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 20 ether);
+
         // Using our snapshot call, register the tokens to be distributed
         (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
@@ -146,6 +157,13 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 40 ether);
 
+        // As we are now in the second epoch, we should still see that we have 40 ether available
+        // as we haven't processed a withdrawal against the strategy. We will test this logic in
+        // a subsequent test suite.
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 40 ether);
+
         // Our last snapshot call should only hold the remaining 20 + 10 ETH
         setCurrentEpoch(address(epochManager), 2);
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
@@ -167,6 +185,16 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
         assertEq(snapshotTokens[0], WETH);
         assertEq(snapshotAmounts[0], 0 ether);
+
+        // No additional rewards will have been generated, and we should see the total amounts
+        // available shown in both `totalRewards` and `available`.
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 50 ether);
+
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 50 ether);
     }
 
     /**
@@ -232,14 +260,24 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // For the purposes of this test, we set the {Treasury} to this test contract
         strategyFactory.setTreasury(address(this));
 
-        // Try and withdraw from current epoch
+        // Try and withdraw from current epoch. This should return nothing as we aren't currently
+        // in an epoch that would allow it.
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 0);
 
         // Move our epoch forwards
         setCurrentEpoch(address(epochManager), 1);
 
-        // Confirm we can withdraw from past epoch
+        // We should see that our total rewards is 20 ether, and we have 20 ether available to
+        // withdraw against.
+        (address[] memory totalRewardTokens, uint[] memory totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 20 ether);
+        (address[] memory availableTokens, uint[] memory availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 20 ether);
+
+        // Confirm we can withdraw from past epochs, which would be 20 ether in total
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
 
@@ -248,13 +286,39 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
 
+        // After our withdrawal, we should still see that the total rewards amount is 20 ether, but
+        // our available rewards will no longer show the 20 ether.
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 20 ether);
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 0);
+
         // Move our epoch forward to last one
         setCurrentEpoch(address(epochManager), 3);
+
+        // Before our withdrawal, because we have skipped over 2 epochs we should have a summary
+        // in the `totalRewards` and the reduced total in `available`.
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 50 ether);
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 30 ether);
 
         // Confirm we can withdraw from past epochs, but trying to withdraw from
         // current epoch will revert.
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
         assertEq(IERC20(WETH).balanceOf(address(this)), 50 ether);
+
+        // After processing a successful withdrawal, our `available` amount will have been reduced
+        (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
+        assertEq(totalRewardTokens[0], WETH);
+        assertEq(totalRewardAmounts[0], 50 ether);
+        (availableTokens, availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], WETH);
+        assertEq(availableAmounts[0], 0);
     }
 
     /**
