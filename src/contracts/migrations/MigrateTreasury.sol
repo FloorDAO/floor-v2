@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {ILegacyTreasury} from '@floor-interfaces/legacy/Treasury.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
@@ -18,6 +18,8 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * to make these migrations. This role must be assigned to this contract after deployment.
  */
 contract MigrateTreasury is Ownable {
+    using SafeERC20 for IERC20;
+
     /// Contract addresses of our new and old {Treasury} contracts
     ILegacyTreasury public immutable oldTreasury;
     ITreasury public immutable newTreasury;

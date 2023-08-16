@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {ERC721A} from '@ERC721A/ERC721A.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
@@ -16,7 +16,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * a user to soft lock their token, without the token being in direct ownership of
  * the calling user. It will, however, require that the
  */
-abstract contract ERC721Lockable is ERC721, Ownable {
+abstract contract ERC721Lockable is ERC721A, Ownable {
     /**
      * Holds information about our token locks.
      */
@@ -40,7 +40,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
     /**
      * Checks if the token ID is currently locked, based on the lock timestamp.
      */
-    function isLocked(uint tokenId) external view returns (bool) {
+    function isLocked(uint tokenId) public view returns (bool) {
         return tokenLocks[tokenId].unlocksAt > block.timestamp;
     }
 
@@ -48,8 +48,8 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      * The address of the staker that has locked the token ID. If the token is not
      * currently locked, then a zero address will be returned.
      */
-    function lockedBy(uint tokenId) external view returns (address) {
-        return this.isLocked(tokenId) ? tokenLocks[tokenId].locker : address(0);
+    function lockedBy(uint tokenId) public view returns (address) {
+        return isLocked(tokenId) ? tokenLocks[tokenId].locker : address(0);
     }
 
     /**
@@ -57,18 +57,36 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      * locked then `0` will be returned.
      */
     function lockedUntil(uint tokenId) external view returns (uint) {
-        return this.isLocked(tokenId) ? tokenLocks[tokenId].unlocksAt : 0;
+        return isLocked(tokenId) ? tokenLocks[tokenId].unlocksAt : 0;
     }
 
     /**
      * Approves an address to lock the token, in the same manner that `approve` works.
      */
-    function approveLocker(address to, uint tokenId) external {
+    function approveLocker(address to, uint tokenId, bool approve) external {
         address currentOwner = ownerOf(tokenId);
-        require(to != currentOwner, 'ERC721: approval to current owner');
+        require(to != currentOwner, 'ERC721A: approval to current owner');
 
         if (currentOwner != msg.sender && (heldStakes[tokenId] != msg.sender || !_isApprovedStaker(currentOwner))) {
-            revert('ERC721: approve caller is not token owner');
+            revert('ERC721A: approve caller is not token owner');
+        }
+
+        if (approve) {
+            approvedLockers[tokenId] = to;
+        } else {
+            delete approvedLockers[tokenId];
+        }
+    }
+
+    /**
+     * Revokes an address from locking the token, in the same manner that `approve` works.
+     */
+    function approveLocker(address to, uint tokenId) external {
+        address currentOwner = ownerOf(tokenId);
+        require(to != currentOwner, 'ERC721A: approval to current owner');
+
+        if (currentOwner != msg.sender && (heldStakes[tokenId] != msg.sender || !_isApprovedStaker(currentOwner))) {
+            revert('ERC721A: approve caller is not token owner');
         }
 
         approvedLockers[tokenId] = to;
@@ -87,7 +105,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
         }
 
         // Check if we are already locked
-        require(!this.isLocked(tokenId), 'Token is already locked');
+        require(!isLocked(tokenId), 'Token is already locked');
 
         // Create our lock
         tokenLocks[tokenId] = TokenLock(msg.sender, unlocksAt);
@@ -98,7 +116,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      */
     function unlock(uint tokenId) external {
         // Ensure that the token is locked by the locker calling it
-        if (this.lockedBy(tokenId) == msg.sender) {
+        if (lockedBy(tokenId) == msg.sender) {
             delete tokenLocks[tokenId];
         }
     }
@@ -139,7 +157,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
      * Before a token is transferred, we need to check if it is being sent to an approved
      * staking contract to maintain.
      */
-    function _beforeTokenTransfer(address from, address to, uint firstTokenId, uint batchSize) internal virtual override (ERC721) {
+    function _beforeTokenTransfers(address from, address to, uint firstTokenId, uint batchSize) internal virtual override (ERC721A) {
         // If we are sending the token to an approved staker, then we want to hold ownership
         // against the user that sent it, to allow future softlocking. If the token is already
         // marked as staked by a user, then we maintain the current holder, otherwise we update
@@ -155,7 +173,7 @@ abstract contract ERC721Lockable is ERC721, Ownable {
         }
 
         // We can now process the transfer
-        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
+        super._beforeTokenTransfers(from, to, firstTokenId, batchSize);
     }
 
     /**

@@ -31,4 +31,13 @@ contract ManualSweepTest is FloorTest {
         // by the {Treasury} against the sweep.
         assertEq(message, 'Swept at: 0x74827d6490ce3235ae0da41418e5a9b399158960a079ab2ae1e47e1802f4437e');
     }
+
+    /**
+     * Allows the contract to receive unused ETH back from the ManualSweeper. ETH shouldn't
+     * be sent to a ManualSweeper, but if it is then it is returned to the caller. This test
+     * value should be the same as is passed in the `test_CanSweep` test `execute` call.
+     */
+    receive() external payable {
+        assertEq(msg.value, 15 ether);
+    }
 }

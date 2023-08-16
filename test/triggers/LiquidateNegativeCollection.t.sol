@@ -33,7 +33,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
     // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 4;
+    uint internal constant MAX_EPOCH_INDEX = 3;
 
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
@@ -113,7 +113,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         // Set up a revenue strategy
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
-            address(new DistributedRevenueStakingStrategy()),
+            address(new DistributedRevenueStakingStrategy(address(authorityRegistry))),
             abi.encode(WETH, 1 ether, address(epochManager)),
             approvedCollection1
         );
@@ -233,6 +233,33 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         assertEq(collection, address(0));
         assertEq(votes, int(0));
         assertEq(weth, 0);
+    }
+
+    function test_CanSetSlippage(uint slippage) public {
+        // Confirm our default slippage is 5%
+        assertEq(liquidateNegativeCollectionTrigger.slippage(), 5000);
+
+        // Ensure our slippage is a valid value
+        vm.assume(slippage < 100000);
+
+        // Update our slippage to 10%
+        liquidateNegativeCollectionTrigger.setSlippage(slippage);
+
+        // Confirm our new slippage is 10%
+        assertEq(liquidateNegativeCollectionTrigger.slippage(), slippage);
+    }
+
+    function test_CannotSetSlippageIfNotOwner() public {
+        vm.startPrank(alice);
+        vm.expectRevert('Ownable: caller is not the owner');
+        liquidateNegativeCollectionTrigger.setSlippage(5000);
+    }
+
+    function test_CannotSetSlippageAboveOneHundredPercent(uint badSlippage) public {
+        // Try and set our slippage above 100%
+        vm.assume(badSlippage >= 100000);
+        vm.expectRevert('Slippage too high');
+        liquidateNegativeCollectionTrigger.setSlippage(badSlippage);
     }
 
     function _deployStrategy(address collection) internal {

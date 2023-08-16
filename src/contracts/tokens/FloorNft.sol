@@ -4,12 +4,9 @@ pragma solidity ^0.8.0;
 import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import {ERC721, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
+import {ERC721A, ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
 
 contract FloorNft is ERC721Lockable {
-    /// Maintain an index of our current supply
-    uint private supply;
-
     /// The URI of your IPFS/hosting server for the metadata folder
     string internal uri;
 
@@ -22,8 +19,8 @@ contract FloorNft is ERC721Lockable {
     /// The maximum mint amount allowed per transaction
     uint public maxMintAmountPerTx;
 
-    /// The paused state for minting
-    bool public paused = true;
+    /// The paused state for minting (1 = paused, 2 = not paused)
+    uint public paused = 2;
 
     /// The Merkle Root used for whitelist minting
     bytes32 internal merkleRoot;
@@ -41,16 +38,9 @@ contract FloorNft is ERC721Lockable {
      * @param _maxSupply The maximum number of tokens mintable
      * @param _maxMintAmountPerTx The maximum number of tokens mintable per transaction
      */
-    constructor(string memory _name, string memory _symbol, uint _maxSupply, uint _maxMintAmountPerTx) ERC721(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, uint _maxSupply, uint _maxMintAmountPerTx) ERC721A(_name, _symbol) {
         maxSupply = _maxSupply;
         maxMintAmountPerTx = _maxMintAmountPerTx;
-    }
-
-    /**
-     * Returns the current supply of the collection.
-     */
-    function totalSupply() public view returns (uint) {
-        return supply;
     }
 
     /**
@@ -59,10 +49,9 @@ contract FloorNft is ERC721Lockable {
      * @param _mintAmount The number of tokens to mint
      */
     function mint(uint _mintAmount) public payable mintCompliance(_mintAmount) {
-        require(!paused, 'The contract is paused');
+        require(paused == 2, 'The contract is paused');
         require(msg.value >= cost * _mintAmount, 'Insufficient funds');
-
-        _mintLoop(msg.sender, _mintAmount);
+        _mint(msg.sender, _mintAmount);
     }
 
     /**
@@ -70,6 +59,8 @@ contract FloorNft is ERC721Lockable {
      * requiring a payment.
      */
     function whitelistMint(bytes32[] calldata _merkleProof) public payable mintCompliance(1) {
+        require(paused == 2, 'The contract is paused');
+
         // Ensure that the user has not already claimed their whitelist spot
         require(!whitelistClaimed[msg.sender], 'Address has already claimed');
 
@@ -83,19 +74,7 @@ contract FloorNft is ERC721Lockable {
         whitelistClaimed[msg.sender] = true;
 
         // Mint to our user
-        _mintLoop(msg.sender, 1);
-    }
-
-    /**
-     * Returns the Token URI with Metadata for specified token ID.
-     *
-     * @param _tokenId The token ID to get the metadata URI for
-     *
-     * @return The metadata URI for the token ID
-     */
-    function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), 'ERC721Metadata: URI query for nonexistent token');
-        return bytes(uri).length > 0 ? string(abi.encodePacked(uri, Strings.toString(_tokenId), '.json')) : '';
+        _mint(msg.sender, 1);
     }
 
     /**
@@ -123,7 +102,7 @@ contract FloorNft is ERC721Lockable {
      * to take place.
      */
     function setPaused(bool _state) public onlyOwner {
-        paused = _state;
+        paused = (_state) ? 1 : 2;
     }
 
     /**
@@ -154,23 +133,6 @@ contract FloorNft is ERC721Lockable {
     }
 
     /**
-     * Helper function to process looped minting from different external functions.
-     *
-     * @param _receiver Recipient of the NFT
-     * @param _mintAmount Number of tokens to mint to the receiver
-     */
-    function _mintLoop(address _receiver, uint _mintAmount) internal {
-        for (uint i; i < _mintAmount;) {
-            _safeMint(_receiver, supply + i);
-            unchecked {
-                i++;
-            }
-        }
-
-        supply += _mintAmount;
-    }
-
-    /**
      * The base of the metadata URI.
      */
     function _baseURI() internal view virtual override returns (string memory) {
@@ -185,7 +147,7 @@ contract FloorNft is ERC721Lockable {
      */
     modifier mintCompliance(uint _mintAmount) {
         require(_mintAmount > 0 && _mintAmount <= maxMintAmountPerTx, 'Invalid mint amount');
-        require(supply + _mintAmount <= maxSupply, 'Max supply exceeded');
+        require(_totalMinted() + _mintAmount <= maxSupply, 'Max supply exceeded');
         _;
     }
 

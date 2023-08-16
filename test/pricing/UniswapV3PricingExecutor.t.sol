@@ -46,7 +46,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function setUp() public {
         // Set up our pricing executor
-        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY, FLOORV1);
+        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY);
     }
 
     /**

@@ -57,7 +57,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     error ZeroAddress();
 
     /// Set a list of locking periods that the user can lock for
-    uint8[] public LOCK_PERIODS = [uint8(2), 4, 8, 12, 24];
+    uint8[] public LOCK_PERIODS = [uint8(2), 4, 8, 12];
 
     /// Our FLOOR token
     IERC20 public immutable floor;
@@ -104,7 +104,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     /**
      * @notice Sets the maximum allowed loss ratio for early withdrawal. If the ratio is not met, actual is more than allowed,
      * then early withdrawal will revert.
-     * Example: maxLossRatio = 90% and 1000 staked 1inch tokens means that a user can execute early withdrawal only
+     * Example: maxLossRatio = 90% and 1000 staked floor tokens means that a user can execute early withdrawal only
      * if his loss is less than or equals 90% of his stake, which is 900 tokens. Thus, if a user loses 900 tokens he is allowed
      * to do early withdrawal and not if the loss is greater.
      * @param maxLossRatio_ The maximum loss allowed (9 decimals).
@@ -197,11 +197,13 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         // Validate our epoch index key
         require(epochs < LOCK_PERIODS.length, 'Invalid epoch index');
 
-        // Ensure that the user is not trying to stake for less than existing
-        require(depositor.epochCount <= LOCK_PERIODS[epochs], 'Cannot stake less epochs');
+        // Ensure that the user is not trying to stake for less than the duration of epochs
+        // that are currently remaining on their stake.
+        uint _currentEpoch = currentEpoch();
+        require(_currentEpoch + LOCK_PERIODS[epochs] >= depositor.epochStart + depositor.epochCount, 'Cannot stake less epochs');
 
         // Update the depositor lock to the current epoch
-        depositor.epochStart = uint160(currentEpoch());
+        depositor.epochStart = uint160(_currentEpoch);
         depositor.epochCount = LOCK_PERIODS[epochs];
 
         // If we are staking additional tokens, then transfer the based FLOOR from the user
@@ -254,11 +256,14 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         }
 
         // Check if stake is already fully unlocked, meaning that we don't need to early exit
-        if (emergencyExit || currentEpoch() >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
+        uint _currentEpoch = currentEpoch();
+        if (emergencyExit || _currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
 
-        // Determine when our earliest exit epoch is and validate
-        uint allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
-        if (currentEpoch() < allowedExitTime) revert MinLockPeriodRatioNotReached();
+        // Determine when our earliest exit epoch is ensures that we have passed it. This is
+        // determined by the `minLockPeriodRatio` variable to calculate how much for the `epochCount`
+        // has passed from the `epochStart`.
+        uint allowedExitEpoch = depositor.epochStart + depositor.epochCount * minLockPeriodRatio / _ONE_E9;
+        if (_currentEpoch < allowedExitEpoch) revert MinLockPeriodRatioNotReached();
 
         // Check if the called is exempt from being required to pay early withdrawal fees
         if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
@@ -299,12 +304,25 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
             return (0, depAmount);
         }
 
-        // Determine the number of epochs remaining in the stake
+        // Determine the power that is actually applied to the user currently based on their
+        // staked amount and the comparative lock length.
+        uint power = (depAmount * depositor.epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+
+        // If we still have the full duration remaining then we don't need to do any
+        // further calculations.
+        if (depositor.epochStart == _currentEpoch) {
+            return (power, depAmount - power);
+        }
+
+        // Determine the number of epochs remaining in the stake. This is already overflow
+        // checked from the above conditional.
         uint remaining = depositor.epochCount - (_currentEpoch - depositor.epochStart);
 
-        // Calculate the early withdrawal fee
-        ret = (depAmount * (depositor.epochCount - remaining)) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-        loss = depAmount - ret;
+        // Calculate the early withdrawal fee by determining the "per epoch" power generated
+        // and then charging a penalty for the number of remaining epochs. This determines the
+        // penalty based on the power, and not the total amount deposited.
+        loss = (power / depositor.epochCount) * remaining;
+        ret = depAmount - loss;
     }
 
     /**
@@ -379,9 +397,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         }
 
         // Update the depositor lock to the current epoch
-        // (11 + 2) - 12 = 1
         depositor.epochStart = uint160((currentEpoch + LOCK_PERIODS[0]) - depositor.epochCount);
-        // depositor.epochCount = LOCK_PERIODS[0];
 
         // SSTORE our updated depositor data
         depositors[account] = depositor;

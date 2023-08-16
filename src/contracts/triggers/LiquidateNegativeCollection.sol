@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
@@ -19,6 +19,8 @@ import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
  * relative to the number of negative votes it received.
  */
 contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered {
+    using SafeERC20 for IERC20;
+
     IWETH public constant WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     /// The sweep war contract used by this contract
@@ -31,6 +33,9 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
 
     /// A threshold percentage that would be worth us working with
     uint public constant THRESHOLD = 1000; // 1%
+
+    /// An amount of slippage to allow in the call (defaults to 5%)
+    uint public slippage = 5000; // 5%
 
     /**
      * Holds the data for each epoch to show which collection, if any, received the most
@@ -128,22 +133,22 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
 
             for (uint k; k < tokens.length;) {
                 if (tokens[k] != address(WETH) && amounts[k] != 0) {
-                    // commands.push(bytes1(uint8(0x80)));
+                    // Add our swap command to the stack
                     commands.push(bytes1(uint8(0x00)));
 
-                    // TODO: Do we need to factor in some slippage?
+                    // Add our swap parameters
                     inputs.push(
                         abi.encode(
                             address(this),
                             amounts[k],
-                            0, // Minimum output
+                            amounts[k] - (amounts[k] * slippage / 100000), // Minimum output
                             abi.encodePacked(tokens[k], uint24(10000), address(WETH)),
                             false
                         )
                     );
 
                     // Transfer the specified amount of token to the universal router
-                    IERC20(tokens[k]).transfer(address(uniswapUniversalRouter), amounts[k]);
+                    IERC20(tokens[k]).safeTransfer(address(uniswapUniversalRouter), amounts[k]);
                 }
 
                 unchecked {
@@ -177,5 +182,18 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
         // Delete storage
         delete commands;
         delete inputs;
+    }
+
+    /**
+     * Allows the slippage allowed in the liquidation to be set.
+     *
+     * @dev Should take 3 decimal accuracy.
+     *
+     * @param _slippage New slippage percentage
+     */
+    function setSlippage(uint _slippage) public onlyOwner {
+        require(_slippage < 100000, 'Slippage too high');
+
+        slippage = _slippage;
     }
 }
