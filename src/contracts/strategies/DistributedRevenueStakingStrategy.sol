@@ -186,6 +186,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
     function setMaxEpochYield(uint _maxEpochYield) external onlyRole(STRATEGY_MANAGER) {
         // Ensure that we aren't setting a value that will prevent distribution
         require(_maxEpochYield != 0, 'Cannot set zero yield');
+        require(_maxEpochYield != maxEpochYield, 'Cannot set same value');
 
         // Ensure that there is no available yield waiting to be claimed
         (, uint[] memory amounts) = available();

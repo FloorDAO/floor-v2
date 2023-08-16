@@ -345,11 +345,11 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         strategy.setMaxEpochYield(_maxEpochYield1);
         assertEq(strategy.maxEpochYield(), _maxEpochYield1);
 
-        // Confirm we can set it to the same value without revert
+        // Confirm we cannot set it to the same value, as this would just take gas
+        vm.expectRevert('Cannot set same value');
         strategy.setMaxEpochYield(_maxEpochYield1);
-        assertEq(strategy.maxEpochYield(), _maxEpochYield1);
 
-        // Confirm we can change the value
+        // Confirm we can change the value again
         strategy.setMaxEpochYield(_maxEpochYield2);
         assertEq(strategy.maxEpochYield(), _maxEpochYield2);
 
