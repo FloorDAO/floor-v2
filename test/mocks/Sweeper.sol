@@ -35,6 +35,9 @@ contract SweeperMock is FloorTest, ISweeper {
         override
         returns (string memory)
     {
+        // Ensure the caller is the treasury
+        require(msg.sender == treasury, 'Invalid caller');
+
         // Iterate over our collections and `deal` the amounts to the `treasury`
         for (uint i; i < collections.length; ++i) {
             deal(collections[i], treasury, IERC20(collections[i]).balanceOf(treasury) + amounts[i]);
@@ -43,4 +46,6 @@ contract SweeperMock is FloorTest, ISweeper {
         // Return the bytes data that was provided as a string
         return string(data);
     }
+
+    receive () payable external {}
 }
