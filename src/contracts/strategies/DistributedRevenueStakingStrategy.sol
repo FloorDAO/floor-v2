@@ -56,9 +56,8 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         address token;
         (token, maxEpochYield, _epochManager) = abi.decode(_initData, (address, uint, address));
 
-        // Set the underlying token as valid to process
+        // Set the underlying token that will be used in various transfer calls
         _tokens.push(token);
-        _validTokens[token] = true;
 
         // Set our epoch manager
         _setEpochManager(_epochManager);
@@ -74,7 +73,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      *
      * @return uint Amount of token registered as rewards
      */
-    function depositErc20(uint amount) external nonReentrant whenNotPaused onlyValidToken(_tokens[0]) returns (uint) {
+    function depositErc20(uint amount) external nonReentrant whenNotPaused returns (uint) {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
@@ -123,7 +122,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      *
      * @return uint Amount of the token returned
      */
-    function withdrawErc20(address recipient) external nonReentrant onlyOwner onlyValidToken(_tokens[0]) returns (uint) {
+    function withdrawErc20(address recipient) external nonReentrant onlyOwner returns (uint) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
