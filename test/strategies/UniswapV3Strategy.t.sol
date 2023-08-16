@@ -45,6 +45,9 @@ contract UniswapV3StrategyTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Define a treasury wallet address that we can test against
+        treasury = users[1];
+
         // Create our {CollectionRegistry} and approve our collection
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         // Approve our ERC721 collection
@@ -54,6 +57,7 @@ contract UniswapV3StrategyTest is FloorTest {
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+        strategyFactory.setTreasury(treasury);
 
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
@@ -79,9 +83,6 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deal some additional USDC and WETH tokens
         deal(TOKEN_A, LIQUIDITY_HOLDER, 100_000_000000);
         deal(TOKEN_B, LIQUIDITY_HOLDER, 100_000000000000000000);
-
-        // Define a treasury wallet address that we can test against
-        treasury = users[1];
     }
 
     /**
@@ -149,7 +150,7 @@ contract UniswapV3StrategyTest is FloorTest {
 
         // We can now withdraw from the strategy
         strategyFactory.withdraw(
-            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 4))
+            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, uint128(liquidity / 4))
         );
 
         // Confirm that we now hold the token we expect
@@ -158,7 +159,7 @@ contract UniswapV3StrategyTest is FloorTest {
 
         // We can also make a subsequent withdrawal
         strategyFactory.withdraw(
-            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, treasury, 0, 0, block.timestamp, uint128(liquidity / 2))
+            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, uint128(liquidity / 2))
         );
 
         // Confirm that we now hold the token we expect
@@ -206,14 +207,14 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 10000_000000);
         assertEq(totalRewardAmounts[1], 5 ether);
 
-        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategy.snapshot();
+        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, 0);
         assertEq(snapshotTokens[0], TOKEN_A);
         assertEq(snapshotTokens[1], TOKEN_B);
         assertEq(snapshotAmounts[0], 10000_000000);
         assertEq(snapshotAmounts[1], 5 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategy.snapshot();
+        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, 0);
         assertEq(snapshotTokens[0], TOKEN_A);
         assertEq(snapshotTokens[1], TOKEN_B);
         assertEq(snapshotAmounts[0], 0);
@@ -279,12 +280,8 @@ contract UniswapV3StrategyTest is FloorTest {
         strategyFactory.withdrawPercentage(address(strategy), 2000);
 
         // Confirm that our recipient received the expected amount of tokens
-        assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 3);
-        assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 4);
-
-        // Confirm that the strategy still holds the expected number of yield token
-        assertEq(IERC20(TOKEN_A).balanceOf(address(strategy)), 5);
-        assertEq(IERC20(TOKEN_B).balanceOf(address(strategy)), 6);
+        assertEq(IERC20(TOKEN_A).balanceOf(address(this)), 747_067370); // 750~
+        assertEq(IERC20(TOKEN_B).balanceOf(address(this)), 399999999999995392); // 0.4~
     }
 
     function test_CanGetPoolTokenBalances() public {
