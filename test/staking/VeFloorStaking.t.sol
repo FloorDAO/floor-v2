@@ -12,7 +12,7 @@ import {FloorTest} from '../utilities/Environments.sol';
 
 contract VeFloorStakingTest is FloorTest {
     // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 4;
+    uint internal constant MAX_EPOCH_INDEX = 3;
 
     // Allow for early withdraw inaccuracy
     uint internal constant MAX_EARLY_WITHDRAW_INACCURACY = 20;
@@ -71,22 +71,22 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_ShouldIncreaseUnlockTimeForDeposit() external {
-        veFloor.deposit(100 ether, 3);
+        veFloor.deposit(100 ether, 2);
 
         setCurrentEpoch(address(epochManager), 2);
 
         (uint160 epochStart, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 0);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 100 ether);
 
-        assertEq(veFloor.votingPowerOf(address(this)), 50 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(100 ether));
 
         veFloor.deposit(0, MAX_EPOCH_INDEX);
 
         (epochStart, epochCount, amount) = veFloor.depositors(address(this));
         assertEq(epochStart, 2);
-        assertEq(epochCount, 24);
+        assertEq(epochCount, 12);
         assertEq(amount, 100 ether);
 
         assertEq(veFloor.votingPowerOf(address(this)), 100 ether);
@@ -209,7 +209,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_EarlyWithdrawToShouldNotWorkAfterUnlockTime() external {
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, MAX_EPOCH_INDEX - 1);
         setCurrentEpoch(address(epochManager), 26);
 
         vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
@@ -217,7 +217,7 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_EarlyWithdrawToShouldNotWorkWhenEmergencyExitIsSet() external {
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, MAX_EPOCH_INDEX - 1);
         veFloor.setEmergencyExit(true);
 
         vm.expectRevert(VeFloorStaking.StakeUnlocked.selector);
@@ -225,14 +225,14 @@ contract VeFloorStakingTest is FloorTest {
     }
 
     function test_EarlyWithdrawToShouldNotWorkWhenMinReturnIsNotMet() external {
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, MAX_EPOCH_INDEX - 1);
 
         vm.expectRevert(VeFloorStaking.MinReturnIsNotMet.selector);
         veFloor.earlyWithdrawTo(address(this), 1 ether, 1);
     }
 
     function test_EarlyWithdrawToShouldNotWorkWhenMaxLossIsNotMet() external {
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, MAX_EPOCH_INDEX - 1);
 
         vm.expectRevert(VeFloorStaking.MaxLossIsNotMet.selector);
         veFloor.earlyWithdrawTo(address(this), 0, 1);
@@ -253,7 +253,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
         // Move our epoch forward to 20 weeks
-        setCurrentEpoch(address(epochManager), 20);
+        setCurrentEpoch(address(epochManager), 10);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
@@ -273,35 +273,24 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether - loss);
     }
 
-    function test_EarlyWithdrawToShouldDecreaseLossWithTime() external {
-        veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
+    function test_EarlyWithdrawToShouldDecreaseLossWithTime(uint _deposit) external {
+        vm.assume(_deposit >= 1 ether);
+        vm.assume(_deposit <= 100 ether);
 
-        (uint rest2YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+        veFloor.deposit(_deposit, MAX_EPOCH_INDEX);
 
-        setCurrentEpoch(address(epochManager), 2);
-        (uint rest1HalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+        // Loop through all possible epoch locks, ensuring that the upper value will
+        // always be within range. We then compare that the loss from the later epoch
+        // will always be less than the former epoch.
+        for (uint i; i < 12; ++i) {
+            setCurrentEpoch(address(epochManager), i);
+            (uint a,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        setCurrentEpoch(address(epochManager), 4);
-        (uint rest1YearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
+            setCurrentEpoch(address(epochManager), i + 1);
+            (uint b,,) = veFloor.earlyWithdrawLoss(address(this));
 
-        setCurrentEpoch(address(epochManager), 8);
-        (uint restHalfYearsLoss,,) = veFloor.earlyWithdrawLoss(address(this));
-
-        setCurrentEpoch(address(epochManager), 12);
-        (uint restMonthLoss,,) = veFloor.earlyWithdrawLoss(address(this));
-
-        setCurrentEpoch(address(epochManager), 20);
-        (uint restWeekLoss,,) = veFloor.earlyWithdrawLoss(address(this));
-
-        setCurrentEpoch(address(epochManager), 22);
-        (uint restDayLoss,,) = veFloor.earlyWithdrawLoss(address(this));
-
-        assertGt(rest2YearsLoss, rest1HalfYearsLoss);
-        assertGt(rest1HalfYearsLoss, rest1YearsLoss);
-        assertGt(rest1YearsLoss, restHalfYearsLoss);
-        assertGt(restHalfYearsLoss, restMonthLoss);
-        assertGt(restMonthLoss, restWeekLoss);
-        assertGt(restWeekLoss, restDayLoss);
+            assertLt(b, a);
+        }
     }
 
     function test_CanExemptCallerFromEarlyWithdrawFees() external {
@@ -309,7 +298,7 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(1 ether, MAX_EPOCH_INDEX);
 
         // Shift our epoch to 12 weeks
-        setCurrentEpoch(address(epochManager), 12);
+        setCurrentEpoch(address(epochManager), 6);
 
         // Set Alice to receive fees
         veFloor.setFeeReceiver(alice);
@@ -329,105 +318,68 @@ contract VeFloorStakingTest is FloorTest {
         assertAlmostEqual(floor.balanceOf(address(this)), balanceAddrBefore + 1 ether, 1e4);
     }
 
-    function test_CanDetermineEarlyWithdrawLossAtFullStakeDuration() external {
-        veFloor.deposit(100 ether, MAX_EPOCH_INDEX);
-
-        setCurrentEpoch(address(epochManager), 0);
+    function _testEarlyWithdrawLoss(uint _epoch, uint _loss, uint _ret, bool _canWithdraw) internal {
+        setCurrentEpoch(address(epochManager), _epoch);
         (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 100 ether);
-        assertEq(ret, 0 ether);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
 
-        setCurrentEpoch(address(epochManager), 2);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 91666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 8333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        if (_loss != 0) {
+            assertAlmostEqual(loss, _loss, MAX_EARLY_WITHDRAW_INACCURACY);
+        } else {
+            assertEq(loss, _loss);
+        }
 
-        setCurrentEpoch(address(epochManager), 4);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 83333333333333333334, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 16666666666666666666, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        if (_ret != 0) {
+            assertAlmostEqual(ret, _ret, MAX_EARLY_WITHDRAW_INACCURACY);
+        } else {
+            assertEq(ret, _ret);
+        }
 
-        setCurrentEpoch(address(epochManager), 8);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 66666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 33333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
-
-        setCurrentEpoch(address(epochManager), 12);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
-
-        setCurrentEpoch(address(epochManager), 24);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 0 ether);
-        assertEq(ret, 100 ether);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
-
-        setCurrentEpoch(address(epochManager), 25);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 0 ether);
-        assertEq(ret, 100 ether);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        assertEq(canWithdraw, _canWithdraw);
     }
 
-    function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration() external {
-        veFloor.deposit(100 ether, MAX_EPOCH_INDEX - 1);
+    function test_CanDetermineEarlyWithdrawLossAtFullStakeDuration(uint _deposit) external {
+        // Set a range that would offer a reasonable deposit and below the user balance
+        vm.assume(_deposit >= 1 ether);
+        vm.assume(_deposit <= 100 ether);
 
-        setCurrentEpoch(address(epochManager), 0);
-        (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        veFloor.deposit(_deposit, MAX_EPOCH_INDEX);
 
-        setCurrentEpoch(address(epochManager), 2);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertAlmostEqual(loss, 41666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertAlmostEqual(ret, 58333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
-        assertEq(canWithdraw, true);
+        // After no epochs have passed, all funds should be lost
+        _testEarlyWithdrawLoss(0, _deposit, 0, true);
 
-        setCurrentEpoch(address(epochManager), 4);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 33333333333333333328);
-        assertEq(ret, 66666666666666666672);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        // Loop through all epochs between point of lock and point of completion
+        for (uint i = 1; i < 12; ++i) {
+            _testEarlyWithdrawLoss(i, _deposit * (12 - i) / 12, _deposit * i / 12, true);
+        }
 
-        setCurrentEpoch(address(epochManager), 8);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 16666666666666666664);
-        assertEq(ret, 83333333333333333336);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
-
-        setCurrentEpoch(address(epochManager), 12);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 0);
-        assertEq(ret, 100 ether);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
-
-        setCurrentEpoch(address(epochManager), 13);
-        (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
-        assertEq(loss, 0);
-        assertEq(ret, 100 ether);
-        assertEq(loss + ret, 100 ether);
-        assertEq(canWithdraw, true);
+        // At lock expiry, and subsequent epochs, we should have nothing lost and the
+        // full deposit available.
+        for (uint i = 12; i < 24; ++i) {
+            _testEarlyWithdrawLoss(i, 0, _deposit, true);
+        }
     }
 
-    // Example 1 : Lock for 12 epochs, call refresh with 0 epochs passed. Should not change.
+    function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration(uint _deposit) external {
+        // Set a range that would offer a reasonable deposit and below the user balance
+        vm.assume(_deposit >= 1 ether);
+        vm.assume(_deposit <= 100 ether);
+
+        veFloor.deposit(_deposit, MAX_EPOCH_INDEX - 1);
+
+        _testEarlyWithdrawLoss(0, _deposit / 2, _deposit / 2, true);
+
+        for (uint i; i < 8; ++i) {
+            _testEarlyWithdrawLoss(i, (_deposit / 2) * (12 - i) / 12, (_deposit / 2) + (_deposit * i / 12), true);
+        }
+
+        // At lock expiry, and subsequent epochs, we should have nothing lost and the
+        // full deposit available.
+        for (uint i = 8; i < 16; ++i) {
+            _testEarlyWithdrawLoss(i, 0, _deposit, true);
+        }
+    }
+
+    // Example 1 : Lock for 8 epochs, call refresh with 0 epochs passed. Should not change.
     function test_CanRefreshLock_1(uint160 _startEpoch) external {
         // Set our current epoch to our test value
         setCurrentEpoch(address(epochManager), _startEpoch);
@@ -436,27 +388,30 @@ contract VeFloorStakingTest is FloorTest {
         // use it to prank the caller.
         veFloor.setVotingContracts(address(1), address(2));
 
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, 2);
         (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
 
         (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
         assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
     }
 
-    // Example 2 : Lock for 12 epochs, call refresh with 10 epochs passed. Should not change.
-    function test_CanRefreshLock_2(uint160 _startEpoch) external {
+    // Example 2 : Lock for 8 epochs, call refresh with less than 8 epochs passed. Should not change.
+    function test_CanRefreshLock_2(uint160 _startEpoch, uint8 _epochShift) external {
         // Ensure we don't get value overflow for our starting epoch
-        vm.assume(_startEpoch < type(uint160).max - 10);
+        vm.assume(_startEpoch < type(uint160).max - 8);
+
+        // Test for all values under the lock limit
+        vm.assume(_epochShift < 8);
 
         // Set our current epoch to our test value
         setCurrentEpoch(address(epochManager), _startEpoch);
@@ -465,30 +420,32 @@ contract VeFloorStakingTest is FloorTest {
         // use it to prank the caller.
         veFloor.setVotingContracts(address(1), address(2));
 
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, 2);
         (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
 
         // Move our epoch forward after the deposit
-        setCurrentEpoch(address(epochManager), _startEpoch + 10);
+        setCurrentEpoch(address(epochManager), _startEpoch + _epochShift);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
 
+        uint expectedStartEpoch = (_epochShift == 7) ? _startEpoch + 1 : _startEpoch;
+
         (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
-        assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(startEpoch, expectedStartEpoch);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
     }
 
-    // Example 3 : Lock for 12 epochs, call refresh with 11 epochs passed. Should change.
+    // Example 3 : Lock for 8 epochs, call refresh with 8 epochs passed. Should change.
     function test_CanRefreshLock_3(uint160 _startEpoch) external {
         // Ensure we don't get value overflow for our starting epoch
-        vm.assume(_startEpoch < type(uint160).max - 11);
+        vm.assume(_startEpoch < type(uint160).max - 8);
 
         // Set our current epoch to our test value
         setCurrentEpoch(address(epochManager), _startEpoch);
@@ -497,30 +454,33 @@ contract VeFloorStakingTest is FloorTest {
         // use it to prank the caller.
         veFloor.setVotingContracts(address(1), address(2));
 
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, 2);
         (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
 
         // Move our epoch forward after the deposit
-        setCurrentEpoch(address(epochManager), _startEpoch + 11);
+        setCurrentEpoch(address(epochManager), _startEpoch + 8);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
 
         (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
-        assertEq(startEpoch, epochManager.currentEpoch() - 10);
-        assertEq(epochCount, 12);
+        assertEq(startEpoch, epochManager.currentEpoch() - 6);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
     }
 
-    // Example 4 : Lock for 12 epochs, call refresh with 12 epochs passed. Should change.
-    function test_CanRefreshLock_4(uint160 _startEpoch) external {
+    // Example 4 : Lock for 8 epochs, call refresh with more than 8 epochs passed. Should change.
+    function test_CanRefreshLock_4(uint160 _startEpoch, uint8 _epochShift) external {
         // Ensure we don't get value overflow for our starting epoch
-        vm.assume(_startEpoch < type(uint160).max - 12);
+        vm.assume(_startEpoch < type(uint160).max - type(uint8).max);
+
+        // Ensure we shift more than 8 epochs, but not over the uint160 cap
+        vm.assume(_epochShift > 8);
 
         // Set our current epoch to our test value
         setCurrentEpoch(address(epochManager), _startEpoch);
@@ -529,56 +489,24 @@ contract VeFloorStakingTest is FloorTest {
         // use it to prank the caller.
         veFloor.setVotingContracts(address(1), address(2));
 
-        veFloor.deposit(1 ether, 3);
+        veFloor.deposit(1 ether, 2);
         (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
         assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
 
         // Move our epoch forward after the deposit
-        setCurrentEpoch(address(epochManager), _startEpoch + 10);
+        setCurrentEpoch(address(epochManager), _startEpoch + _epochShift);
 
         vm.prank(address(1));
         veFloor.refreshLock(address(this));
 
         (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
-        assertEq(startEpoch, epochManager.currentEpoch() - 10);
-        assertEq(epochCount, 12);
+        assertEq(startEpoch, epochManager.currentEpoch() - 6);
+        assertEq(epochCount, 8);
         assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
-    }
-
-    // Example 5 : Lock for 12 epochs, call refresh with 24 epochs passed. Should change.
-    function test_CanRefreshLock_5(uint160 _startEpoch) external {
-        // Ensure we don't get value overflow for our starting epoch
-        vm.assume(_startEpoch < type(uint160).max - 24);
-
-        // Set our current epoch to our test value
-        setCurrentEpoch(address(epochManager), _startEpoch);
-
-        // Set our voting contracts. The actual address does not matter, as we only need to
-        // use it to prank the caller.
-        veFloor.setVotingContracts(address(1), address(2));
-
-        veFloor.deposit(1 ether, 3);
-        (uint160 startEpoch, uint8 epochCount, uint88 amount) = veFloor.depositors(address(this));
-        assertEq(startEpoch, _startEpoch);
-        assertEq(epochCount, 12);
-        assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
-
-        // Move our epoch forward after the deposit
-        setCurrentEpoch(address(epochManager), _startEpoch + 24);
-
-        vm.prank(address(1));
-        veFloor.refreshLock(address(this));
-
-        (startEpoch, epochCount, amount) = veFloor.depositors(address(this));
-        assertEq(startEpoch, epochManager.currentEpoch() - 10);
-        assertEq(epochCount, 12);
-        assertEq(amount, 1 ether);
-        assertEq(veFloor.votingPowerOf(address(this)), 0.5 ether);
+        assertEq(veFloor.votingPowerOf(address(this)), _calculateTwoThirds(1 ether));
     }
 
     function test_CannotRefreshLockFromUnknownCaller(address caller) external {
@@ -620,13 +548,13 @@ contract VeFloorStakingTest is FloorTest {
         vm.assume(intermediaryEpoch >= startEpoch);
 
         // Set our initial epoch
-        epochManager.setCurrentEpoch(startEpoch);
+        setCurrentEpoch(address(epochManager), startEpoch);
 
         // Make an initial deposit of a set index
         veFloor.deposit(10 ether, firstIndex);
 
         // Update the current epoch
-        epochManager.setCurrentEpoch(intermediaryEpoch);
+        setCurrentEpoch(address(epochManager), intermediaryEpoch);
 
         // Determine if this second deposit should fail
         if (startEpoch + veFloor.LOCK_PERIODS(firstIndex) > intermediaryEpoch + veFloor.LOCK_PERIODS(secondIndex)) {
@@ -639,5 +567,9 @@ contract VeFloorStakingTest is FloorTest {
 
     function _assertBalances(address _account, uint _balance, uint _epoch) internal {
         assertEq(veFloor.votingPowerAt(_account, _epoch), _balance);
+    }
+
+    function _calculateTwoThirds(uint i) internal pure returns (uint) {
+        return i * 2 / 3;
     }
 }

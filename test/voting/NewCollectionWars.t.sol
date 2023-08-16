@@ -29,7 +29,7 @@ contract NewCollectionWarsTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
     // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 4;
+    uint internal constant MAX_EPOCH_INDEX = 3;
 
     // Contract references to be deployed
     EpochManager epochManager;

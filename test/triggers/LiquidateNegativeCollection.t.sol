@@ -33,7 +33,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
     // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 4;
+    uint internal constant MAX_EPOCH_INDEX = 3;
 
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
