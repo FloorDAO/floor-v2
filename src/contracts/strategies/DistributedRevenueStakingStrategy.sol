@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
@@ -22,7 +23,7 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  *
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
-contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
+contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, EpochManaged {
     using SafeERC20 for IERC20;
 
     /// An array of tokens supported by the strategy
@@ -36,6 +37,12 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
     /// Keep track of the epochs that have > 0 yield
     uint[] private _activeEpochs;
+
+    /**
+     * This strategy needs to be authority controlled as we need the ability to update
+     * the `maxEpochYield`.
+     */
+    constructor(address _authority) AuthorityControl(_authority) {}
 
     /**
      * Sets up our contract variables.
@@ -87,30 +94,8 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
         emit Deposit(_tokens[0], amount, msg.sender);
         emit Harvest(_tokens[0], amount);
 
-        // Distribute our yield across the coming epochs
-        for (uint _epoch = currentEpoch();;) {
-            if (amount == 0) {
-                break;
-            }
-
-            uint epochAmount = maxEpochYield - epochYield[_epoch];
-
-            if (epochAmount != 0) {
-                if (epochYield[_epoch] == 0) {
-                    _activeEpochs.push(_epoch);
-                }
-
-                unchecked {
-                    uint k = (epochAmount < amount) ? epochAmount : amount;
-                    amount -= k;
-                    epochYield[_epoch] += k;
-                }
-            }
-
-            unchecked {
-                ++_epoch;
-            }
-        }
+        // Distribute our deposit across the epochs
+        _distributeAmount(amount, currentEpoch());
 
         return amount;
     }
@@ -132,13 +117,14 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
                 // Add to amount we can extract
                 amount += epochYield[_activeEpochs[i]];
 
+                // Unset the amount from the epochYield mapping
+                delete epochYield[_activeEpochs[i]];
+
                 // Remove element
                 _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
                 _activeEpochs.pop();
             } else {
-                unchecked {
-                    ++i;
-                }
+                unchecked { ++i; }
             }
         }
 
@@ -148,9 +134,9 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
 
             // Fire an event to show amount of token claimed and the recipient
             emit Withdraw(_tokens[0], amount, recipient);
-        }
 
-        lifetimeRewards[_tokens[0]] += amount;
+            lifetimeRewards[_tokens[0]] += amount;
+        }
 
         // As we have a 1:1 mapping of tokens, we can just return the initial withdrawal amount
         return amount;
@@ -159,7 +145,7 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         uint _currentEpoch = currentEpoch();
         uint amount;
 
@@ -190,5 +176,68 @@ contract DistributedRevenueStakingStrategy is BaseStrategy, EpochManaged {
      */
     function validTokens() external view override returns (address[] memory) {
         return _tokens;
+    }
+
+    /**
+     * Allows the `maxEpochYield` to be updated by an approved caller.
+     */
+    function setMaxEpochYield(uint _maxEpochYield) external onlyRole(STRATEGY_MANAGER) {
+        // Ensure that we aren't setting a value that will prevent distribution
+        require(_maxEpochYield != 0, 'Cannot set zero yield');
+        require(_maxEpochYield != maxEpochYield, 'Cannot set same value');
+
+        // Ensure that there is no available yield waiting to be claimed
+        (, uint[] memory amounts) = available();
+        require(amounts[0] == 0, 'Yield must be withdrawn');
+
+        // Update the max epoch yield
+        maxEpochYield = _maxEpochYield;
+
+        // Capture our total balance starting balance that will need to be redistributed
+        uint amount = IERC20(_tokens[0]).balanceOf(address(this));
+
+        // Reset our epoch yield mappings
+        uint activeEpochsLength = _activeEpochs.length;
+        for (uint i; i < activeEpochsLength;) {
+            delete epochYield[_activeEpochs[i]];
+            unchecked { ++i; }
+        }
+
+        // Delete the current epoch distribution
+        delete _activeEpochs;
+
+        // Redistribute using the new amounts
+        _distributeAmount(amount, currentEpoch());
+    }
+
+    /**
+     * Distributes an amount of tokens across epochs.
+     */
+    function _distributeAmount(uint amount, uint startEpoch) internal {
+        // Distribute our yield across the coming epochs
+        for (uint _epoch = startEpoch;;) {
+            if (amount == 0) {
+                break;
+            }
+
+            // Get the amount of possible yield to attach to the epoch
+            uint epochAmount = maxEpochYield - epochYield[_epoch];
+
+            if (epochAmount != 0) {
+                if (epochYield[_epoch] == 0) {
+                    _activeEpochs.push(_epoch);
+                }
+
+                unchecked {
+                    uint k = (epochAmount < amount) ? epochAmount : amount;
+                    amount -= k;
+                    epochYield[_epoch] += k;
+                }
+            }
+
+            unchecked {
+                ++_epoch;
+            }
+        }
     }
 }

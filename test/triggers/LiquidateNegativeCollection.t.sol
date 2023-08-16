@@ -113,7 +113,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         // Set up a revenue strategy
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
-            address(new DistributedRevenueStakingStrategy()),
+            address(new DistributedRevenueStakingStrategy(address(authorityRegistry))),
             abi.encode(WETH, 1 ether, address(epochManager)),
             approvedCollection1
         );
