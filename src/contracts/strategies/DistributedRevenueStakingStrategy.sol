@@ -124,9 +124,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
                 _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
                 _activeEpochs.pop();
             } else {
-                unchecked {
-                    ++i;
-                }
+                unchecked { ++i; }
             }
         }
 
@@ -198,6 +196,13 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
         // Capture our total balance starting balance that will need to be redistributed
         uint amount = IERC20(_tokens[0]).balanceOf(address(this));
 
+        // Reset our epoch yield mappings
+        uint activeEpochsLength = _activeEpochs.length;
+        for (uint i; i < activeEpochsLength;) {
+            delete epochYield[_activeEpochs[i]];
+            unchecked { ++i; }
+        }
+
         // Delete the current epoch distribution
         delete _activeEpochs;
 
@@ -215,6 +220,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
                 break;
             }
 
+            // Get the amount of possible yield to attach to the epoch
             uint epochAmount = maxEpochYield - epochYield[_epoch];
 
             if (epochAmount != 0) {
