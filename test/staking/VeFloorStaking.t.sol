@@ -374,7 +374,7 @@ contract VeFloorStakingTest is FloorTest {
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(25);
+        setCurrentEpoch(address(epochManager), 25);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0 ether);
         assertEq(ret, 100 ether);
@@ -385,41 +385,41 @@ contract VeFloorStakingTest is FloorTest {
     function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration() external {
         veFloor.deposit(100 ether, MAX_EPOCH_INDEX - 1);
 
-        epochManager.setCurrentEpoch(0);
+        setCurrentEpoch(address(epochManager), 0);
         (uint loss, uint ret, bool canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 50 ether, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(2);
+        setCurrentEpoch(address(epochManager), 2);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertAlmostEqual(loss, 41666666666666666667, MAX_EARLY_WITHDRAW_INACCURACY);
         assertAlmostEqual(ret, 58333333333333333333, MAX_EARLY_WITHDRAW_INACCURACY);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(4);
+        setCurrentEpoch(address(epochManager), 4);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 33333333333333333328);
         assertEq(ret, 66666666666666666672);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(8);
+        setCurrentEpoch(address(epochManager), 8);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 16666666666666666664);
         assertEq(ret, 83333333333333333336);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(12);
+        setCurrentEpoch(address(epochManager), 12);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0);
         assertEq(ret, 100 ether);
         assertEq(loss + ret, 100 ether);
         assertEq(canWithdraw, true);
 
-        epochManager.setCurrentEpoch(13);
+        setCurrentEpoch(address(epochManager), 13);
         (loss, ret, canWithdraw) = veFloor.earlyWithdrawLoss(address(this));
         assertEq(loss, 0);
         assertEq(ret, 100 ether);
