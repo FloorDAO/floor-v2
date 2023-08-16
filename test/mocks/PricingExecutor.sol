@@ -35,71 +35,15 @@ contract PricingExecutorMock is IBasePricingExecutor {
         return _getPrices(tokens);
     }
 
-    /**
-     * Gets a live mapped price of a token to FLOOR, returned in the correct decimal
-     * count for the target token.
-     *
-     * We get the latest price of not only the requested token, but also for the
-     * FLOOR token. We can then determine the amount of returned token based on
-     * live price values.
-     */
-    function getFloorPrice(address token) external view returns (uint) {
-        address[] memory tokens = new address[](2);
-        tokens[0] = token;
-        tokens[1] = address(floor);
-
-        uint[] memory prices = _getPrices(tokens);
-        return _calculateFloorPrice(token, prices[0], prices[1]);
-    }
-
-    /**
-     * Gets a live mapped price of multiple tokens to FLOOR.
-     */
-    function getFloorPrices(address[] memory tokens) external view returns (uint[] memory) {
-        // We first need to get our Floor price, as well as our token prices
-        uint floorPrice = _getPrice(address(floor));
-        uint[] memory prices = _getPrices(tokens);
-
-        // Gas saves by storing the array length
-        uint tokensLength = tokens.length;
-
-        // We only need to store the same number of tokens passed in, so we exclude
-        // our additional floor price request from the response.
-        uint[] memory output = new uint[](tokensLength);
-
-        // Each iteration requires us to calculate the floor price based on the token
-        // so that we can return the token amount in the correct decimal accuracy.
-        for (uint i; i < tokensLength;) {
-            output[i] = prices[i] * floorPrice;
-            unchecked {
-                ++i;
-            }
-        }
-
-        return output;
-    }
-
-    function getLatestFloorPrice(address token) external pure returns (uint) {
-        return _getPrice(token);
-    }
-
     function getLiquidity(address /* token */ ) external pure returns (uint) {
         return 1 ether;
-    }
-
-    /**
-     * This helper function allows us to return the amount of tokens a user would receive
-     * for 1 FLOOR token, returned in the decimal accuracy of the base token.
-     */
-    function _calculateFloorPrice(address token, uint tokenPrice, uint floorPrice) internal view returns (uint) {
-        return (floorPrice * 10 ** ERC20(token).decimals()) / tokenPrice;
     }
 
     /**
      * Retrieves the token price in WETH from a Uniswap pool.
      */
     function _getPrice(address token) internal pure returns (uint) {
-        return uint(uint160(token));
+        return uint(uint160(token)) * 1 ether;
     }
 
     /**

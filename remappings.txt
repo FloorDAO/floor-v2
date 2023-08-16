@@ -14,3 +14,4 @@ forge-std/=lib/forge-std/src/
 @floor/=src/contracts/
 @floor-interfaces/=src/interfaces/
 @floor-scripts/=script/
+foundry-random=lib/foundry-random/src/

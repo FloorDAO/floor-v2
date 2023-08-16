@@ -71,7 +71,7 @@ interface ITreasury {
     event ActionProcessed(address action, bytes data);
 
     /// @dev When a sweep is registered against an epoch
-    event SweepRegistered(uint epochIndex);
+    event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
 
     /// @dev When an action is assigned to a sweep epoch
     event SweepAction(uint sweepEpoch);
