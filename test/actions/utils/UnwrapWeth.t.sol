@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {UnwrapWeth} from '@floor/actions/utils/UnwrapWeth.sol';
 

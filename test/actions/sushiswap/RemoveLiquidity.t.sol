@@ -6,7 +6,7 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {SushiswapAddLiquidity} from '@floor/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity.sol';
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
