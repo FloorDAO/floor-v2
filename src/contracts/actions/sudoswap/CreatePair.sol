@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import {ICurve} from '@sudoswap/bonding-curves/ICurve.sol';
 import {LSSVMPairFactory} from '@sudoswap/LSSVMPairFactory.sol';
 import {ERC20, LSSVMPair} from '@sudoswap/LSSVMPair.sol';

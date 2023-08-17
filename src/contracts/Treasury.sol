@@ -245,10 +245,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         external
         onlyRole(TREASURY_MANAGER)
     {
-        // Confirm that we have collections, and that they each have an amount
-        uint collectionsLength = collections.length;
-        require(collectionsLength != 0, 'No collections provided');
-        require(collectionsLength == amounts.length, 'Collections =/= amounts');
+        // Confirm that each collection has an amount
+        require(collections.length == amounts.length, 'Collections =/= amounts');
 
         // Register our sweep against the epoch. This value can be overwritten if another sweep
         // is posted against the epoch, so this should be kept in mind during development.

@@ -28,23 +28,23 @@ contract NftStakingMock is INftStaking {
         votes_ = _votes;
     }
 
-    function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155) external {}
+    function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155) external pure {}
 
-    function unstake(address _collection, bool _is1155) external {}
+    function unstake(address _collection, bool _is1155) external pure {}
 
-    function unstake(address _collection, address _nftStakingStrategy, bool _is1155) external {}
+    function unstake(address _collection, address _nftStakingStrategy, bool _is1155) external pure {}
 
-    function unstakeFees(address _collection) external returns (uint) {
+    function unstakeFees(address _collection) external pure returns (uint) {
         return 0;
     }
 
-    function setVoteDiscount(uint16 _voteDiscount) external {}
+    function setVoteDiscount(uint16 _voteDiscount) external pure {}
 
-    function setSweepModifier(uint64 _sweepModifier) external {}
+    function setSweepModifier(uint64 _sweepModifier) external pure {}
 
-    function setPricingExecutor(address _pricingExecutor) external {}
+    function setPricingExecutor(address _pricingExecutor) external pure {}
 
-    function setBoostCalculator(address _boostCalculator) external {}
+    function setBoostCalculator(address _boostCalculator) external pure {}
 
-    function claimRewards(address _collection) external {}
+    function claimRewards(address _collection) external pure {}
 }

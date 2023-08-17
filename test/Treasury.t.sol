@@ -627,14 +627,6 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CannotRegisterSweepWithoutCollections(uint160 epoch) external {
-        address[] memory collections = new address[](0);
-        uint[] memory amounts = new uint[](0);
-
-        vm.expectRevert('No collections provided');
-        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-    }
-
     function test_CannotRegisterSweepWithMismatchedCollectionsAndAmounts(uint160 epoch, uint8 _collections, uint8 _amounts) external {
         // Ensure that we have at least 1 collection
         vm.assume(_collections >= 1);
