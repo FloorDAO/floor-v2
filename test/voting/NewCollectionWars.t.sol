@@ -110,7 +110,6 @@ contract NewCollectionWarsTest is FloorTest {
         epochManager = new EpochManager();
         newCollectionWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
-        sweepWars.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         epochManager.setContracts(

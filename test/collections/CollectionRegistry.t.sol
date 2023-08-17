@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CannotApproveNullCollection, CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 
 import {SweepWarsMock} from '../mocks/SweepWars.sol';

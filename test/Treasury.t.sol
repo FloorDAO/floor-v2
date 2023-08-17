@@ -35,6 +35,9 @@ contract TreasuryTest is FloorTest {
     // Mainnet WETH contract
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    /// @dev Emitted when a sweep is registered
+    event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
+
     // We want to store a small number of specific users for testing
     address alice;
     address bob;
@@ -104,7 +107,6 @@ contract TreasuryTest is FloorTest {
         epochManager = new EpochManager();
 
         // Set our epoch manager
-        sweepWars.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         // Supply our {Treasury} with sufficient WETH for sweep tests
@@ -539,11 +541,37 @@ contract TreasuryTest is FloorTest {
         amounts[1] = 2 ether;
         amounts[2] = 3 ether;
 
-        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+        // Confirm that we receive the expect event emit when the sweep is registered
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: epoch,
+            sweepType: TreasuryEnums.SweepType.COLLECTION_ADDITION,
+            collections: collections,
+            amounts: amounts
+        });
+
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);        // Confirm that we receive the expect event emit when the sweep is registered
+
+        // Pull the non-array data from the epochSweep object
+        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epoch);
+        assertTrue(sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION);
+        assertEq(completed, false);
+        assertEq(message, '');
+
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: epoch + 1,
+            sweepType: TreasuryEnums.SweepType.SWEEP,
+            collections: collections,
+            amounts: amounts
+        });
         treasury.registerSweep(epoch + 1, collections, amounts, TreasuryEnums.SweepType.SWEEP);
 
-        // treasury.epochSweeps(epoch);
-        // treasury.epochSweeps(epoch + 1);
+        // Pull the non-array data from the epochSweep object
+        (sweepType, completed, message) = treasury.epochSweeps(epoch + 1);
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
+        assertEq(completed, false);
+        assertEq(message, '');
     }
 
     function test_CanOverwriteRegisteredSweep(uint epoch) external {
@@ -557,9 +585,27 @@ contract TreasuryTest is FloorTest {
         amounts[1] = 2 ether;
         amounts[2] = 3 ether;
 
+        // Confirm that we receive the expect event emit when the sweep is registered
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: epoch,
+            sweepType: TreasuryEnums.SweepType.SWEEP,
+            collections: collections,
+            amounts: amounts
+        });
+
         treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
 
         amounts[2] = 4 ether;
+
+        // Confirm that we receive the expect event emit when the sweep is registered
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: epoch,
+            sweepType: TreasuryEnums.SweepType.SWEEP,
+            collections: collections,
+            amounts: amounts
+        });
 
         treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
     }
@@ -638,7 +684,7 @@ contract TreasuryTest is FloorTest {
         setCurrentEpoch(address(epochManager), sweepEpoch);
 
         // Confirm that we cannot sweep as the epoch has not yet passed
-        vm.expectRevert('Epoch has not passed');
+        vm.expectRevert('Epoch has not finished');
         treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
@@ -647,7 +693,7 @@ contract TreasuryTest is FloorTest {
         vm.assume(sweepEpoch > epoch + 2);
 
         // Set our minimum floor balance requirement
-        vm.assume(floorBalance >= treasury.FLOOR_SWEEP_REQUIREMENT());
+        vm.assume(floorBalance >= treasury.SWEEP_EXECUTE_TOKENS());
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), sweepEpoch);
@@ -665,7 +711,7 @@ contract TreasuryTest is FloorTest {
 
     function test_CannotExecuteSweepAsFloorHolderWithoutSufficientFloor(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
         vm.assume(epoch <= type(uint160).max - 2);
-        vm.assume(floorBalance < treasury.FLOOR_SWEEP_REQUIREMENT());
+        vm.assume(floorBalance < treasury.SWEEP_EXECUTE_TOKENS());
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), epoch + 2);
@@ -677,7 +723,7 @@ contract TreasuryTest is FloorTest {
 
     function test_CannotExecuteResweepAsFloorHolderRegardlessOfHolding(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
         vm.assume(epoch <= type(uint160).max - 2);
-        vm.assume(floorBalance > treasury.FLOOR_SWEEP_REQUIREMENT());
+        vm.assume(floorBalance > treasury.SWEEP_EXECUTE_TOKENS());
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), epoch + 2);
@@ -899,7 +945,7 @@ contract TreasuryTest is FloorTest {
         // holder. When we try and sweep it as a token holder address, we will receive a revert.
         setCurrentEpoch(address(epochManager), epoch + 1);
         vm.prank(alice);
-        vm.expectRevert('Only DAO can sweep subsequent epoch');
+        vm.expectRevert('Only DAO may currently execute');
         treasury.sweepEpoch(epoch, address(sweeperMock), '', 0);
 
         // Now we can set it to a subsequent epoch
@@ -941,7 +987,7 @@ contract TreasuryTest is FloorTest {
             vm.expectRevert('Epoch has not finished');
         }
         else if (sweepEpoch == uint(epoch) + 1) {
-            vm.expectRevert('Only DAO can sweep subsequent epoch');
+            vm.expectRevert('Only DAO may currently execute');
         }
 
         treasury.sweepEpoch(epoch, address(sweeperMock), '', 0);
@@ -973,7 +1019,7 @@ contract TreasuryTest is FloorTest {
         // holder. When we try and sweep it as a token holder address, we will receive a revert.
         setCurrentEpoch(address(epochManager), epoch + 1);
         vm.prank(alice);
-        vm.expectRevert('Only DAO can sweep subsequent epoch');
+        vm.expectRevert('Only DAO may currently execute');
         treasury.sweepEpoch(epoch, address(sweeperMock), '', 0);
 
         // Now we can set it to a subsequent epoch, but we still won't be able to sweep it as we
@@ -1150,24 +1196,6 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CannotSweepWithNoCollections(uint8 _sweepType, uint128 epoch, uint sweepEpoch) external variesSweepType(_sweepType) {
-        // Set our sweep epoch to be `>= epoch + 1` as this is the expected executable range
-        vm.assume(sweepEpoch > epoch);
-
-        // Get some test collections and amounts
-        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(0);
-
-        // Register a sweep to test against
-        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType(_sweepType));
-
-        // Set the epoch to the same as the sweep. This should not be sweepable by the DAO
-        setCurrentEpoch(address(epochManager), sweepEpoch);
-
-        // When we try and sweep it as the DAO owned address, we will receive a revert
-        vm.expectRevert('No collections to sweep');
-        treasury.sweepEpoch(epoch, address(sweeperMock), '', 0);
-    }
-
     function test_CannotSweepWithUnapprovedSweeper(uint8 _sweepType, uint128 epoch, uint sweepEpoch) external variesSweepType(_sweepType) {
         // Set our sweep epoch to be `>= epoch + 1` as this is the expected executable range
         vm.assume(sweepEpoch > epoch);
@@ -1314,9 +1342,9 @@ contract TreasuryTest is FloorTest {
 
     function _registerSweep(uint epoch) internal {
         address[] memory collections = new address[](3);
-        collections[0] = address(1);
-        collections[1] = address(2);
-        collections[2] = address(3);
+        collections[0] = address(new ERC20Mock());
+        collections[1] = address(new ERC20Mock());
+        collections[2] = address(new ERC20Mock());
 
         uint[] memory amounts = new uint[](3);
         amounts[0] = 1 ether;

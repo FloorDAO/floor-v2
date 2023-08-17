@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
+import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from '@floor/strategies/StrategyFactory.sol';

@@ -294,7 +294,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
             // If we are in the subsequent epoch, then we cannot allow a non-DAO sweep
             if (epochIndex + 1 == _currentEpoch) {
-                revert('Only DAO can sweep subsequent epoch');
+                revert('Only DAO may currently execute');
             }
 
             // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute

@@ -92,7 +92,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
         // Iterate over our collections and get the votes
         for (uint i; i < length;) {
             // Get the number of votes at the current epoch that is closing
-            int votes = sweepWars.votes(collectionAddrs[i], epoch);
+            int votes = sweepWars.votes(collectionAddrs[i]);
 
             // If we have less votes, update our worst collection
             if (votes < negativeCollectionVotes) {

@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {UserDoesNotAnAdminRole} from '@floor/authorities/AuthorityRegistry.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract AuthorityControlTest is FloorTest {
@@ -57,10 +58,12 @@ contract AuthorityControlTest is FloorTest {
      * the role admin.
      */
     function test_CannotGrantRoleWithoutPermissions() public {
+        bytes32 role = authorityControl.STRATEGY_MANAGER();
+
         // Set our requesting user to be Alice, who does not have permissions
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, bob, authorityControl.GOVERNOR()));
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), bob);
+        vm.expectRevert(abi.encodeWithSelector(UserDoesNotAnAdminRole.selector, alice));
+        authorityRegistry.grantRole(role, bob);
         vm.stopPrank();
     }
 
