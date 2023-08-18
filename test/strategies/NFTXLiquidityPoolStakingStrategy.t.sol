@@ -232,6 +232,10 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     function test_CanFullyExitPosition() public {
         vm.startPrank(erc20Holder);
 
+        // Get the start balance of our {Treasury}
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
         uint depositAmount = strategy.depositErc20(1 ether);
@@ -250,6 +254,10 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Check here for the sent value as well
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }
 
     /**

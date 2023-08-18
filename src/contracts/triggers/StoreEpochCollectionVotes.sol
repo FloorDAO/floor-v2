@@ -64,7 +64,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
         // Iterate over our collections and get the votes
         for (uint i; i < length;) {
             // Get the number of votes at the current epoch that is closing
-            collectionVotes[i] = sweepWars.votes(collectionAddrs[i], epoch);
+            collectionVotes[i] = sweepWars.votes(collectionAddrs[i]);
             unchecked {
                 ++i;
             }

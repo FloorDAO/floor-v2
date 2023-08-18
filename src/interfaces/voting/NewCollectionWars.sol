@@ -30,7 +30,7 @@ interface INewCollectionWars {
     event CollectionAdditionWarStarted(uint warIndex);
 
     /// Sent when a Collection Addition War ends
-    event CollectionAdditionWarEnded(uint warIndex);
+    event CollectionAdditionWarEnded(uint warIndex, address collection);
 
     /// Sent when Collection Addition War NFTs are exercised
     event CollectionExercised(uint warIndex, address collection, uint value);

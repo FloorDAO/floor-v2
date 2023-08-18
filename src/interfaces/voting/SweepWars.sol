@@ -13,20 +13,15 @@ pragma solidity ^0.8.0;
  */
 interface ISweepWars {
     /// Sent when a user casts or revokes their vote
-    event VoteCast(address sender, address collection, uint amount);
+    event VoteCast(address sender, address collection, int amount);
 
     /// Sent when a user has revoked their vote, or it is revoked on their behalf
-    event VotesRevoked(address account, address collection);
+    event VotesRevoked(address account, address collection, uint forVotesRevoked, uint againstVotesRevoked);
 
     /**
      * Gets the number of votes for a collection at the current epoch.
      */
     function votes(address) external view returns (int);
-
-    /**
-     * Gets the number of votes for a collection at a specific epoch.
-     */
-    function votes(address, uint) external view returns (int);
 
     /**
      * The total voting power of a user, regardless of if they have cast votes
@@ -64,7 +59,7 @@ interface ISweepWars {
      * The {Treasury} cannot vote with it's holdings, as it shouldn't be holding
      * any staked Floor.
      */
-    function vote(address _collection, uint _amount, bool _against) external;
+    function vote(address _collection, int _amount) external;
 
     /**
      * Allows a user to revoke their votes from strategies. This will free up the
@@ -115,5 +110,5 @@ interface ISweepWars {
      * percentage in the strategy. Any Treasury holdings that would be given in rewards
      * are just deposited into the {Treasury} as FLOOR, bypassing the {RewardsLedger}.
      */
-    function snapshot(uint tokens, uint epoch) external returns (address[] memory collections, uint[] memory amounts);
+    function snapshot(uint tokens) external returns (address[] memory collections, uint[] memory amounts);
 }

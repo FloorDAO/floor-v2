@@ -245,6 +245,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         external
         onlyRole(TREASURY_MANAGER)
     {
+        // Confirm that each collection has an amount
+        require(collections.length == amounts.length, 'Collections =/= amounts');
+
+        // Register our sweep against the epoch. This value can be overwritten if another sweep
+        // is posted against the epoch, so this should be kept in mind during development.
         epochSweeps[epoch] = Sweep({sweepType: sweepType, collections: collections, amounts: amounts, completed: false, message: ''});
 
         emit SweepRegistered(epoch, sweepType, collections, amounts);
@@ -287,7 +292,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
             // If we are in the subsequent epoch, then we cannot allow a non-DAO sweep
             if (epochIndex + 1 == _currentEpoch) {
-                revert('Only DAO can sweep subsequent epoch');
+                revert('Only DAO may currently execute');
             }
 
             // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute

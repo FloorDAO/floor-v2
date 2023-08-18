@@ -141,35 +141,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @param account The address of an account to get voting power for
      * @return votingPower The voting power available at the current epoch
      */
-    function votingPowerOf(address account) external view returns (uint) {
-        return this.votingPowerAt(account, currentEpoch());
-    }
-
-    /**
-     * @notice Gets the voting power of the provided account at a specific epoch
-     * @param account The address of an account to get voting power for
-     * @param epoch The epoch at which to check the user's voting power
-     * @return votingPower The voting power available at the epoch
-     */
-    function votingPowerAt(address account, uint epoch) external view returns (uint) {
-        return this.votingPowerOfAt(account, depositors[account].amount, epoch);
-    }
-
-    /**
-     * @notice Gets the voting power of the provided account at a specific epoch
-     * @param account The address of an account to get voting power for
-     * @param amount The amount of voting power the account has
-     * @param epoch The epoch at which to check the user's voting power
-     * @return votingPower The voting power available at the epoch
-     */
-    function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint) {
-        // If the epoch had not started at this point, then we return 0 power
-        if (depositors[account].epochStart > epoch) {
-            return 0;
-        }
-
-        // Calculate the power attributed to the user based on the epoch count
-        return (amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+    function votingPowerOf(address account) public view returns (uint) {
+        return (depositors[account].amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
     }
 
     /**
@@ -266,7 +239,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         if (_currentEpoch < allowedExitEpoch) revert MinLockPeriodRatioNotReached();
 
         // Check if the called is exempt from being required to pay early withdrawal fees
-        if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
+        if (isExemptFromEarlyWithdrawFees(msg.sender)) {
             _withdraw(depositor, amount);
             floor.safeTransfer(to, amount);
             return;
@@ -355,6 +328,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
+        depositor.epochStart = 0;
+        depositor.epochCount = 0;
         depositors[msg.sender] = depositor; // SSTORE
 
         if (address(newCollectionWars) != address(0)) {
@@ -434,7 +409,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      *
      * @return bool True if the user is exempt from early fees, false if not
      */
-    function isExemptFromEarlyWithdrawFees(address account) external view returns (bool) {
+    function isExemptFromEarlyWithdrawFees(address account) public view returns (bool) {
         return earlyWithdrawFeeExemptions[account];
     }
 

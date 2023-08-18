@@ -82,7 +82,6 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
 
         // Create our {EpochManager} and assign the contract to our test contracts
         epochManager = new EpochManager();
-        sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
         // Set our war contracts against our staking contract
@@ -124,16 +123,16 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
 
     function test_CanStoreSweepWarVotes() external {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 2 ether, false);
-        sweepWars.vote(approvedCollection2, 10 ether, false);
-        sweepWars.vote(approvedCollection3, 6 ether, false);
-        sweepWars.vote(floorTokenCollection, 5 ether, false);
+        sweepWars.vote(approvedCollection1, 2 ether);
+        sweepWars.vote(approvedCollection2, 10 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, 5 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        sweepWars.vote(approvedCollection1, 1 ether, false);
-        sweepWars.vote(approvedCollection3, 4 ether, true);
-        sweepWars.vote(floorTokenCollection, 10 ether, true);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection3, -4 ether);
+        sweepWars.vote(floorTokenCollection, -10 ether);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 3 ether);

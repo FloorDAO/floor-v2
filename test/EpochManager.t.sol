@@ -121,7 +121,6 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
-        sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
@@ -235,7 +234,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Mock our Voting mechanism to unlock unlimited user votes without backing and give
         // them a voting power of 1 ether.
         vm.mockCall(address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max));
-        vm.mockCall(address(veFloor), abi.encodeWithSelector(VeFloorStaking.votingPowerOfAt.selector), abi.encode(1 ether));
+        vm.mockCall(address(veFloor), abi.encodeWithSelector(VeFloorStaking.votingPowerOf.selector), abi.encode(100 ether));
 
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
@@ -295,7 +294,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
             for (uint j; j < tracker % 8; ++j) {
                 // Cast votes from this user for the vault collection
                 vm.prank(stakers[j]);
-                sweepWars.vote(collection, ((tracker % 10) + 1) * 1 ether, false);
+                sweepWars.vote(collection, int(((tracker % 10) + 1) * 1 ether));
             }
         }
 
@@ -304,18 +303,18 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Set our expected sweep collections. These should be in vote order desc.
         address[] memory expectedCollections = new address[](5);
-        expectedCollections[0] = address(6);
-        expectedCollections[1] = address(13);
-        expectedCollections[2] = address(9);
-        expectedCollections[3] = 0x000000000000000000000000000000000000000C;
-        expectedCollections[4] = address(11);
+        expectedCollections[0] = 0x0000000000000000000000000000000000000006;
+        expectedCollections[1] = 0x000000000000000000000000000000000000000d;
+        expectedCollections[2] = 0x000000000000000000000000000000000000000E;
+        expectedCollections[3] = 0x0000000000000000000000000000000000000009;
+        expectedCollections[4] = 0x0000000000000000000000000000000000000005;
 
         uint[] memory expectedAmounts = new uint[](5);
-        expectedAmounts[0] = 0; // Token address(6) is offset by yield
-        expectedAmounts[1] = 177000000000000000000;
-        expectedAmounts[2] = 126428571428571428268;
-        expectedAmounts[3] = 126428571428571428268;
-        expectedAmounts[4] = 101142857142857143464;
+        expectedAmounts[0] = 67200000000000000000;
+        expectedAmounts[1] = 141600000000000000000;
+        expectedAmounts[2] = 121371428571428571024;
+        expectedAmounts[3] = 101142857142857142756;
+        expectedAmounts[4] = 0;
 
         // Confirm that we receive the expect event emit when the sweep is registered
         vm.expectEmit(true, true, false, true, address(treasury));
@@ -355,11 +354,11 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // as complete).
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
-        // TODO: Confirm that no ETH was spent
-        // assertEq(startBalance, address(treasury).balance);
+        // Confirm that no ETH was spent, but remaining WETH is refunded
+        assertGe(address(treasury).balance, startBalance);
 
         // Confirm that the expected amount of WETH was allocated to the sweeper
-        assertEq(ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 469 ether);
+        assertEq(ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 568685714285714286220);
 
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
@@ -491,10 +490,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Create address 0 - 255 (this means 256 in total as 0 is included)
         for (uint160 i; i <= expectedTriggers; i++) {
             epochManager.setEpochEndTrigger(address(i), true);
-            emit log_address(address(i));
         }
-
-        emit log_uint(epochManager.epochEndTriggers().length);
 
         // Now try to delete a trigger against the generated number
         epochManager.setEpochEndTrigger(address(uint160(_delete)), false);

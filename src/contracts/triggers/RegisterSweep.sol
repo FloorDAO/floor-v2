@@ -137,7 +137,7 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         } else {
             // Process the snapshot to find the floor war collection winners and the allocated amount
             // of the sweep.
-            (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = voteContract.snapshot(ethRewards, epoch);
+            (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = voteContract.snapshot(ethRewards);
 
             // We can now remove yield from our collections based on the yield that they generated
             // in the previous epoch.

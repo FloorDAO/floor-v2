@@ -104,7 +104,6 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         // Create our {EpochManager} and assign the contract to our test contracts
         epochManager = new EpochManager();
-        sweepWars.setEpochManager(address(epochManager));
         veFloor.setEpochManager(address(epochManager));
 
         // Assign relevant war contracts
@@ -159,15 +158,15 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
     function test_CanLiquidateNegativeCollection() external {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 2 ether, false);
-        sweepWars.vote(approvedCollection2, 10 ether, false);
-        sweepWars.vote(approvedCollection3, 6 ether, false);
-        sweepWars.vote(floorTokenCollection, 2 ether, true);
+        sweepWars.vote(approvedCollection1, 2 ether);
+        sweepWars.vote(approvedCollection2, 10 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, -2 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        sweepWars.vote(approvedCollection1, 1 ether, false);
-        sweepWars.vote(approvedCollection3, 10 ether, true);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection3, -10 ether);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 3 ether);
@@ -191,7 +190,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         epochManager.endEpoch();
 
-        // Confirm that no collections were liquidated
+        // Confirm that our most negative voted collection (collection 3) is liquidated
         (address collection, int votes, uint weth) = liquidateNegativeCollectionTrigger.epochSnapshot(0);
         assertEq(collection, approvedCollection3);
         assertEq(votes, -4 ether);
@@ -200,16 +199,16 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
     function test_CanDetectNoNegativeVotes() external {
         vm.startPrank(alice);
-        sweepWars.vote(approvedCollection1, 2 ether, false);
-        sweepWars.vote(approvedCollection2, 10 ether, false);
-        sweepWars.vote(approvedCollection3, 6 ether, false);
-        sweepWars.vote(floorTokenCollection, 5 ether, false);
+        sweepWars.vote(approvedCollection1, 2 ether);
+        sweepWars.vote(approvedCollection2, 10 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, 5 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        sweepWars.vote(approvedCollection1, 1 ether, false);
-        sweepWars.vote(approvedCollection3, 4 ether, true);
-        sweepWars.vote(floorTokenCollection, 1 ether, true);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection3, -4 ether);
+        sweepWars.vote(floorTokenCollection, -1 ether);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 3 ether);

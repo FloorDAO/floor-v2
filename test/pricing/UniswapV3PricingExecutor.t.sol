@@ -117,7 +117,8 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     }
 
     /**
-     * If we action a call with no tokens provided, then we expect a revert.
+     * If we action a call with no tokens provided, then we should just expect to
+     * receive an empty array.
      */
     function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
