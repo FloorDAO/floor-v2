@@ -347,7 +347,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
         uint startBalance = address(treasury).balance;
 
-        // vm.expectEmit(true, true, false, true, address(treasury));
+        vm.expectEmit(true, true, false, true, address(treasury));
         emit EpochSwept(0);
 
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
