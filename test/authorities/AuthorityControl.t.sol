@@ -131,9 +131,15 @@ contract AuthorityControlTest is FloorTest {
      * known roles.
      */
     function test_GovernorAndGuardianHaveAllRoles() public {
+        // Confirm that bob does not start with a governor role
+        assertFalse(authorityRegistry.hasAdminRole(bob));
+
         // When we assign Bob the role of Governor, we remove the deployer
         // account as the Governor as there can only be one.
         authorityRegistry.grantRole(authorityControl.GOVERNOR(), bob);
+
+        // Confirm that bob now has an admin role
+        assertTrue(authorityRegistry.hasAdminRole(bob));
 
         // This will give Bob access to all _known_ and _unknown_ roles
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
@@ -148,8 +154,14 @@ contract AuthorityControlTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.GOVERNOR(), DEPLOYER);
         vm.stopPrank();
 
+        // This will have revoked bob's admin role
+        assertFalse(authorityRegistry.hasAdminRole(bob));
+
         // As the deployer we can now grant Bob the role of Guardian
         authorityRegistry.grantRole(authorityControl.GUARDIAN(), bob);
+
+        // Guardian will have added his admin role back
+        assertTrue(authorityRegistry.hasAdminRole(bob));
 
         // Bob, as Guardian, will have access to all _known_ and _unknown_ roles,
         // apart from the Governor role.
