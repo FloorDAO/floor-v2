@@ -164,14 +164,14 @@ contract EpochManager is IEpochManager, Ownable {
      */
     function epochIterationTimestamp(uint _epoch) public view returns (uint) {
         if (currentEpoch < _epoch) {
-            return lastEpoch + (_epoch * EPOCH_LENGTH);
+            return lastEpoch + ((_epoch - currentEpoch) * EPOCH_LENGTH);
         }
 
         if (currentEpoch == _epoch) {
             return lastEpoch;
         }
 
-        return lastEpoch - (_epoch * EPOCH_LENGTH);
+        return lastEpoch - ((currentEpoch - _epoch) * EPOCH_LENGTH);
     }
 
     /**

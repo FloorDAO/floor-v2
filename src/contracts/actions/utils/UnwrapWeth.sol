@@ -32,14 +32,13 @@ contract UnwrapWeth is Action {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
-        // Transfer the WETH from the {Treasury} into the action
+        // Transfer the WETH from the sender into the action
         IWETH(WETH).transferFrom(msg.sender, address(this), request.amount);
-        require(IWETH(WETH).balanceOf(address(this)) == request.amount, 'Wrong amount');
 
         // Unwrap the WETH into ETH
         IWETH(WETH).withdraw(request.amount);
 
-        // Transfer ETH to the {Treasury}
+        // Transfer ETH to the caller
         (bool success,) = payable(msg.sender).call{value: request.amount}('');
         require(success, 'Eth send fail');
 

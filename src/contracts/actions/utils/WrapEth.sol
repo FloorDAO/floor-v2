@@ -26,20 +26,30 @@ contract WrapEth is Action {
      *
      * @return uint The amount of ETH wrapped into WETH by the execution
      */
-    function execute(bytes calldata /* _request */) public payable override whenNotPaused returns (uint) {
+    function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
+        // Unpack the request bytes data into our struct
+        ActionRequest memory request = abi.decode(_request, (ActionRequest));
+
         // Deposit the requested amount into WETH
-        IWETH(WETH).deposit{value: msg.value}();
+        IWETH(WETH).deposit{value: request.amount}();
 
         // Transfer all WETH from the contract back to the sender. This will help capture
         // any unaccounted for WETH (someone nice sent some?)
         IWETH(WETH).transfer(msg.sender, IWETH(WETH).balanceOf(address(this)));
 
+        // Refund ETH to the caller
+        uint remainingBalance = msg.value - request.amount;
+        if (remainingBalance != 0) {
+            (bool success,) = payable(msg.sender).call{value: remainingBalance}('');
+            require(success, 'Eth send fail');
+        }
+
         // Emit our `ActionEvent`
         emit ActionEvent('UtilsWrapEth', abi.encode(msg.value));
 
         // We return just the amount of WETH generated in the swap, which will have
-        // already been transferred to the {Treasury}.
-        return msg.value;
+        // already been transferred to the sender.
+        return request.amount;
     }
 
     /**

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {stdStorage, StdStorage, Test} from 'forge-std/Test.sol';
+
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
@@ -33,6 +35,8 @@ import {FoundryRandom} from "foundry-random/FoundryRandom.sol";
 import {FloorTest} from './utilities/Environments.sol';
 
 contract EpochManagerTest is FloorTest, FoundryRandom {
+    using stdStorage for StdStorage;
+
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
@@ -506,4 +510,46 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
             assertFalse(triggers[i] == address(uint160(_delete)));
         }
     }
+
+    function test_CanGetEpochLength() external {
+        assertEq(epochManager.EPOCH_LENGTH(), 7 days);
+    }
+
+    function test_CanGetEpochIterationTimestamp() external {
+        // Set our epoch ahead of our test epochs
+        setCurrentEpoch(address(epochManager), 10);
+
+        // Write our last epoch timestamp
+        stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692572869);
+
+        // Test a range of times
+        assertEq(epochManager.epochIterationTimestamp(1), 1692572869 - 63 days);
+        assertEq(epochManager.epochIterationTimestamp(2), 1692572869 - 56 days);
+        assertEq(epochManager.epochIterationTimestamp(5), 1692572869 - 35 days);
+        assertEq(epochManager.epochIterationTimestamp(9), 1692572869 - 7 days);
+
+        assertEq(epochManager.epochIterationTimestamp(10), 1692572869);
+
+        assertEq(epochManager.epochIterationTimestamp(11), 1692572869 + 7 days);
+        assertEq(epochManager.epochIterationTimestamp(12), 1692572869 + 14 days);
+        assertEq(epochManager.epochIterationTimestamp(15), 1692572869 + 35 days);
+        assertEq(epochManager.epochIterationTimestamp(19), 1692572869 + 63 days);
+
+        // Update our last epoch timestamp
+        stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692531530);
+
+        // Test a range of times to show they are reflected
+        assertEq(epochManager.epochIterationTimestamp(1), 1692531530 - 63 days);
+        assertEq(epochManager.epochIterationTimestamp(2), 1692531530 - 56 days);
+        assertEq(epochManager.epochIterationTimestamp(5), 1692531530 - 35 days);
+        assertEq(epochManager.epochIterationTimestamp(9), 1692531530 - 7 days);
+
+        assertEq(epochManager.epochIterationTimestamp(10), 1692531530);
+
+        assertEq(epochManager.epochIterationTimestamp(11), 1692531530 + 7 days);
+        assertEq(epochManager.epochIterationTimestamp(12), 1692531530 + 14 days);
+        assertEq(epochManager.epochIterationTimestamp(15), 1692531530 + 35 days);
+        assertEq(epochManager.epochIterationTimestamp(19), 1692531530 + 63 days);
+    }
+
 }

@@ -26,10 +26,10 @@ contract RawTx is Action {
      */
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
         // Unpack the request bytes data into our struct
-        ActionRequest memory request = abi.decode(_request, (ActionRequest));
+        (address payable recipient, bytes memory data) = abi.decode(_request, (address, bytes));
 
         // Action our call against the target recipient
-        (bool success,) = request.recipient.call{value: msg.value}(request.data);
+        (bool success,) = recipient.call{value: msg.value}(data);
         require(success, 'Transaction failed');
 
         // If we have any ETH remaining in the contract we can return it to the sender
@@ -49,7 +49,7 @@ contract RawTx is Action {
     /**
      * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
      */
-    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+    function parseInputs(bytes calldata _callData) public pure returns (ActionRequest memory params) {
         params = abi.decode(_callData, (ActionRequest));
     }
 

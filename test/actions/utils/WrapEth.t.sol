@@ -45,7 +45,7 @@ contract WrapEthTest is FloorTest {
 
         // Action our wrap
         vm.prank(treasury);
-        action.execute{value: amount}('');
+        action.execute{value: amount}(abi.encode(amount));
 
         // Confirm our closing balances reflect the wrapped amounts
         assertEq(address(this).balance, userEthPreWrap);
@@ -54,12 +54,20 @@ contract WrapEthTest is FloorTest {
         assertEq(weth.balanceOf(treasury), treasuryWethPreWrap + amount);
     }
 
+    function test_CanReceiveRefundIfMsgValueHigherThanAmount() external {
+
+    }
+
+    function test_CannotSendLessMsgValueThanAmount() external {
+
+    }
+
     function test_CannotWrapEthWithInsufficientBalance(uint amount) external {
         // Ensure that our fuzz amount is above the balance held
         vm.assume(amount > address(this).balance);
 
         // Action our wrap
         vm.expectRevert();
-        action.execute{value: amount}('');
+        action.execute{value: amount}(abi.encode(amount));
     }
 }
