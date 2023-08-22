@@ -806,11 +806,11 @@ contract TreasuryTest is FloorTest {
         );
 
         // Confirm the amount of ETH remaining
-        assertEq(address(treasury).balance, 20 ether);
+        assertEq(address(treasury).balance, 30 ether);
 
         // Confirm the amount of WETH received. We transferred 1000 WETH in our `constructor`
         // so we additionally need to keep this factored in.
-        assertEq(IWETH(action.WETH()).balanceOf(address(treasury)), 1030 ether);
+        assertEq(IWETH(action.WETH()).balanceOf(address(treasury)), 1020 ether);
 
         // Test that ERC20 allowance reduced by 20 ether to 10 ether remaining
         assertEq(erc20.allowance(address(treasury), address(action)), 0);
