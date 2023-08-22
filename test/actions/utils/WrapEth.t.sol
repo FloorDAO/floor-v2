@@ -12,9 +12,6 @@ contract WrapEthTest is FloorTest {
     // Store our action contract
     WrapEth action;
 
-    // Store the treasury address
-    address treasury;
-
     // Define our WETH interface
     IWETH weth;
 
@@ -22,9 +19,6 @@ contract WrapEthTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Set up a test address to be our {Treasury}
-        treasury = users[1];
-
         // Set up a WrapEth action
         action = new WrapEth();
 
@@ -35,31 +29,39 @@ contract WrapEthTest is FloorTest {
     function test_CanWrapEth(uint amount) external {
         // Ensure that our fuzz amount is always less that the balance of our
         // test account.
-        vm.assume(amount <= address(treasury).balance);
+        vm.assume(amount <= address(this).balance);
 
-        // Confirm the ETH and WETH balances of our two accounts pre-wrap
-        uint userEthPreWrap = address(this).balance;
-        uint userWethPreWrap = weth.balanceOf(address(this));
-        uint treasuryEthPreWrap = address(treasury).balance;
-        uint treasuryWethPreWrap = weth.balanceOf(treasury);
+        // Confirm the ETH and WETH balances
+        uint ethPreWrap = address(this).balance;
+        uint wethPreWrap = weth.balanceOf(address(this));
 
         // Action our wrap
-        vm.prank(treasury);
         action.execute{value: amount}(abi.encode(amount));
 
         // Confirm our closing balances reflect the wrapped amounts
-        assertEq(address(this).balance, userEthPreWrap);
-        assertEq(weth.balanceOf(address(this)), userWethPreWrap);
-        assertEq(address(treasury).balance, treasuryEthPreWrap - amount);
-        assertEq(weth.balanceOf(treasury), treasuryWethPreWrap + amount);
+        assertEq(address(this).balance, ethPreWrap - amount);
+        assertEq(weth.balanceOf(address(this)), wethPreWrap + amount);
     }
 
-    function test_CanReceiveRefundIfMsgValueHigherThanAmount() external {
+    function test_CanReceiveRefundIfMsgValueHigherThanAmount(uint amount, uint value) external {
+        vm.assume(value <= address(this).balance);
+        vm.assume(amount < value);
 
+        uint ethPreWrap = address(this).balance;
+        uint wethPreWrap = weth.balanceOf(address(this));
+
+        action.execute{value: amount}(abi.encode(amount));
+
+        assertEq(address(this).balance, ethPreWrap - amount);
+        assertEq(weth.balanceOf(address(this)), wethPreWrap + amount);
     }
 
-    function test_CannotSendLessMsgValueThanAmount() external {
+    function test_CannotSendLessMsgValueThanAmount(uint amount, uint value) external {
+        vm.assume(value <= address(this).balance);
+        vm.assume(amount > value);
 
+        vm.expectRevert('Insufficient msg.value');
+        action.execute{value: value}(abi.encode(amount));
     }
 
     function test_CannotWrapEthWithInsufficientBalance(uint amount) external {

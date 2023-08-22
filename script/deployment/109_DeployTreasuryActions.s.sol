@@ -20,7 +20,6 @@ import {UniswapCreatePool} from '@floor/actions/uniswap/CreatePool.sol';
 import {UniswapMintPosition} from '@floor/actions/uniswap/MintPosition.sol';
 import {UniswapRemoveLiquidity} from '@floor/actions/uniswap/RemoveLiquidity.sol';
 import {UniswapSellTokensForETH} from '@floor/actions/uniswap/SellTokensForETH.sol';
-import {ActionMulticall} from '@floor/actions/utils/Multicall.sol';
 import {RawTx} from '@floor/actions/utils/RawTx.sol';
 import {SendEth} from '@floor/actions/utils/SendEth.sol';
 import {UnwrapWeth} from '@floor/actions/utils/UnwrapWeth.sol';
@@ -71,7 +70,6 @@ contract DeployTreasuryActions is DeploymentScript {
         storeDeployment('UniswapMintPosition', address(new UniswapMintPosition(uniswapPositionManager)));
         storeDeployment('UniswapRemoveLiquidity', address(new UniswapRemoveLiquidity(uniswapPositionManager)));
         storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564)));
-        storeDeployment('ActionMulticall', address(new ActionMulticall()));
         storeDeployment('RawTx', address(new RawTx()));
         storeDeployment('SendEth', address(new SendEth()));
         storeDeployment('UnwrapWeth', address(new UnwrapWeth()));

@@ -30,6 +30,9 @@ contract WrapEth is Action {
         // Unpack the request bytes data into our struct
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
+        // Ensure enough value was sent
+        require(msg.value >= request.amount, 'Insufficient msg.value');
+
         // Deposit the requested amount into WETH
         IWETH(WETH).deposit{value: request.amount}();
 
