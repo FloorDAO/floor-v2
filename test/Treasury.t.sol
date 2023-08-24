@@ -759,7 +759,7 @@ contract TreasuryTest is FloorTest {
         erc1155.mint(address(treasury), 1, 3, '');
         erc1155.mint(address(treasury), 2, 2, '');
 
-        WrapEth action = new WrapEth();
+        WrapEth action = new WrapEth(WETH);
 
         ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](5);
 

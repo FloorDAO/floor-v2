@@ -64,7 +64,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     IUniswapV3Factory public immutable uniswapV3PoolFactory;
 
     /// The WETH contract address used for price mappings
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    IWETH public immutable WETH;
 
     /// Keep a cache of our pool addresses for gas optimisation
     mapping(address => address) internal poolAddresses;
@@ -74,8 +74,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      *
      * @dev Mainnet Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
      */
-    constructor(address _poolFactory) {
+    constructor(address _poolFactory, address _weth) {
         uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
+        WETH = IWETH(_weth);
     }
 
     /**
@@ -113,7 +114,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * Retrieves the amount of WETH held in the Uniswap pool.
      */
     function getLiquidity(address token) external returns (uint) {
-        return IWETH(WETH).balanceOf(_poolAddress(token));
+        return WETH.balanceOf(_poolAddress(token));
     }
 
     /**
@@ -135,7 +136,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         }
 
         // Load our candidate pool
-        address candidatePool = uniswapV3PoolFactory.getPool(token, WETH, 10000);
+        address candidatePool = uniswapV3PoolFactory.getPool(token, address(WETH), 10000);
 
         // If we can't find a pool, then we need to raise an error
         if (candidatePool == address(0)) {
@@ -206,8 +207,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Decodes the `SqrtPriceX96` value.
      */
-    function _decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private pure returns (uint price) {
-        if (uint160(underlying) < uint160(WETH)) {
+    function _decodeSqrtPriceX96(address underlying, uint underlyingDecimalsScaler, uint sqrtPriceX96) private view returns (uint price) {
+        if (uint160(underlying) < uint160(address(WETH))) {
             price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2 ** (96 * 2)) / 1e18) / underlyingDecimalsScaler;
         } else {
             price = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, uint(2 ** (96 * 2)) / (1e18 * underlyingDecimalsScaler));

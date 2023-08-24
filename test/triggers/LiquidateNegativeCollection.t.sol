@@ -124,7 +124,8 @@ contract LiquidateNegativeCollectionTest is FloorTest {
             address(sweepWars),
             address(strategyFactory),
             address(revenueStrategy),
-            0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD // Uniswap Universal Router
+            0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD, // Uniswap Universal Router
+            WETH
         );
 
         // Register the epoch manager against our trigger

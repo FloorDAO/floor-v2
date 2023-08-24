@@ -26,6 +26,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     address internal UNKNOWN = 0x0000000000000000000000000000000000000064;
     address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // 6 decimals
     address internal X2Y2 = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9; // 18 decimals
+    address internal WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint128 internal FLOORV1_ETH_PRICE = 1550575122257810; // 001550575122257810
     uint128 internal USDC_ETH_PRICE = 819268955245994; // 000819268955245994
@@ -46,7 +47,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function setUp() public {
         // Set up our pricing executor
-        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY);
+        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY, WETH);
     }
 
     /**

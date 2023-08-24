@@ -10,7 +10,7 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  */
 contract WrapEth is Action {
     /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    IWETH public immutable WETH;
 
     /**
      * Store our required information to action a swap.
@@ -19,6 +19,13 @@ contract WrapEth is Action {
      */
     struct ActionRequest {
         uint amount;
+    }
+
+    /**
+     * Set our networks WETH address and cast to interface.
+     */
+    constructor (address _weth) {
+        WETH = IWETH(_weth);
     }
 
     /**

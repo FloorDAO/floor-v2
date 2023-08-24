@@ -21,7 +21,7 @@ import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
 contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered {
     using SafeERC20 for IERC20;
 
-    IWETH public constant WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IWETH public immutable WETH;
 
     /// The sweep war contract used by this contract
     ISweepWars public immutable sweepWars;
@@ -62,11 +62,12 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     /**
      * Sets our internal contracts.
      */
-    constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy, address _uniswapUniversalRouter) {
+    constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy, address _uniswapUniversalRouter, address _weth) {
         sweepWars = ISweepWars(_sweepWars);
         strategyFactory = StrategyFactory(_strategyFactory);
         revenueStrategy = DistributedRevenueStakingStrategy(_revenueStrategy);
         uniswapUniversalRouter = IUniversalRouter(_uniswapUniversalRouter);
+        WETH = IWETH(_weth);
     }
 
     /**

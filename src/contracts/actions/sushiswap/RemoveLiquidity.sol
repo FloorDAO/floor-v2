@@ -26,9 +26,6 @@ contract SushiswapRemoveLiquidity is Action {
         uint deadline;
     }
 
-    /// WETH token address
-    address internal constant WETH_TOKEN = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// Uniswap contract references
     IUniswapV2Router01 public immutable uniswapRouter;
     IUniswapV2Factory public immutable uniswapFactory;

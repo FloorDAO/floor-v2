@@ -26,7 +26,7 @@ contract CowSwapCreateOrderTest is FloorTest {
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Set up our action contract
-        action = new CowSwapCreateOrder(SETTLEMENT_CONTRACT);
+        action = new CowSwapCreateOrder(SETTLEMENT_CONTRACT, WETH);
 
         // Map our test user address
         alice = users[0];

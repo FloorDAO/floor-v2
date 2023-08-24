@@ -34,7 +34,8 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
             sweepWars,
             strategyFactory,
             _strategy,
-            0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD // Uniswap Universal Router
+            0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD, // Uniswap Universal Router
+            WETH
         );
 
         // Register our epoch trigger

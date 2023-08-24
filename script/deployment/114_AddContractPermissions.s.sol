@@ -33,7 +33,7 @@ contract AddContractPermissions is DeploymentScript {
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), treasury);
 
         // RegisterSweep needs TREASURY_MANAGER and STRATEGY_MANAGER
-        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), registerSweep)
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), registerSweep);
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), registerSweep);
 
         // Transfer ownership of any required contracts

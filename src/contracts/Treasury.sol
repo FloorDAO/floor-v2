@@ -146,7 +146,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
         // Transfer ERC20 tokens to the recipient. This call will revert if it fails.
-        IERC20(token).safeTransferFrom(address(this), recipient, amount);
+        IERC20(token).safeTransfer(recipient, amount);
         emit WithdrawERC20(token, amount, recipient);
     }
 

@@ -25,7 +25,7 @@ contract UniswapSellTokensForETH is Action {
     IUniversalRouter public immutable universalRouter;
 
     /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable WETH;
 
     /**
      * Store our required information to action a swap.
@@ -54,8 +54,9 @@ contract UniswapSellTokensForETH is Action {
      *
      * @param _universalRouter The UniSwap {UniversalRouter} contract
      */
-    constructor(address _universalRouter) {
+    constructor(address _universalRouter, address _weth) {
         universalRouter = IUniversalRouter(_universalRouter);
+        WETH = _weth;
     }
 
     /**

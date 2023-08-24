@@ -19,11 +19,11 @@ contract WrapEthTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Set up a WrapEth action
-        action = new WrapEth();
-
         // Set up a WETH interface
-        weth = IWETH(action.WETH());
+        weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+
+        // Set up a WrapEth action
+        action = new WrapEth(address(weth));
     }
 
     function test_CanWrapEth(uint amount) external {

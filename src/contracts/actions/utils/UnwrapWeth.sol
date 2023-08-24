@@ -9,8 +9,8 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * This action allows us to unwrap WETH in the {Treasury} into ETH.
  */
 contract UnwrapWeth is Action {
-    /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    /// WETH contract
+    IWETH public immutable WETH;
 
     /**
      * Store our required information to action a swap.
@@ -19,6 +19,13 @@ contract UnwrapWeth is Action {
      */
     struct ActionRequest {
         uint amount;
+    }
+
+    /**
+     * Set our networks WETH address and cast to interface.
+     */
+    constructor (address _weth) {
+        WETH = IWETH(_weth);
     }
 
     /**
@@ -33,10 +40,10 @@ contract UnwrapWeth is Action {
         ActionRequest memory request = abi.decode(_request, (ActionRequest));
 
         // Transfer the WETH from the sender into the action
-        IWETH(WETH).transferFrom(msg.sender, address(this), request.amount);
+        WETH.transferFrom(msg.sender, address(this), request.amount);
 
         // Unwrap the WETH into ETH
-        IWETH(WETH).withdraw(request.amount);
+        WETH.withdraw(request.amount);
 
         // Transfer ETH to the caller
         (bool success,) = payable(msg.sender).call{value: request.amount}('');

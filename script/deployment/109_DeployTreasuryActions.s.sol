@@ -59,8 +59,8 @@ contract DeployTreasuryActions is DeploymentScript {
             address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac))
         );
 
-        storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41)));
-        storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury)));
+        storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, WETH)));
+        storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury, WETH)));
         storeDeployment('GemSweeper', address(new GemSweeper()));
         storeDeployment('ManualSweeper', address(new ManualSweeper()));
 
@@ -69,10 +69,10 @@ contract DeployTreasuryActions is DeploymentScript {
         storeDeployment('UniswapCreatePool', address(new UniswapCreatePool(uniswapPositionManager)));
         storeDeployment('UniswapMintPosition', address(new UniswapMintPosition(uniswapPositionManager)));
         storeDeployment('UniswapRemoveLiquidity', address(new UniswapRemoveLiquidity(uniswapPositionManager)));
-        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564)));
+        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564, WETH)));
         storeDeployment('RawTx', address(new RawTx()));
         storeDeployment('SendEth', address(new SendEth()));
-        storeDeployment('UnwrapWeth', address(new UnwrapWeth()));
-        storeDeployment('WrapEth', address(new WrapEth()));
+        storeDeployment('UnwrapWeth', address(new UnwrapWeth(WETH)));
+        storeDeployment('WrapEth', address(new WrapEth(WETH)));
     }
 }
