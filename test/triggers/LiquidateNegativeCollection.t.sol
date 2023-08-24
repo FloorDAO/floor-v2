@@ -197,6 +197,21 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         assertEq(weth, 166_134540194015727009); // 166.13 WETH
     }
 
+    function test_CanHandleZeroVotes() external {
+        // Set up our collection strategies
+        _deployStrategy(approvedCollection2);
+        _deployStrategy(approvedCollection3);
+        _deployStrategy(approvedCollection3);
+
+        epochManager.endEpoch();
+
+        // Confirm that our most negative voted collection (collection 3) is liquidated
+        (address collection, int votes, uint weth) = liquidateNegativeCollectionTrigger.epochSnapshot(0);
+        assertEq(collection, address(0));
+        assertEq(votes, 0);
+        assertEq(weth, 0);
+    }
+
     function test_CanDetectNoNegativeVotes() external {
         vm.startPrank(alice);
         sweepWars.vote(approvedCollection1, 2 ether);

@@ -108,6 +108,13 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
             }
         }
 
+        // If we have no gross votes, then we cannot calculate a percentage
+        if (grossVotes == 0) {
+            // Don't register any WETH
+            epochSnapshot[epoch] = EpochSnapshot(address(0), 0, 0);
+            return;
+        }
+
         // We then need to calculate the amount we exit our position by, depending on the number
         // of negative votes.
         uint percentage = uint(((negativeCollectionVotes * 10000) / grossVotes) * -1);
