@@ -21,6 +21,11 @@ contract DeploymentScript is Script {
     /// Set our JSON storage path
     string constant JSON_PATH = 'script/deployment/deployment-addresses.json';
 
+    /// Set our deployment WETH address
+    // Mainnet: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    // UAT: 0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6
+    address constant WETH = 0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6;
+
     /**
      * Ensures that a contract has been deployed already and returns the address of
      * the latest deployed contract.
