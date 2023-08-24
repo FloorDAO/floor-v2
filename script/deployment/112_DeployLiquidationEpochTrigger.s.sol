@@ -26,7 +26,7 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
             bytes32('Liquidation Pool'),
             distributedRevenueStakingStrategy,
             abi.encode(WETH, 10 ether, address(epochManager)),
-            0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB // The collection is not important, it just needs to be approved
+            0xDc110028492D1baA15814fCE939318B6edA13098 // The collection is not important, it just needs to be approved
         );
 
         // Register our epoch end trigger that stores our liquidation
