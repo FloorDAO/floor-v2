@@ -16,35 +16,35 @@ contract NftStakingMock is INftStaking {
 
     function collectionStakerIndex(bytes32) external returns (uint) {}
 
-    function voteDiscount() external returns (uint16) {
+    function voteDiscount() external pure returns (uint16) {
         return 0;
     }
 
-    function sweepModifier() external returns (uint64) {
+    function sweepModifier() external pure returns (uint64) {
         return 0;
     }
 
-    function collectionBoost(address _collection, int _votes) external view returns (int votes_) {
+    function collectionBoost(address /* _collection */, int _votes) external pure returns (int votes_) {
         votes_ = _votes;
     }
 
-    function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155) external pure {}
+    function stake(address /* _collection */, uint[] calldata /* _tokenId */, uint[] calldata /* _amount */, uint8 /* _epochCount */, bool /* _is1155 */) external pure {}
 
-    function unstake(address _collection, bool _is1155) external pure {}
+    function unstake(address /* _collection */, bool /* _is1155 */) external pure {}
 
-    function unstake(address _collection, address _nftStakingStrategy, bool _is1155) external pure {}
+    function unstake(address /* _collection */, address /* _nftStakingStrategy */, bool /* _is1155 */) external pure {}
 
-    function unstakeFees(address _collection) external pure returns (uint) {
+    function unstakeFees(address /* _collection */) external pure returns (uint) {
         return 0;
     }
 
-    function setVoteDiscount(uint16 _voteDiscount) external pure {}
+    function setVoteDiscount(uint16 /* _voteDiscount */) external pure {}
 
-    function setSweepModifier(uint64 _sweepModifier) external pure {}
+    function setSweepModifier(uint64 /* _sweepModifier */) external pure {}
 
-    function setPricingExecutor(address _pricingExecutor) external pure {}
+    function setPricingExecutor(address /* _pricingExecutor */) external pure {}
 
-    function setBoostCalculator(address _boostCalculator) external pure {}
+    function setBoostCalculator(address /* _boostCalculator */) external pure {}
 
-    function claimRewards(address _collection) external pure {}
+    function claimRewards(address /* _collection */) external pure {}
 }
