@@ -21,16 +21,19 @@ contract DeployEpochTriggers is DeploymentScript {
         address strategyFactory = requireDeployment('StrategyFactory');
         address sweepWars = requireDeployment('SweepWars');
         address payable treasury = requireDeployment('Treasury');
-        address veFloorStaking = requireDeployment('VeFloorStaking');
 
         // Deploy our triggers
         RegisterSweepTrigger registerSweep =
-            new RegisterSweepTrigger(newCollectionWars, pricingExecutor, strategyFactory, treasury, veFloorStaking);
+            new RegisterSweepTrigger(newCollectionWars, pricingExecutor, strategyFactory, treasury, sweepWars);
         StoreEpochCollectionVotesTrigger storeEpochVotes = new StoreEpochCollectionVotesTrigger(sweepWars);
 
         // Register our epoch triggers
         epochManager.setEpochEndTrigger(address(registerSweep), true);
         epochManager.setEpochEndTrigger(address(storeEpochVotes), true);
+
+        // Set our epoch manager
+        registerSweep.setEpochManager(address(epochManager));
+        storeEpochVotes.setEpochManager(address(epochManager));
 
         // Finally, store our triggers
         storeDeployment('RegisterSweepTrigger', address(registerSweep));

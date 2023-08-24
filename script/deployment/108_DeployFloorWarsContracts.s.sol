@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 
@@ -33,5 +34,8 @@ contract DeployFloorWarsContracts is DeploymentScript {
 
         storeDeployment('NewCollectionWars', address(newCollectionWars));
         storeDeployment('SweepWars', address(sweepWars));
+
+        // Update our vefloor staking contract references
+        VeFloorStaking(veFloorStaking).setVotingContracts(address(newCollectionWars), address(sweepWars));
     }
 }

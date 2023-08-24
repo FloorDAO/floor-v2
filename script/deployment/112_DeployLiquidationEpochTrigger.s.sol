@@ -25,11 +25,7 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
         (, address _strategy) = StrategyFactory(strategyFactory).deployStrategy(
             bytes32('Liquidation Pool'),
             distributedRevenueStakingStrategy,
-            abi.encode(
-                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
-                10 ether,
-                address(epochManager))
-            ,
+            abi.encode(WETH, 10 ether, address(epochManager)),
             0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB // The collection is not important, it just needs to be approved
         );
 
@@ -46,5 +42,8 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
 
         // Finally, store our trigger
         storeDeployment('LiquidateNegativeCollectionTrigger', address(liquidateNegativeCollectionTrigger));
+
+        // Set our epoch manager
+        liquidateNegativeCollectionTrigger.setEpochManager(address(epochManager));
     }
 }
