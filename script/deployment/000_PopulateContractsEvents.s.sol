@@ -33,7 +33,9 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 /**
  * Interacts with all of our event driven contracts.
  *
- * Collection Registry:
+ * 000_ApproveCollection must be run before this to ensure the following ERC721
+ * collections exist on testnet:
+ *
  * 0xDc110028492D1baA15814fCE939318B6edA13098
  * 0xA08Bc5C704f17d404E6a3B93c25b1C494ea1c018
  * 0x572567C9aC029bd617CdBCF43b8dcC004A3D1339
@@ -42,6 +44,7 @@ contract PopulateContractEvents is DeploymentScript {
 
     function run() external deployer {
 
+        /*
         {
             // FIX: Incorrect variable passed to `RegisterSweepTrigger` deployment
             EpochManager epochManager = EpochManager(requireDeployment('EpochManager'));
@@ -69,13 +72,17 @@ contract PopulateContractEvents is DeploymentScript {
             AuthorityRegistry authorityRegistry = AuthorityRegistry(requireDeployment('AuthorityRegistry'));
             authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweep));
         }
+        */
 
+        /*
         {
             // FIX: Set epoch manager for {StoreEpochCollectionVotesTrigger}
             StoreEpochCollectionVotesTrigger storeEpochVotes = StoreEpochCollectionVotesTrigger(requireDeployment('StoreEpochCollectionVotesTrigger'));
             storeEpochVotes.setEpochManager(requireDeployment('EpochManager'));
         }
+        */
 
+        /*
         {
             // FIX: Existing liquidation trigger has division error if no votes present
             EpochManager epochManager = EpochManager(requireDeployment('EpochManager'));
@@ -100,7 +107,9 @@ contract PopulateContractEvents is DeploymentScript {
             epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionTrigger), true);
             storeDeployment('LiquidateNegativeCollectionTrigger', address(liquidateNegativeCollectionTrigger));
         }
+        */
 
+        /*
         {
             // FIX: This was not previously included in the deployment scripts so needs
             // including here.
@@ -111,7 +120,9 @@ contract PopulateContractEvents is DeploymentScript {
             RegisterSweepTrigger(requireDeployment('RegisterSweepTrigger')).setEpochManager(requireDeployment('EpochManager'));
             StoreEpochCollectionVotesTrigger(requireDeployment('StoreEpochCollectionVotesTrigger')).setEpochManager(requireDeployment('EpochManager'));
         }
+        */
 
+        /*
         {
             // FIX: RegisterSweepTrigger needs STRATEGY_MANAGER
             AuthorityControl authorityControl = AuthorityControl(requireDeployment('AuthorityControl'));
@@ -120,6 +131,7 @@ contract PopulateContractEvents is DeploymentScript {
             // emit RoleGranted(role, account, _msgSender());
             authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), requireDeployment('RegisterSweepTrigger'));
         }
+        */
 
 
         address WALLET = 0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348;
