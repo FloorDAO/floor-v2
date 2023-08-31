@@ -16,6 +16,10 @@ contract ERC20Mock is ERC20 {
         _burn(account, amount);
     }
 
+    function burnFrom(address account, uint amount) external {
+        _burn(account, amount);
+    }
+
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
