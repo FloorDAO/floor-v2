@@ -18,7 +18,6 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
-import {RageQuit} from '@floor/RageQuit.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {SendEth} from '@floor/actions/utils/SendEth.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
@@ -233,28 +232,6 @@ contract PopulateContractEvents is DeploymentScript {
             );
 
             treasury.processAction(payable(address(action)), approvals, abi.encode(WALLET, 0.01 ether), 0);
-        }
-
-
-        /**
-         * src/contracts/RageQuit.sol
-         */
-
-        {
-            console.log('RAGE QUIT');
-
-            RageQuit rageQuit = new RageQuit(address(treasury.floor()));
-
-            // emit FundsAdded(token, amount);
-            erc20Mock.approve(address(rageQuit), type(uint).max);
-            rageQuit.fund(address(erc20Mock), 1 ether);
-
-            // We need to unpause the contract to allow it to run
-            rageQuit.unpause();
-
-            // emit Paperboy(msg.sender, amount);
-            treasury.floor().approve(address(rageQuit), type(uint).max);
-            rageQuit.ragequit(1 ether);
         }
 
 
