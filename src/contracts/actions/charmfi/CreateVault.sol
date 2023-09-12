@@ -63,7 +63,17 @@ contract CharmCreateVault is Action {
         // Set our strategy to the vault
         alphaVault.setStrategy(address(alphaStrategy));
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CharmfiCreateVault', _request);
+
         // We cast the pool address to an integer so that it can be returned
         return uint(uint160(address(alphaVault)));
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

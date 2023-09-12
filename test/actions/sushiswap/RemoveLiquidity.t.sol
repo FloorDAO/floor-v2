@@ -6,7 +6,7 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 import {SushiswapAddLiquidity} from '@floor/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity.sol';
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../../utilities/Environments.sol';
 
@@ -47,9 +47,6 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
         ERC20(TOKEN_B).approve(address(addAction), 50 ether);
     }
 
-    /**
-     * ..
-     */
     function setUp() public {
         // Set up a liquidity placement so our user has something. This functionality is
         // already tested in another test suite so we can rely on it to work.
@@ -62,9 +59,6 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
             addAction.execute{value: 1 ether}(abi.encode(TOKEN_A, ETH_TOKEN, address(this), 1 ether, 1 ether, 0, 0, block.timestamp + 3600));
     }
 
-    /**
-     * ..
-     */
     function test_CanRemoveEthLiquidityAsTokenA() public {
         // A little bit of magic here, as we know the LP token generated for each of our
         // positions so we can ensure they are approved against the router before we make
@@ -74,9 +68,6 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
         _removeLiquidity(TOKEN_A, WETH_TOKEN, tokenEthPosition);
     }
 
-    /**
-     * ..
-     */
     function test_CanRemoveTokenLiquidity() external {
         // A little bit of magic here, as we know the LP token generated for each of our
         // positions so we can ensure they are approved against the router before we make
@@ -86,9 +77,6 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
         _removeLiquidity(TOKEN_A, TOKEN_B, tokenPosition);
     }
 
-    /**
-     * ..
-     */
     function _removeLiquidity(address tokenA, address tokenB, uint liquidity) internal returns (uint) {
         return action.execute(abi.encode(tokenA, tokenB, address(this), liquidity, 0, 0, block.timestamp + 3600));
     }

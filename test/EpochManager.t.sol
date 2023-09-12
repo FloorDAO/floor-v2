@@ -2,15 +2,18 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC20Mock} from '@openzeppelin/contracts/mocks/ERC20Mock.sol';
+import {stdStorage, StdStorage, Test} from 'forge-std/Test.sol';
 
+import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+
+import {ERC20Mock} from './mocks/erc/ERC20Mock.sol';
 import {ERC721Mock} from './mocks/erc/ERC721Mock.sol';
 import {ERC1155Mock} from './mocks/erc/ERC1155Mock.sol';
 import {PricingExecutorMock} from './mocks/PricingExecutor.sol';
+import {SweeperMock} from './mocks/Sweeper.sol';
 
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
-import {VoteMarket} from '@floor/bribes/VoteMarket.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {FloorNft} from '@floor/tokens/FloorNft.sol';
@@ -27,25 +30,40 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} f
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
+import {FoundryRandom} from "foundry-random/FoundryRandom.sol";
+
 import {FloorTest} from './utilities/Environments.sol';
 
-contract EpochManagerTest is FloorTest {
-    // Store our mainnet fork information
+contract EpochManagerTest is FloorTest, FoundryRandom {
+    using stdStorage for StdStorage;
+
+    /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
+    /// @dev Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /// @dev Emitted when a sweep is registered
+    event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
+
+    /// @dev When an epoch is swept
+    event EpochSwept(uint epochIndex);
+
+    /// Defines a test user
     address alice;
 
+    /// Define an approved strategy and collection
     address approvedStrategy;
     address approvedCollection;
 
+    /// Defines our sweeper addresses
     address manualSweeper;
+    address sweeperMock;
 
     // Track our internal contract addresses
     FLOOR floor;
     VeFloorStaking veFloor;
     ERC20Mock erc20;
-    ERC721Mock erc721;
-    ERC1155Mock erc1155;
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
     FloorNft floorNft;
@@ -54,7 +72,6 @@ contract EpochManagerTest is FloorTest {
     NewCollectionWars newCollectionWars;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
-    VoteMarket voteMarket;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Create our test users
@@ -103,20 +120,19 @@ contract EpochManagerTest is FloorTest {
         // Create our {NewCollectionWars} contract
         newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(veFloor));
 
-        // Deploy our {VoteMarket} contract
-        voteMarket = new VoteMarket(address(collectionRegistry), users[1], users[2]);
-
         epochManager = new EpochManager();
-        epochManager.setContracts(address(newCollectionWars), address(voteMarket));
+        epochManager.setContracts(address(newCollectionWars), address(0));
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
-        sweepWars.setEpochManager(address(epochManager));
+        veFloor.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
-        voteMarket.setEpochManager(address(epochManager));
 
         // Update our veFloor staking receiver to be the {Treasury}
         veFloor.setFeeReceiver(address(treasury));
+
+        // Set our war contracts on the veFloor staking contract
+        veFloor.setVotingContracts(address(newCollectionWars), address(sweepWars));
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
@@ -128,32 +144,15 @@ contract EpochManagerTest is FloorTest {
         // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
         treasury.approveSweeper(manualSweeper, true);
+
+        // Set up our sweeper mock that will return tokens
+        sweeperMock = address(new SweeperMock(address(treasury)));
+        treasury.approveSweeper(sweeperMock, true);
+
+        // Define our ERC20 token
+        erc20 = new ERC20Mock();
     }
 
-    /**
-     * ..
-     */
-    function test_CanSetCurrentEpoch(uint epoch) external {
-        // Confirm we have a default epoch of zero
-        assertEq(epochManager.currentEpoch(), 0);
-
-        // Set our epoch and confirm that it has changed correctly
-        epochManager.setCurrentEpoch(epoch);
-        assertEq(epochManager.currentEpoch(), epoch);
-    }
-
-    /**
-     * ..
-     */
-    function test_CannotSetCurrentEpochWithoutPermission() external {
-        vm.expectRevert('Ownable: caller is not the owner');
-        vm.prank(alice);
-        epochManager.setCurrentEpoch(3);
-    }
-
-    /**
-     * ..
-     */
     function test_CanSetContracts() external {
         epochManager.setContracts(
             address(2), // newCollectionWars
@@ -213,7 +212,7 @@ contract EpochManagerTest is FloorTest {
 
     function test_CanHandleEpochStressTest() public {
         uint vaultCount = 10;
-        uint stakerCount = 25;
+        uint maxStakerCount = 30;
 
         // Register our epoch end trigger that stores our treasury sweep
         RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
@@ -230,47 +229,105 @@ contract EpochManagerTest is FloorTest {
         // Assign required roles for our trigger and epoch manager contracts
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
 
-        // Set our sample size of the GWV and to retain 50% of {Treasury} yield
+        // Set our sample size of the GWV to allow the top 5 collections to receive a share
         sweepWars.setSampleSize(5);
 
         // Mock our Voting mechanism to unlock unlimited user votes without backing and give
         // them a voting power of 1 ether.
         vm.mockCall(address(sweepWars), abi.encodeWithSelector(SweepWars.userVotesAvailable.selector), abi.encode(type(uint).max));
-        vm.mockCall(address(veFloor), abi.encodeWithSelector(VeFloorStaking.votingPowerOfAt.selector), abi.encode(1 ether));
+        vm.mockCall(address(veFloor), abi.encodeWithSelector(VeFloorStaking.votingPowerOf.selector), abi.encode(100 ether));
 
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
-        address payable[] memory stakers = utilities.createUsers(stakerCount);
+        address payable[] memory stakers = utilities.createUsers(maxStakerCount);
+
+        // Keep a linear track ID so that we can have the same token output from multiple
+        // strategies
+        uint tracker = 1;
 
         // Loop through our mocked vaults to mint tokens
         for (uint i; i < vaultCount; ++i) {
             // Approve a unique collection
-            address collection = address(uint160(uint(vaultCount + i)));
+            address collection = address(uint160(i + 5));
             collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
 
-            // Deploy our vault
+            // Deploy our strategy
             (, vaults[i]) = strategyFactory.deployStrategy('Test Vault', approvedStrategy, _strategyInitBytes(), collection);
 
-            address[] memory tokens = new address[](1);
-            tokens[0] = collection;
-            uint[] memory amounts = new uint[](1);
-            amounts[0] = 1 ether;
+            // Generate a number of yield tokens between 1 and 5
+            uint maxTokens = (tracker % 5) + 1;
+
+            // Register our token and amount arrays
+            address[] memory _tokens = new address[](maxTokens);
+            uint[] memory _amounts = new uint[](maxTokens);
+
+            // Loop through our max token limit
+            for (uint t; t < maxTokens; ++t) {
+                // Create a fake token and award it a yield value. This will allow some
+                // collection tokens to be offset against the yield as the strategy collection
+                // address will match tokens when it crosses over. The strategy collection
+                // addresses start at 5 and increment from there. This means that tokens with
+                // the address of 5 and 6 will offset against themselves.
+                _tokens[t] = address(uint160((tracker % 6) + 1));
+                _amounts[t] = (tracker % 20) * 1 ether;
+
+                // We additionally need to mock the decimal count returned against a token. We
+                // could, instead, create an ERC20 mock here but that would require our pricing
+                // executor to be mocked instead. This seemed like a simpler approach.
+                vm.mockCall(
+                    _tokens[t],
+                    abi.encodeWithSelector(ERC20.decimals.selector),
+                    abi.encode(uint(18))
+                );
+
+                ++tracker;
+            }
+
+            // Mock our tokens and amounts to be returned in the snapshot
+            vm.mockCall(
+                vaults[i],
+                abi.encodeWithSelector(BaseStrategy.snapshot.selector),
+                abi.encode(_tokens, _amounts)
+            );
 
             // Each staker will then deposit and vote
-            for (uint j; j < stakerCount; ++j) {
-                // Cast votes from this user against the vault collection
-                vm.startPrank(stakers[j]);
-                sweepWars.vote(collection, 1 ether, false);
-                vm.stopPrank();
+            for (uint j; j < tracker % 8; ++j) {
+                // Cast votes from this user for the vault collection
+                vm.prank(stakers[j]);
+                sweepWars.vote(collection, int(((tracker % 10) + 1) * 1 ether));
             }
         }
 
         // Set our block to a specific one
         vm.roll(12);
+
+        // Set our expected sweep collections. These should be in vote order desc.
+        address[] memory expectedCollections = new address[](5);
+        expectedCollections[0] = 0x0000000000000000000000000000000000000006;
+        expectedCollections[1] = 0x000000000000000000000000000000000000000d;
+        expectedCollections[2] = 0x000000000000000000000000000000000000000E;
+        expectedCollections[3] = 0x0000000000000000000000000000000000000009;
+        expectedCollections[4] = 0x0000000000000000000000000000000000000005;
+
+        uint[] memory expectedAmounts = new uint[](5);
+        expectedAmounts[0] = 67200000000000000000;
+        expectedAmounts[1] = 141600000000000000000;
+        expectedAmounts[2] = 121371428571428571024;
+        expectedAmounts[3] = 101142857142857142756;
+        expectedAmounts[4] = 0;
+
+        // Confirm that we receive the expect event emit when the sweep is registered
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit SweepRegistered({
+            sweepEpoch: 0,
+            sweepType: TreasuryEnums.SweepType.SWEEP,
+            collections: expectedCollections,
+            amounts: expectedAmounts
+        });
 
         // Trigger our epoch end and pray to the gas gods
         epochManager.endEpoch();
@@ -281,24 +338,218 @@ contract EpochManagerTest is FloorTest {
         // The epoch will have incremented in `endEpoch`, so we minus 1.
         (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, false);
         assertEq(message, '');
 
         vm.roll(23);
 
-        // Move some funds to the Treasury
+        // Give the Treasury both WETH and ETH
         deal(address(treasury), 1000 ether);
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
+
+        // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
+        uint startBalance = address(treasury).balance;
+
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit EpochSwept(0);
 
         // Sweep the epoch (won't actually sweep as it's manual, so it will just mark it
         // as complete).
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
+        // Confirm that no ETH was spent, but remaining WETH is refunded
+        assertGe(address(treasury).balance, startBalance);
+
+        // Confirm that the expected amount of WETH was allocated to the sweeper
+        assertEq(ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 568685714285714286220);
+
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
 
-        // assertEq(sweepType, TreasuryEnums.SweepType.SWEEP);
+        assertTrue(sweepType == TreasuryEnums.SweepType.SWEEP);
         assertEq(completed, true);
         assertEq(message, 'Test sweep');
+
+        // We would ideally confirm that our {Treasury} holds the expected tokens after the
+        // sweep. This cannot be done with this version of the {ManualSweeper}, but sweeper
+        // logic is tested separately.
     }
+
+    /**
+     * When there are no FLOOR tokens in the sweep, then we shouldn't have any burn
+     * mechanics triggered, nor the sweep triggered.
+     */
+    function test_NoFloorTokensReceivedInSweepDoesNotRaiseBurnErrors(uint startBalance) external {
+        // Provide the {Treasury} with sufficient WETH to fulfil the sweep
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 15 ether);
+
+        // Provide the {Treasury} with the starting FLOOR balance
+        deal(address(floor), address(treasury), startBalance);
+
+        // Set up our collections and amounts to just use the {ERC20Mock}
+        address[] memory collections = new address[](2);
+        collections[0] = address(erc20);
+        collections[1] = address(erc20);
+
+        uint[] memory amounts = new uint[](2);
+        amounts[0] = 10 ether;
+        amounts[1] = 5 ether;
+
+        // Register a sweep that does not include any FLOOR token amounts
+        treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        setCurrentEpoch(address(epochManager), 1);
+
+        // Sweep the epoch
+        treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that we still hold our starting balance and nothing has been burnt
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+    }
+
+    /**
+     * When FLOOR tokens are received in the sweep, we should burn any received, whilst
+     * still maintaining any initially held balance.
+     */
+    function test_FloorTokensReceivedInSweepAreBurned(uint startBalance, uint sweepAmount) external {
+        // Ensure that the combination of start balance and sweep amount won't exceed
+        // the max uint value and overflow.
+        vm.assume(startBalance < 10000 ether);
+        vm.assume(sweepAmount < 10000 ether);
+
+        // Provide the {Treasury} with sufficient WETH to fulfil the sweep and the
+        // subsequent resweep.
+        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), (10 ether + sweepAmount) * 2);
+
+        // Provide the {Treasury} with the starting FLOOR balance
+        deal(address(floor), address(treasury), startBalance);
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+
+        // Set up our collections and amounts to use {ERC20Mock} and {FLOOR} tokens
+        address[] memory collections = new address[](2);
+        collections[0] = address(erc20);
+        collections[1] = address(floor);
+
+        uint[] memory amounts = new uint[](2);
+        amounts[0] = 10 ether;
+        amounts[1] = sweepAmount;
+
+        // Register a sweep that does not include any FLOOR token amounts
+        treasury.registerSweep(0, collections, amounts, TreasuryEnums.SweepType.SWEEP);
+        setCurrentEpoch(address(epochManager), 1);
+
+        // Confirm that our event will be triggered in the sweep
+        if (amounts[1] > 0) {
+            vm.expectEmit(true, true, false, true, address(floor));
+            emit Transfer(address(treasury), address(0), sweepAmount);
+        }
+
+        // Run our sweeper
+        treasury.sweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that, due to the burn, we still have the same starting balance
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+
+        // Confirm that our event will be triggered in the resweep
+        if (amounts[1] > 0) {
+            vm.expectEmit(true, true, false, true, address(floor));
+            emit Transfer(address(treasury), address(0), sweepAmount);
+        }
+
+        // Resweep the epoch using the sweeper mock again
+        treasury.resweepEpoch(0, sweeperMock, 'Test sweep', 0);
+
+        // Confirm that, due to the burn, we still have the same starting balance
+        assertEq(floor.balanceOf(address(treasury)), startBalance);
+    }
+
+    /*
+     * @dev To avoid needing a full integration test, this has just pulled out the
+     * key logic.
+     */
+    function test_CanHandleDifferentSweepTokenDecimalAccuracy() public {
+        // Hardcode the token ETH price as 1 ether
+        uint tokenEthPrice = 1 ether;
+
+        // Iterate over a range of decimal accuracies to test against and confirm that
+        // they will each give the exepcted ETH value.
+        for (uint8 i = 6; i <= 18; ++i) {
+            ERC20Mock erc20Mock = new ERC20Mock();
+            erc20Mock.setDecimals(i);
+
+            // Find the ETH rewards based on the amount of token that is
+            // decimal accurate.
+            uint ethRewards = tokenEthPrice * (10 * (10 ** erc20Mock.decimals())) / (10 ** erc20Mock.decimals());
+
+            // We need to now confirm that the ETH rewards are the same for each. The
+            // equivalent of 10 tokens valued at 1 eth each.
+            assertEq(ethRewards, 10 ether);
+        }
+    }
+
+    function test_CanSetAndDeleteEpochEndTriggers(uint8 _delete) external {
+        // Set up epoch end triggers
+        uint expectedTriggers = type(uint8).max;
+
+        // Create address 0 - 255 (this means 256 in total as 0 is included)
+        for (uint160 i; i <= expectedTriggers; i++) {
+            epochManager.setEpochEndTrigger(address(i), true);
+        }
+
+        // Now try to delete a trigger against the generated number
+        epochManager.setEpochEndTrigger(address(uint160(_delete)), false);
+
+        // We should be able to confirm that the trigger has been deleted and that the
+        // length is as expected.
+        address[] memory triggers = epochManager.epochEndTriggers();
+        assertEq(triggers.length, 255);
+
+        // Loop through the remaining triggers and confirm we no longer have the
+        // deleted index.
+        for (uint160 i; i < triggers.length; i++) {
+            assertFalse(triggers[i] == address(uint160(_delete)));
+        }
+    }
+
+    function test_CanGetEpochLength() external {
+        assertEq(epochManager.EPOCH_LENGTH(), 7 days);
+    }
+
+    function test_CanGetEpochIterationTimestamp() external {
+        // Set our epoch ahead of our test epochs
+        setCurrentEpoch(address(epochManager), 10);
+
+        // Write our last epoch timestamp
+        stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692572869);
+
+        // Test a range of times
+        assertEq(epochManager.epochIterationTimestamp(1), 1692572869 - 63 days);
+        assertEq(epochManager.epochIterationTimestamp(2), 1692572869 - 56 days);
+        assertEq(epochManager.epochIterationTimestamp(5), 1692572869 - 35 days);
+        assertEq(epochManager.epochIterationTimestamp(9), 1692572869 - 7 days);
+
+        assertEq(epochManager.epochIterationTimestamp(10), 1692572869);
+
+        assertEq(epochManager.epochIterationTimestamp(11), 1692572869 + 7 days);
+        assertEq(epochManager.epochIterationTimestamp(12), 1692572869 + 14 days);
+        assertEq(epochManager.epochIterationTimestamp(15), 1692572869 + 35 days);
+        assertEq(epochManager.epochIterationTimestamp(19), 1692572869 + 63 days);
+
+        // Update our last epoch timestamp
+        stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692531530);
+
+        // Test a range of times to show they are reflected
+        assertEq(epochManager.epochIterationTimestamp(1), 1692531530 - 63 days);
+        assertEq(epochManager.epochIterationTimestamp(2), 1692531530 - 56 days);
+        assertEq(epochManager.epochIterationTimestamp(5), 1692531530 - 35 days);
+        assertEq(epochManager.epochIterationTimestamp(9), 1692531530 - 7 days);
+
+        assertEq(epochManager.epochIterationTimestamp(10), 1692531530);
+
+        assertEq(epochManager.epochIterationTimestamp(11), 1692531530 + 7 days);
+        assertEq(epochManager.epochIterationTimestamp(12), 1692531530 + 14 days);
+        assertEq(epochManager.epochIterationTimestamp(15), 1692531530 + 35 days);
+        assertEq(epochManager.epochIterationTimestamp(19), 1692531530 + 63 days);
+    }
+
 }

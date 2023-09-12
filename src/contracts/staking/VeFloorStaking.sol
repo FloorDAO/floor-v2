@@ -57,7 +57,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     error ZeroAddress();
 
     /// Set a list of locking periods that the user can lock for
-    uint8[] public LOCK_PERIODS = [uint8(0), 4, 13, 26, 52, 78, 104];
+    uint8[] public LOCK_PERIODS = [uint8(2), 4, 8, 12];
 
     /// Our FLOOR token
     IERC20 public immutable floor;
@@ -104,7 +104,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     /**
      * @notice Sets the maximum allowed loss ratio for early withdrawal. If the ratio is not met, actual is more than allowed,
      * then early withdrawal will revert.
-     * Example: maxLossRatio = 90% and 1000 staked 1inch tokens means that a user can execute early withdrawal only
+     * Example: maxLossRatio = 90% and 1000 staked floor tokens means that a user can execute early withdrawal only
      * if his loss is less than or equals 90% of his stake, which is 900 tokens. Thus, if a user loses 900 tokens he is allowed
      * to do early withdrawal and not if the loss is greater.
      * @param maxLossRatio_ The maximum loss allowed (9 decimals).
@@ -141,52 +141,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @param account The address of an account to get voting power for
      * @return votingPower The voting power available at the current epoch
      */
-    function votingPowerOf(address account) external view returns (uint) {
-        return this.votingPowerAt(account, currentEpoch());
-    }
-
-    /**
-     * @notice Gets the voting power of the provided account at a specific epoch
-     * @param account The address of an account to get voting power for
-     * @param epoch The epoch at which to check the user's voting power
-     * @return votingPower The voting power available at the epoch
-     */
-    function votingPowerAt(address account, uint epoch) external view returns (uint) {
-        return this.votingPowerOfAt(account, depositors[account].amount, epoch);
-    }
-
-    /**
-     * @notice Gets the voting power of the provided account at a specific epoch
-     * @param account The address of an account to get voting power for
-     * @param amount The amount of voting power the account has
-     * @param epoch The epoch at which to check the user's voting power
-     * @return votingPower The voting power available at the epoch
-     */
-    function votingPowerOfAt(address account, uint88 amount, uint epoch) external view returns (uint) {
-        // If the epoch had not started at this point, then we return 0 power
-        if (depositors[account].epochStart > epoch) {
-            return 0;
-        }
-
-        // Calculate the number of epochs that have passed since started
-        uint epochDifference = epoch - depositors[account].epochStart;
-
-        // Calculate the full power attributed to the user based on the epoch count
-        uint fullPower = (amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
-
-        // If we only just staked, then they have their full power
-        if (epochDifference == 0) {
-            return fullPower;
-        }
-
-        // If the staking period has expired, then we have 0 power
-        if (epochDifference > depositors[account].epochCount) {
-            return 0;
-        }
-
-        // Otherwise, we can calculate the remaining power, based on the number of epochs
-        // that have passed against their full power.
-        return (fullPower * (depositors[account].epochCount - epoch)) / depositors[account].epochCount;
+    function votingPowerOf(address account) public view returns (uint) {
+        return (depositors[account].amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
     }
 
     /**
@@ -204,50 +160,39 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
         _deposit(msg.sender, amount, epochs);
     }
 
-    /**
-     * @notice Stakes given amount on behalf of provided account without locking or extending lock
-     * @param account The account to stake for
-     * @param amount The amount to stake
-     */
-    function depositFor(address account, uint amount) external {
-        _deposit(account, amount, 0);
-    }
-
-    /**
-     * @notice Stakes given amount on behalf of provided account without locking or extending
-     * lock with permit.
-     * @param account The account to stake for
-     * @param amount The amount to stake
-     * @param permit Permit given by the caller
-     */
-    function depositForWithPermit(address account, uint amount, bytes calldata permit) external {
-        floor.safePermit(permit);
-        _deposit(account, amount, 0);
-    }
-
     function _deposit(address account, uint amount, uint epochs) private {
+        // If emergency exit is enabled, then we don't accept deposits
         if (emergencyExit) revert DepositsDisabled();
-        Depositor memory depositor = depositors[account]; // SLOAD
+
+        // Load our depositor with a single SLOAD
+        Depositor memory depositor = depositors[account];
+
+        // Validate our epoch index key
         require(epochs < LOCK_PERIODS.length, 'Invalid epoch index');
 
-        // Update the user's lock
-        if (epochs != 0) {
-            depositor.epochStart = uint160(currentEpoch());
-            depositor.epochCount = LOCK_PERIODS[epochs];
-        }
+        // Ensure that the user is not trying to stake for less than the duration of epochs
+        // that are currently remaining on their stake.
+        uint _currentEpoch = currentEpoch();
+        require(_currentEpoch + LOCK_PERIODS[epochs] >= depositor.epochStart + depositor.epochCount, 'Cannot stake less epochs');
 
-        depositor.amount += uint88(amount);
-        depositors[account] = depositor; // SSTORE
-
-        // Increase our total deposits
-        totalDeposits += amount;
+        // Update the depositor lock to the current epoch
+        depositor.epochStart = uint160(_currentEpoch);
+        depositor.epochCount = LOCK_PERIODS[epochs];
 
         // If we are staking additional tokens, then transfer the based FLOOR from the user
         // and mint veFloor tokens to the recipient `account`.
         if (amount > 0) {
+            // Take FLOOR tokens from the sender and mint them veFloor
             floor.safeTransferFrom(msg.sender, address(this), amount);
             _mint(account, amount);
+
+            // Increase our tracked amounts
+            depositor.amount += uint88(amount);
+            totalDeposits += amount;
         }
+
+        // SSTORE our updated depositor data
+        depositors[account] = depositor;
 
         emit Deposit(account, amount);
     }
@@ -275,9 +220,6 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      */
     function earlyWithdrawTo(address to, uint minReturn, uint maxLoss) public {
         Depositor memory depositor = depositors[msg.sender]; // SLOAD
-        if (emergencyExit || currentEpoch() >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
-        uint allowedExitTime = depositor.epochStart + (depositor.epochCount - depositor.epochStart) * minLockPeriodRatio / _ONE_E9;
-        if (currentEpoch() < allowedExitTime) revert MinLockPeriodRatioNotReached();
 
         // Get the amount that has been deposited and ensure that there is an amount to
         // be withdrawn at all.
@@ -286,14 +228,24 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
             return;
         }
 
+        // Check if stake is already fully unlocked, meaning that we don't need to early exit
+        uint _currentEpoch = currentEpoch();
+        if (emergencyExit || _currentEpoch >= depositor.epochStart + depositor.epochCount) revert StakeUnlocked();
+
+        // Determine when our earliest exit epoch is ensures that we have passed it. This is
+        // determined by the `minLockPeriodRatio` variable to calculate how much for the `epochCount`
+        // has passed from the `epochStart`.
+        uint allowedExitEpoch = depositor.epochStart + depositor.epochCount * minLockPeriodRatio / _ONE_E9;
+        if (_currentEpoch < allowedExitEpoch) revert MinLockPeriodRatioNotReached();
+
         // Check if the called is exempt from being required to pay early withdrawal fees
-        if (this.isExemptFromEarlyWithdrawFees(msg.sender)) {
+        if (isExemptFromEarlyWithdrawFees(msg.sender)) {
             _withdraw(depositor, amount);
             floor.safeTransfer(to, amount);
             return;
         }
 
-        (uint loss, uint ret) = _earlyWithdrawLoss(msg.sender, amount, this.votingPowerOf(msg.sender));
+        (uint loss, uint ret) = _earlyWithdrawLoss(depositor, amount);
 
         if (ret < minReturn) revert MinReturnIsNotMet();
         if (loss > maxLoss) revert MaxLossIsNotMet();
@@ -312,14 +264,38 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @return canWithdraw True if the staker can withdraw without penalty, false otherwise
      */
     function earlyWithdrawLoss(address account) external view returns (uint loss, uint ret, bool canWithdraw) {
-        uint amount = depositors[account].amount;
-        (loss, ret) = _earlyWithdrawLoss(account, amount, this.votingPowerOf(account));
-        canWithdraw = loss <= amount * maxLossRatio / _ONE_E9;
+        Depositor memory depositor = depositors[account]; // SLOAD
+        (loss, ret) = _earlyWithdrawLoss(depositor, depositor.amount);
+        canWithdraw = loss <= depositor.amount * maxLossRatio / _ONE_E9;
     }
 
-    function _earlyWithdrawLoss(address, /* account */ uint depAmount, uint stBalance) private pure returns (uint loss, uint ret) {
-        ret = depAmount - (stBalance / 2);
-        loss = depAmount - ret;
+    function _earlyWithdrawLoss(Depositor memory depositor, uint depAmount) private view returns (uint loss, uint ret) {
+        // If the current epoch is after the end of the lock, then we can assume there is
+        // no early exit loss as their stake is now fully available.
+        uint _currentEpoch = currentEpoch();
+        if (_currentEpoch > depositor.epochStart + depositor.epochCount) {
+            return (0, depAmount);
+        }
+
+        // Determine the power that is actually applied to the user currently based on their
+        // staked amount and the comparative lock length.
+        uint power = (depAmount * depositor.epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+
+        // If we still have the full duration remaining then we don't need to do any
+        // further calculations.
+        if (depositor.epochStart == _currentEpoch) {
+            return (power, depAmount - power);
+        }
+
+        // Determine the number of epochs remaining in the stake. This is already overflow
+        // checked from the above conditional.
+        uint remaining = depositor.epochCount - (_currentEpoch - depositor.epochStart);
+
+        // Calculate the early withdrawal fee by determining the "per epoch" power generated
+        // and then charging a penalty for the number of remaining epochs. This determines the
+        // penalty based on the power, and not the total amount deposited.
+        loss = (power / depositor.epochCount) * remaining;
+        ret = depAmount - loss;
     }
 
     /**
@@ -352,6 +328,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     function _withdraw(Depositor memory depositor, uint balance) private {
         totalDeposits -= depositor.amount;
         depositor.amount = 0;
+        depositor.epochStart = 0;
+        depositor.epochCount = 0;
         depositors[msg.sender] = depositor; // SSTORE
 
         if (address(newCollectionWars) != address(0)) {
@@ -364,7 +342,40 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
         _burn(msg.sender, balance);
 
-        emit Withdraw(msg.sender, depositor.amount);
+        emit Withdraw(msg.sender, balance);
+    }
+
+    /**
+     * When a vote or action is cast in the system, then we need to reset the token lock
+     * period to ensure that the minimum locking threshold is met.
+     */
+    function refreshLock(address account) external {
+        require(msg.sender == address(newCollectionWars) || msg.sender == address(sweepWars), 'Invalid caller');
+
+        // Load our depositor with a single SLOAD
+        Depositor memory depositor = depositors[account];
+
+        // Capture our current epoch to prevent multiple future reads
+        uint currentEpoch = currentEpoch();
+
+        // If we have implemented delayed staking, then this sense check will prevent
+        // unexpected revert errors.
+        if (depositor.epochStart > currentEpoch) {
+            return;
+        }
+
+        // Ensure that the user is within, or has gone past, the smallest lock window
+        if ((currentEpoch - depositor.epochStart) + LOCK_PERIODS[0] <= depositor.epochCount) {
+            return;
+        }
+
+        // Update the depositor lock to the current epoch
+        depositor.epochStart = uint160((currentEpoch + LOCK_PERIODS[0]) - depositor.epochCount);
+
+        // SSTORE our updated depositor data
+        depositors[account] = depositor;
+
+        emit Deposit(account, 0);
     }
 
     /**
@@ -398,7 +409,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      *
      * @return bool True if the user is exempt from early fees, false if not
      */
-    function isExemptFromEarlyWithdrawFees(address account) external view returns (bool) {
+    function isExemptFromEarlyWithdrawFees(address account) public view returns (bool) {
         return earlyWithdrawFeeExemptions[account];
     }
 

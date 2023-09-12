@@ -182,7 +182,7 @@ Creates a vault with an approved strategy, collection and corresponding {VaultXT
 ```solidity
 function createVault(string memory _name, address _strategy, bytes memory _strategyInitData, address _collection)
     external
-    onlyRole(VAULT_MANAGER)
+    onlyRole(STRATEGY_MANAGER)
     returns (uint vaultId_, address vaultAddr_);
 ```
 **Parameters**
@@ -211,7 +211,7 @@ although staked assets can always be withdrawn.
 
 
 ```solidity
-function pause(uint _vaultId, bool _paused) public onlyRole(VAULT_MANAGER);
+function pause(uint _vaultId, bool _paused) public onlyRole(STRATEGY_MANAGER);
 ```
 **Parameters**
 
@@ -230,7 +230,7 @@ vault rewards yield.
 
 
 ```solidity
-function migratePendingDeposits(uint _vaultId) public onlyRole(VAULT_MANAGER);
+function migratePendingDeposits(uint _vaultId) public onlyRole(STRATEGY_MANAGER);
 ```
 **Parameters**
 
@@ -277,7 +277,7 @@ Allows the staking contract to be updated.
 
 
 ```solidity
-function setStakingContract(address _staking) public onlyRole(VAULT_MANAGER);
+function setStakingContract(address _staking) public onlyRole(STRATEGY_MANAGER);
 ```
 **Parameters**
 

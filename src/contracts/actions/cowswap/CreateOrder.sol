@@ -44,14 +44,16 @@ contract CowSwapCreateOrder is Action, ICoWSwapOnchainOrders {
     bytes32 public immutable domainSeparator;
 
     /// Constant address of the WETH token
-    address public constant weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable weth;
 
     /**
      * Sets up our {CowSwapSettlement} contract reference
      */
-    constructor(address settlement_) {
+    constructor(address settlement_, address _weth) {
         settlement = ICoWSwapSettlement(settlement_);
         domainSeparator = settlement.domainSeparator();
+
+        weth = _weth;
     }
 
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
@@ -110,7 +112,17 @@ contract CowSwapCreateOrder is Action, ICoWSwapOnchainOrders {
 
         emit OrderPlacement(address(instance), order, signature, '');
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CowswapCreateOrder', _request);
+
         // Return an empty string as no message to store
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

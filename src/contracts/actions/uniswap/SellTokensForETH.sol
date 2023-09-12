@@ -11,7 +11,6 @@ import {Action} from '@floor/actions/Action.sol';
 import {IPermit2} from '@floor-interfaces/uniswap/IPermit2.sol';
 import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
 
-
 /**
  * This action allows us to use the UniSwap platform to perform a Single Swap.
  *
@@ -26,7 +25,7 @@ contract UniswapSellTokensForETH is Action {
     IUniversalRouter public immutable universalRouter;
 
     /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable WETH;
 
     /**
      * Store our required information to action a swap.
@@ -55,8 +54,9 @@ contract UniswapSellTokensForETH is Action {
      *
      * @param _universalRouter The UniSwap {UniversalRouter} contract
      */
-    constructor(address _universalRouter) {
+    constructor(address _universalRouter, address _weth) {
         universalRouter = IUniversalRouter(_universalRouter);
+        WETH = _weth;
     }
 
     /**
@@ -78,22 +78,23 @@ contract UniswapSellTokensForETH is Action {
 
         // Set up our data input
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(
-            msg.sender,
-            request.amountIn,
-            request.amountOutMinimum,
-            abi.encodePacked(
-                request.token0,
-                request.fee,
-                WETH
-            ),
-            false
-        );
+        inputs[0] =
+            abi.encode(msg.sender, request.amountIn, request.amountOutMinimum, abi.encodePacked(request.token0, request.fee, WETH), false);
 
         // Sends the command to make a V3 token swap
         // @dev https://github.com/Uniswap/universal-router/blob/main/contracts/libraries/Commands.sol
         universalRouter.execute(abi.encodePacked(bytes1(uint8(0x80))), inputs, request.deadline);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UniswapSellTokensForETH', _request);
+
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

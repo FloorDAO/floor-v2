@@ -31,6 +31,7 @@ contract GemSweeperTest is FloorTest {
     constructor() forkBlock(BLOCK_NUMBER) {
         // Send this address as the {Treasury} parameter so we can see what comes back
         action = new GemSweeper();
+        action.setGemSwapContract(payable(TARGET));
     }
 
     /**
@@ -39,7 +40,7 @@ contract GemSweeperTest is FloorTest {
      */
     function test_CanSweep() public {
         // Action our trade
-        string memory message = action.execute{value: 15 ether}(new address[](0), new uint[](0), abi.encode(TARGET, DATA));
+        string memory message = action.execute{value: 15 ether}(new address[](0), new uint[](0), DATA);
 
         // The action will just return a message that we have sent, as this will be logged
         // by the {Treasury} against the sweep.

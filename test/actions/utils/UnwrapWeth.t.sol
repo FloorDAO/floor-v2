@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IWETH} from '../../../src/interfaces/tokens/WETH.sol';
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {UnwrapWeth} from '@floor/actions/utils/UnwrapWeth.sol';
 
@@ -25,11 +25,11 @@ contract UnwrapWethTest is FloorTest {
         // Set up a test address to be our {Treasury}
         treasury = users[1];
 
-        // Set up a WrapEth action
-        action = new UnwrapWeth();
-
         // Set up a WETH interface
-        weth = IWETH(action.WETH());
+        weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+
+        // Set up a WrapEth action
+        action = new UnwrapWeth(address(weth));
     }
 
     function setUp() external {

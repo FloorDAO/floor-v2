@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {NFTXLiquidityPoolStakingStrategy} from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
@@ -20,12 +21,14 @@ contract DeployStrategyContracts is DeploymentScript {
         address treasury = requireDeployment('Treasury');
 
         // Deploy strategy strategies
+        DistributedRevenueStakingStrategy distributedRevenueStakingStrategy = new DistributedRevenueStakingStrategy(address(authorityControl));
         NFTXInventoryStakingStrategy inventoryStaking = new NFTXInventoryStakingStrategy();
         NFTXLiquidityPoolStakingStrategy liquidityStaking = new NFTXLiquidityPoolStakingStrategy();
         RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
         UniswapV3Strategy uniswapV3Staking = new UniswapV3Strategy();
 
         // Store our strategies deployment address
+        storeDeployment('DistributedRevenueStakingStrategy', address(distributedRevenueStakingStrategy));
         storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
         storeDeployment('NFTXLiquidityPoolStakingStrategy', address(liquidityStaking));
         storeDeployment('RevenueStakingStrategy', address(revenueStaking));

@@ -26,6 +26,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     address internal UNKNOWN = 0x0000000000000000000000000000000000000064;
     address internal USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // 6 decimals
     address internal X2Y2 = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9; // 18 decimals
+    address internal WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint128 internal FLOORV1_ETH_PRICE = 1550575122257810; // 001550575122257810
     uint128 internal USDC_ETH_PRICE = 819268955245994; // 000819268955245994
@@ -46,7 +47,7 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function setUp() public {
         // Set up our pricing executor
-        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY, FLOORV1);
+        executor = new UniswapV3PricingExecutor(UNISWAP_FACTORY, WETH);
     }
 
     /**
@@ -117,7 +118,8 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     }
 
     /**
-     * If we action a call with no tokens provided, then we expect a revert.
+     * If we action a call with no tokens provided, then we should just expect to
+     * receive an empty array.
      */
     function test_ETHPriceOfMultipleTokensWithNoTokens() public {
         address[] memory tokens = new address[](0);
@@ -149,74 +151,6 @@ contract UniswapV3PricingExecutorTest is FloorTest {
 
         vm.expectRevert(UnknownUniswapPool.selector);
         executor.getETHPrices(tokens);
-    }
-
-    /**
-     * Once we have an ETH price for both FLOOR and a token, then we can calculate
-     * the FLOOR value of a token.
-     */
-    function test_FloorPriceOfToken() public {
-        assertEq(executor.getFloorPrice(USDC), USDC_FLOOR_PRICE);
-    }
-
-    /**
-     * If we don't have a price for a token, then we expect a revert.
-     */
-    function test_FloorPriceOfUnknownToken() public {
-        vm.expectRevert(UnknownUniswapPool.selector);
-        executor.getFloorPrice(UNKNOWN);
-    }
-
-    /**
-     * We can pass multiple tokens as input in an array and we expect to get an
-     * array of FLOOR prices returned, maintaining the same order as the input.
-     */
-    function test_FloorPriceOfMultipleTokens() public {
-        address[] memory tokens = new address[](2);
-        tokens[0] = X2Y2;
-        tokens[1] = USDC;
-
-        uint[] memory prices = executor.getFloorPrices(tokens);
-
-        assertEq(prices[0], X2Y2_FLOOR_PRICE);
-        assertEq(prices[1], USDC_FLOOR_PRICE);
-    }
-
-    /**
-     * Get a gas estimate of 25 tokens.
-     */
-    function test_FloorPriceOfManyTokens() public {
-        address[] memory tokens = new address[](25);
-        for (uint i; i < 25;) {
-            tokens[i] = USDC;
-            unchecked {
-                ++i;
-            }
-        }
-
-        executor.getFloorPrices(tokens);
-    }
-
-    /**
-     * If we are not sent any tokens, then we expect a revert.
-     */
-    function test_FloorPriceOfMultipleTokensWithNoTokens() public {
-        address[] memory tokens = new address[](0);
-        uint[] memory prices = executor.getFloorPrices(tokens);
-        assertEq(prices.length, 0);
-    }
-
-    /**
-     * If just a single token is passed in, then this will just return the single
-     * price, but in an array.
-     */
-    function test_FloorPriceOfMultipleTokensWithSingleTokens() public {
-        address[] memory tokens = new address[](1);
-        tokens[0] = X2Y2;
-
-        uint[] memory prices = executor.getFloorPrices(tokens);
-
-        assertEq(prices[0], X2Y2_FLOOR_PRICE);
     }
 
     /**

@@ -17,6 +17,7 @@ contract AddContractPermissions is DeploymentScript {
 
         // Ensure we have required contracts already deployed that will receive roles
         address migrateFloorToken = requireDeployment('MigrateFloorToken');
+        address registerSweep = requireDeployment('RegisterSweepTrigger');
         address treasury = requireDeployment('Treasury');
         address vestingClaim = requireDeployment('VestingClaim');
 
@@ -29,7 +30,11 @@ contract AddContractPermissions is DeploymentScript {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), treasury);
 
         // Allow specified contracts and wallets permission to create and pause Vaults
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), treasury);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), treasury);
+
+        // RegisterSweep needs TREASURY_MANAGER and STRATEGY_MANAGER
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), registerSweep);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), registerSweep);
 
         // Transfer ownership of any required contracts
         // None currently required..

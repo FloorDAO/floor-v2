@@ -26,9 +26,6 @@ contract SushiswapRemoveLiquidity is Action {
         uint deadline;
     }
 
-    /// WETH token address
-    address internal constant WETH_TOKEN = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// Uniswap contract references
     IUniswapV2Router01 public immutable uniswapRouter;
     IUniswapV2Factory public immutable uniswapFactory;
@@ -67,7 +64,16 @@ contract SushiswapRemoveLiquidity is Action {
             request.tokenA, request.tokenB, request.liquidity, request.amountAMin, request.amountBMin, request.to, request.deadline
         );
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('SushiswapRemoveLiquidity', _request);
+
         return 0;
     }
 
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
+    }
 }

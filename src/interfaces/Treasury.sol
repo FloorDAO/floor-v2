@@ -43,13 +43,13 @@ interface ITreasury {
     /// @dev When native network token is withdrawn from the Treasury
     event Deposit(uint amount);
 
-    /// @dev When an ERC20 is depositted into the vault
+    /// @dev When an ERC20 is depositted into the Treasury
     event DepositERC20(address token, uint amount);
 
-    /// @dev When an ERC721 is depositted into the vault
+    /// @dev When an ERC721 is depositted into the Treasury
     event DepositERC721(address token, uint tokenId);
 
-    /// @dev When an ERC1155 is depositted into the vault
+    /// @dev When an ERC1155 is depositted into the Treasury
     event DepositERC1155(address token, uint tokenId, uint amount);
 
     /// @dev When native network token is withdrawn from the Treasury
@@ -61,7 +61,7 @@ interface ITreasury {
     /// @dev When an ERC721 token is withdrawn from the Treasury
     event WithdrawERC721(address token, uint tokenId, address recipient);
 
-    /// @dev When an ERC1155 is withdrawn from the vault
+    /// @dev When an ERC1155 is withdrawn from the Treasury
     event WithdrawERC1155(address token, uint tokenId, uint amount, address recipient);
 
     /// @dev When FLOOR is minted
@@ -71,7 +71,7 @@ interface ITreasury {
     event ActionProcessed(address action, bytes data);
 
     /// @dev When a sweep is registered against an epoch
-    event SweepRegistered(uint epochIndex);
+    event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
 
     /// @dev When an action is assigned to a sweep epoch
     event SweepAction(uint sweepEpoch);
@@ -113,43 +113,48 @@ interface ITreasury {
     function withdraw(address recipient, uint amount) external;
 
     /**
-     * Allows an approved user to withdraw and ERC20 token from the vault.
+     * Allows an approved user to withdraw and ERC20 token from the Treasury.
      */
     function withdrawERC20(address recipient, address token, uint amount) external;
 
     /**
-     * Allows an approved user to withdraw and ERC721 token from the vault.
+     * Allows an approved user to withdraw and ERC721 token from the Treasury.
      */
     function withdrawERC721(address recipient, address token, uint tokenId) external;
 
     /**
-     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     * Allows an approved user to withdraw an ERC1155 token(s) from the Treasury.
      */
     function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external;
 
     /**
-     * ..
+     * Actions a sweep to be used against a contract that implements {ISweeper}. This
+     * will fulfill the sweep and we then mark the sweep as completed.
      */
     function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
-     * ..
+     * Allows the DAO to resweep an already swept "Sweep" struct, using a contract that
+     * implements {ISweeper}. This will fulfill the sweep again and keep the sweep marked
+     * as completed.
      */
     function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) external;
 
     /**
-     * ..
+     * When an epoch ends, we have the ability to register a sweep against the {Treasury}
+     * via an approved contract. This will store a DAO sweep that will need to be actioned
+     * using the `sweepEpoch` function.
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType)
         external;
 
     /**
-     * ..
+     * The minimum sweep amount that can be implemented, or excluded, as desired by the DAO.
      */
     function minSweepAmount() external returns (uint);
 
     /**
-     * ..
+     * Allows the mercenary sweeper contract to be updated.
      */
     function setMercenarySweeper(address _mercSweeper) external;
 }

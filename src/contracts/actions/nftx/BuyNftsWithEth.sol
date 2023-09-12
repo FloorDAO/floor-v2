@@ -70,14 +70,24 @@ contract NFTXBuyNftsWithEth is Action {
         delete _nftReceiver;
 
         // Get the remaining ETH and transfer it back to the sender
-        uint remainingBalance = startBalance - address(this).balance;
+        uint remainingBalance = startBalance - msg.value + address(this).balance;
         if (remainingBalance != 0) {
             (bool success,) = payable(msg.sender).call{value: remainingBalance}('');
-            require(success, 'Address: unable to send value, recipient may have reverted');
+            require(success, 'Cannot refund ETH');
         }
+
+        // Emit our `ActionEvent`
+        emit ActionEvent('NftxBuyNftsWithEth', _request);
 
         // We return just the amount of tokens bought
         return amount;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 
     /**

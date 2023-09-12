@@ -20,7 +20,6 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-
 contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     // Store our strategy information
     NFTXLiquidityPoolStakingStrategy strategy;
@@ -34,8 +33,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 17_240_153;
 
     /// Define a number of ERC holders that we can test with
-    address erc20Holder;   // This will be set to `alice` during `setUp`
-    address erc721Holder = 0xd938a84aD8CDB8385b68851350d5a84aA52D9C06;  // Holds 411
+    address erc20Holder; // This will be set to `alice` during `setUp`
+    address erc721Holder = 0xd938a84aD8CDB8385b68851350d5a84aA52D9C06; // Holds 411
     address erc1155Holder = 0xB45470a9688ec3bdBB572B27c305E8c45E014e75; // Holds ???
 
     /// Set up a {Treasury} contract address
@@ -74,7 +73,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
                 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _rewardToken         // MILADY
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
-                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2  // _weth
+                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 // _weth
             ),
             0x5Af0D9827E0c53E4799BB226655A1de152A425a5
         );
@@ -132,14 +131,14 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensure we can get our reward token address.
      */
     function test_CanGetRewardToken() public {
         assertEq(strategy.rewardToken(), 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -233,6 +232,10 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     function test_CanFullyExitPosition() public {
         vm.startPrank(erc20Holder);
 
+        // Get the start balance of our {Treasury}
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
         uint depositAmount = strategy.depositErc20(1 ether);
@@ -251,6 +254,10 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Check here for the sent value as well
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }
 
     /**
@@ -379,7 +386,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
                 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, // _rewardToken         // CURIO
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
-                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2  // _weth
+                0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 // _weth
             ),
             0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313
         );
@@ -415,7 +422,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm that, although we sent 5 WETH that we have received an amount back. This
         // account started with 100 WETH, so we can use that as a base to test from.
-        assertEq(WETH.balanceOf(erc1155Holder), 99732516493129423305);  // 100 ether - 2.7~ ether
+        assertEq(WETH.balanceOf(erc1155Holder), 99732516493129423305); // 100 ether - 2.7~ ether
 
         // Confirm that the ERC721s are now held by the vault
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 1), 0);
@@ -502,7 +509,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 7000000000000000000);
 
         // Snapshot the rewards
-        strategyFactory.snapshot(strategyId);
+        strategyFactory.snapshot(strategyId, 0);
 
         // Withdraw another xToken
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether));
@@ -534,11 +541,45 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
     }
 
+    /**
+     * Ensures that we have the correct tokens attached to the strategy.
+     */
     function test_CanGetValidTokens() public {
         address[] memory tokens = strategy.validTokens();
 
         assertEq(tokens.length, 1);
         assertEq(tokens[0], strategy.underlyingToken());
+    }
+
+    function test_CanWithdrawPercentage() public {
+        // Confirm that our tests don't have any residual tokens to start with
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 0);
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Deposit into our strategy
+        vm.startPrank(erc20Holder);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.depositErc20(1 ether);
+        vm.stopPrank();
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 2e17);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 8e17);
+
+        // Confirm that the strategy has an accurate record of the deposits
+        uint deposits = strategy.deposits();
+        assertEq(deposits, 8e17);
     }
 
     function assertRewards(

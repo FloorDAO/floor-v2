@@ -14,9 +14,7 @@ interface INftStaking {
 
     function sweepModifier() external returns (uint64);
 
-    function collectionBoost(address _collection) external view returns (uint boost_);
-
-    function collectionBoost(address _collection, uint _epoch) external view returns (uint boost_);
+    function collectionBoost(address _collection, int _votes) external view returns (int votes_);
 
     function stake(address _collection, uint[] calldata _tokenId, uint[] calldata _amount, uint8 _epochCount, bool _is1155) external;
 

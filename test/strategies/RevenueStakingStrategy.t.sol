@@ -4,7 +4,12 @@ pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, InsufficientPosition, RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
+import {
+    CannotDepositZeroAmount,
+    CannotWithdrawZeroAmount,
+    InsufficientPosition,
+    RevenueStakingStrategy
+} from '@floor/strategies/RevenueStakingStrategy.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -46,7 +51,7 @@ contract RevenueStakingStrategyTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensures that we have the correct tokens attached to the strategy.
      */
     function test_CanGetTokens() public {
         address[] memory tokens = strategy.validTokens();
@@ -55,7 +60,7 @@ contract RevenueStakingStrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -167,6 +172,9 @@ contract RevenueStakingStrategyTest is FloorTest {
         vm.stopPrank();
     }
 
+    /**
+     * Test that we cannot deposit a token that is not valid.
+     */
     function test_CannotDepositUnknownToken() public {
         vm.startPrank(testUser);
         vm.expectRevert('Invalid token');

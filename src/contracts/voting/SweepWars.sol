@@ -6,7 +6,6 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
@@ -42,47 +41,30 @@ error SampleSizeCannotBeZero();
  * When a Sweep War epoch ends, then the `snapshot` function will be called that finds the
  * top _x_ collections and their relative sweep amounts based on the votes cast.
  */
-contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
-    /**
-     * Each collection has a stored struct that represents the current vote power, burn
-     * rate and the last epoch that a vote was cast. These three parameters can be combined
-     * to calculate current vote power at any epoch with minimal gas usage.
-     *
-     * @param power The amount of vote power assigned to a collection
-     * @param powerBurn The amount of vote power lost per epoch
-     * @param lastVoteEpoch The last epoch that a vote was placed for this collection
-     */
-    struct CollectionVote {
-        int power;
-        int powerBurn;
-        uint lastVoteEpoch;
-    }
-
-    // Store a mapping of the collection address to our `CollectionVote` struct
-    mapping(address => CollectionVote) collectionVotes;
+contract SweepWars is AuthorityControl, ISweepWars {
 
     /// Keep a store of the number of collections we want to reward pick per epoch
     uint public sampleSize = 5;
 
-    /// Hardcoded address to map to the FLOOR token vault
-    address public constant FLOOR_TOKEN_VOTE = address(1);
-
     /// Internal contract references
     ICollectionRegistry immutable collectionRegistry;
-    IStrategyFactory immutable vaultFactory;
+    IStrategyFactory immutable strategyFactory;
     VeFloorStaking immutable veFloor;
     ITreasury immutable treasury;
     INftStaking public nftStaking;
 
     /**
      * We will need to maintain an internal structure to map the voters against
-     * a vault address so that we can determine vote growth and reallocation. We
-     * will additionally maintain a mapping of vault address to total amount that
+     * a strategy address so that we can determine vote growth and reallocation. We
+     * will additionally maintain a mapping of strategy address to total amount that
      * will better allow for snapshots to be taken for less gas.
      *
      * This will result in a slightly increased write, to provide a greatly
      * reduced read.
      */
+
+    /// Store a mapping of the collection address to the number of votes
+    mapping(address => int) collectionVotes;
 
     /**
      * A collection of votes that the user currently has placed.
@@ -97,15 +79,15 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * Sets up our contract parameters.
      *
      * @param _collectionRegistry Address of our {CollectionRegistry}
-     * @param _vaultFactory Address of our {VaultFactory}
+     * @param _strategyFactory Address of our {StrategyFactory}
      * @param _veFloor Address of our {veFLOOR}
      * @param _authority {AuthorityRegistry} contract address
      */
-    constructor(address _collectionRegistry, address _vaultFactory, address _veFloor, address _authority, address _treasury)
+    constructor(address _collectionRegistry, address _strategyFactory, address _veFloor, address _authority, address _treasury)
         AuthorityControl(_authority)
     {
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
-        vaultFactory = IStrategyFactory(_vaultFactory);
+        strategyFactory = IStrategyFactory(_strategyFactory);
         veFloor = VeFloorStaking(_veFloor);
 
         treasury = ITreasury(_treasury);
@@ -117,8 +99,8 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      *
      * @param _user User address being checked
      */
-    function userVotingPower(address _user) external view returns (uint) {
-        return veFloor.balanceOf(_user);
+    function userVotingPower(address _user) public view returns (uint) {
+        return veFloor.votingPowerOf(_user);
     }
 
     /**
@@ -128,8 +110,15 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      *
      * @return uint Number of votes available to the user
      */
-    function userVotesAvailable(address _user) external view returns (uint) {
-        return this.userVotingPower(_user) - totalUserVotes[_user];
+    function userVotesAvailable(address _user) public view returns (uint) {
+        // We shouldn't be in a situation where the user's total votes is above the
+        // available voting power, but to avoid reverts..
+        uint _userVotingPower = userVotingPower(_user);
+        if (totalUserVotes[_user] >= _userVotingPower) {
+            return 0;
+        }
+
+        return _userVotingPower - totalUserVotes[_user];
     }
 
     /**
@@ -150,107 +139,63 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      *
      * @param _collection The collection address being voted for
      * @param _amount The number of votes the caller is casting
-     * @param _against If the vote will be against the collection
      */
-    function vote(address _collection, uint _amount, bool _against) external {
+    function vote(address _collection, int _amount) external {
         if (_amount == 0) {
             revert CannotVoteWithZeroAmount();
         }
 
+        // Get an absolute value of our cast amount
+        uint absAmount = abs(_amount);
+
         // Ensure the user has enough votes available to cast
-        uint votesAvailable = this.userVotesAvailable(msg.sender);
-        if (votesAvailable < _amount) {
-            revert InsufficientVotesAvailable(_amount, votesAvailable);
+        uint votesAvailable = userVotesAvailable(msg.sender);
+        if (votesAvailable < absAmount) {
+            revert InsufficientVotesAvailable(absAmount, votesAvailable);
         }
 
         // Confirm that the collection being voted for is approved and valid, if we
         // aren't voting for a zero address (which symbolises FLOOR).
-        if (_collection != FLOOR_TOKEN_VOTE && !collectionRegistry.isApproved(_collection)) {
+        if (!collectionRegistry.isApproved(_collection)) {
             revert CollectionNotApproved(_collection);
         }
 
         unchecked {
             // Increase our tracked user amounts
-            if (_against) {
-                userAgainstVotes[keccak256(abi.encode(msg.sender, _collection))] += _amount;
+            if (_amount < 0) {
+                userAgainstVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
             } else {
-                userForVotes[keccak256(abi.encode(msg.sender, _collection))] += _amount;
+                userForVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
             }
 
-            totalUserVotes[msg.sender] += _amount;
+            collectionVotes[_collection] += _amount;
+            totalUserVotes[msg.sender] += absAmount;
         }
 
-        // SLOAD our current collectionVote
-        CollectionVote memory collectionVote = collectionVotes[_collection];
-
-        // Update the power and power burn based on the new amount added
-        uint epoch = currentEpoch();
-        if (_against) {
-            collectionVote.power -= int(veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epoch));
-            collectionVote.powerBurn -= int(_amount / 104);
-        } else {
-            collectionVote.power += int(veFloor.votingPowerOfAt(msg.sender, uint88(_amount), epoch));
-            collectionVote.powerBurn += int(_amount / 104);
-        }
-
-        // Set the last epoch iteration to have updated
-        if (collectionVote.lastVoteEpoch != epoch) {
-            collectionVote.lastVoteEpoch = epoch;
-        }
-
-        // SSTORE our updated collectionVote
-        collectionVotes[_collection] = collectionVote;
+        // Trigger our potential restake due to vote action
+        veFloor.refreshLock(msg.sender);
 
         emit VoteCast(msg.sender, _collection, _amount);
     }
 
-    function votes(address _collection) public view returns (int) {
-        return votes(_collection, currentEpoch());
-    }
-
     /**
-     * Gets the number of votes for a collection at a specific epoch.
+     * Gets the number of votes for a collection at the current epoch.
      *
      * @param _collection The collection to check vote amount for
-     * @param _baseEpoch The epoch at which to get vote count
      *
-     * @return votes_ The number of votes at the epoch specified
+     * @return votes_ The number of votes at the current epoch
      */
-    function votes(address _collection, uint _baseEpoch) public view returns (int votes_) {
-        CollectionVote memory collectionVote = collectionVotes[_collection];
-
-        // If we are looking for a date in the past, just return 0
-        uint epoch = currentEpoch();
-        if (epoch > _baseEpoch) {
-            return 0;
-        }
-
-        // If we look to a point that would turn the returned value negative, then we need
-        // to catch this and just return 0.
-        int burnAmount = collectionVote.powerBurn * int(_baseEpoch - epoch);
-
-        if (
-            uint(burnAmount < 0 ? -burnAmount : burnAmount) >
-            uint(collectionVote.power < 0 ? -collectionVote.power : collectionVote.power)
-        ) {
-            return 0;
-        }
-
-        // Calculate the power, minus the burn
-        votes_ = collectionVote.power - burnAmount;
+    function votes(address _collection) public view returns (int votes_) {
+         votes_ = collectionVotes[_collection];
 
         // Pull in the additional voting power generated by NFT staking
         if (address(nftStaking) != address(0)) {
-            if (votes_ < 0) {
-                votes_ = (votes_ / int(nftStaking.collectionBoost(_collection, _baseEpoch))) / 1e9;
-            } else {
-                votes_ = (votes_ * int(nftStaking.collectionBoost(_collection, _baseEpoch))) / 1e9;
-            }
+            votes_ = nftStaking.collectionBoost(_collection, votes_);
         }
     }
 
     /**
-     * Allows a user to revoke their votes from vaults. This will free up the
+     * Allows a user to revoke their votes from strategies. This will free up the
      * user's available votes that can subsequently be voted again with.
      *
      * @param _collections[] The collection address(es) being revoked
@@ -266,7 +211,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * @param _account The user having their votes revoked
      */
     function revokeAllUserVotes(address _account) external onlyRole(VOTE_MANAGER) {
-        _revokeVotes(_account, this.voteOptions());
+        _revokeVotes(_account, voteOptions());
     }
 
     function _revokeVotes(address _account, address[] memory _collections) internal {
@@ -277,9 +222,6 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         bytes32 collectionHash;
         uint userCollectionVotes;
 
-        // Capture our current epoch
-        uint epoch = currentEpoch();
-
         // Iterate over our collections to revoke the user's vote amounts
         for (uint i; i < length;) {
             // Find the collection hash for the user and get their total for and against votes
@@ -288,39 +230,19 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
             // Check that the user has voted for the collection in some way
             if (userCollectionVotes != 0) {
-                // SLOAD our current collectionVote
-                CollectionVote memory collectionVote = collectionVotes[_collections[i]];
-
                 // Update the power and power burn based on the new amount added
-                unchecked {
-                    if (userForVotes[collectionHash] != 0) {
-                        collectionVote.power -= int(veFloor.votingPowerOfAt(_account, uint88(userForVotes[collectionHash]), epoch));
-                        collectionVote.powerBurn -= int(userForVotes[collectionHash] / 104);
-                    }
+                collectionVotes[_collections[i]] += int(userAgainstVotes[collectionHash]);
+                collectionVotes[_collections[i]] -= int(userForVotes[collectionHash]);
 
-                    if (userAgainstVotes[collectionHash] != 0) {
-                        collectionVote.power += int(veFloor.votingPowerOfAt(_account, uint88(userAgainstVotes[collectionHash]), epoch));
-                        collectionVote.powerBurn += int(userAgainstVotes[collectionHash] / 104);
-                    }
+                // Reduce the number of votes cast by the user as a whole
+                totalUserVotes[_account] -= userCollectionVotes;
 
-                    // Reduce the number of votes cast by the user as a whole
-                    totalUserVotes[_account] -= userCollectionVotes;
+                emit VotesRevoked(_account, _collections[i], userForVotes[collectionHash], userAgainstVotes[collectionHash]);
 
-                    // Set the number of for and against user votes back to 0 for the collection
-                    userForVotes[collectionHash] = 0;
-                    userAgainstVotes[collectionHash] = 0;
-                }
-
-                // Set the last epoch iteration to have updated
-                if (collectionVote.lastVoteEpoch != epoch) {
-                    collectionVote.lastVoteEpoch = epoch;
-                }
-
-                // SSTORE our updated collectionVote
-                collectionVotes[_collections[i]] = collectionVote;
+                // Set the number of for and against user votes back to 0 for the collection
+                userForVotes[collectionHash] = 0;
+                userAgainstVotes[collectionHash] = 0;
             }
-
-            emit VotesRevoked(_account, _collections[i]);
 
             unchecked {
                 ++i;
@@ -331,33 +253,24 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
     /**
      * The snapshot function will need to iterate over all collections that have
      * more than 0 votes against them. With that we will need to find each
-     * vault's percentage share within each collection, in relation to others.
-     *
-     * This percentage share will instruct the {Treasury} on how much additional
-     * FLOOR to allocate to the users staked in the vaults. These rewards will be
-     * distributed via the {VaultXToken} attached to each {Vault} that implements
-     * the collection that is voted for.
+     * strategy percentage share within each collection, in relation to others.
      *
      * We check against the `sampleSize` that has been set to only select the first
-     * _x_ top voted collections. We find the vaults that align to the collection
+     * _x_ top voted collections. We find the strategies that align to the collection
      * and give them a sub-percentage of the collection's allocation based on the
      * total number of rewards generated within that collection.
-     *
-     * This would distribute the vaults allocated rewards against the staked
-     * percentage in the vault. Any Treasury holdings that would be given in rewards
-     * are just deposited into the {Treasury} as FLOOR tokens.
      *
      * @param tokens The number of tokens rewards in the snapshot
      *
      * @return address[] The collections that were granted rewards
      * @return amounts[] The vote values of each collection
      */
-    function snapshot(uint tokens, uint epoch) external view returns (address[] memory, uint[] memory) {
+    function snapshot(uint tokens) external view returns (address[] memory, uint[] memory) {
         // Keep track of remaining tokens to avoid dust
         uint remainingTokens = tokens;
 
         // Set up our temporary collections array that will maintain our top voted collections
-        (address[] memory collections, uint[] memory collectionVotePowers) = _topCollections(epoch);
+        (address[] memory collections, uint[] memory collectionVotePowers) = _topCollections();
         uint collectionsLength = collections.length;
 
         // Set up our amounts array that will hold the relevant share of the token allocation
@@ -369,7 +282,9 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         uint totalRelevantVotes;
         for (uint i; i < collectionsLength;) {
             totalRelevantVotes += collectionVotePowers[i];
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Iterate over our collections
@@ -396,12 +311,14 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
      * an intensive process for how simple it is, but essentially just orders creates an
      * ordered subset of the top _x_ voted collection addresses.
      *
+     * @dev It may be possible to cache the `votes()` call value, but unsure of gas save
+     *
      * @return Array of collections limited to sample size
      * @return Respective vote power for each collection
      */
-    function _topCollections(uint epoch) internal view returns (address[] memory, uint[] memory) {
+    function _topCollections() internal view returns (address[] memory, uint[] memory) {
         // Get all of our collections
-        address[] memory approvedCollections = this.voteOptions();
+        address[] memory approvedCollections = voteOptions();
         uint length = approvedCollections.length;
 
         // We need to see which see if we have enough vote positive collections to fill the
@@ -412,11 +329,15 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
         for (uint i; i < length;) {
             // If our vote amount is over zero, then we count this to compare against
             // the sample size later.
-            if (votes(approvedCollections[i], epoch) > 0) {
-                unchecked { ++positiveCollections; }
+            if (votes(approvedCollections[i]) > 0) {
+                unchecked {
+                    ++positiveCollections;
+                }
             }
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // Check if the number of positive collections is smaller than the sample size. If it
@@ -442,9 +363,11 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             // If we have a vote power that is not positive, then we don't need to process
             // any further logic as we definitely won't be including the collection in our
             // response.
-            int _votes = votes(approvedCollections[i], epoch);
+            int _votes = votes(approvedCollections[i]);
             if (_votes <= 0) {
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
                 continue;
             }
 
@@ -453,7 +376,7 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
             for (j = 0; j < _sampleSize && j <= i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
-                if (collections[j] == address(0) || _votes > votes(collections[j], epoch)) {
+                if (collections[j] == address(0) || _votes > votes(collections[j])) {
                     break;
                 }
 
@@ -516,12 +439,18 @@ contract SweepWars is AuthorityControl, EpochManaged, ISweepWars {
 
     /**
      * Provides a list of collection addresses that can be voted on. This will pull in
-     * all approved collections as well as appending the {FLOOR} vote on the end, which
-     * is a hardcoded address.
+     * all approved collections, which should include the {FLOOR} token as well.
      *
-     * @return collections_ Collections (and {FLOOR} vote address) that can be voted on
+     * @return collections_ Collections (and {FLOOR}) that can be voted on
      */
-    function voteOptions() external view returns (address[] memory) {
+    function voteOptions() public view returns (address[] memory) {
         return collectionRegistry.approvedCollections();
+    }
+
+    /**
+     * Math helper function to allow us to get the absolute value of an int
+     */
+    function abs(int x) private pure returns (uint) {
+        return x >= 0 ? uint(x) : uint(-x);
     }
 }

@@ -37,3 +37,11 @@
 [submodule "lib/lssvm"]
 	path = lib/lssvm
 	url = https://github.com/sudoswap/lssvm
+[submodule "lib/ERC721A"]
+	path = lib/ERC721A
+	url = https://github.com/chiru-labs/ERC721A
+	branch = main
+[submodule "lib/foundry-random"]
+	path = lib/foundry-random
+	url = https://github.com/joejordan/foundry-random
+	branch = v1.0.2

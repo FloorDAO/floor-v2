@@ -16,15 +16,15 @@ import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol
 error StrategyNameCannotBeEmpty();
 
 /**
- * Allows for vaults to be created, pairing them with an approved collection. The vault
+ * Allows for strategies to be created, pairing them with an approved collection. The strategy
  * creation script needs to be as highly optimised as possible to ensure that the gas
  * costs are kept down.
  *
- * This factory will keep an index of created vaults and secondary information to ensure
- * that external applications can display and maintain a list of available vaults.
+ * This factory will keep an index of created strategies and secondary information to ensure
+ * that external applications can display and maintain a list of available strategies.
  */
 contract StrategyFactory is AuthorityControl, IStrategyFactory {
-    /// Maintains an array of all vaults created
+    /// Maintains an array of all strategies created
     address[] private _strategies;
 
     /// Store our Treasury address
@@ -35,7 +35,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
 
     /// Mappings to aide is discoverability
     mapping(uint => address) private strategyIds;
-    mapping(address => address[]) public collectionStrategies;
+
+    /// Mapping of collection to strategy addresses
+    mapping(address => address[]) internal _collectionStrategies;
 
     /**
      * Store our registries, mapped to their interfaces.
@@ -58,6 +60,17 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     }
 
     /**
+     * Returns an array of all strategies that belong to a specific collection.
+     *
+     * @param _collection The address of the collection to query
+     *
+     * @return address[] Array of strategy addresses
+     */
+    function collectionStrategies(address _collection) external view returns (address[] memory) {
+        return _collectionStrategies[_collection];
+    }
+
+    /**
      * Provides a strategy against the provided `strategyId` (index). If the index does not exist,
      * then address(0) will be returned.
      *
@@ -70,22 +83,22 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     }
 
     /**
-     * Creates a vault with an approved collection.
+     * Creates a strategy with an approved collection.
      *
-     * @dev The vault is not created using Clones as there are complications when allocated
-     * roles and permissions.
+     * @dev The strategy is not created using Clones as there are complications when
+     * allocated roles and permissions.
      *
-     * @param _name Human-readable name of the vault
-     * @param _strategy The strategy implemented by the vault
+     * @param _name Human-readable name of the strategy
+     * @param _strategy The strategy implemented by the strategy
      * @param _strategyInitData Bytes data required by the {Strategy} for initialization
-     * @param _collection The address of the collection attached to the vault
+     * @param _collection The address of the collection attached to the strategy
      *
-     * @return strategyId_ ID of the newly created vault
-     * @return strategyAddr_ Address of the newly created vault
+     * @return strategyId_ ID of the newly created strategy
+     * @return strategyAddr_ Address of the newly created strategy
      */
     function deployStrategy(bytes32 _name, address _strategy, bytes calldata _strategyInitData, address _collection)
         external
-        onlyRole(VAULT_MANAGER)
+        onlyRole(STRATEGY_MANAGER)
         returns (uint strategyId_, address strategyAddr_)
     {
         // No empty names, that's just silly
@@ -98,7 +111,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
             revert CollectionNotApproved(_collection);
         }
 
-        // Capture our vaultId, before we increment the array length
+        // Capture our `strategyId`, before we increment the array length
         strategyId_ = _strategies.length;
 
         // Deploy a new {Strategy} instance using the clone mechanic
@@ -107,41 +120,45 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         // We then need to instantiate the strategy using our supplied `strategyInitData`
         IBaseStrategy(strategyAddr_).initialize(_name, strategyId_, _strategyInitData);
 
-        // Add our vaults to our internal tracking
+        // Add our strategies to our internal tracking
         _strategies.push(strategyAddr_);
 
         // Add our mappings for onchain discoverability
         strategyIds[strategyId_] = strategyAddr_;
-        collectionStrategies[_collection].push(strategyAddr_);
+        _collectionStrategies[_collection].push(strategyAddr_);
 
-        // Finally we can emit our event to notify watchers of a new vault
-        emit VaultCreated(strategyId_, strategyAddr_, _collection);
+        // Finally we can emit our event to notify watchers of a new strategy
+        emit StrategyCreated(strategyId_, strategyAddr_, _collection);
     }
 
     /**
-     * Allows individual vaults to be paused, meaning that assets can no longer be deposited,
+     * Allows individual strategies to be paused, meaning that assets can no longer be deposited,
      * although staked assets can always be withdrawn.
      *
-     * @dev Events are fired within the vault to allow listeners to update.
+     * @dev Events are fired within the strategy to allow listeners to update.
      *
-     * @param _strategyId Vault ID to be updated
-     * @param _paused If the vault should be paused or unpaused
+     * @param _strategyId strategy ID to be updated
+     * @param _paused If the strategy should be paused or unpaused
      */
-    function pause(uint _strategyId, bool _paused) public onlyRole(VAULT_MANAGER) {
+    function pause(uint _strategyId, bool _paused) public onlyRole(STRATEGY_MANAGER) {
         IBaseStrategy(strategyIds[_strategyId]).pause(_paused);
     }
 
     /**
      * Reads the yield generated by a strategy since the last time that this function was called.
      *
-     * @param _strategyId Vault ID to be updated
+     * @param _strategyId Strategy ID to be updated
      *
      * @return tokens Tokens that have been generated as yield
      * @return amounts The amount of yield generated for the corresponding token
      */
-    function snapshot(uint _strategyId) external onlyRole(VAULT_MANAGER) returns (address[] memory tokens, uint[] memory amounts) {
+    function snapshot(uint _strategyId, uint _epoch)
+        external
+        onlyRole(STRATEGY_MANAGER)
+        returns (address[] memory tokens, uint[] memory amounts)
+    {
         (tokens, amounts) = IBaseStrategy(strategyIds[_strategyId]).snapshot();
-        emit StrategySnapshot(_strategyId, tokens, amounts);
+        emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
     }
 
     /**
@@ -149,9 +166,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * depositted into the contract and should only harvest rewards directly into the
      * {Treasury}.
      *
-     * @param _strategyId Vault ID to be updated
+     * @param _strategyId Strategy ID to be harvested
      */
-    function harvest(uint _strategyId) external onlyRole(VAULT_MANAGER) {
+    function harvest(uint _strategyId) external onlyRole(STRATEGY_MANAGER) {
         IBaseStrategy(strategyIds[_strategyId]).harvest(treasury);
     }
 
@@ -165,10 +182,10 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * the transaction will be reverted. The error response will be standardised so
      * debugging will require a trace, rather than just the end message.
      *
-     * @param _strategyId Vault ID to be updated
+     * @param _strategyId Strategy ID to be withdrawn from
      * @param _data Strategy withdraw function call, using `encodeWithSelector`
      */
-    function withdraw(uint _strategyId, bytes calldata _data) external onlyRole(VAULT_MANAGER) {
+    function withdraw(uint _strategyId, bytes calldata _data) external onlyRole(STRATEGY_MANAGER) {
         // Extract the selector from data
         bytes4 _selector = bytes4(_data);
 
@@ -186,6 +203,25 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
 
         // If our call failed, return a standardised message rather than decoding
         require(success, 'Unable to withdraw');
+    }
+
+    /**
+     * Makes a call to a strategy withdraw function.
+     *
+     * @param _strategy Strategy address to be updated
+     * @param _percentage The percentage of position to withdraw from
+     */
+    function withdrawPercentage(address _strategy, uint _percentage)
+        external
+        onlyRole(STRATEGY_MANAGER)
+        returns (address[] memory, uint[] memory)
+    {
+        // Ensure our percentage is valid (less than 100% to 2 decimal places)
+        require(_percentage > 0, 'Invalid percentage');
+        require(_percentage <= 10000, 'Invalid percentage');
+
+        // Calls our strategy to withdraw a percentage of the holdings
+        return IBaseStrategy(_strategy).withdrawPercentage(msg.sender, _percentage);
     }
 
     /**

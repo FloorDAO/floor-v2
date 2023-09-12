@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {UserDoesNotAnAdminRole} from '@floor/authorities/AuthorityRegistry.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract AuthorityControlTest is FloorTest {
@@ -33,7 +34,7 @@ contract AuthorityControlTest is FloorTest {
     function test_ExpectedRolesCreatedOnConstruct() public {
         // Our expected roles are defined in our test contract
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), utilities.deployer()));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), utilities.deployer()));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), utilities.deployer()));
@@ -56,10 +57,13 @@ contract AuthorityControlTest is FloorTest {
      * A role should not be able to be granted by a user that is not
      * the role admin.
      */
-    function testFail_CannotGrantRoleWithoutPermissions() public {
+    function test_CannotGrantRoleWithoutPermissions() public {
+        bytes32 role = authorityControl.STRATEGY_MANAGER();
+
         // Set our requesting user to be Alice, who does not have permissions
         vm.startPrank(alice);
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), bob);
+        vm.expectRevert(abi.encodeWithSelector(UserDoesNotAnAdminRole.selector, alice));
+        authorityRegistry.grantRole(role, bob);
         vm.stopPrank();
     }
 
@@ -69,11 +73,15 @@ contract AuthorityControlTest is FloorTest {
      * will just fail without emitting.
      */
     function test_CannotBeGrantedExistingRole() public {
+        assertFalse(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
+
         // We initially give Alice the `TreasuryManager` role
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), alice);
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
 
         // We now want to try giving Alice the same role again, won't do anything
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), alice);
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), alice));
     }
 
     /**
@@ -105,10 +113,10 @@ contract AuthorityControlTest is FloorTest {
      */
     function test_UserCanHaveMultipleRoles() public {
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), carol);
-        authorityRegistry.grantRole(authorityControl.VAULT_MANAGER(), carol);
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), carol);
 
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), carol));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), carol));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), carol));
 
         assertFalse(authorityControl.hasRole(authorityControl.GOVERNOR(), carol));
         assertFalse(authorityControl.hasRole(authorityControl.GUARDIAN(), carol));
@@ -123,13 +131,19 @@ contract AuthorityControlTest is FloorTest {
      * known roles.
      */
     function test_GovernorAndGuardianHaveAllRoles() public {
+        // Confirm that bob does not start with a governor role
+        assertFalse(authorityRegistry.hasAdminRole(bob));
+
         // When we assign Bob the role of Governor, we remove the deployer
         // account as the Governor as there can only be one.
         authorityRegistry.grantRole(authorityControl.GOVERNOR(), bob);
 
+        // Confirm that bob now has an admin role
+        assertTrue(authorityRegistry.hasAdminRole(bob));
+
         // This will give Bob access to all _known_ and _unknown_ roles
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
@@ -140,13 +154,19 @@ contract AuthorityControlTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.GOVERNOR(), DEPLOYER);
         vm.stopPrank();
 
+        // This will have revoked bob's admin role
+        assertFalse(authorityRegistry.hasAdminRole(bob));
+
         // As the deployer we can now grant Bob the role of Guardian
         authorityRegistry.grantRole(authorityControl.GUARDIAN(), bob);
+
+        // Guardian will have added his admin role back
+        assertTrue(authorityRegistry.hasAdminRole(bob));
 
         // Bob, as Guardian, will have access to all _known_ and _unknown_ roles,
         // apart from the Governor role.
         assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
-        assertTrue(authorityControl.hasRole(authorityControl.VAULT_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
         assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
         assertTrue(authorityControl.hasRole(UNKNOWN, bob));
@@ -168,6 +188,37 @@ contract AuthorityControlTest is FloorTest {
 
         authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), bob);
         assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+    }
+
+    /**
+     * Checks that when a universal role is revoked, all sub roles are also revoked.
+     */
+    function test_CanRevokeAllRolesWhenUniversalRoleIsRevoked() public {
+        // As the deployer we can now grant Bob the role of Guardian
+        authorityRegistry.grantRole(authorityControl.GUARDIAN(), bob);
+
+        // Bob, as Guardian, will have access to all _known_ and _unknown_ roles,
+        // apart from the Governor role.
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
+        assertTrue(authorityControl.hasRole(UNKNOWN, bob));
+
+        // We can't revoke an individual role from Bob, as these are inherited from
+        // the Guardian role. So even though we revoke, we still see it is `true`.
+        authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), bob);
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+
+        // When we revoke Bob's Guardian role, we then need to make sure that all
+        // of these inherited roles are also revoked.
+        authorityRegistry.revokeRole(authorityControl.GUARDIAN(), bob);
+
+        assertFalse(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), bob));
+        assertFalse(authorityControl.hasRole(authorityControl.GUARDIAN(), bob));
+        assertFalse(authorityControl.hasRole(UNKNOWN, bob));
     }
 
     /**

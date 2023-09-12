@@ -12,14 +12,13 @@ library TokenUtils {
     address public constant WSTETH_ADDR = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address public constant STETH_ADDR = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
-    address public constant WETH_ADDR = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant ETH_ADDR = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     function approveToken(address _tokenAddr, address _to, uint _amount) internal {
         if (_tokenAddr == ETH_ADDR) return;
 
         if (IERC20(_tokenAddr).allowance(address(this), _to) < _amount) {
-            IERC20(_tokenAddr).safeApprove(_to, _amount);
+            IERC20(_tokenAddr).approve(_to, _amount);
         }
     }
 
@@ -51,14 +50,6 @@ library TokenUtils {
         }
 
         return _amount;
-    }
-
-    function depositWeth(uint _amount) internal {
-        IWETH(WETH_ADDR).deposit{value: _amount}();
-    }
-
-    function withdrawWeth(uint _amount) internal {
-        IWETH(WETH_ADDR).withdraw(_amount);
     }
 
     function getBalance(address _tokenAddr, address _acc) internal view returns (uint) {

@@ -39,9 +39,10 @@ contract UniswapRemoveLiquidity is UniswapActionBase {
      * on the pool using the {UniswapClaimPoolRewards} action.
      */
     function execute(bytes calldata _request) public payable override whenNotPaused returns (uint) {
-        // Unpack the request bytes data into our struct
-        ActionRequest memory request = abi.decode(_request, (ActionRequest));
-        return _execute(request);
+        // Emit our `ActionEvent`
+        emit ActionEvent('UniswapRemoveLiquidity', _request);
+
+        return _execute(abi.decode(_request, (ActionRequest)));
     }
 
     function _execute(ActionRequest memory request) internal requiresUniswapToken(request.tokenId) returns (uint) {
@@ -58,5 +59,12 @@ contract UniswapRemoveLiquidity is UniswapActionBase {
         );
 
         return 0;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

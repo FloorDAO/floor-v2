@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -29,6 +29,8 @@ import {INFTXUnstakingInventoryZap} from '@floor-interfaces/nftx/NFTXUnstakingIn
  * https://etherscan.io/address/0x3E135c3E981fAe3383A5aE0d323860a34CfAB893#readProxyContract
  */
 contract NFTXInventoryStakingStrategy is BaseStrategy {
+    using SafeERC20 for IERC20;
+
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
@@ -49,7 +51,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     INFTXUnstakingInventoryZap public unstakingZap;
 
     /// Track the amount of deposit token
-    uint private deposits;
+    uint public deposits;
 
     /// Stores the temporary recipient of any ERC721 and ERC1155 tokens that are received
     /// by the contract.
@@ -63,7 +65,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      * @param _initData Encoded data to be decoded
      */
     function initialize(bytes32 _name, uint _strategyId, bytes calldata _initData) public initializer {
-        // Set our vault name
+        // Set our strategy name
         name = _name;
 
         // Set our strategy ID
@@ -116,7 +118,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         }
 
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
@@ -167,6 +169,10 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             revert CannotWithdrawZeroAmount();
         }
 
+        return _withdrawErc20(recipient, amount);
+    }
+
+    function _withdrawErc20(address recipient, uint amount) internal returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
         if (amount > position[yieldToken]) {
             revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
@@ -185,12 +191,12 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         }
 
         // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(recipient, amount_);
+        IERC20(underlyingToken).safeTransfer(recipient, amount_);
 
         unchecked {
             deposits -= amount_;
 
-            // We can now reduce the users position and total position held by the vault
+            // We can now reduce the users position and total position held by the strategy
             position[yieldToken] -= amount;
         }
 
@@ -222,7 +228,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // If we have requested `_partial` token to be returned, then we need to send
         // this over.
         if (_partial > 0) {
-            IERC20(underlyingToken).transfer(_recipient, _partial - 1);
+            IERC20(underlyingToken).safeTransfer(_recipient, _partial - 1);
         }
     }
 
@@ -254,7 +260,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
             inventoryStaking.withdraw(vaultId, amounts[0]);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(underlyingToken).transfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
+            IERC20(underlyingToken).safeTransfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];
@@ -274,6 +280,31 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     }
 
     /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
+        // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
+        // of the token.
+        uint amount = (position[yieldToken] * percentage) / 10000;
+
+        // Set up our return arrays
+        tokens_ = new address[](1);
+        tokens_[0] = yieldToken;
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        amounts_ = new uint[](1);
+        amounts_[0] = _withdrawErc20(recipient, amount);
+    }
+
+    /**
      * Increases our yield token position based on the logic transacted in the call.
      *
      * @dev This should be called for any deposit calls made.
@@ -287,7 +318,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Determine the amount of yield token returned from our deposit
         uint amount = IERC20(token).balanceOf(address(this)) - startBalance;
 
-        // Increase the user's position and the total position for the vault
+        // Increase the user's position and the total position for the strategy
         unchecked {
             position[token] += amount;
         }

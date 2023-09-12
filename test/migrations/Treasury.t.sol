@@ -13,7 +13,6 @@ import {ILegacyTreasury} from '@floor-interfaces/legacy/Treasury.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract MigrateFloorTokenTest is FloorTest {
-
     ILegacyTreasury legacyTreasury;
     MigrateTreasury migrateTreasury;
     Treasury treasury;
@@ -111,5 +110,4 @@ contract MigrateFloorTokenTest is FloorTest {
 
         _;
     }
-
 }

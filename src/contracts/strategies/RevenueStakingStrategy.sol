@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 
@@ -19,6 +19,8 @@ import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToC
  * @dev This staking strategy will only accept ERC20 deposits and withdrawals.
  */
 contract RevenueStakingStrategy is BaseStrategy {
+    using SafeERC20 for IERC20;
+
     /// An array of tokens supported by the strategy
     address[] private _tokens;
 
@@ -30,7 +32,7 @@ contract RevenueStakingStrategy is BaseStrategy {
      * @param _initData Encoded data to be decoded
      */
     function initialize(bytes32 _name, uint _strategyId, bytes calldata _initData) public initializer {
-        // Set our vault name
+        // Set our strategy name
         name = _name;
 
         // Set our strategy ID
@@ -65,7 +67,7 @@ contract RevenueStakingStrategy is BaseStrategy {
         }
 
         // Transfer the underlying token from our caller
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
         // We increase our lifetime rewards by the amount deposited
         lifetimeRewards[token] += amount;
@@ -107,7 +109,7 @@ contract RevenueStakingStrategy is BaseStrategy {
         }
 
         // Transfer the received token to the caller
-        IERC20(token).transfer(recipient, amount);
+        IERC20(token).safeTransfer(recipient, amount);
 
         // Fire an event to show amount of token claimed and the recipient
         emit Withdraw(token, amount, recipient);

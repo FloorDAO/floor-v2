@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
@@ -16,7 +16,6 @@ import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking
 import {INFTXStakingZap} from '@floor-interfaces/nftx/NFTXStakingZap.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
-
 /**
  * Supports an Liquidity Staking position against a single NFTX vault. This strategy
  * will hold the corresponding xToken against deposits.
@@ -29,6 +28,8 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
  * then it should be done through another, bespoke contract.
  */
 contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
+    using SafeERC20 for IERC20;
+
     /// The NFTX vault ID that the strategy is attached to
     uint public vaultId;
 
@@ -49,7 +50,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     INFTXStakingZap public stakingZap;
 
     /// Track the amount of deposit token
-    uint private deposits;
+    uint public deposits;
 
     // Store our WETH reference
     IWETH public WETH;
@@ -62,7 +63,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
      * @param _initData Encoded data to be decoded
      */
     function initialize(bytes32 _name, uint _strategyId, bytes calldata _initData) public initializer {
-        // Set our vault name
+        // Set our strategy name
         name = _name;
 
         // Set our strategy ID
@@ -115,7 +116,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
 
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).transferFrom(msg.sender, address(this), amount);
+        IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
         deposits += amount;
 
         // Approve the NFTX contract against our underlying token
@@ -126,11 +127,6 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         // Determine the amount of yield token returned from our deposit
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
-
-        // Increase the user's position and the total position for the vault
-        unchecked {
-            position[yieldToken] += amount_;
-        }
     }
 
     function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
@@ -154,7 +150,11 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         stakingZap.addLiquidity721To(vaultId, tokenIds, minWethIn, wethIn, address(this));
     }
 
-    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn)
+        external
+        updatesPosition(yieldToken)
+        refundsWeth
+    {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
@@ -182,6 +182,10 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             revert CannotWithdrawZeroAmount();
         }
 
+        return _withdrawErc20(recipient, amount);
+    }
+
+    function _withdrawErc20(address recipient, uint amount) internal returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
         if (amount > position[yieldToken]) {
             revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
@@ -200,12 +204,12 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         // Transfer the received token to the caller
-        IERC20(underlyingToken).transfer(recipient, amount_);
+        IERC20(underlyingToken).safeTransfer(recipient, amount_);
 
         unchecked {
             deposits -= amount_;
 
-            // We can now reduce the users position and total position held by the vault
+            // We can now reduce the users position and total position held by the strategy
             position[yieldToken] -= amount;
         }
 
@@ -241,7 +245,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             liquidityStaking.claimRewards(vaultId);
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(rewardToken).transfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
+            IERC20(rewardToken).safeTransfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
 
             unchecked {
                 lifetimeRewards[yieldToken] += amounts[0];
@@ -249,6 +253,29 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         emit Harvest(yieldToken, amounts[0]);
+    }
+
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
+        // Get the total amount of underlyingToken that has been deposited. From that, take
+        // the percentage of the token.
+        uint amount = (position[yieldToken] * percentage) / 10000;
+
+        tokens_ = this.validTokens();
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        amounts_ = new uint[](1);
+        amounts_[0] = _withdrawErc20(recipient, amount);
     }
 
     /**
@@ -274,7 +301,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         // Determine the amount of yield token returned from our deposit
         uint amount = IERC20(token).balanceOf(address(this)) - startBalance;
 
-        // Increase the user's position and the total position for the vault
+        // Increase the user's position and the total position for the strategy
         unchecked {
             position[token] += amount;
         }

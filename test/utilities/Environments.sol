@@ -2,14 +2,18 @@
 
 pragma solidity ^0.8.0;
 
-import {Test} from 'forge-std/Test.sol';
+import {stdStorage, StdStorage, Test} from 'forge-std/Test.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 
+import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
+
 import {Utilities} from '../utilities/Utilities.sol';
 
 contract FloorTest is Test {
+    using stdStorage for StdStorage;
+
     uint mainnetFork;
 
     AuthorityControl authorityControl;
@@ -95,5 +99,16 @@ contract FloorTest is Test {
             0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
             0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3 // _unstakingZap
         );
+    }
+
+    /**
+     * Allows the current epoch to be manipulated
+     */
+    function setCurrentEpoch(address epochManager, uint epoch) internal {
+        // Manually target and store a new epoch
+        stdstore.target(epochManager).sig('currentEpoch()').checked_write(epoch);
+
+        // Confirm that the current epoch has been correctly updated
+        assertEq(IEpochManager(epochManager).currentEpoch(), epoch);
     }
 }

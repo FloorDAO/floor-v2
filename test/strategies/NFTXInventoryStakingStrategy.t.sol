@@ -109,7 +109,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     }
 
     /**
-     *
+     * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
@@ -203,6 +203,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     function test_CanFullyExitPosition() public {
         vm.startPrank(erc20Holder);
 
+        // Get the start balance of our {Treasury}
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
         strategy.depositErc20(1 ether);
@@ -222,6 +226,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+
+        // Check that the amount withdrawn went to the right place
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether - 1);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
     }
 
     /**
@@ -481,7 +489,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 3778983616144979825);
 
         // Snapshot the rewards
-        strategyFactory.snapshot(strategyId);
+        strategyFactory.snapshot(strategyId, 0);
 
         // Withdraw another xToken
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether));
@@ -514,11 +522,40 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertRewards(strategy, 2 ether, 0, 2 ether, 2 ether);
     }
 
+    /**
+     * Ensures that we have the correct tokens attached to the strategy.
+     */
     function test_CanGetValidTokens() public {
         address[] memory tokens = strategy.validTokens();
 
         assertEq(tokens.length, 1);
         assertEq(tokens[0], strategy.underlyingToken());
+    }
+
+    function test_CanWithdrawPercentage() public {
+        // Deposit into our strategy
+        vm.startPrank(erc20Holder);
+        IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
+        strategy.depositErc20(1 ether);
+        vm.stopPrank();
+
+        // To pass this lock we need to manipulate the block timestamp to set it
+        // after our lock would have expired.
+        vm.warp(block.timestamp + 10 days);
+
+        // Action a 20% percentage withdrawal through the strategy factory
+        strategyFactory.withdrawPercentage(address(strategy), 2000);
+
+        // Confirm that our recipient received the expected amount of tokens
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 199999999999999998);
+
+        // Confirm that the strategy still holds the expected number of yield token
+        assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 477898361614497983);
+
+        // Confirm that the strategy has an accurate record of the deposits
+        uint deposits = strategy.deposits();
+        assertEq(deposits, 800000000000000002);
     }
 
     function assertRewards(

@@ -14,14 +14,12 @@ import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity
 import {CowSwapSweeper} from '@floor/sweepers/CowSwap.sol';
 import {GemSweeper} from '@floor/sweepers/Gem.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
-import {MercenarySweeper} from '@floor/sweepers/Mercenary.sol';
 import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
 import {UniswapClaimPoolRewards} from '@floor/actions/uniswap/ClaimPoolRewards.sol';
 import {UniswapCreatePool} from '@floor/actions/uniswap/CreatePool.sol';
 import {UniswapMintPosition} from '@floor/actions/uniswap/MintPosition.sol';
 import {UniswapRemoveLiquidity} from '@floor/actions/uniswap/RemoveLiquidity.sol';
 import {UniswapSellTokensForETH} from '@floor/actions/uniswap/SellTokensForETH.sol';
-import {ActionMulticall} from '@floor/actions/utils/Multicall.sol';
 import {RawTx} from '@floor/actions/utils/RawTx.sol';
 import {SendEth} from '@floor/actions/utils/SendEth.sol';
 import {UnwrapWeth} from '@floor/actions/utils/UnwrapWeth.sol';
@@ -35,7 +33,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract DeployTreasuryActions is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
-        address newCollectionWars = requireDeployment('NewCollectionWars');
         address treasury = requireDeployment('Treasury');
 
         // Set up some live uniswap contracts
@@ -62,22 +59,20 @@ contract DeployTreasuryActions is DeploymentScript {
             address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac))
         );
 
-        storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41)));
-        storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury)));
+        storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, WETH)));
+        storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury, WETH)));
         storeDeployment('GemSweeper', address(new GemSweeper()));
         storeDeployment('ManualSweeper', address(new ManualSweeper()));
-        storeDeployment('MercenarySweeper', address(new MercenarySweeper(newCollectionWars)));
 
         storeDeployment('UniswapAddLiquidity', address(new UniswapAddLiquidity(uniswapPositionManager)));
         storeDeployment('UniswapClaimPoolRewards', address(new UniswapClaimPoolRewards(uniswapPositionManager)));
         storeDeployment('UniswapCreatePool', address(new UniswapCreatePool(uniswapPositionManager)));
         storeDeployment('UniswapMintPosition', address(new UniswapMintPosition(uniswapPositionManager)));
         storeDeployment('UniswapRemoveLiquidity', address(new UniswapRemoveLiquidity(uniswapPositionManager)));
-        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564)));
-        storeDeployment('ActionMulticall', address(new ActionMulticall()));
+        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564, WETH)));
         storeDeployment('RawTx', address(new RawTx()));
         storeDeployment('SendEth', address(new SendEth()));
-        storeDeployment('UnwrapWeth', address(new UnwrapWeth()));
-        storeDeployment('WrapEth', address(new WrapEth()));
+        storeDeployment('UnwrapWeth', address(new UnwrapWeth(WETH)));
+        storeDeployment('WrapEth', address(new WrapEth(WETH)));
     }
 }

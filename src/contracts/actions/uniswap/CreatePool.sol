@@ -50,7 +50,17 @@ contract UniswapCreatePool is UniswapActionBase {
         // Create our Uniswap pool if it does not already exist
         address pool = positionManager.createAndInitializePoolIfNecessary(request.token0, request.token1, request.fee, request.sqrtPriceX96);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('UniswapCreatePool', _request);
+
         // We cast the pool address to an integer so that it can be returned
         return uint(uint160(pool));
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

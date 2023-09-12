@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
 import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -22,7 +23,9 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 /**
  * The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
+contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     /// An array of sweeps that map against the epoch iteration.
     mapping(uint => Sweep) public epochSweeps;
 
@@ -33,6 +36,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
     uint public minSweepAmount;
+
+    /// Set a sweep power that is required for public sweep execution
+    uint public constant SWEEP_EXECUTE_TOKENS = 5000 ether;
 
     /// Stores our Mercenary sweeper contract address
     IMercenarySweeper public mercSweeper;
@@ -86,11 +92,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param amount The amount of the token to be deposited
      */
     function depositERC20(address token, uint amount) external {
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens into the {Treasury}. This call will revert if it fails.
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit DepositERC20(token, amount);
     }
 
@@ -135,23 +138,20 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows an approved user to withdraw an ERC20 token from the vault.
+     * Allows an approved user to withdraw an ERC20 token from the Treasury.
      *
      * @param recipient The user that will receive the ERC20 tokens
      * @param token ERC20 token address to be withdrawn
      * @param amount The number of tokens to withdraw
      */
     function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
-        bool success = IERC20(token).transfer(recipient, amount);
-        if (!success) {
-            revert TransferFailed();
-        }
-
+        // Transfer ERC20 tokens to the recipient. This call will revert if it fails.
+        IERC20(token).safeTransfer(recipient, amount);
         emit WithdrawERC20(token, amount, recipient);
     }
 
     /**
-     * Allows an approved user to withdraw an ERC721 token from the vault.
+     * Allows an approved user to withdraw an ERC721 token from the Treasury.
      *
      * @param recipient The user that will receive the ERC721 tokens
      * @param token ERC721 token address to be withdrawn
@@ -163,7 +163,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Allows an approved user to withdraw an ERC1155 token(s) from the vault.
+     * Allows an approved user to withdraw an ERC1155 token(s) from the Treasury.
      *
      * @param recipient The user that will receive the ERC1155 tokens
      * @param token ERC1155 token address to be withdrawn
@@ -176,7 +176,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
     }
 
     /**
-     * Apply an action against the vault. If we need any tokens to be approved before the
+     * Apply an action against the Treasury. If we need any tokens to be approved before the
      * action is called, then these are approved before our call and approval is removed
      * afterwards for 1155s.
      *
@@ -188,10 +188,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         external
         onlyRole(TREASURY_MANAGER)
     {
+        uint ethValue;
+
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
-                (bool sent,) = payable(action).call{value: approvals[i].amount}('');
-                require(sent, 'Unable to fund action');
+                ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
@@ -205,13 +206,21 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             }
         }
 
-        IAction(action).execute(data);
+        IAction(action).execute{value: ethValue}(data);
 
         // Remove ERC1155 global approval after execution
         for (uint i; i < approvals.length;) {
-            if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
+            if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
+                IERC20(approvals[i].assetContract).approve(action, 0);
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
+                if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
+                    IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
+                }
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
             }
+
+            unchecked { ++i; }
         }
 
         emit ActionProcessed(action, data);
@@ -236,9 +245,14 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         external
         onlyRole(TREASURY_MANAGER)
     {
+        // Confirm that each collection has an amount
+        require(collections.length == amounts.length, 'Collections =/= amounts');
+
+        // Register our sweep against the epoch. This value can be overwritten if another sweep
+        // is posted against the epoch, so this should be kept in mind during development.
         epochSweeps[epoch] = Sweep({sweepType: sweepType, collections: collections, amounts: amounts, completed: false, message: ''});
 
-        emit SweepRegistered(epoch);
+        emit SweepRegistered(epoch, sweepType, collections, amounts);
     }
 
     /**
@@ -249,7 +263,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public {
+    function sweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public nonReentrant {
         // Load the stored sweep at our epoch index
         Sweep memory epochSweep = epochSweeps[epochIndex];
 
@@ -263,17 +277,26 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
          *  Sweep       Current
          *  3           3           Not ended yet
          *  3           4           Only DAO
-         *  3           5           5,000 FLOOR
+         *  3           5           DAO or 5,000 FLOOR
          *
          * If the grace period has ended, then a user that holds 5,000 FLOOR tokens can action
          * the sweep to take place.
          */
 
         uint _currentEpoch = currentEpoch();
-        if (epochIndex + 1 == _currentEpoch) {
-            require(this.hasRole(this.TREASURY_MANAGER(), msg.sender), 'Only DAO may currently execute');
-        } else {
-            require(floor.balanceOf(msg.sender) >= 5000, 'Insufficient FLOOR holding');
+
+        // First we need to check that the epoch index has finished
+        require(epochIndex < _currentEpoch, 'Epoch has not finished');
+
+        // We can then assume that a `TreasuryManager` can always sweep the epoch
+        if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
+            // If we are in the subsequent epoch, then we cannot allow a non-DAO sweep
+            if (epochIndex + 1 == _currentEpoch) {
+                revert('Only DAO may currently execute');
+            }
+
+            // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute
+            require(floor.balanceOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
         }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
@@ -292,14 +315,19 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      * @param sweeper The address of the sweeper contract to be used
      * @param data Additional meta data to send to the sweeper
      */
-    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) {
+    function resweepEpoch(uint epochIndex, address sweeper, bytes calldata data, uint mercSweep) public onlyRole(TREASURY_MANAGER) nonReentrant {
+        // Ensure that the epoch has already been swept. This ensures that we don't have to
+        // implement the same epoch constraints as these would have been present in the
+        // initial sweep.
+        require(epochSweeps[epochIndex].completed, 'Epoch not swept');
+
         return _sweepEpoch(epochIndex, sweeper, epochSweeps[epochIndex], data, mercSweep);
     }
 
     /**
      * Handles the logic to action a sweep.
      */
-    function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep, bytes calldata data, uint mercSweep) internal {
+    function _sweepEpoch(uint epochIndex, address sweeper, Sweep memory epochSweep, bytes calldata data, uint mercSweep) internal burnFloorTokens {
         uint msgValue;
         uint collectionsLength = epochSweep.collections.length;
 
@@ -312,12 +340,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
         if (mercSweep != 0) {
-            require(
-                epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions'
-            );
-            require(mercSweep <= epochSweep.amounts[0], 'Merc Sweep cannot be higher than msg.value');
+            require(epochSweep.sweepType == TreasuryEnums.SweepType.COLLECTION_ADDITION, 'Merc Sweep only available for collection additions');
+            require(address(mercSweeper) != address(0), 'Merc Sweeper not set');
 
             msgValue = epochSweep.amounts[0];
+            require(mercSweep <= msgValue, 'Merc Sweep cannot be higher than msg.value');
         } else {
             // If this is COLLECTION_ADDITION, we will only ever a single collection, so
             // no need for a loop.
@@ -346,28 +373,27 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
             // Fire our request to our mercenary sweeper contract, which will return the
             // amount actually spent on the sweep. We should only have a single value in
             // the collections and amounts arrays, but the sweeper will handle this.
-            uint spend = mercSweeper.execute{value: mercSweep}(epochManager.collectionEpochs(epochIndex), mercSweep);
+            uint spend = mercSweeper.execute{value: msgValue}(epochManager.collectionEpochs(epochIndex), mercSweep);
 
             // Reduce the remaining message value sent to the subsequent sweeper
-            unchecked {
-                msgValue -= spend;
-            }
+            unchecked { msgValue -= spend; }
+            epochSweep.amounts[0] = msgValue;
         }
-
-        // Action our sweep. If we don't hold enough ETH to supply the message value then
-        // we expect this call to revert. This call may optionally return a message that
-        // will be stored against the struct.
-        string memory message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
 
         // Mark our sweep as completed
         epochSweep.completed = true;
 
-        // If we returned a message, then we write it to our sweep
-        epochSweep.message = message;
+        // Action our sweep. If we don't hold enough ETH to supply the message value then
+        // we expect this call to revert. This call may optionally return a message that
+        // will be stored against the struct.
+        if (msgValue != 0) {
+            epochSweep.message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
+        }
 
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;
 
+        // Fire an event for anyone listening to sweeps
         emit EpochSwept(epochIndex);
     }
 
@@ -400,6 +426,21 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury {
      */
     function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
         minSweepAmount = _minSweepAmount;
+    }
+
+    /**
+     * Checks if any FLOOR tokens have been received during the transaction and then
+     * burns them afterwards.
+     */
+    modifier burnFloorTokens() {
+        uint startBalance = floor.balanceOf(address(this));
+
+        _;
+
+        uint endBalance = floor.balanceOf(address(this));
+        if (endBalance > startBalance) {
+            floor.burn(endBalance - startBalance);
+        }
     }
 
     /**

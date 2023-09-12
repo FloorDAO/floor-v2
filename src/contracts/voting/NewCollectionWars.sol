@@ -84,8 +84,8 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      *
      * @return Voting power of the user
      */
-    function userVotingPower(address _user) external view returns (uint) {
-        return veFloor.balanceOf(_user);
+    function userVotingPower(address _user) public view returns (uint) {
+        return veFloor.votingPowerOf(_user);
     }
 
     /**
@@ -95,8 +95,8 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      *
      * @return uint Number of votes available to the user
      */
-    function userVotesAvailable(uint _war, address _user) external view returns (uint) {
-        return this.userVotingPower(_user) - userVotes[keccak256(abi.encode(_war, _user))];
+    function userVotesAvailable(uint _war, address _user) public view returns (uint) {
+        return userVotingPower(_user) - userVotes[keccak256(abi.encode(_war, _user))];
     }
 
     /**
@@ -110,29 +110,32 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         // Ensure a war is currently running
         require(currentWar.index != 0, 'No war currently running');
 
-        // Confirm that the collection being voted for is in the war
-        bytes32 warUser = keccak256(abi.encode(currentWar.index, msg.sender));
-        bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
-
         // Ensure the collection is part of the current war
-        require(this.isCollectionInWar(warCollection), 'Invalid collection');
+        bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
+        require(isCollectionInWar(warCollection), 'Invalid collection');
 
         // Check if user has already voted. If they have, then we first need to
         // remove this existing vote before reallocating.
-        if (userCollectionVote[warUser] != address(0)) {
+        bytes32 warUser = keccak256(abi.encode(currentWar.index, msg.sender));
+        address userVote = userCollectionVote[warUser];
+        if (userVote != address(0)) {
             unchecked {
-                collectionVotes[warCollection] -= userVotes[warUser];
+                collectionVotes[keccak256(abi.encode(currentWar.index, userVote))] -= userVotes[warUser];
             }
         }
 
         // Ensure the user has enough votes available to cast
-        uint votesAvailable = this.userVotesAvailable(currentWar.index, msg.sender);
+        uint votesAvailable = userVotingPower(msg.sender);
 
         unchecked {
             // Increase our tracked user amounts
             collectionVotes[warCollection] += votesAvailable;
-            userVotes[warUser] += votesAvailable;
+            userVotes[warUser] = votesAvailable;
+            userCollectionVote[warUser] = collection;
         }
+
+        // Trigger our potential restake due to vote action
+        veFloor.refreshLock(msg.sender);
 
         emit VoteCast(msg.sender, collection, userVotes[warUser], collectionVotes[warCollection]);
     }
@@ -142,10 +145,11 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * in the current war.
      *
      * @param sender The address of the user that staked the token
+     * @param war The war index being voted against
      * @param collection The collection to cast the vote against
-     * @param votingPower The voting power added from the option creation
+     * @param votes The voting power added from the option creation
      */
-    function optionVote(address sender, uint war, address collection, uint votingPower) external {
+    function optionVote(address sender, uint war, address collection, uint votes) external {
         // Ensure that only our {NewCollectionWarOptions} contract is calling this function
         require(msg.sender == address(newCollectionWarOptions), 'Invalid caller');
 
@@ -157,8 +161,8 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
 
         unchecked {
             // Increment our vote counters
-            collectionVotes[warCollection] += votingPower;
-            collectionNftVotes[warCollection] += votingPower;
+            collectionVotes[warCollection] += votes;
+            collectionNftVotes[warCollection] += votes;
         }
 
         // Emit our event for stalkability
@@ -191,6 +195,8 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
                 userVotes[warUser] = 0;
             }
 
+            delete userCollectionVote[warUser];
+
             emit VoteRevoked(msg.sender, collection, collectionVotes[warCollection]);
         }
     }
@@ -209,19 +215,23 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         onlyOwner
         returns (uint)
     {
+        // Confirm that we have enough collections passed
+        uint collectionsLength = collections.length;
+        require(collectionsLength > 1, 'Insufficient collections');
+
+        // Confirm that we have an equal amount of parameters
+        require(collectionsLength == isErc1155.length, 'Incorrect parameter counts');
+        require(collectionsLength == floorPrices.length, 'Incorrect parameter counts');
+
         // Ensure that the Floor War is created with enough runway
         require(epoch > currentEpoch(), 'Floor War scheduled too soon');
 
         // Check if another floor war is already scheduled for this epoch
-        require(!epochManager.isCollectionAdditionEpoch(epoch), 'Floor War already exists at this epoch');
+        require(!epochManager.isCollectionAdditionEpoch(epoch), 'War already exists at epoch');
 
         // Create the floor war
         uint warIndex = wars.length + 1;
         wars.push(FloorWar(warIndex, epoch, collections));
-
-        // Create our spot prices for the collections
-        uint collectionsLength = collections.length;
-        require(collectionsLength > 1, 'Insufficient collections');
 
         bytes32 collectionHash;
         uint collectionLockEpoch = epoch + 1;
@@ -256,6 +266,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         // Ensure that we don't have a current war running
         require(currentWar.index == 0, 'War currently running');
 
+        // Prevent an invalid index being passed as this symbolises that it doesn't exist
+        require(wars.length >= index, 'Invalid war set to start');
+
         // Ensure that the index specified is scheduled to start at this epoch
         require(wars[index - 1].startEpoch == currentEpoch(), 'Invalid war set to start');
 
@@ -273,6 +286,10 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * Any NFTs that have been staked will be timelocked for an additional epoch to
      * give the DAO time to exercise or reject any options.
      *
+     * This function is called when an epoch ends via the {EpochManager}. The
+     * `currentEpoch` will show as the epoch that is ending, not the value of the
+     * epoch that is being entered.
+     *
      * @dev We can't action this in one single call as we will need information about
      * the underlying NFTX token as well.
      *
@@ -281,6 +298,9 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     function endFloorWar() external onlyRole(COLLECTION_MANAGER) returns (address highestVoteCollection) {
         // Ensure that we have a current war running
         require(currentWar.index != 0, 'No war currently running');
+
+        // Ensure that the war has had sufficient run time
+        require(currentEpoch() >= currentWar.startEpoch, 'War epoch has not passed');
 
         // Find the collection that holds the top number of votes
         uint highestVoteCount;
@@ -307,7 +327,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             collectionEpochLock[keccak256(abi.encode(currentWar.index, highestVoteCollection))] += 2;
         }
 
-        emit CollectionAdditionWarEnded(currentWar.index);
+        emit CollectionAdditionWarEnded(currentWar.index, highestVoteCollection);
 
         // Close the war
         delete currentWar;
@@ -328,7 +348,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
 
         // Ensure that the collection specified is valid
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
-        require(this.isCollectionInWar(warCollection), 'Invalid collection');
+        require(isCollectionInWar(warCollection), 'Invalid collection');
 
         // Update the floor price of the collection
         uint oldFloorPrice = collectionSpotPrice[warCollection];
@@ -365,11 +385,10 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         newCollectionWarOptions = INewCollectionWarOptions(_contract);
     }
 
-
     /**
      * Check if a collection is in a FloorWar.
      */
-    function isCollectionInWar(bytes32 warCollection) external view returns (bool) {
+    function isCollectionInWar(bytes32 warCollection) public view returns (bool) {
         return collectionSpotPrice[warCollection] != 0;
     }
 }

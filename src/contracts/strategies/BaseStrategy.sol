@@ -23,7 +23,6 @@ error ZeroAmountReceivedFromWithdraw();
 /// @param position The amount available to withdraw for the caller
 error InsufficientPosition(address token, uint amount, uint position);
 
-
 /**
  * Provides underlying logic for all strategies that handles common logic. This includes
  * storing the total pending rewards and taking snapshots to maintain epoch earned yield.
@@ -35,7 +34,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     bytes32 public name;
 
     /**
-     * The numerical ID of the vault that acts as an index for the {StrategyFactory}.
+     * The numerical ID of the strategy that acts as an index for the {StrategyFactory}.
      *
      * @dev This must be set in the initializer function call.
      */
@@ -122,7 +121,7 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
      *
      * @dev The recipient _should_ always be set to the {Treasury} by the {StrategyFactory}.
      */
-    function harvest(address /* _recipient */) external virtual onlyOwner {
+    function harvest(address /* _recipient */ ) external virtual onlyOwner {
         revert('Not implemented');
     }
 
@@ -136,11 +135,31 @@ abstract contract BaseStrategy is IBaseStrategy, Initializable, Ownable, Pausabl
     }
 
     /**
+     * Allows for liquidation of the strategy based on a percentage value. This withdraws the
+     * percentage of the underlying tokens that were initially deposited, using the relevant
+     * withdraw functions.
+     *
+     * The tokens will be withdrawn to the caller of the function, so relevant permissions should
+     * be checked.
+     *
+     * @dev This must be implemented in each strategy.
+     *
+     * @param recipient The recipient of the withdrawal
+     * @param percentage The percentage to withdraw of underlying tokens
+     *
+     * @return The tokens that have been withdrawn
+     * @return The amount of tokens withdrawn
+     */
+    function withdrawPercentage(address recipient, uint percentage) external virtual onlyOwner returns (address[] memory, uint[] memory) {
+        /*  */
+    }
+
+    /**
      * Pauses deposits from being made into the strategy.
      *
      * @dev This should only be called by a guardian or governor.
      *
-     * @param _p Boolean value for if the vault should be paused
+     * @param _p Boolean value for if the strategy should be paused
      */
     function pause(bool _p) external onlyOwner {
         if (_p) _pause();

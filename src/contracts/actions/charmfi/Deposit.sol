@@ -65,6 +65,16 @@ contract CharmDeposit is Action {
         token0.approveToken(request.vault, 0);
         token1.approveToken(request.vault, 0);
 
+        // Emit our `ActionEvent`
+        emit ActionEvent('CharmfiDeposit', _request);
+
         return shares;
+    }
+
+    /**
+     * Decodes bytes data from an `ActionEvent` into the `ActionRequest` struct
+     */
+    function parseInputs(bytes memory _callData) public pure returns (ActionRequest memory params) {
+        params = abi.decode(_callData, (ActionRequest));
     }
 }

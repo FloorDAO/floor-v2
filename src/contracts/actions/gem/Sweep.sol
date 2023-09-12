@@ -41,6 +41,9 @@ contract GemSweep is Action, IERC721Receiver {
 
         // Return any remaining ETH
         payable(msg.sender).transfer(address(this).balance);
+
+        // Emit our `ActionEvent`
+        emit ActionEvent('GemSweep', _request);
     }
 
     /**

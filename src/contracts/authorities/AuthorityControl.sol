@@ -32,7 +32,7 @@ error AccountDoesNotHaveAdminRole(address caller);
  * ```
  */
 contract AuthorityControl is Context, IAuthorityControl {
-    /// CollectionManager - Can approve token addresses to be allowed to be used in vaults
+    /// CollectionManager - Can approve token addresses to be allowed to be used in strategies
     bytes32 public constant COLLECTION_MANAGER = keccak256('CollectionManager');
 
     /// FloorManager - Can mint and manage Floor and VeFloor tokens
@@ -49,8 +49,8 @@ contract AuthorityControl is Context, IAuthorityControl {
     /// TreasuryManager - Access to Treasury asset management
     bytes32 public constant TREASURY_MANAGER = keccak256('TreasuryManager');
 
-    /// VaultManager - Can create new vaults against approved strategies and collections
-    bytes32 public constant VAULT_MANAGER = keccak256('VaultManager');
+    /// StrategyManager - Can create new strategies against approved strategies and collections
+    bytes32 public constant STRATEGY_MANAGER = keccak256('StrategyManager');
 
     /// VoteManager - Can manage account votes
     bytes32 public constant VOTE_MANAGER = keccak256('VoteManager');

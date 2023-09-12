@@ -224,18 +224,18 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         floorNft.mint{value: 0.05 ether}(1);
 
         floorNft.setUri('https://nft.nftx.io/');
-        assertEq(floorNft.tokenURI(0), 'https://nft.nftx.io/0.json');
+        assertEq(floorNft.tokenURI(0), 'https://nft.nftx.io/0');
 
         floorNft.setUri('https://nft.floor.xyz/');
-        assertEq(floorNft.tokenURI(0), 'https://nft.floor.xyz/0.json');
+        assertEq(floorNft.tokenURI(0), 'https://nft.floor.xyz/0');
     }
 
     function test_CanSetPaused() public {
-        assertEq(floorNft.paused(), false);
+        assertEq(floorNft.paused(), 2);
         floorNft.setPaused(true);
-        assertEq(floorNft.paused(), true);
+        assertEq(floorNft.paused(), 1);
         floorNft.setPaused(false);
-        assertEq(floorNft.paused(), false);
+        assertEq(floorNft.paused(), 2);
     }
 
     function test_CanWithdrawFundsFromContract() public {
@@ -264,7 +264,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
     function test_CanLockWhenOwnedByUser() public {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         vm.prank(locker);
@@ -291,7 +291,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         floorNft.transferFrom(alice, validStaker, 0);
 
         // Approve our locker
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // We can now lock the NFT as alice, even though it is in the staking contract. We
@@ -320,7 +320,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         floorNft.transferFrom(alice, validStaker, 0);
 
         // Approve our locker
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // We can now lock the NFT as alice, even though it is in the staking contract. We
@@ -352,7 +352,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // The token cannot be locked on behalf of Bob, when approved by Alice
@@ -365,7 +365,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // The token cannot be locked on behalf of Bob, when approved by Alice
@@ -388,7 +388,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         vm.prank(locker);
@@ -400,7 +400,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // ..
@@ -420,7 +420,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // ..
@@ -443,7 +443,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         vm.startPrank(alice);
         floorNft.mint{value: 0.05 ether}(1);
         floorNft.transferFrom(alice, validStaker, 0);
-        floorNft.approveLocker(locker, 0);
+        floorNft.approveLocker(locker, 0, true);
         vm.stopPrank();
 
         // ..

@@ -21,6 +21,11 @@ contract DeploymentScript is Script {
     /// Set our JSON storage path
     string constant JSON_PATH = 'script/deployment/deployment-addresses.json';
 
+    /// Set our deployment WETH address
+    // Mainnet: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    // UAT: 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6
+    address constant WETH = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+
     /**
      * Ensures that a contract has been deployed already and returns the address of
      * the latest deployed contract.
@@ -117,7 +122,7 @@ contract DeploymentScript is Script {
      */
     modifier deployer() {
         // Load our seed phrase from a protected file
-        uint privateKey = vm.envUint("PRIVATE_KEY");
+        uint privateKey = vm.envUint('PRIVATE_KEY');
 
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.
@@ -150,5 +155,4 @@ contract DeploymentScript is Script {
 
         return string(_string);
     }
-
 }
