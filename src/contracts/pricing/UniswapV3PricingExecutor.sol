@@ -111,13 +111,6 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     }
 
     /**
-     * Retrieves the amount of WETH held in the Uniswap pool.
-     */
-    function getLiquidity(address token) external returns (uint) {
-        return WETH.balanceOf(_poolAddress(token));
-    }
-
-    /**
      * Returns the pool address for a given pair of tokens and a fee, or address 0 if
      * it does not exist. The secondary token will always be WETH for our requirements,
      * so this is just passed in from our contract constant.

@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
-import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 
 /// If a zero address strategy tries to be approved
 error CannotApproveNullCollection();
@@ -22,13 +21,6 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
     /// Maintains an internal array of approved collections for iteration
     address[] internal _approvedCollections;
-
-    /// Store our pricing executor to validate liquidity before collection addition
-    IBasePricingExecutor public pricingExecutor;
-
-    /// Stores a minimum liquidity threshold that is enforced before a collection can
-    /// be approved.
-    uint public liquidityThreshold;
 
     /**
      * Sets up our contract with our authority control to restrict access to
@@ -78,11 +70,6 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         // Check if our collection is already approved to prevent unrequired gas usage
         require(!collections[contractAddr], 'Collection is already approved');
 
-        // Validate the liquidity of the collection before we can add it
-        if (address(pricingExecutor) != address(0) && liquidityThreshold != 0) {
-            require(pricingExecutor.getLiquidity(underlyingToken) >= liquidityThreshold, 'Insufficient liquidity');
-        }
-
         // Approve our collection
         collections[contractAddr] = true;
         _approvedCollections.push(contractAddr);
@@ -128,17 +115,4 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         emit CollectionRevoked(contractAddr);
     }
 
-    /**
-     * Sets our {PricingExecutor} contract address.
-     */
-    function setPricingExecutor(address _pricingExecutor) external onlyRole(COLLECTION_MANAGER) {
-        pricingExecutor = IBasePricingExecutor(_pricingExecutor);
-    }
-
-    /**
-     * Sets our collection liqudity threshold value.
-     */
-    function setCollectionLiquidityThreshold(uint _liquidityThreshold) external onlyRole(COLLECTION_MANAGER) {
-        liquidityThreshold = _liquidityThreshold;
-    }
 }
