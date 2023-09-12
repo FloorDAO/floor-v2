@@ -54,6 +54,8 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param _floor Address of our {FLOOR}
      */
     constructor(address _authority, address _floor, address _weth) AuthorityControl(_authority) {
+        if (_floor == address(0) || _weth == address(0)) revert CannotSetNullAddress();
+
         floor = FLOOR(_floor);
         weth = IWETH(_weth);
     }

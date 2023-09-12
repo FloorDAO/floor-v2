@@ -80,10 +80,10 @@ interface ITreasury {
     event EpochSwept(uint epochIndex);
 
     /// Emitted when the {MercenarySweeper} contract address is updated
-    event MercenarySweeperUpdated(_mercSweeper);
+    event MercenarySweeperUpdated(address mercSweeper);
 
     /// Emitted when the minimum sweep amount is updated
-    event MinSweepAmountUpdated(_minSweepAmount);
+    event MinSweepAmountUpdated(uint minSweepAmount);
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method

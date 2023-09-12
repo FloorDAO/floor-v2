@@ -217,7 +217,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
         _revokeVotes(_account, voteOptions());
     }
 
-    function _revokeVotes(address _account, address[] calldata _collections) internal {
+    function _revokeVotes(address _account, address[] memory _collections) internal {
         // Pull our the number of collections we are revoking from for gas saves
         uint length = _collections.length;
 

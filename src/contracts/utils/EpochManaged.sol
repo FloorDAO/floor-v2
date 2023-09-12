@@ -9,6 +9,9 @@ import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 
 abstract contract EpochManaged is Ownable {
+    /// Emits when {EpochManager} is updated
+    event EpochManagerUpdated(address epochManager);
+
     /// Stores the current {EpochManager} contract
     IEpochManager public epochManager;
 

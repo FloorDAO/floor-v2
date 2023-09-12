@@ -89,7 +89,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @param treasury_ The treasury contract address
      */
     constructor(IERC20 floor_, address treasury_) ERC20('veFLOOR', 'veFLOOR') ERC20Permit('veFLOOR') {
-        if (address(floor_) == address(0) || treasury == address(0)) revert CannotSetNullAddress();
+        if (address(floor_) == address(0) || treasury_ == address(0)) revert CannotSetNullAddress();
+
         floor = floor_;
         treasury = ITreasury(treasury_);
         setFeeReceiver(treasury_);
