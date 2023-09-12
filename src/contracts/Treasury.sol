@@ -400,10 +400,13 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     /**
      * Allows the mercenary sweeper contract to be updated.
      *
+     * @dev We allow for a zero-address as this will disable the functionality.
+     *
      * @param _mercSweeper the new {IMercenarySweeper} contract
      */
     function setMercenarySweeper(address _mercSweeper) external onlyRole(TREASURY_MANAGER) {
         mercSweeper = IMercenarySweeper(_mercSweeper);
+        emit MercenarySweeperUpdated(_mercSweeper);
     }
 
     /**
@@ -426,6 +429,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      */
     function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
         minSweepAmount = _minSweepAmount;
+        emit MinSweepAmountUpdated(_minSweepAmount);
     }
 
     /**

@@ -129,10 +129,12 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     }
 
     /**
-     * Sets our {PricingExecutor} contract address.
+     * Sets our {PricingExecutor} contract address. We allow this to be set to a
+     * zero-address as it prevents liquidity checks taking place.
      */
     function setPricingExecutor(address _pricingExecutor) external onlyRole(COLLECTION_MANAGER) {
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
+        emit PricingExecutorUpdated(_pricingExecutor);
     }
 
     /**

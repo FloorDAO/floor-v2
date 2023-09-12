@@ -6,8 +6,15 @@ pragma solidity ^0.8.0;
  * Handles epoch management for all other contracts.
  */
 interface IEpochManager {
+
+    /// Emitted when an epoch is ended
     event EpochEnded(uint epoch, uint timestamp);
+
+    /// Emitted when a new collection war is scheduled
     event CollectionAdditionWarScheduled(uint epoch, uint index);
+
+    /// Emitted when required contracts are updated
+    event EpochManagerContractsUpdated(address newCollectionWars, address voteMarket);
 
     /**
      * The current epoch that is running across the codebase.

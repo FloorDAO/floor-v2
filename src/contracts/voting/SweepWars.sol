@@ -6,7 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
-import {CollectionNotApproved} from '@floor/utils/Errors.sol';
+import {CannotSetNullAddress, CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
@@ -47,10 +47,10 @@ contract SweepWars is AuthorityControl, ISweepWars {
     uint public sampleSize = 5;
 
     /// Internal contract references
-    ICollectionRegistry immutable collectionRegistry;
-    IStrategyFactory immutable strategyFactory;
-    VeFloorStaking immutable veFloor;
-    ITreasury immutable treasury;
+    ICollectionRegistry public immutable collectionRegistry;
+    IStrategyFactory public immutable strategyFactory;
+    VeFloorStaking public immutable veFloor;
+    ITreasury public immutable treasury;
     INftStaking public nftStaking;
 
     /**
@@ -64,7 +64,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
      */
 
     /// Store a mapping of the collection address to the number of votes
-    mapping(address => int) collectionVotes;
+    mapping(address => int) public collectionVotes;
 
     /**
      * A collection of votes that the user currently has placed.
@@ -86,10 +86,13 @@ contract SweepWars is AuthorityControl, ISweepWars {
     constructor(address _collectionRegistry, address _strategyFactory, address _veFloor, address _authority, address _treasury)
         AuthorityControl(_authority)
     {
+        if (_collectionRegistry == address(0) || _strategyFactory == address(0) || _veFloor == address(0) || _treasury == address(0)) {
+            revert CannotSetNullAddress();
+        }
+
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
         strategyFactory = IStrategyFactory(_strategyFactory);
         veFloor = VeFloorStaking(_veFloor);
-
         treasury = ITreasury(_treasury);
     }
 
@@ -200,7 +203,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
      *
      * @param _collections[] The collection address(es) being revoked
      */
-    function revokeVotes(address[] memory _collections) external {
+    function revokeVotes(address[] calldata _collections) external {
         _revokeVotes(msg.sender, _collections);
     }
 
@@ -214,7 +217,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
         _revokeVotes(_account, voteOptions());
     }
 
-    function _revokeVotes(address _account, address[] memory _collections) internal {
+    function _revokeVotes(address _account, address[] calldata _collections) internal {
         // Pull our the number of collections we are revoking from for gas saves
         uint length = _collections.length;
 
@@ -421,9 +424,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
      * @param size The new `sampleSize`
      */
     function setSampleSize(uint size) external onlyRole(VOTE_MANAGER) {
-        if (size == 0) {
-            revert SampleSizeCannotBeZero();
-        }
+        if (size == 0) revert SampleSizeCannotBeZero();
 
         sampleSize = size;
     }
@@ -434,7 +435,9 @@ contract SweepWars is AuthorityControl, ISweepWars {
      * @param _nftStaking The new {NftStaking} contract address
      */
     function setNftStaking(address _nftStaking) external onlyRole(VOTE_MANAGER) {
+        if (_nftStaking == address(0)) revert CannotSetNullAddress();
         nftStaking = INftStaking(_nftStaking);
+        emit NftStakingUpdated(_nftStaking);
     }
 
     /**

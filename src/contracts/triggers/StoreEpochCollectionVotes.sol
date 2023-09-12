@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
@@ -42,6 +43,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
      * @param _sweepWars The {SweepWars} contract being referenced
      */
     constructor(address _sweepWars) {
+        if (_sweepWars == address(0)) revert CannotSetNullAddress();
         sweepWars = ISweepWars(_sweepWars);
     }
 

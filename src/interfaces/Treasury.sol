@@ -79,6 +79,12 @@ interface ITreasury {
     /// @dev When an epoch is swept
     event EpochSwept(uint epochIndex);
 
+    /// Emitted when the {MercenarySweeper} contract address is updated
+    event MercenarySweeperUpdated(_mercSweeper);
+
+    /// Emitted when the minimum sweep amount is updated
+    event MinSweepAmountUpdated(_minSweepAmount);
+
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this

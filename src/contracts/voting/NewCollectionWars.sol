@@ -11,6 +11,7 @@ import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Re
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {ERC721Lockable} from '@floor/tokens/extensions/ERC721Lockable.sol';
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
@@ -66,6 +67,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * Sets our internal contract addresses.
      */
     constructor(address _authority, address _veFloor) AuthorityControl(_authority) {
+        if (_veFloor == address(0)) revert CannotSetNullAddress();
         veFloor = VeFloorStaking(_veFloor);
     }
 
@@ -379,10 +381,13 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     /**
      * Allows our options contract to be updated.
      *
+     * @dev We allow this to be set to a zero-address to disable the functionality.
+     *
      * @param _contract The new contract to use
      */
     function setOptionsContract(address _contract) external onlyOwner {
         newCollectionWarOptions = INewCollectionWarOptions(_contract);
+        emit NewCollectionWarOptionsUpdated(_contract);
     }
 
     /**
