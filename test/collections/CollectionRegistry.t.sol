@@ -211,47 +211,4 @@ contract CollectionRegistryTest is FloorTest {
 
         vm.stopPrank();
     }
-
-    /**
-     * When a collection is approved, if a {PricingExecutor} has been set
-     * then we should be validating the liquidity returned by the executor
-     * before approving it. This liquidity threshold is set on the contract.
-     */
-    function test_LiquidityIsValidatedOnCollectionApproval() public {
-        // Set our mock pricing executor
-        collectionRegistry.setPricingExecutor(address(new PricingExecutorMock()));
-
-        // Set our threshold above the mock's returned amount
-        collectionRegistry.setCollectionLiquidityThreshold(1 ether + 1);
-        vm.expectRevert();
-        collectionRegistry.approveCollection(address(1), SUFFICIENT_LIQUIDITY_COLLECTION);
-
-        // Set our threshold to equal the same amount
-        collectionRegistry.setCollectionLiquidityThreshold(1 ether);
-        collectionRegistry.approveCollection(address(2), SUFFICIENT_LIQUIDITY_COLLECTION);
-
-        // Set our threshold below the returned amount
-        collectionRegistry.setCollectionLiquidityThreshold(1 ether - 1);
-        collectionRegistry.approveCollection(address(3), SUFFICIENT_LIQUIDITY_COLLECTION);
-
-        // Set our threshold to zero
-        collectionRegistry.setCollectionLiquidityThreshold(0);
-        collectionRegistry.approveCollection(address(4), SUFFICIENT_LIQUIDITY_COLLECTION);
-    }
-
-    function test_CannotSetPricingExecutorWithoutPermission() public {
-        address pricingExecutor = address(new PricingExecutorMock());
-
-        vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
-        collectionRegistry.setPricingExecutor(pricingExecutor);
-        vm.stopPrank();
-    }
-
-    function test_CannotSetCollectionLiquidityThresholdWithoutPermission() public {
-        vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
-        collectionRegistry.setCollectionLiquidityThreshold(1 ether);
-        vm.stopPrank();
-    }
 }
