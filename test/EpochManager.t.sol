@@ -25,9 +25,10 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
-import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
+import {CannotSetNullAddress, Treasury} from '@floor/Treasury.sol';
 
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
+import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {FoundryRandom} from "foundry-random/FoundryRandom.sol";
@@ -488,11 +489,14 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     }
 
     function test_CanSetAndDeleteEpochEndTriggers(uint8 _delete) external {
+        // Ensure that we don't try to delete a NULL address that would not exist
+        vm.assume(_delete > 0);
+
         // Set up epoch end triggers
         uint expectedTriggers = type(uint8).max;
 
         // Create address 0 - 255 (this means 256 in total as 0 is included)
-        for (uint160 i; i <= expectedTriggers; i++) {
+        for (uint160 i = 1; i <= expectedTriggers; i++) {
             epochManager.setEpochEndTrigger(address(i), true);
         }
 
@@ -502,11 +506,11 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // We should be able to confirm that the trigger has been deleted and that the
         // length is as expected.
         address[] memory triggers = epochManager.epochEndTriggers();
-        assertEq(triggers.length, 255);
+        assertEq(triggers.length, 254);
 
         // Loop through the remaining triggers and confirm we no longer have the
         // deleted index.
-        for (uint160 i; i < triggers.length; i++) {
+        for (uint160 i = 1; i < triggers.length; i++) {
             assertFalse(triggers[i] == address(uint160(_delete)));
         }
     }
@@ -550,6 +554,53 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         assertEq(epochManager.epochIterationTimestamp(12), 1692531530 + 14 days);
         assertEq(epochManager.epochIterationTimestamp(15), 1692531530 + 35 days);
         assertEq(epochManager.epochIterationTimestamp(19), 1692531530 + 63 days);
+    }
+
+    function test_CannotSetNullEpochEndTrigger() external {
+        vm.expectRevert(CannotSetNullAddress.selector);
+        epochManager.setEpochEndTrigger(address(0), true);
+    }
+
+    function test_CannotDeleteTriggerThatDoesNotExist(address epochTrigger) external {
+        vm.expectRevert('Trigger not found');
+        epochManager.setEpochEndTrigger(epochTrigger, false);
+    }
+
+    function test_CannotSetExistingEpochEndTrigger(address epochTrigger) external {
+        // Ensure we don't try to set a zero-address
+        vm.assume(epochTrigger != address(0));
+
+        epochManager.setEpochEndTrigger(epochTrigger, true);
+
+        vm.expectRevert('Trigger already exists');
+        epochManager.setEpochEndTrigger(epochTrigger, true);
+
+        // Confirm that we can still re-apply it after it has been unset
+        epochManager.setEpochEndTrigger(epochTrigger, false);
+        epochManager.setEpochEndTrigger(epochTrigger, true);
+    }
+
+    function test_CannotReenterEndEpoch() external {
+        // Set up a malicious contract that allows for reentry
+        MaliciousEpochEndTrigger epochTrigger = new MaliciousEpochEndTrigger();
+
+        // Assign it as an epoch end trigger
+        epochManager.setEpochEndTrigger(address(epochTrigger), true);
+
+        // Try and run epoch end, confirming that it would prevent reentry. This would
+        // also be blocked by the timelock timestamp now being updated before the call,
+        // but this just gives it an extra layer of security and peace of mind.
+        vm.expectRevert('ReentrancyGuard: reentrant call');
+        epochManager.endEpoch();
+    }
+
+}
+
+
+contract MaliciousEpochEndTrigger is IEpochEndTriggered {
+
+    function endEpoch(uint /* epoch */) external {
+        EpochManager(msg.sender).endEpoch();
     }
 
 }

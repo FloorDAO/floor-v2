@@ -3,6 +3,9 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
@@ -21,7 +24,7 @@ error NoPricingExecutorSet();
 /**
  * Handles epoch management for all other contracts.
  */
-contract EpochManager is IEpochManager, Ownable {
+contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
     /// Stores the current epoch that is taking place.
     uint public currentEpoch;
 
@@ -89,10 +92,17 @@ contract EpochManager is IEpochManager, Ownable {
      * passed. We will also check if a new Collection Addition is starting in the new epoch
      * and initialise it if it is.
      */
-    function endEpoch() external {
+    function endEpoch() external nonReentrant {
         // Ensure enough time has past since the last epoch ended
         if (lastEpoch != 0 && block.timestamp < lastEpoch + EPOCH_LENGTH) {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
+        }
+
+        unchecked {
+            // If our lastEpoch is zero, then this is the first epoch ended and we want
+            // to set it to the specific block timestamp. Otherwise, we just increase it
+            // by the length of the epoch to avoid epoch creep.
+            lastEpoch += (lastEpoch == 0) ? block.timestamp : EPOCH_LENGTH;
         }
 
         // If we have any logic that needs to be triggered when an epoch ends, then we include
@@ -103,13 +113,6 @@ contract EpochManager is IEpochManager, Ownable {
             unchecked {
                 ++i;
             }
-        }
-
-        unchecked {
-            // If our lastEpoch is zero, then this is the first epoch ended and we want
-            // to set it to the specific block timestamp. Otherwise, we just increase it
-            // by the length of the epoch to avoid epoch creep.
-            lastEpoch += (lastEpoch == 0) ? block.timestamp : EPOCH_LENGTH;
         }
 
         emit EpochEnded(currentEpoch, lastEpoch);
@@ -128,28 +131,30 @@ contract EpochManager is IEpochManager, Ownable {
      * Allows a new epochEnd trigger to be attached
      */
     function setEpochEndTrigger(address contractAddr, bool enabled) external onlyOwner {
-        if (enabled) {
-            // Prevent a zero-address from being added
-            if (contractAddr == address(0)) revert CannotSetNullAddress();
+        // If we are trying to add a zero address, exit early
+        if (enabled && contractAddr == address(0)) revert CannotSetNullAddress();
 
+        // Both enabling and disabling an `epochEndTrigger` will benefit from
+        // knowing the existing index of the `contractAddr`, if it already exists.
+        int existingIndex = -1;
+        uint triggersLength = _epochEndTriggers.length;
+        uint i;
+        for (i; i < triggersLength;) {
+            if (_epochEndTriggers[i] == contractAddr) {
+                existingIndex = int(i);
+                break;
+            }
+            unchecked { ++i; }
+        }
+
+        if (enabled) {
+            require(existingIndex == -1, 'Trigger already exists');
             _epochEndTriggers.push(contractAddr);
         } else {
-            int deleteIndex = -1;
-            uint triggersLength = _epochEndTriggers.length;
-            uint i;
-
-            for (i; i < triggersLength;) {
-                if (_epochEndTriggers[i] == contractAddr) {
-                    deleteIndex = int(i);
-                    break;
-                }
-                unchecked { ++i; }
-            }
-
-            require(deleteIndex != -1, 'Not found');
+            require(existingIndex != -1, 'Trigger not found');
 
             // Shift the elements after the deleted element by one position
-            for (i = uint(deleteIndex); i < triggersLength - 1;) {
+            for (i = uint(existingIndex); i < triggersLength - 1;) {
                 _epochEndTriggers[i] = _epochEndTriggers[i + 1];
                 unchecked { ++i; }
             }
