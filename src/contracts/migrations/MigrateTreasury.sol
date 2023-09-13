@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {ILegacyTreasury} from '@floor-interfaces/legacy/Treasury.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
@@ -34,6 +36,8 @@ contract MigrateTreasury is Ownable {
      * @param _newTreasury Address of our new, V2 {Treasury}
      */
     constructor(address _oldTreasury, address _newTreasury) {
+        if (_oldTreasury == address(0) || _newTreasury == address(0)) revert CannotSetNullAddress();
+
         oldTreasury = ILegacyTreasury(_oldTreasury);
         newTreasury = ITreasury(_newTreasury);
     }
@@ -43,7 +47,7 @@ contract MigrateTreasury is Ownable {
      * new {Treasury}. This will always process the full balances of the token, so an amount
      * is not required to be specified.
      */
-    function migrate(address[] memory tokens) external onlyOwner {
+    function migrate(address[] calldata tokens) external onlyOwner {
         // Define variables outside the loop for gas saves
         uint received;
         uint sent;

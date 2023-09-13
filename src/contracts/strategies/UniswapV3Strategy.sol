@@ -202,7 +202,7 @@ contract UniswapV3Strategy is BaseStrategy {
             emit Withdraw(params.token1, amount1Collected, recipient);
         }
 
-        tokens_ = this.validTokens();
+        tokens_ = validTokens();
         amounts_ = new uint[](2);
         amounts_[0] = amount0Collected;
         amounts_[1] = amount1Collected;
@@ -213,7 +213,7 @@ contract UniswapV3Strategy is BaseStrategy {
      */
     function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
         (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(tokenId);
-        tokens_ = this.validTokens();
+        tokens_ = validTokens();
         amounts_ = new uint[](2);
         amounts_[0] = tokensOwed0;
         amounts_[1] = tokensOwed1;
@@ -257,7 +257,7 @@ contract UniswapV3Strategy is BaseStrategy {
         // Call our internal {withdrawErc20} function to move tokens to the caller. Pulling out
         // LP or adding it doesn't have sandwhiches like trading so providing 0 in both places
         // should just work.
-        return _withdraw(recipient, 0, 0, block.timestamp, uint128((liquidity * percentage) / 10000));
+        return _withdraw(recipient, 0, 0, block.timestamp, uint128((liquidity * percentage) / 100_00));
     }
 
     /**
@@ -286,7 +286,7 @@ contract UniswapV3Strategy is BaseStrategy {
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory tokens_) {
+    function validTokens() public view override returns (address[] memory tokens_) {
         tokens_ = new address[](2);
         tokens_[0] = params.token0;
         tokens_[1] = params.token1;

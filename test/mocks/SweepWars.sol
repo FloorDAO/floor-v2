@@ -5,14 +5,14 @@ pragma solidity ^0.8.0;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 contract SweepWarsMock {
-    /// ..
+    /// Store internal contracts
     address private immutable collectionRegistry;
     address private immutable treasury;
 
     /// Store our current epoch iteraction
     uint internal epochIteration;
 
-    /// ..
+    /// Store a sample size
     uint public sampleSize = 5;
 
     /// Store a storage array of collections

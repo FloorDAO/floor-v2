@@ -35,6 +35,9 @@ interface INewCollectionWars {
     /// Sent when Collection Addition War NFTs are exercised
     event CollectionExercised(uint warIndex, address collection, uint value);
 
+    /// Sent when the {NewCollectionWarOptions} contract address is updated
+    event NewCollectionWarOptionsUpdated(address newCollectionWarOptions);
+
     /// Stores the number of votes a user has placed against a war collection
     function userVotes(bytes32) external view returns (uint);
 

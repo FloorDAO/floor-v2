@@ -7,6 +7,8 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
@@ -75,6 +77,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * @dev Mainnet Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
      */
     constructor(address _poolFactory, address _weth) {
+        if (_poolFactory == address(0) || _weth == address(0)) revert CannotSetNullAddress();
+
         uniswapV3PoolFactory = IUniswapV3Factory(_poolFactory);
         WETH = IWETH(_weth);
     }
@@ -106,7 +110,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      *
      * @return uint[] The ETH values of a singular token, mapping to passed token index
      */
-    function getETHPrices(address[] memory tokens) external returns (uint[] memory) {
+    function getETHPrices(address[] calldata tokens) external returns (uint[] memory) {
         return _getPrices(tokens);
     }
 
@@ -128,8 +132,8 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
             return poolAddresses[token];
         }
 
-        // Load our candidate pool
-        address candidatePool = uniswapV3PoolFactory.getPool(token, address(WETH), 10000);
+        // Load our candidate pool at 1% fee
+        address candidatePool = uniswapV3PoolFactory.getPool(token, address(WETH), 1_0000);
 
         // If we can't find a pool, then we need to raise an error
         if (candidatePool == address(0)) {
@@ -218,7 +222,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * subsequently calls `_getPrice` for each token passed. Not really gas efficient, but
      * unfortunately the best we can do with what we have.
      */
-    function _getPrices(address[] memory tokens) internal returns (uint[] memory) {
+    function _getPrices(address[] calldata tokens) internal returns (uint[] memory) {
         uint[] memory prices = new uint[](tokens.length);
         for (uint i; i < tokens.length;) {
             prices[i] = _getPrice(tokens[i]);

@@ -114,5 +114,4 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         // Emit our event to notify watchers
         emit CollectionRevoked(contractAddr);
     }
-
 }

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {TransferFailed} from '@floor/utils/Errors.sol';
+
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 
 /**
@@ -33,7 +35,8 @@ contract ManualSweeper is ISweeper {
 
         // Return any fees from the sender. This ensures that no fees are retained in the contract
         if (msg.value != 0) {
-            payable(msg.sender).transfer(msg.value);
+            (bool success,) = payable(msg.sender).call{value: msg.value}('');
+            if (!success) revert TransferFailed();
         }
 
         return string(data);

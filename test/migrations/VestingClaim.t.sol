@@ -215,14 +215,15 @@ contract VestingClaimTest is FloorTest {
         assertEq(weth.balanceOf(alice), startBalance);
     }
 
-    function test_CanClaimZeroAllocation() public {
+    function test_CannotClaimZeroAllocation() public {
         _setSingleAllocation(alice, 10 ether);
 
-        vm.prank(alice);
+        vm.startPrank(alice);
+
+        vm.expectRevert('Invalid amount');
         vestingClaim.claim(alice, 0);
 
-        assertEq(newFloor.balanceOf(alice), 0);
-        assertEq(weth.balanceOf(alice), startBalance);
+        vm.stopPrank();
     }
 
     function test_CannotClaimWhenNoAmountAllocated(uint claim) public {
@@ -234,7 +235,8 @@ contract VestingClaimTest is FloorTest {
     }
 
     function test_CannotClaimWithInsufficientWeth(uint amount, uint balance) public {
-        vm.assume(amount > 4 ether);
+        amount = bound(amount, 4 ether, type(uint).max);
+        vm.assume(amount % 1e3 == 0);
         vm.assume(balance < amount / 1e4);
 
         weth.mint(bob, balance);
@@ -247,6 +249,22 @@ contract VestingClaimTest is FloorTest {
         vm.prank(bob);
         vm.expectRevert('ERC20: insufficient allowance');
         vestingClaim.claim(bob, amount);
+    }
+
+    function test_CannotClaimInvalidAmount(uint amount) public {
+        // Ensure that the amount is invalid, by either being zero, or not modulus of 1e3
+        vm.assume(amount == 0 || amount % 1e3 != 0);
+
+        // Set Alice a sufficient allocation
+        _setSingleAllocation(alice, amount);
+
+        vm.startPrank(alice);
+
+        // Make a claim that, although sufficiently allocated, is an invalid amount
+        vm.expectRevert('Invalid amount');
+        vestingClaim.claim(alice, amount);
+
+        vm.stopPrank();
     }
 
     function _setSingleAllocation(address _address, uint _amount) internal {

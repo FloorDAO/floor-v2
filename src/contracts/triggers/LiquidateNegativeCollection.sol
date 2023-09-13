@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
 import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
@@ -32,10 +33,10 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     IUniversalRouter public immutable uniswapUniversalRouter;
 
     /// A threshold percentage that would be worth us working with
-    uint public constant THRESHOLD = 1000; // 1%
+    uint public constant THRESHOLD = 1_000; // 1%
 
     /// An amount of slippage to allow in the call (defaults to 5%)
-    uint public slippage = 5000; // 5%
+    uint public slippage = 5_000; // 5%
 
     /**
      * Holds the data for each epoch to show which collection, if any, received the most
@@ -56,13 +57,20 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     /// Store a mapping of epoch to snapshot results
     mapping(uint => EpochSnapshot) public epochSnapshot;
 
-    bytes commands;
-    bytes[] inputs;
+    /// Allows for uniswap commands to be managed as storage
+    bytes private commands;
+    bytes[] private inputs;
 
     /**
      * Sets our internal contracts.
      */
     constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy, address _uniswapUniversalRouter, address _weth) {
+        // Prevent any zero-address contracts from being set
+        if (_sweepWars == address(0) || _strategyFactory == address(0) || _revenueStrategy == address(0) ||
+            _uniswapUniversalRouter == address(0) || _weth == address(0)) {
+            revert CannotSetNullAddress();
+        }
+
         sweepWars = ISweepWars(_sweepWars);
         strategyFactory = StrategyFactory(_strategyFactory);
         revenueStrategy = DistributedRevenueStakingStrategy(_revenueStrategy);
@@ -200,8 +208,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
      * @param _slippage New slippage percentage
      */
     function setSlippage(uint _slippage) public onlyOwner {
-        require(_slippage < 100000, 'Slippage too high');
-
+        require(_slippage < 100_000, 'Slippage too high');
         slippage = _slippage;
     }
 }
