@@ -10,6 +10,7 @@ import {ERC20Votes} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Vo
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 
+import {CannotSetNullAddress, TransferFailed} from '@floor/utils/Errors.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 import {IVeFloorStaking, Depositor} from '@floor-interfaces/staking/VeFloorStaking.sol';
@@ -37,6 +38,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
     event MaxLossRatioSet(uint ratio);
     event MinLockPeriodRatioSet(uint ratio);
     event FeeReceiverSet(address receiver);
+    event EarlyWithdrawFeeExemptionSet(address account, bool exempt);
 
     event Deposit(address account, uint amount);
     event Withdraw(address sender, uint amount);
@@ -87,6 +89,8 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      * @param treasury_ The treasury contract address
      */
     constructor(IERC20 floor_, address treasury_) ERC20('veFLOOR', 'veFLOOR') ERC20Permit('veFLOOR') {
+        if (address(floor_) == address(0) || treasury_ == address(0)) revert CannotSetNullAddress();
+
         floor = floor_;
         treasury = ITreasury(treasury_);
         setFeeReceiver(treasury_);
@@ -253,7 +257,9 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
 
         _withdraw(depositor, amount);
         floor.safeTransfer(to, ret);
-        floor.transfer(feeReceiver, loss);
+
+        if (!floor.transfer(feeReceiver, loss)) revert TransferFailed();
+
     }
 
     /**
@@ -421,6 +427,7 @@ contract VeFloorStaking is EpochManaged, ERC20, ERC20Permit, ERC20Votes, IVeFloo
      */
     function addEarlyWithdrawFeeExemption(address account, bool exempt) external onlyOwner {
         earlyWithdrawFeeExemptions[account] = exempt;
+        emit EarlyWithdrawFeeExemptionSet(account, exempt);
     }
 
     // ERC20 methods disablers

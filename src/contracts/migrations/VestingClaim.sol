@@ -56,6 +56,13 @@ contract VestingClaim is Ownable {
         // Ensure that we have sufficient FLOOR allocation to claim against
         require(allocation[msg.sender] >= _amount, 'Insufficient allocation');
 
+        // We ensure that the amount is not 0, and that `_amount % 1e3` equals zero as
+        // otherwise it could be exploited to acquire a non-zero amount of FLOOR tokens
+        // without transferring any WETH tokens due to the way the 1-to-1000 ratio between
+        // the tokens is enforced.
+        require(_amount != 0, 'Invalid amount');
+        require(_amount % 1e3 == 0, 'Invalid amount');
+
         // Transfer the WETH to the {Treasury}. This will need to have already been
         // approved by the sender.
         WETH.safeTransferFrom(msg.sender, address(treasury), _amount / 1e3);

@@ -4,6 +4,9 @@ pragma solidity ^0.8.0;
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+import {EpochManaged} from '@floor/utils/EpochManaged.sol';
+
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
@@ -11,7 +14,6 @@ import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol'
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
-import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
 /**
  * If the current epoch is a Collection Addition, then the floor war is ended and the
@@ -39,12 +41,17 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     mapping(address => uint) internal yield;
 
     /// Temp. stores our epoch tokens that have generated yield
-    address[] epochTokens;
+    address[] private epochTokens;
 
     /**
      * Define our required contracts.
      */
     constructor(address _newCollectionWars, address _pricingExecutor, address _strategyFactory, address _treasury, address _voteContract) {
+        if (_newCollectionWars == address(0) || _pricingExecutor == address(0) || _strategyFactory == address(0) ||
+            _treasury == address(0) || _voteContract == address(0)) {
+            revert CannotSetNullAddress();
+        }
+
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         strategyFactory = IStrategyFactory(_strategyFactory);

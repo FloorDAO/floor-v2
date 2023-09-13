@@ -7,6 +7,8 @@ import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.
 
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
@@ -187,8 +189,12 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
      * in other functions.
      */
     function setContracts(address _newCollectionWars, address _voteMarket) external onlyOwner {
+        if (_newCollectionWars == address(0) || _voteMarket == address(0)) revert CannotSetNullAddress();
+
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         voteMarket = IVoteMarket(_voteMarket);
+
+        emit EpochManagerContractsUpdated(_newCollectionWars, _voteMarket);
     }
 
     /**

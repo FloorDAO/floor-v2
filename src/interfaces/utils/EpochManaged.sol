@@ -7,6 +7,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 
 interface IEpochManaged {
+    /// Emitted when the epoch manager contract is updated
+    event EpochManagerUpdated(address epochManager);
+
     /**
      * Gets the address of the contract that currently manages the epoch state of
      * this contract.

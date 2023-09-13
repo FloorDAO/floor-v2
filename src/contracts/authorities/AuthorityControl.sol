@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 import {Context} from '@openzeppelin/contracts/utils/Context.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {IAuthorityControl} from '@floor-interfaces/authorities/AuthorityControl.sol';
 import {IAuthorityRegistry} from '@floor-interfaces/authorities/AuthorityRegistry.sol';
 
@@ -89,6 +91,7 @@ contract AuthorityControl is Context, IAuthorityControl {
      * @param _registry The address of our deployed AuthorityRegistry contract
      */
     constructor(address _registry) {
+        if (_registry == address(0)) revert CannotSetNullAddress();
         registry = IAuthorityRegistry(_registry);
     }
 

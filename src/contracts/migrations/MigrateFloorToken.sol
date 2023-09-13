@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {CannotSetNullAddress, InsufficientAmount} from '@floor/utils/Errors.sol';
 
 import {IgFLOOR} from '@floor-interfaces/legacy/IgFLOOR.sol';
 import {IMigrateFloorToken} from '@floor-interfaces/migrations/MigrateFloorToken.sol';
@@ -45,6 +46,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
      * @param _newFloor Address of our deployed FLOOR V2 token
      */
     constructor(address _newFloor) {
+        if (_newFloor == address(0)) revert CannotSetNullAddress();
         newFloor = _newFloor;
     }
 

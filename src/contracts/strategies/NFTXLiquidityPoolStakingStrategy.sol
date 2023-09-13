@@ -269,7 +269,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     {
         // Get the total amount of underlyingToken that has been deposited. From that, take
         // the percentage of the token.
-        uint amount = (position[yieldToken] * percentage) / 10000;
+        uint amount = (position[yieldToken] * percentage) / 100_00;
 
         tokens_ = this.validTokens();
 

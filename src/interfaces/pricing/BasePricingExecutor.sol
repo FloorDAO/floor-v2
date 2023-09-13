@@ -28,9 +28,4 @@ interface IBasePricingExecutor {
      * Gets our current mapped price of multiple tokens to ETH.
      */
     function getETHPrices(address[] memory token) external returns (uint[] memory);
-
-    /**
-     * If applicable, gets the amount of liquidity held in a pairing.
-     */
-    function getLiquidity(address token) external returns (uint);
 }

@@ -20,6 +20,9 @@ interface IStrategyFactory {
     /// @dev Sent when a snapshot is taken
     event StrategySnapshot(uint epoch, uint strategyId, address[] tokens, uint[] amounts);
 
+    /// @dev Sent when the Treasury address is updated
+    event TreasuryUpdated(address treasury);
+
     /**
      * Provides a list of all strategies created.
      *
