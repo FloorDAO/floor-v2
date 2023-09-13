@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
@@ -94,6 +96,13 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
             revert EpochTimelocked(lastEpoch + EPOCH_LENGTH);
         }
 
+        unchecked {
+            // If our lastEpoch is zero, then this is the first epoch ended and we want
+            // to set it to the specific block timestamp. Otherwise, we just increase it
+            // by the length of the epoch to avoid epoch creep.
+            lastEpoch += (lastEpoch == 0) ? block.timestamp : EPOCH_LENGTH;
+        }
+
         // If we have any logic that needs to be triggered when an epoch ends, then we include
         // it here.
         uint triggersLength = _epochEndTriggers.length;
@@ -102,13 +111,6 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
             unchecked {
                 ++i;
             }
-        }
-
-        unchecked {
-            // If our lastEpoch is zero, then this is the first epoch ended and we want
-            // to set it to the specific block timestamp. Otherwise, we just increase it
-            // by the length of the epoch to avoid epoch creep.
-            lastEpoch += (lastEpoch == 0) ? block.timestamp : EPOCH_LENGTH;
         }
 
         emit EpochEnded(currentEpoch, lastEpoch);
@@ -127,6 +129,9 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
      * Allows a new epochEnd trigger to be attached
      */
     function setEpochEndTrigger(address contractAddr, bool enabled) external onlyOwner {
+        // If we are trying to add a zero address, exit early
+        if (enabled && contractAddr == address(0)) revert CannotSetNullAddress();
+
         // Both enabling and disabling an `epochEndTrigger` will benefit from
         // knowing the existing index of the `contractAddr`, if it already exists.
         int existingIndex = -1;
