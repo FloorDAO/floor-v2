@@ -53,7 +53,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
 
     function test_CanMintToMaxSupply() public {
         floorNft.setMaxSupply(2);
-        floorNft.mint{value: 1 ether}(2);
+        floorNft.mint{value: 0.1 ether}(2);
     }
 
     function test_CannotMintWithInsufficientFunds() public {

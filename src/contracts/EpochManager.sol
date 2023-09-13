@@ -187,12 +187,18 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
     /**
      * Sets the contract addresses of internal contracts that are queried and used
      * in other functions.
+     *
+     * @dev The vote market contract can be a zero-address as this won't be ready at
+     * launch.
      */
     function setContracts(address _newCollectionWars, address _voteMarket) external onlyOwner {
-        if (_newCollectionWars == address(0) || _voteMarket == address(0)) revert CannotSetNullAddress();
+        if (_newCollectionWars == address(0)) revert CannotSetNullAddress();
 
         newCollectionWars = INewCollectionWars(_newCollectionWars);
-        voteMarket = IVoteMarket(_voteMarket);
+
+        if (_voteMarket != address(0)) {
+            voteMarket = IVoteMarket(_voteMarket);
+        }
 
         emit EpochManagerContractsUpdated(_newCollectionWars, _voteMarket);
     }
