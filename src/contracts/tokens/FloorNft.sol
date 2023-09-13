@@ -50,7 +50,7 @@ contract FloorNft is ERC721Lockable {
      */
     function mint(uint _mintAmount) public payable mintCompliance(_mintAmount) {
         require(paused == 2, 'The contract is paused');
-        require(msg.value >= cost * _mintAmount, 'Insufficient funds');
+        require(msg.value == cost * _mintAmount, 'Insufficient funds');
         _mint(msg.sender, _mintAmount);
     }
 
@@ -58,7 +58,7 @@ contract FloorNft is ERC721Lockable {
      * The whitelist mint function to allow addresses on the merkle root to claim without
      * requiring a payment.
      */
-    function whitelistMint(bytes32[] calldata _merkleProof) public payable mintCompliance(1) {
+    function whitelistMint(bytes32[] calldata _merkleProof) public mintCompliance(1) {
         require(paused == 2, 'The contract is paused');
 
         // Ensure that the user has not already claimed their whitelist spot
@@ -151,8 +151,4 @@ contract FloorNft is ERC721Lockable {
         _;
     }
 
-    /**
-     * Allows the contract to receive payment for NFT sale.
-     */
-    receive() external payable {}
 }
