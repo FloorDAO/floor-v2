@@ -569,14 +569,38 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(10 ether, secondIndex);
     }
 
+    /**
+     * Test that can't set a value that hits the overflow when setting the max loss.
+     *
+     * @dev We assume a `uint128` value to test, as we multiply it by 2.
+     */
     function test_CannotSetMaxLossOverflow(uint value) external {
-        vm.assume(value <= 1e9);
+        // Ensure we don't overflow
+        vm.assume(value <= type(uint128).max);
+
+        // Ensure we don't hit the underflow
+        vm.assume((value * 2) / 1e9 != 0);
+
+        // Ensure we hit the overflow
+        vm.assume(value > 1e9);
 
         vm.expectRevert(VeFloorStaking.MaxLossOverflow.selector);
         veFloor.setMinLockPeriodRatio(value);
     }
 
+    /**
+     * Test that can't set a value that hits the underflow when setting the max loss.
+     *
+     * @dev We assume a `uint128` value to test, as we multiply it by 2.
+     */
     function test_CannotSetMaxLossUnderflow(uint value) external {
+        // Ensure we don't overflow
+        vm.assume(value <= type(uint128).max);
+
+        // Ensure we don't hit the overflow
+        vm.assume(value <= 1e9);
+
+        // Ensure we hit the underflow
         vm.assume((value * 2) / 1e9 == 0);
 
         vm.expectRevert(VeFloorStaking.MaxLossUnderflow.selector);

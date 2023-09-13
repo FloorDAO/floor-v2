@@ -125,7 +125,7 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
      */
     function setMinLockPeriodRatio(uint minLockPeriodRatio_) external onlyOwner {
         if (minLockPeriodRatio_ > _ONE_E9) revert MaxLossOverflow();
-        if ((minLockPeriodRatio * LOCK_PERIODS[0]) / _ONE_E9 == 0) revert MaxLossUnderflow();
+        if ((minLockPeriodRatio_ * LOCK_PERIODS[0]) / _ONE_E9 == 0) revert MaxLossUnderflow();
         minLockPeriodRatio = minLockPeriodRatio_;
         emit MinLockPeriodRatioSet(minLockPeriodRatio_);
     }
