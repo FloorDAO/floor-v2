@@ -569,6 +569,20 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.deposit(10 ether, secondIndex);
     }
 
+    function test_CannotSetMaxLossOverflow(uint value) external {
+        vm.assume(value <= 1e9);
+
+        vm.expectRevert(VeFloorStaking.MaxLossOverflow.selector);
+        veFloor.setMinLockPeriodRatio(value);
+    }
+
+    function test_CannotSetMaxLossUnderflow(uint value) external {
+        vm.assume((value * 2) / 1e9 == 0);
+
+        vm.expectRevert(VeFloorStaking.MaxLossUnderflow.selector);
+        veFloor.setMinLockPeriodRatio(value);
+    }
+
     function _calculateTwoThirds(uint i) internal pure returns (uint) {
         return i * 2 / 3;
     }
