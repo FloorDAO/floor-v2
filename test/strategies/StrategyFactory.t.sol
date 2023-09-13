@@ -54,7 +54,7 @@ contract StrategyFactoryTest is FloorTest {
         unapprovedCollection = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection);
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
@@ -141,6 +141,10 @@ contract StrategyFactoryTest is FloorTest {
             _strategy,
             Clones.predictDeterministicAddress(approvedStrategy, 0, address(strategyFactory))
         );
+    }
+
+    function test_CannotCreateStrategyWithUnapprovedStrategyImplementation() external {
+        // TODO: ..
     }
 
     function test_CanDeploySameStrategyMultipleTimes() public {

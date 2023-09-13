@@ -9,6 +9,7 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {
     CannotVoteWithZeroAmount,
@@ -111,10 +112,10 @@ contract SweepWarsTest is FloorTest {
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Set up shorthand for our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);

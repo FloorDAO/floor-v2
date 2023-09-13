@@ -14,6 +14,7 @@ import {
     NFTXLiquidityPoolStakingStrategy
 } from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 
 import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
@@ -55,9 +56,9 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Create our {CollectionRegistry} and approve our collection
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         // Approve our ERC721 collection
-        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5, 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
+        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5);
         // Approve our ERC1155 collection
-        collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA);
+        collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313);
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));

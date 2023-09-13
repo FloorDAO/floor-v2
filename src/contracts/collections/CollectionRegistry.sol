@@ -61,11 +61,9 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      *
      * @param contractAddr Address of unapproved collection to approve
      */
-    function approveCollection(address contractAddr, address underlyingToken) external onlyRole(COLLECTION_MANAGER) {
+    function approveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
         // Prevent a null contract being added
-        if (contractAddr == address(0) || underlyingToken == address(0)) {
-            revert CannotApproveNullCollection();
-        }
+        if (contractAddr == address(0)) revert CannotApproveNullCollection();
 
         // Check if our collection is already approved to prevent unrequired gas usage
         require(!collections[contractAddr], 'Collection is already approved');

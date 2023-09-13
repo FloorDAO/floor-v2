@@ -14,6 +14,7 @@ import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';

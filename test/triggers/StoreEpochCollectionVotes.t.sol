@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {StoreEpochCollectionVotesTrigger} from '@floor/triggers/StoreEpochCollectionVotes.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
@@ -96,10 +97,10 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
         epochManager.setEpochEndTrigger(address(storeEpochCollectionVotesTrigger), true);
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);

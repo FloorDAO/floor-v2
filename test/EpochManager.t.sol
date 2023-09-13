@@ -22,6 +22,7 @@ import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
@@ -73,6 +74,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     NewCollectionWars newCollectionWars;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     constructor() forkBlock(BLOCK_NUMBER) {
         // Create our test users
@@ -83,6 +85,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
@@ -91,7 +94,8 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}
@@ -140,14 +144,11 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection);
 
         // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
-        treasury.approveSweeper(manualSweeper, true);
-
-        // Set up our sweeper mock that will return tokens
-        sweeperMock = address(new SweeperMock(address(treasury)));
+        treasury.approveSweeper(manualSweeper);
         treasury.approveSweeper(sweeperMock, true);
 
         // Define our ERC20 token
@@ -254,7 +255,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         for (uint i; i < vaultCount; ++i) {
             // Approve a unique collection
             address collection = address(uint160(i + 5));
-            collectionRegistry.approveCollection(collection, SUFFICIENT_LIQUIDITY_COLLECTION);
+            collectionRegistry.approveCollection(collection);
 
             // Deploy our strategy
             (, vaults[i]) = strategyFactory.deployStrategy('Test Vault', approvedStrategy, _strategyInitBytes(), collection);

@@ -29,6 +29,10 @@ error CannotWithdrawZeroAmount();
 /// If there are no rewards available to be claimed
 error NoRewardsAvailableToClaim();
 
-// If the requested collection is not approved
+/// If the requested collection is not approved
 /// @param collection Address of the collection requested
 error CollectionNotApproved(address collection);
+
+/// If the requested strategy implementation is not approved
+/// @param strategyImplementation Address of the strategy implementation requested
+error StrategyNotApproved(address strategyImplementation);

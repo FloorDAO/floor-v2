@@ -6,11 +6,12 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
-import {CannotSetNullAddress, CollectionNotApproved} from '@floor/utils/Errors.sol';
+import {CannotSetNullAddress, CollectionNotApproved, StrategyNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
+import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 
 // No empty names, that's just silly
 error StrategyNameCannotBeEmpty();
@@ -30,8 +31,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     /// Store our Treasury address
     address public treasury;
 
-    /// Contract mappings to our internal registries
+    /// Contract mappings to our approved collections
     ICollectionRegistry public immutable collectionRegistry;
+
+    /// Contract mappings to our approved strategy implementations
+    IStrategyRegistry public immutable strategyRegistry;
 
     /// Mappings to aide is discoverability
     mapping(uint => address) private strategyIds;
@@ -45,11 +49,13 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _authority {AuthorityRegistry} contract address
      * @param _collectionRegistry Address of our {CollectionRegistry}
      */
-    constructor(address _authority, address _collectionRegistry) AuthorityControl(_authority) {
+    constructor(address _authority, address _collectionRegistry, address _strategyRegistry) AuthorityControl(_authority) {
         if (_collectionRegistry == address(0)) revert CannotSetNullAddress();
+        if (_strategyRegistry == address(0)) revert CannotSetNullAddress();
 
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
+        strategyRegistry = IStrategyRegistry(_strategyRegistry);
     }
 
     /**
@@ -104,14 +110,13 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         returns (uint strategyId_, address strategyAddr_)
     {
         // No empty names, that's just silly
-        if (_name == '') {
-            revert StrategyNameCannotBeEmpty();
-        }
+        if (_name == '') revert StrategyNameCannotBeEmpty();
+
+        // Make sure the strategy implementation is approved
+        if (!strategyRegistry.isApproved(_strategy)) revert StrategyNotApproved(_strategy);
 
         // Make sure the collection is approved
-        if (!collectionRegistry.isApproved(_collection)) {
-            revert CollectionNotApproved(_collection);
-        }
+        if (!collectionRegistry.isApproved(_collection)) revert CollectionNotApproved(_collection);
 
         // Capture our `strategyId`, before we increment the array length
         strategyId_ = _strategies.length;

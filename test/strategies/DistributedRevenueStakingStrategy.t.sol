@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {
     CannotDepositZeroAmount,
     CannotWithdrawZeroAmount,
@@ -43,7 +44,7 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // Create our {CollectionRegistry} and approve our collection
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5, 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
+        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5);
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));

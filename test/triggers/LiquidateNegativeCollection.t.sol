@@ -11,6 +11,7 @@ import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.s
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {LiquidateNegativeCollectionTrigger} from '@floor/triggers/LiquidateNegativeCollection.sol';
 import {
@@ -69,10 +70,10 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
