@@ -3,13 +3,19 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+
+import {CannotSetNullAddress, TransferFailed} from '@floor/utils/Errors.sol';
 
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 
 /**
  * Interacts with the Gem.xyz protocol to fulfill a sweep order.
  */
-contract GemSweeper is ISweeper, Ownable {
+contract GemSweeper is ISweeper, Ownable, ReentrancyGuard {
+    /// Emitted when the GemSwap contract is updated
+    event GemSwapContractUpdated(address gemSwap);
+
     /// The Gem Swap contract that will be called for the sweep
     address payable public gemSwap;
 
@@ -21,6 +27,7 @@ contract GemSweeper is ISweeper, Ownable {
         external
         payable
         override
+        nonReentrant
         returns (string memory)
     {
         // Confirm that a GemSwap contract has been set
@@ -31,7 +38,8 @@ contract GemSweeper is ISweeper, Ownable {
         require(success, 'Unable to sweep');
 
         // Return any remaining ETH
-        payable(msg.sender).transfer(address(this).balance);
+        (success,) = msg.sender.call{value: address(this).balance}('');
+        if (!success) revert TransferFailed();
 
         // Return an empty string as no message to store
         return '';
@@ -41,7 +49,9 @@ contract GemSweeper is ISweeper, Ownable {
      * Allows our Gem contract to be set
      */
     function setGemSwapContract(address payable _gemSwap) external onlyOwner {
+        if (_gemSwap == address(0)) revert CannotSetNullAddress();
         gemSwap = _gemSwap;
+        emit GemSwapContractUpdated(_gemSwap);
     }
 
     /**

@@ -6,7 +6,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
-import {CollectionNotApproved} from '@floor/utils/Errors.sol';
+import {CannotSetNullAddress, CollectionNotApproved} from '@floor/utils/Errors.sol';
 
 import {ICollectionRegistry} from '@floor-interfaces/collections/CollectionRegistry.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
@@ -46,6 +46,8 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _collectionRegistry Address of our {CollectionRegistry}
      */
     constructor(address _authority, address _collectionRegistry) AuthorityControl(_authority) {
+        if (_collectionRegistry == address(0)) revert CannotSetNullAddress();
+
         // Type-cast our interfaces and store our registry contracts
         collectionRegistry = ICollectionRegistry(_collectionRegistry);
     }
@@ -218,7 +220,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     {
         // Ensure our percentage is valid (less than 100% to 2 decimal places)
         require(_percentage > 0, 'Invalid percentage');
-        require(_percentage <= 10000, 'Invalid percentage');
+        require(_percentage <= 100_00, 'Invalid percentage');
 
         // Calls our strategy to withdraw a percentage of the holdings
         return IBaseStrategy(_strategy).withdrawPercentage(msg.sender, _percentage);
@@ -234,6 +236,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _treasury The new {Treasury} contract address
      */
     function setTreasury(address _treasury) public onlyRole(TREASURY_MANAGER) {
+        if (_treasury == address(0)) revert CannotSetNullAddress();
+
         treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
     }
 }

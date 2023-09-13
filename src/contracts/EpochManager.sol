@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
+import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
+
 import {IVoteMarket} from '@floor-interfaces/bribes/VoteMarket.sol';
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
@@ -127,6 +129,9 @@ contract EpochManager is IEpochManager, Ownable {
      */
     function setEpochEndTrigger(address contractAddr, bool enabled) external onlyOwner {
         if (enabled) {
+            // Prevent a zero-address from being added
+            if (contractAddr == address(0)) revert CannotSetNullAddress();
+
             _epochEndTriggers.push(contractAddr);
         } else {
             int deleteIndex = -1;
@@ -179,8 +184,12 @@ contract EpochManager is IEpochManager, Ownable {
      * in other functions.
      */
     function setContracts(address _newCollectionWars, address _voteMarket) external onlyOwner {
+        if (_newCollectionWars == address(0) || _voteMarket == address(0)) revert CannotSetNullAddress();
+
         newCollectionWars = INewCollectionWars(_newCollectionWars);
         voteMarket = IVoteMarket(_voteMarket);
+
+        emit EpochManagerContractsUpdated(_newCollectionWars, _voteMarket);
     }
 
     /**

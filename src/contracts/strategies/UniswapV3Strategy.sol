@@ -257,7 +257,7 @@ contract UniswapV3Strategy is BaseStrategy {
         // Call our internal {withdrawErc20} function to move tokens to the caller. Pulling out
         // LP or adding it doesn't have sandwhiches like trading so providing 0 in both places
         // should just work.
-        return _withdraw(recipient, 0, 0, block.timestamp, uint128((liquidity * percentage) / 10000));
+        return _withdraw(recipient, 0, 0, block.timestamp, uint128((liquidity * percentage) / 100_00));
     }
 
     /**
