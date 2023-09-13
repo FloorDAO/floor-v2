@@ -37,8 +37,6 @@ interface IVeFloorStaking {
 
     function deposit(uint amount, uint epochs) external;
 
-    function depositWithPermit(uint amount, uint epochs, bytes calldata permit) external;
-
     function earlyWithdraw(uint minReturn, uint maxLoss) external;
 
     function earlyWithdrawTo(address to, uint minReturn, uint maxLoss) external;

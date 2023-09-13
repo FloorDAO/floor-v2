@@ -122,7 +122,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         newCollectionWars = new NewCollectionWars(address(authorityRegistry), address(veFloor));
 
         epochManager = new EpochManager();
-        epochManager.setContracts(address(newCollectionWars), address(1));
+        epochManager.setContracts(address(newCollectionWars), address(0));
 
         // Set our epoch manager
         newCollectionWars.setEpochManager(address(epochManager));
