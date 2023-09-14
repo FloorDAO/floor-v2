@@ -16,6 +16,7 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFai
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IMercenarySweeper, ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
+import {IVeFloorStaking} from '@floor-interfaces/staking/VeFloorStaking.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
@@ -30,8 +31,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     mapping(uint => Sweep) public epochSweeps;
 
     /// Holds our {FLOOR} and {WETH} contract references.
-    FLOOR public floor;
-    IWETH public weth;
+    FLOOR public immutable floor;
+    IWETH public immutable weth;
+
+    /// Holds our {VeFloorStaking} contract reference.
+    IVeFloorStaking public immutable veFloor;
 
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
@@ -51,12 +55,15 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * trusted source.
      *
      * @param _authority {AuthorityRegistry} contract address
-     * @param _floor Address of our {FLOOR}
+     * @param _floor Address of our {FLOOR} contract
+     * @param _veFloor Address of our {VeFloorStaking} contract
+     * @param _weth Address of {WETH} contract
      */
-    constructor(address _authority, address _floor, address _weth) AuthorityControl(_authority) {
-        if (_floor == address(0) || _weth == address(0)) revert CannotSetNullAddress();
+    constructor(address _authority, address _floor, address _veFloor, address _weth) AuthorityControl(_authority) {
+        if (_floor == address(0) || _veFloor == address(0) || _weth == address(0)) revert CannotSetNullAddress();
 
         floor = FLOOR(_floor);
+        veFloor = IVeFloorStaking(_veFloor);
         weth = IWETH(_weth);
     }
 
@@ -87,8 +94,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     }
 
     /**
-     * Allows an ERC20 token to be deposited and generates FLOOR tokens based on
-     * the current determined value of FLOOR and the token.
+     * Allows an ERC20 token to be deposited.
      *
      * @param token ERC20 token address to be deposited
      * @param amount The amount of the token to be deposited
@@ -100,8 +106,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     }
 
     /**
-     * Allows an ERC721 token to be deposited and generates FLOOR tokens based on
-     * the current determined value of FLOOR and the token.
+     * Allows an ERC721 token to be deposited.
      *
      * @param token ERC721 token address to be deposited
      * @param tokenId The ID of the ERC721 being deposited
@@ -112,8 +117,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     }
 
     /**
-     * Allows an ERC1155 token(s) to be deposited and generates FLOOR tokens based on
-     * the current determined value of FLOOR and the token.
+     * Allows an ERC1155 token(s) to be deposited.
      *
      * @param token ERC1155 token address to be deposited
      * @param tokenId The ID of the ERC1155 being deposited
@@ -130,7 +134,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param recipient The user that will receive the native token
      * @param amount The number of native tokens to withdraw
      */
-    function withdraw(address recipient, uint amount) external onlyRole(TREASURY_MANAGER) {
+    function withdraw(address recipient, uint amount) external nonReentrant onlyRole(TREASURY_MANAGER) {
         (bool success,) = recipient.call{value: amount}('');
         if (!success) {
             revert TransferFailed();
@@ -146,7 +150,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param token ERC20 token address to be withdrawn
      * @param amount The number of tokens to withdraw
      */
-    function withdrawERC20(address recipient, address token, uint amount) external onlyRole(TREASURY_MANAGER) {
+    function withdrawERC20(address recipient, address token, uint amount) external nonReentrant onlyRole(TREASURY_MANAGER) {
         // Transfer ERC20 tokens to the recipient. This call will revert if it fails.
         IERC20(token).safeTransfer(recipient, amount);
         emit WithdrawERC20(token, amount, recipient);
@@ -172,7 +176,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param tokenId The ID of the ERC1155 being withdrawn
      * @param amount The number of tokens to withdraw
      */
-    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external onlyRole(TREASURY_MANAGER) {
+    function withdrawERC1155(address recipient, address token, uint tokenId, uint amount) external nonReentrant onlyRole(TREASURY_MANAGER) {
         IERC1155(token).safeTransferFrom(address(this), recipient, tokenId, amount, '');
         emit WithdrawERC1155(token, tokenId, amount, recipient);
     }
@@ -188,6 +192,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      */
     function processAction(address payable action, ActionApproval[] calldata approvals, bytes calldata data, uint linkedSweepEpoch)
         external
+        nonReentrant
         onlyRole(TREASURY_MANAGER)
     {
         uint ethValue;
@@ -247,8 +252,14 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         external
         onlyRole(TREASURY_MANAGER)
     {
+        // Ensure that the epoch does not already have a completed sweep registered
+        require(!epochSweeps[epoch].completed, 'Epoch sweep already registered');
+
         // Confirm that each collection has an amount
         require(collections.length == amounts.length, 'Collections =/= amounts');
+
+        // Ensure that the sweep is not registered in the past
+        require(epoch >= currentEpoch(), 'Invalid sweep epoch');
 
         // Register our sweep against the epoch. This value can be overwritten if another sweep
         // is posted against the epoch, so this should be kept in mind during development.
@@ -279,10 +290,10 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
          *  Sweep       Current
          *  3           3           Not ended yet
          *  3           4           Only DAO
-         *  3           5           DAO or 5,000 FLOOR
+         *  3           5           DAO or 5,000 staked FLOOR power
          *
-         * If the grace period has ended, then a user that holds 5,000 FLOOR tokens can action
-         * the sweep to take place.
+         * If the grace period has ended, then a user that holds 5,000 staked FLOOR power
+         * tokens can action the sweep to take place.
          */
 
         uint _currentEpoch = currentEpoch();
@@ -297,8 +308,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
                 revert('Only DAO may currently execute');
             }
 
-            // If we are beyond the subsequent epoch, then anyone with 5000 tokens can execute
-            require(floor.balanceOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
+            // If we are beyond the subsequent epoch, then anyone with a locked voting
+            // power of 5000 tokens can execute.
+            require(veFloor.votingPowerOf(msg.sender) >= SWEEP_EXECUTE_TOKENS, 'Insufficient FLOOR holding');
         }
 
         return _sweepEpoch(epochIndex, sweeper, epochSweep, data, mercSweep);
@@ -366,8 +378,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
             }
         }
 
-        // Unwrap enough WETH to power the upcoming sweeps
-        weth.withdraw(msgValue);
+        // Check if we have sufficient ETH holdings and then withdraw the required
+        // remaining from WETH to power the upcoming sweep.
+        uint ethBalance = address(this).balance;
+        if (msgValue > ethBalance) {
+            weth.withdraw(msgValue - ethBalance);
+        }
 
         // If we have specified mercenary staked NFTs to be swept then we need to
         // action that sweep and remove the value swept from the future sweep amount.
@@ -388,9 +404,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         // Action our sweep. If we don't hold enough ETH to supply the message value then
         // we expect this call to revert. This call may optionally return a message that
         // will be stored against the struct.
-        if (msgValue != 0) {
-            epochSweep.message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
-        }
+        epochSweep.message = ISweeper(sweeper).execute{value: msgValue}(epochSweep.collections, epochSweep.amounts, data);
 
         // Write our sweep
         epochSweeps[epochIndex] = epochSweep;
