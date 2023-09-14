@@ -50,6 +50,9 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     /// @dev When an epoch is swept
     event EpochSwept(uint epochIndex);
 
+    /// Define a WETH constant
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     /// Defines a test user
     address alice;
 
@@ -98,7 +101,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         treasury = new Treasury(
             address(authorityRegistry),
             address(floor),
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+            WETH
         );
 
         // Create our Gauge Weight Vote contract
@@ -345,12 +348,14 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         vm.roll(23);
 
-        // Give the Treasury both WETH and ETH
-        deal(address(treasury), 1000 ether);
-        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
+        // Give the Treasury both WETH and ETH, so that the initial ETH will be used and
+        // topped up with withdrawn WETH.
+        deal(address(treasury), 250 ether);
+        deal(WETH, address(treasury), 250 ether);
 
-        // Since we have a manual sweep, we should have no ETH taken our of our {Treasury}
-        uint startBalance = address(treasury).balance;
+        // Confirm our starting balances of both ETH and WETH tokens
+        assertEq(address(treasury).balance, 250 ether);
+        assertEq(ERC20(WETH).balanceOf(address(treasury)), 250 ether);
 
         vm.expectEmit(true, true, false, true, address(treasury));
         emit EpochSwept(0);
@@ -359,11 +364,28 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // as complete).
         treasury.sweepEpoch(0, manualSweeper, 'Test sweep', 0);
 
-        // Confirm that no ETH was spent, but remaining WETH is refunded
-        assertGe(address(treasury).balance, startBalance);
+        /**
+         * Confirm that the ETH initially held was spent, and that additional WETH was
+         * unwrapped to cover the additional requirement.
+         *
+         * The amount of ETH allocated to the sweep is: 431_314285714285713780
+         *
+         * With the manual sweep, the ETH sent to the sweeper is sent back to the caller,
+         * which in this case is the {Treasury}.
+         *
+         * With the amount of ETH in the {Treasury} to being with being 250 ether, this will
+         * leave a remaining amount of WETH to be unwrapped: 181_314285714285713780.
+         *
+         * So with this in mind, we should expect 250 - 181~ as the remaining WETH balance,
+         * and 250 + (250 - 181~) as the remaining ETH balance.
+         */
 
-        // Confirm that the expected amount of WETH was allocated to the sweeper
-        assertEq(ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).balanceOf(address(treasury)), 568685714285714286220);
+        assertEq(address(treasury).balance, 431_314285714285713780);
+        assertEq(ERC20(WETH).balanceOf(address(treasury)), 68_685714285714286220);
+
+        // We can then confirm that the sum of these two balances is the same as our original
+        // ETH + WETH balance (500 ether).
+        assertEq(address(treasury).balance + ERC20(WETH).balanceOf(address(treasury)), 500 ether);
 
         // Get our updated epoch information
         (sweepType, completed, message) = treasury.epochSweeps(epochManager.currentEpoch() - 1);
@@ -383,7 +405,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
      */
     function test_NoFloorTokensReceivedInSweepDoesNotRaiseBurnErrors(uint startBalance) external {
         // Provide the {Treasury} with sufficient WETH to fulfil the sweep
-        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 15 ether);
+        deal(WETH, address(treasury), 15 ether);
 
         // Provide the {Treasury} with the starting FLOOR balance
         deal(address(floor), address(treasury), startBalance);
@@ -420,7 +442,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Provide the {Treasury} with sufficient WETH to fulfil the sweep and the
         // subsequent resweep.
-        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), (10 ether + sweepAmount) * 2);
+        deal(WETH, address(treasury), (10 ether + sweepAmount) * 2);
 
         // Provide the {Treasury} with the starting FLOOR balance
         deal(address(floor), address(treasury), startBalance);
