@@ -85,6 +85,9 @@ interface ITreasury {
     /// Emitted when the minimum sweep amount is updated
     event MinSweepAmountUpdated(uint minSweepAmount);
 
+    /// Emitted when the {VeFloorStaking} contract is updated
+    event VeFloorStakingUpdated(address veFloorStaking);
+
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method
      * internally, but a public method will allow a {TreasuryManager} to bypass this
@@ -163,4 +166,9 @@ interface ITreasury {
      * Allows the mercenary sweeper contract to be updated.
      */
     function setMercenarySweeper(address _mercSweeper) external;
+
+    /**
+     * Allows us to set a new VeFloorStaking contract that is used when sweeping epochs.
+     */
+    function setVeFloorStaking(address _veFloorStaking) external;
 }

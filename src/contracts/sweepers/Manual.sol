@@ -41,4 +41,11 @@ contract ManualSweeper is ISweeper {
 
         return string(data);
     }
+
+    /**
+     * Specify that only a TREASURY_MANAGER can run this sweeper.
+     */
+    function permissions() public pure override returns (bytes32) {
+        return keccak256('TreasuryManager');
+    }
 }

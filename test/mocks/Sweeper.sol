@@ -47,5 +47,12 @@ contract SweeperMock is FloorTest, ISweeper {
         return string(data);
     }
 
+    /**
+     * In our test suites, allow all permissions.
+     */
+    function permissions() public pure override returns (bytes32) {
+        return '';
+    }
+
     receive () payable external {}
 }

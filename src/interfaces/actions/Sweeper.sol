@@ -11,6 +11,13 @@ abstract contract ISweeper {
         payable
         virtual
         returns (string memory);
+
+    /**
+     * Specify the {AuthorityControl} permissions, if any, that are required to
+     * run the sweeper. If no permissions are set, then anyone can run the sweeper
+     * in their allocated sweep window.
+     */
+    function permissions() public pure virtual returns (bytes32);
 }
 
 /**

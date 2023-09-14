@@ -9,6 +9,7 @@ import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
+import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from '@floor/utils/Errors.sol';
@@ -16,7 +17,6 @@ import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFai
 import {IAction} from '@floor-interfaces/actions/Action.sol';
 import {IMercenarySweeper, ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
-import {IVeFloorStaking} from '@floor-interfaces/staking/VeFloorStaking.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
@@ -35,7 +35,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     IWETH public immutable weth;
 
     /// Holds our {VeFloorStaking} contract reference.
-    IVeFloorStaking public immutable veFloor;
+    VeFloorStaking public veFloor;
 
     /// Store a minimum sweep amount that can be implemented, or excluded, as desired by
     /// the DAO.
@@ -56,14 +56,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      *
      * @param _authority {AuthorityRegistry} contract address
      * @param _floor Address of our {FLOOR} contract
-     * @param _veFloor Address of our {VeFloorStaking} contract
      * @param _weth Address of {WETH} contract
      */
-    constructor(address _authority, address _floor, address _veFloor, address _weth) AuthorityControl(_authority) {
-        if (_floor == address(0) || _veFloor == address(0) || _weth == address(0)) revert CannotSetNullAddress();
+    constructor(address _authority, address _floor, address _weth) AuthorityControl(_authority) {
+        if (_floor == address(0) || _weth == address(0)) revert CannotSetNullAddress();
 
         floor = FLOOR(_floor);
-        veFloor = IVeFloorStaking(_veFloor);
         weth = IWETH(_weth);
     }
 
@@ -302,9 +300,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         require(epochIndex < _currentEpoch, 'Epoch has not finished');
 
         // We can then assume that a `TreasuryManager` can always sweep the epoch
-        if (!this.hasRole(this.TREASURY_MANAGER(), msg.sender)) {
+        if (!hasRole(this.TREASURY_MANAGER(), msg.sender)) {
             // If we are in the subsequent epoch, then we cannot allow a non-DAO sweep
-            if (epochIndex + 1 == _currentEpoch) {
+            if (address(veFloor) == address(0) || epochIndex + 1 == _currentEpoch) {
                 revert('Only DAO may currently execute');
             }
 
@@ -350,6 +348,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
 
         // Confirm that our sweeper has been approved
         require(approvedSweepers[sweeper], 'Sweeper contract not approved');
+
+        // Ensure that the caller has sufficient permissions
+        {
+            bytes32 sweeperPermissions = ISweeper(sweeper).permissions();
+            require(sweeperPermissions == '' || hasRole(sweeperPermissions, msg.sender), 'Invalid sweep permissions');
+        }
 
         // Add some additional logic around mercSweep specification and exit the process
         // early to save wasted gas.
@@ -446,6 +450,18 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     function setMinSweepAmount(uint _minSweepAmount) external onlyRole(TREASURY_MANAGER) {
         minSweepAmount = _minSweepAmount;
         emit MinSweepAmountUpdated(_minSweepAmount);
+    }
+
+    /**
+     * Allows us to set a new VeFloorStaking contract that is used when sweeping epochs.
+     *
+     * @dev We allow this to be a zero-address to disable public sweeping
+     *
+     * @param _veFloorStaking New VeFloorStaking contract
+     */
+    function setVeFloorStaking(address _veFloorStaking) external onlyRole(TREASURY_MANAGER) {
+        veFloor = VeFloorStaking(_veFloorStaking);
+        emit VeFloorStakingUpdated(_veFloorStaking);
     }
 
     /**
