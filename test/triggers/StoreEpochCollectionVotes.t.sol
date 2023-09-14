@@ -30,6 +30,7 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     SweepWars sweepWars;
     Treasury treasury;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     VeFloorStaking veFloor;
 
     // Trigger to be deployed
@@ -50,8 +51,9 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Create our {CollectionRegistry}
+        // Create our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
@@ -59,7 +61,8 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}

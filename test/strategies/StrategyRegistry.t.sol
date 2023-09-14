@@ -48,7 +48,7 @@ contract StrategyRegistryTest is FloorTest {
         // Confirm that we are firing our strategy event when our
         // strategy is approved.
         vm.expectEmit(true, true, false, true, address(strategyRegistry));
-        emit ApprovedStrategyUpdated(strategy);
+        emit ApprovedStrategyUpdated(strategy, true);
 
         // Approve the strategy
         strategyRegistry.approveStrategy(strategy, true);
@@ -80,7 +80,7 @@ contract StrategyRegistryTest is FloorTest {
 
         strategyRegistry.approveStrategy(strategy, true);
 
-        vm.expectRevert('Collection is already approved');
+        vm.expectRevert('Strategy is already new state');
         strategyRegistry.approveStrategy(strategy, true);
     }
 
@@ -101,7 +101,7 @@ contract StrategyRegistryTest is FloorTest {
         assertTrue(strategyRegistry.isApproved(strategy));
 
         // We can now unapprove our strategy
-        strategyRegistry.unapproveStrategy(strategy);
+        strategyRegistry.approveStrategy(strategy, false);
         assertFalse(strategyRegistry.isApproved(strategy));
     }
 
@@ -115,8 +115,8 @@ contract StrategyRegistryTest is FloorTest {
         // Prevent a zero-address being tested
         vm.assume(strategy != address(0));
 
-        vm.expectRevert('Collection is not approved');
-        strategyRegistry.unapproveStrategy(strategy);
+        vm.expectRevert('Strategy is already new state');
+        strategyRegistry.approveStrategy(strategy, false);
     }
 
     /**

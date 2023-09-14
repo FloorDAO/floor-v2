@@ -34,10 +34,14 @@ contract UniswapV3StrategyTest is FloorTest {
     /// Store our internal contracts
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     UniswapV3Strategy strategy;
 
     /// Store our strategy ID
     uint strategyId;
+
+    /// Store our strategy implementation address
+    address strategyImplementation;
 
     /// Store a {Treasury} wallet address
     address treasury;
@@ -46,6 +50,9 @@ contract UniswapV3StrategyTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our strategy implementation
+        strategyImplementation = address(new UniswapV3Strategy());
+
         // Define a treasury wallet address that we can test against
         treasury = users[1];
 
@@ -56,14 +63,22 @@ contract UniswapV3StrategyTest is FloorTest {
         // Approve our ERC1155 collection
         collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313);
 
+        // Create our {StrategyRegistry} and approve our implementation
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(strategyImplementation, true);
+
         // Create our {StrategyFactory}
-        strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+        strategyFactory = new StrategyFactory(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry)
+        );
         strategyFactory.setTreasury(treasury);
 
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_A, // address token0
                 TOKEN_B, // address token1
@@ -325,7 +340,7 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('MOCK/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_C, // address token0
                 TOKEN_B, // address token1
@@ -385,7 +400,7 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_A, // address token0
                 TOKEN_B, // address token1

@@ -14,19 +14,8 @@ contract ApproveCollection is DeploymentScript {
         CollectionRegistry collectionRegistry = CollectionRegistry(requireDeployment('CollectionRegistry'));
 
         // Set up our approved collections
-        collectionRegistry.approveCollection(
-            0xDc110028492D1baA15814fCE939318B6edA13098,
-            address(1)
-        );
-
-        collectionRegistry.approveCollection(
-            0xA08Bc5C704f17d404E6a3B93c25b1C494ea1c018,
-            address(1)
-        );
-
-        collectionRegistry.approveCollection(
-            0x572567C9aC029bd617CdBCF43b8dcC004A3D1339,
-            address(1)
-        );
+        collectionRegistry.approveCollection(0xDc110028492D1baA15814fCE939318B6edA13098);
+        collectionRegistry.approveCollection(0xA08Bc5C704f17d404E6a3B93c25b1C494ea1c018);
+        collectionRegistry.approveCollection(0x572567C9aC029bd617CdBCF43b8dcC004A3D1339);
     }
 }

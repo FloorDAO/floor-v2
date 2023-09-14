@@ -8,6 +8,7 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
@@ -19,6 +20,7 @@ contract StrategyFactoryTest is FloorTest {
     /// Store our deployed contracts
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     /// Store our approved collections and strategies that we can reference in tests
     address approvedCollection;
@@ -56,10 +58,15 @@ contract StrategyFactoryTest is FloorTest {
         // Approve our test collection
         collectionRegistry.approveCollection(approvedCollection);
 
+        // Set up our strategy registry
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(approvedStrategy, true);
+
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set our test user

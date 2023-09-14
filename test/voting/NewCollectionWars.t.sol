@@ -55,6 +55,7 @@ contract NewCollectionWarsTest is FloorTest {
     PricingExecutorMock pricingExecutorMock;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     address alice;
     address bob;
@@ -77,6 +78,7 @@ contract NewCollectionWarsTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
@@ -85,7 +87,8 @@ contract NewCollectionWarsTest is FloorTest {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}

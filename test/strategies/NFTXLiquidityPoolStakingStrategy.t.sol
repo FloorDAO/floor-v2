@@ -25,10 +25,12 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     // Store our strategy information
     NFTXLiquidityPoolStakingStrategy strategy;
     uint strategyId;
+    address strategyImplementation;
 
     // Store internal contracts
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_240_153;
@@ -51,7 +53,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
     function setUp() public {
         // Set up our strategy implementation
-        address strategyImplementation = address(new NFTXLiquidityPoolStakingStrategy());
+        strategyImplementation = address(new NFTXLiquidityPoolStakingStrategy());
 
         // Create our {CollectionRegistry} and approve our collection
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
@@ -60,8 +62,16 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Approve our ERC1155 collection
         collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313);
 
+        // Create our {StrategyRegistry} and approve our strategy implementation
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(strategyImplementation, true);
+
         // Create our {StrategyFactory}
-        strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+        strategyFactory = new StrategyFactory(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry)
+        );
 
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
@@ -379,7 +389,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Deploy a fresh NFTX strategy that supports an ERC1155 token
         (uint _strategyId, address _strategyAddress) = strategyFactory.deployStrategy(
             bytes32('CURIO Strategy'),
-            address(new NFTXLiquidityPoolStakingStrategy()),
+            strategyImplementation,
             abi.encode(
                 241, // _vaultId
                 0x8a83b072ca48c217c1ef676445A9a545c110A45B, // _underlyingToken     // CURIOWETH

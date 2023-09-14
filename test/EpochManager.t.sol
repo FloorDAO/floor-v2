@@ -141,6 +141,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Approve a strategy
         approvedStrategy = address(new NFTXInventoryStakingStrategy());
+        strategyRegistry.approveStrategy(approvedStrategy, true);
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -148,7 +149,10 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Set our manual sweeper and approve it for use
         manualSweeper = address(new ManualSweeper());
-        treasury.approveSweeper(manualSweeper);
+        treasury.approveSweeper(manualSweeper, true);
+
+        // Set up our sweeper mock that will return tokens
+        sweeperMock = address(new SweeperMock(address(treasury)));
         treasury.approveSweeper(sweeperMock, true);
 
         // Define our ERC20 token
