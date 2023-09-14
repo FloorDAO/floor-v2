@@ -91,6 +91,9 @@ contract TreasuryTest is FloorTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
+        // Set our {VeFloorStaking} reference in the {Treasury} for sweeps
+        treasury.setVeFloorStaking(address(veFloor));
+
         // Move some WETH to the Treasury to fund sweep tests
         deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
 
@@ -107,6 +110,7 @@ contract TreasuryTest is FloorTest {
         epochManager = new EpochManager();
 
         // Set our epoch manager
+        veFloor.setEpochManager(address(epochManager));
         treasury.setEpochManager(address(epochManager));
 
         // Supply our {Treasury} with sufficient WETH for sweep tests
@@ -529,6 +533,7 @@ contract TreasuryTest is FloorTest {
 
     function test_CanRegisterSweep(uint160 epoch) external {
         // We need to ensure there is a valid epoch after the fuzzy value
+        vm.assume(epoch >= epochManager.currentEpoch());
         vm.assume(epoch < type(uint160).max);
 
         address[] memory collections = new address[](3);
@@ -680,12 +685,19 @@ contract TreasuryTest is FloorTest {
         treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
-    function test_CanExecuteSweepAsFloorHolder(uint160 epoch, uint160 sweepEpoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+    function test_CanExecuteSweepAsFloorHolder(uint160 epoch, uint160 sweepEpoch, uint floorBalance) external {
         vm.assume(epoch <= type(uint160).max - 2);
         vm.assume(sweepEpoch > epoch + 2);
 
         // Set our minimum floor balance requirement
+        emit log_uint(floorBalance);
         vm.assume(floorBalance >= treasury.SWEEP_EXECUTE_TOKENS());
+
+        // At the start of our test, we already mint 1 FLOOR token to power tests and we
+        // may need to mint additional FLOOR tokens throughout. To avoid getting arithmatic
+        // overflow, we limit the amount that is generated in the initial instance.
+        floorBalance = bound(floorBalance, treasury.SWEEP_EXECUTE_TOKENS(), 10000 ether);
+        _dealFloor(alice, floorBalance);
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), sweepEpoch);
@@ -701,9 +713,11 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CannotExecuteSweepAsFloorHolderWithoutSufficientFloor(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+    function test_CannotExecuteSweepAsFloorHolderWithoutSufficientFloor(uint160 epoch, uint floorBalance) external {
         vm.assume(epoch <= type(uint160).max - 2);
         vm.assume(floorBalance < treasury.SWEEP_EXECUTE_TOKENS());
+
+        _dealFloor(alice, floorBalance);
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), epoch + 2);
@@ -713,9 +727,11 @@ contract TreasuryTest is FloorTest {
         treasury.sweepEpoch(epoch, address(sweeperMock), 'Test Sweep', 0);
     }
 
-    function test_CannotExecuteResweepAsFloorHolderRegardlessOfHolding(uint160 epoch, uint floorBalance) external dealFloor(alice, floorBalance) {
+    function test_CannotExecuteResweepAsFloorHolderRegardlessOfHolding(uint160 epoch, uint floorBalance) external {
         vm.assume(epoch <= type(uint160).max - 2);
-        vm.assume(floorBalance > treasury.SWEEP_EXECUTE_TOKENS());
+        floorBalance = bound(floorBalance, treasury.SWEEP_EXECUTE_TOKENS(), 10000 ether);
+
+        _dealFloor(alice, floorBalance);
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), epoch + 2);
@@ -730,8 +746,10 @@ contract TreasuryTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CannotExecuteSweepAsFloorHolderBeforeExpectedEpoch(uint160 epoch) external dealFloor(alice, 5000 ether) {
+    function test_CannotExecuteSweepAsFloorHolderBeforeExpectedEpoch(uint160 epoch) external {
         vm.assume(epoch < type(uint160).max - 1);
+
+        _dealFloor(alice, treasury.SWEEP_EXECUTE_TOKENS());
 
         _registerSweep(epoch);
         setCurrentEpoch(address(epochManager), epoch + 1);
@@ -825,12 +843,15 @@ contract TreasuryTest is FloorTest {
     }
 
     /**
-     * Confirm that we can register a sweep against any epoch, whether it be past, present
-     * or future.
+     * Confirm that we can register a sweep against any epoch, present
+     * or future. We should expect a revert if it is set in the past
      */
     function test_CanRegisterSweep(uint8 _sweepType, uint currentEpoch, uint epoch) external variesSweepType(_sweepType) {
         // Generate a test set of collections and amounts
         (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        // Ensure our sweep epoch is present, or in the future
+        vm.assume(currentEpoch <= epoch);
 
         // Set our current epoch
         setCurrentEpoch(address(epochManager), currentEpoch);
@@ -845,6 +866,24 @@ contract TreasuryTest is FloorTest {
         assertTrue(sweepType == TreasuryEnums.SweepType(_sweepType));
         assertEq(completed, false);
         assertEq(message, '');
+    }
+
+    /**
+     * Confirm that we cannot register a sweep in a past epoch
+     */
+    function test_CannotRegisterSweepInPast(uint currentEpoch, uint epoch) external {
+        // Generate a test set of collections and amounts
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+
+        // Ensure our sweep epoch is before the current epoch
+        vm.assume(currentEpoch > epoch);
+
+        // Set our current epoch
+        setCurrentEpoch(address(epochManager), currentEpoch);
+
+        // Register a sweep. This epoch can be before, the same as, or after the `currentEpoch`
+        vm.expectRevert('Invalid sweep epoch');
+        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
     }
 
     /**
@@ -911,14 +950,13 @@ contract TreasuryTest is FloorTest {
         assertEq(message, '');
     }
 
-    function test_CanSweepEpochAsTokenHolder(uint8 _sweepType, uint epoch, uint sweepEpoch, uint tokenHolding) public variesSweepType(_sweepType) {
+    function test_CanSweepEpochAsTokenHolder(uint8 _sweepType, uint epoch, uint sweepEpoch) public variesSweepType(_sweepType) {
         // Set our sweep epoch to be `>= epoch + 2` as this is the expected executable range
         vm.assume(epoch < type(uint128).max);
         vm.assume(sweepEpoch >= epoch + 2);
 
         // Provide our test user with enough tokens to successfully sweep
-        vm.assume(tokenHolding >= treasury.SWEEP_EXECUTE_TOKENS());
-        deal(address(floor), alice, tokenHolding);
+        _dealFloor(alice, treasury.SWEEP_EXECUTE_TOKENS());
 
         // Get some test collections and amounts
         (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
@@ -1346,16 +1384,15 @@ contract TreasuryTest is FloorTest {
         treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
     }
 
-    modifier dealFloor(address recipient, uint amount) {
-        // At the start of our test, we already mint 1 FLOOR token to power tests and we
-        // may need to mint additional FLOOR tokens throughout. To avoid getting arithmatic
-        // overflow, we limit the amount that is generated in the initial instance.
-        vm.assume(amount < type(uint128).max);
-
+    function _dealFloor(address recipient, uint amount) internal {
         // Mint FLOOR tokens to the user we are testing with
         floor.mint(recipient, amount);
 
-        _;
+        // Stake the floor tokens into veFloor staking at the full duration
+        vm.startPrank(recipient);
+        floor.approve(address(veFloor), amount);
+        veFloor.deposit(amount, 3);
+        vm.stopPrank();
     }
 
     /**
