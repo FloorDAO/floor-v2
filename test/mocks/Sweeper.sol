@@ -16,6 +16,9 @@ contract SweeperMock is FloorTest, ISweeper {
     /// Stores a {Treasury} address that will be the recipient of tokens
     address internal treasury;
 
+    /// Stores a settable permission that defaults to empty (none required)
+    bytes32 internal permission;
+
     /**
      * Sets our {Treasury} address for the contract.
      *
@@ -50,8 +53,12 @@ contract SweeperMock is FloorTest, ISweeper {
     /**
      * In our test suites, allow all permissions.
      */
-    function permissions() public pure override returns (bytes32) {
-        return '';
+    function permissions() public view override returns (bytes32) {
+        return permission;
+    }
+
+    function setPermissions(bytes32 _permission) public {
+        permission = _permission;
     }
 
     receive () payable external {}

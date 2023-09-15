@@ -38,6 +38,9 @@ contract TreasuryTest is FloorTest {
     /// @dev Emitted when a sweep is registered
     event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
 
+    /// @dev Emitted when the {VeFloorStaking} contract is updated
+    event VeFloorStakingUpdated(address veFloorStaking);
+
     // We want to store a small number of specific users for testing
     address alice;
     address bob;
@@ -1349,6 +1352,103 @@ contract TreasuryTest is FloorTest {
 
         // We should have received no ERC20 balance as the sweeper mock will not have been called
         assertEq(IERC20(collections[0]).balanceOf(address(treasury)), 0);
+    }
+
+    /**
+     * A sweeper can have a bytes32 permission function that allows certain approved sweepers to
+     * only be used by wallet addresses that have the correct {AuthorityRegistry} permission. This
+     * prevents token holders from using potentially damaging sweepers.
+     */
+    function test_CannotUseSweeperWithoutSweeperPermissions() external {
+        // Set permissions to one that does not exist
+        sweeperMock.setPermissions(keccak256('UnknownPermissions'));
+
+        // Set up sufficient staked tokens for the sweeper
+        _dealFloor(alice, treasury.SWEEP_EXECUTE_TOKENS());
+
+        // Register our sweep and move to a sweep-able epoch
+        _registerSweep(1);
+        setCurrentEpoch(address(epochManager), 3);
+
+        // Confirm that when sweeping as Alice, we get an error as they don't hold the permission
+        vm.startPrank(alice);
+        vm.expectRevert('Invalid sweeper permissions');
+        treasury.sweepEpoch(1, address(sweeperMock), 'Test Sweep', 0);
+        vm.stopPrank();
+
+        // Confirm that the DAO can still sweep without permission requirements
+        treasury.sweepEpoch(1, address(sweeperMock), 'Test Sweep', 0);
+    }
+
+    /**
+     * If we don't have a {VeFloorStaking} contract attached to the {Treasury}, then we aren't
+     * able to determine if the user holds enough tokens. For this reason we prevent the check
+     * from happening.
+     */
+    function test_CannotUseStakedTokensIfNoVeFloorStakingContract() external {
+        // Set our {VeFloorStaking} contract to a zero-address
+        treasury.setVeFloorStaking(address(0));
+
+        // Set up sufficient staked tokens for the sweeper
+        _dealFloor(alice, treasury.SWEEP_EXECUTE_TOKENS());
+
+        // Register our sweep and move to a token holder sweep-able epoch
+        _registerSweep(1);
+        setCurrentEpoch(address(epochManager), 5);
+
+        // Confirm that when sweeping as Alice, we get an error
+        vm.startPrank(alice);
+        vm.expectRevert('Only DAO may currently execute');
+        treasury.sweepEpoch(1, address(sweeperMock), 'Test Sweep', 0);
+        vm.stopPrank();
+
+        // Confirm that the DAO can still sweep
+        treasury.sweepEpoch(1, address(sweeperMock), 'Test Sweep', 0);
+    }
+
+    /**
+     * If a sweep is registered and swept, then attempted to be registered again, then we want
+     * to prevent this as our tracking would be thrown out. This shouldn't be hit in the current
+     * system as when we register the sweep we then move into a future epoch so we can't write
+     * against it again anyway. However, this just secures it to ensure it doesn't happen.
+     */
+    function test_CannotOverwriteCompletedSweep() external {
+        // Register our sweep to an epoch
+        (address[] memory collections, uint[] memory amounts) = _collectionsAndAmounts(3);
+        treasury.registerSweep(1, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+
+        // Move the epoch and sweep it
+        setCurrentEpoch(address(epochManager), 2);
+        treasury.sweepEpoch(1, address(sweeperMock), 'Test Sweep', 0);
+
+        // Try and register it again
+        vm.expectRevert('Epoch sweep already registered');
+        treasury.registerSweep(1, collections, amounts, TreasuryEnums.SweepType.COLLECTION_ADDITION);
+    }
+
+    /**
+     * We need to make sure we can set the {VeFloorStaking} contract address and that the
+     * expected event is emitted.
+     *
+     * @dev We want to allow a zero-address, so we don't exclude that from fuzzing
+     */
+    function test_CanSetVeFloorStakingContract(address contractAddr) external {
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit VeFloorStakingUpdated(contractAddr);
+
+        treasury.setVeFloorStaking(contractAddr);
+        assertEq(address(treasury.veFloor()), contractAddr);
+    }
+
+    /**
+     * If the user does not have the correct permissions to set the {VeFloorStaking} contract
+     * then we need to make sure that the contract reverts the call without updating.
+     */
+    function test_CannotSetVeFloorStakingContractWithoutPermissions(address contractAddr) external {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
+        treasury.setVeFloorStaking(contractAddr);
+        vm.stopPrank();
     }
 
     /**

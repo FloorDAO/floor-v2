@@ -352,7 +352,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         // Ensure that the caller has sufficient permissions
         {
             bytes32 sweeperPermissions = ISweeper(sweeper).permissions();
-            require(sweeperPermissions == '' || hasRole(sweeperPermissions, msg.sender), 'Invalid sweep permissions');
+            require(sweeperPermissions == '' || hasRole(sweeperPermissions, msg.sender), 'Invalid sweeper permissions');
         }
 
         // Add some additional logic around mercSweep specification and exit the process

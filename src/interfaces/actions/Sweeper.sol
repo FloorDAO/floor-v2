@@ -17,7 +17,7 @@ abstract contract ISweeper {
      * run the sweeper. If no permissions are set, then anyone can run the sweeper
      * in their allocated sweep window.
      */
-    function permissions() public pure virtual returns (bytes32);
+    function permissions() public view virtual returns (bytes32);
 }
 
 /**
