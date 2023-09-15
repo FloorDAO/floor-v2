@@ -14,6 +14,7 @@ import {FloorNft} from '@floor/tokens/FloorNft.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
@@ -54,6 +55,7 @@ contract NewCollectionWarsTest is FloorTest {
     PricingExecutorMock pricingExecutorMock;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     address alice;
     address bob;
@@ -76,6 +78,7 @@ contract NewCollectionWarsTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Set up our {Floor} token
         floor = new FLOOR(address(authorityRegistry));
@@ -84,7 +87,8 @@ contract NewCollectionWarsTest is FloorTest {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}

@@ -9,6 +9,7 @@ import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {CannotDepositZeroAmount} from '@floor/utils/Errors.sol';
 
@@ -33,10 +34,14 @@ contract UniswapV3StrategyTest is FloorTest {
     /// Store our internal contracts
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     UniswapV3Strategy strategy;
 
     /// Store our strategy ID
     uint strategyId;
+
+    /// Store our strategy implementation address
+    address strategyImplementation;
 
     /// Store a {Treasury} wallet address
     address treasury;
@@ -45,24 +50,35 @@ contract UniswapV3StrategyTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our strategy implementation
+        strategyImplementation = address(new UniswapV3Strategy());
+
         // Define a treasury wallet address that we can test against
         treasury = users[1];
 
         // Create our {CollectionRegistry} and approve our collection
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         // Approve our ERC721 collection
-        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5, 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48);
+        collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5);
         // Approve our ERC1155 collection
-        collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313, 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA);
+        collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313);
+
+        // Create our {StrategyRegistry} and approve our implementation
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(strategyImplementation, true);
 
         // Create our {StrategyFactory}
-        strategyFactory = new StrategyFactory(address(authorityRegistry), address(collectionRegistry));
+        strategyFactory = new StrategyFactory(
+            address(authorityRegistry),
+            address(collectionRegistry),
+            address(strategyRegistry)
+        );
         strategyFactory.setTreasury(treasury);
 
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_A, // address token0
                 TOKEN_B, // address token1
@@ -324,7 +340,7 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('MOCK/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_C, // address token0
                 TOKEN_B, // address token1
@@ -384,7 +400,7 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH UV3 Pool'),
-            address(new UniswapV3Strategy()),
+            strategyImplementation,
             abi.encode(
                 TOKEN_A, // address token0
                 TOKEN_B, // address token1

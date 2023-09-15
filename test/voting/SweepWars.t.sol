@@ -9,6 +9,7 @@ import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {
     CannotVoteWithZeroAmount,
@@ -41,6 +42,7 @@ contract SweepWarsTest is FloorTest {
     SweepWars sweepWars;
     Treasury treasury;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     VeFloorStaking veFloor;
 
     // A set of collections to be referenced during testing
@@ -51,7 +53,7 @@ contract SweepWarsTest is FloorTest {
     address unapprovedCollection2 = 0xd68c4149Ec6fC585124E8827a2b102b68712543c;
     address floorTokenCollection;
 
-    // Strat
+    // Our approved strategy
     address approvedStrategy;
 
     // Store some test user wallets
@@ -66,13 +68,21 @@ contract SweepWarsTest is FloorTest {
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
+        // Define our strategy implementations
+        approvedStrategy = address(new NFTXInventoryStakingStrategy());
+
+        // Create our {StrategyRegistry} and approve the strategy implementation
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(approvedStrategy, true);
+
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}
@@ -107,14 +117,11 @@ contract SweepWarsTest is FloorTest {
         // Approve our VeFloor staking contract to revoke war votes
         authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), address(veFloor));
 
-        // Define our strategy implementations
-        approvedStrategy = address(new NFTXInventoryStakingStrategy());
-
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Set up shorthand for our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);

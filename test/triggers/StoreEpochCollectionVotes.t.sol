@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {StoreEpochCollectionVotesTrigger} from '@floor/triggers/StoreEpochCollectionVotes.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
@@ -29,6 +30,7 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     SweepWars sweepWars;
     Treasury treasury;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     VeFloorStaking veFloor;
 
     // Trigger to be deployed
@@ -49,8 +51,9 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
-        // Create our {CollectionRegistry}
+        // Create our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
@@ -58,7 +61,8 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}
@@ -96,10 +100,10 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
         epochManager.setEpochEndTrigger(address(storeEpochCollectionVotesTrigger), true);
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);

@@ -8,7 +8,9 @@ import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {StrategyNotApproved} from '@floor/utils/Errors.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
@@ -19,6 +21,7 @@ contract StrategyFactoryTest is FloorTest {
     /// Store our deployed contracts
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
 
     /// Store our approved collections and strategies that we can reference in tests
     address approvedCollection;
@@ -54,12 +57,17 @@ contract StrategyFactoryTest is FloorTest {
         unapprovedCollection = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection);
+
+        // Set up our strategy registry
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(approvedStrategy, true);
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set our test user
@@ -141,6 +149,15 @@ contract StrategyFactoryTest is FloorTest {
             _strategy,
             Clones.predictDeterministicAddress(approvedStrategy, 0, address(strategyFactory))
         );
+    }
+
+    function test_CannotCreateStrategyWithUnapprovedStrategyImplementation(address _strategy) external {
+        // Ensure we don't use our approved strategy
+        vm.assume(_strategy != approvedStrategy);
+
+        // Create a strategy and store the address of the new clone
+        vm.expectRevert(abi.encodeWithSelector(StrategyNotApproved.selector, _strategy));
+        strategyFactory.deployStrategy('Test Strategy 1', _strategy, _strategyInitBytes(), approvedCollection);
     }
 
     function test_CanDeploySameStrategyMultipleTimes() public {

@@ -48,7 +48,7 @@ contract CollectionRegistryTest is FloorTest {
      * call `approveCollection` before we can check.
      */
     function test_IsApproved() public {
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
         assertTrue(collectionRegistry.isApproved(USDC));
     }
 
@@ -79,7 +79,7 @@ contract CollectionRegistryTest is FloorTest {
         emit CollectionApproved(DAI);
 
         // Approve the DAI collection
-        collectionRegistry.approveCollection(DAI, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(DAI);
 
         // Now that the collection is approved
         assertTrue(collectionRegistry.isApproved(DAI));
@@ -98,7 +98,7 @@ contract CollectionRegistryTest is FloorTest {
      */
     function test_CannotApproveNullAddressCollection() public {
         vm.expectRevert(CannotApproveNullCollection.selector);
-        collectionRegistry.approveCollection(address(0), SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(address(0));
     }
 
     /**
@@ -108,10 +108,10 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionApproved}.
      */
     function test_ApproveAlreadyApprovedCollection() public {
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
 
         vm.expectRevert('Collection is already approved');
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
     }
 
     /**
@@ -124,7 +124,7 @@ contract CollectionRegistryTest is FloorTest {
         assertFalse(collectionRegistry.isApproved(USDC));
 
         // Approve our `USDC` collection
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
         assertTrue(collectionRegistry.isApproved(USDC));
 
         // Get the number of approved collections
@@ -142,13 +142,13 @@ contract CollectionRegistryTest is FloorTest {
 
     function test_CanUnapproveASandwichedCollection(uint8 topBreadSize, uint8 bottomBreadSize) public {
         for (uint160 i; i < topBreadSize; ++i) {
-            collectionRegistry.approveCollection(address(i + 1), SUFFICIENT_LIQUIDITY_COLLECTION);
+            collectionRegistry.approveCollection(address(i + 1));
         }
 
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
 
         for (uint160 i = topBreadSize; i < uint160(topBreadSize) + bottomBreadSize; ++i) {
-            collectionRegistry.approveCollection(address(i + 1), SUFFICIENT_LIQUIDITY_COLLECTION);
+            collectionRegistry.approveCollection(address(i + 1));
         }
 
         // Confirm that we have an expected array length
@@ -188,7 +188,7 @@ contract CollectionRegistryTest is FloorTest {
      * This should not emit {CollectionRevoked}.
      */
     function testFail_CannotUnapproveCollectionWithoutPermissions() public {
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
 
         vm.prank(alice);
         collectionRegistry.unapproveCollection(USDC);
@@ -207,7 +207,7 @@ contract CollectionRegistryTest is FloorTest {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
-        collectionRegistry.approveCollection(USDC, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(USDC);
 
         vm.stopPrank();
     }

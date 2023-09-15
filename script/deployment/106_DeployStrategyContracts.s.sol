@@ -6,6 +6,7 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {NFTXLiquidityPoolStakingStrategy} from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -34,8 +35,11 @@ contract DeployStrategyContracts is DeploymentScript {
         storeDeployment('RevenueStakingStrategy', address(revenueStaking));
         storeDeployment('UniswapV3Strategy', address(uniswapV3Staking));
 
+        // Deploy our strategy registry
+        StrategyRegistry strategyRegistry = new StrategyRegistry(authorityControl);
+
         // Deploy our strategy factory
-        StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry);
+        StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry, address(strategyRegistry));
 
         // Store our strategy factory
         storeDeployment('StrategyFactory', address(strategyFactory));

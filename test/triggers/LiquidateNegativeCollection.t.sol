@@ -11,6 +11,7 @@ import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.s
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {LiquidateNegativeCollectionTrigger} from '@floor/triggers/LiquidateNegativeCollection.sol';
 import {
@@ -45,6 +46,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     SweepWars sweepWars;
     Treasury treasury;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     VeFloorStaking veFloor;
 
     // Trigger to be deployed
@@ -65,14 +67,21 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Define our strategy implementation
+        address strategyImplementation = address(new DistributedRevenueStakingStrategy(address(authorityRegistry)));
+
+        // Create our {StrategyRegistry}
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
+        strategyRegistry.approveStrategy(strategyImplementation, true);
+
         // Create our {CollectionRegistry}
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
 
         // Approve our test collection
-        collectionRegistry.approveCollection(approvedCollection1, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection2, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(approvedCollection3, SUFFICIENT_LIQUIDITY_COLLECTION);
-        collectionRegistry.approveCollection(floorTokenCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection1);
+        collectionRegistry.approveCollection(approvedCollection2);
+        collectionRegistry.approveCollection(approvedCollection3);
+        collectionRegistry.approveCollection(floorTokenCollection);
 
         // Deploy our FLOOR token
         floor = new FLOOR(address(authorityRegistry));
@@ -80,7 +89,8 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}
@@ -112,7 +122,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         // Set up a revenue strategy
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('WETH Rewards Strategy'),
-            address(new DistributedRevenueStakingStrategy(address(authorityRegistry))),
+            strategyImplementation,
             abi.encode(WETH, 1 ether, address(epochManager)),
             approvedCollection1
         );
@@ -286,9 +296,15 @@ contract LiquidateNegativeCollectionTest is FloorTest {
         amounts[0] = 50 ether;
         amounts[1] = 1 ether;
 
+        address strategyImplementation = address(new RevenueStakingStrategy());
+        strategyRegistry.approveStrategy(strategyImplementation, true);
+
         // Set up a strategy
         (, address _strategy) = strategyFactory.deployStrategy(
-            bytes32('Collection Strategy'), address(new RevenueStakingStrategy()), abi.encode(tokens), collection
+            bytes32('Collection Strategy'),
+            strategyImplementation,
+            abi.encode(tokens),
+            collection
         );
 
         // Set up a mock for the percentage output

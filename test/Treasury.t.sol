@@ -18,6 +18,7 @@ import {FLOOR} from '@floor/tokens/Floor.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
+import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
@@ -60,6 +61,7 @@ contract TreasuryTest is FloorTest {
     PricingExecutorMock pricingExecutorMock;
     SweepWars sweepWars;
     StrategyFactory strategyFactory;
+    StrategyRegistry strategyRegistry;
     SweeperMock sweeperMock;
     MercenarySweeperMock mercenarySweeperMock;
 
@@ -80,25 +82,27 @@ contract TreasuryTest is FloorTest {
 
         // Set up our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
+        strategyRegistry = new StrategyRegistry(address(authorityRegistry));
 
         // Create our {StrategyFactory}
         strategyFactory = new StrategyFactory(
             address(authorityRegistry),
-            address(collectionRegistry)
+            address(collectionRegistry),
+            address(strategyRegistry)
         );
 
         // Set up our {Treasury}
         treasury = new Treasury(
             address(authorityRegistry),
             address(floor),
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+            WETH
         );
 
         // Set our {VeFloorStaking} reference in the {Treasury} for sweeps
         treasury.setVeFloorStaking(address(veFloor));
 
         // Move some WETH to the Treasury to fund sweep tests
-        deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
+        deal(WETH, address(treasury), 1000 ether);
 
         // Create our Gauge Weight Vote contract
         sweepWars = new SweepWars(
@@ -124,7 +128,7 @@ contract TreasuryTest is FloorTest {
 
         // Approve a collection
         approvedCollection = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        collectionRegistry.approveCollection(approvedCollection, SUFFICIENT_LIQUIDITY_COLLECTION);
+        collectionRegistry.approveCollection(approvedCollection);
 
         // Create our test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
