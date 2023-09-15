@@ -55,6 +55,13 @@ contract GemSweeper is ISweeper, Ownable, ReentrancyGuard {
     }
 
     /**
+     * Specify that only a TREASURY_MANAGER can run this sweeper.
+     */
+    function permissions() public pure override returns (bytes32) {
+        return keccak256('TreasuryManager');
+    }
+
+    /**
      * Allows our contract to receive dust ETH back from our Gem sweep.
      */
     receive() external payable {}

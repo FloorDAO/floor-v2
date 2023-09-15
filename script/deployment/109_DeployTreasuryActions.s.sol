@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {BuyTokensWithTokens} from '@floor/actions/0x/BuyTokensWithTokens.sol';
-import {CowSwapCreateOrder} from '@floor/actions/cowswap/CreateOrder.sol';
 import {GemSweep} from '@floor/actions/gem/Sweep.sol';
 import {LlamapayCreateStream} from '@floor/actions/llamapay/CreateStream.sol';
 import {LlamapayDeposit} from '@floor/actions/llamapay/Deposit.sol';
@@ -11,7 +10,6 @@ import {LlamapayWithdraw} from '@floor/actions/llamapay/Withdraw.sol';
 import {NFTXSellNftsForEth} from '@floor/actions/nftx/SellNftsForEth.sol';
 import {SushiswapAddLiquidity} from '@floor/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity.sol';
-import {CowSwapSweeper} from '@floor/sweepers/CowSwap.sol';
 import {GemSweeper} from '@floor/sweepers/Gem.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
@@ -32,9 +30,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
  */
 contract DeployTreasuryActions is DeploymentScript {
     function run() external deployer {
-        // Confirm that we have our required contracts deployed
-        address treasury = requireDeployment('Treasury');
-
         // Set up some live uniswap contracts
         address uniswapPositionManager = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 
@@ -59,8 +54,6 @@ contract DeployTreasuryActions is DeploymentScript {
             address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac))
         );
 
-        storeDeployment('CowSwapCreateOrder', address(new CowSwapCreateOrder(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, WETH)));
-        storeDeployment('CowSwapSweeper', address(new CowSwapSweeper(0x9008D19f58AAbD9eD0D60971565AA8510560ab41, treasury, WETH)));
         storeDeployment('GemSweeper', address(new GemSweeper()));
         storeDeployment('ManualSweeper', address(new ManualSweeper()));
 

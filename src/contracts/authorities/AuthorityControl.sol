@@ -103,7 +103,7 @@ contract AuthorityControl is Context, IAuthorityControl {
      *
      * @return bool If the address has the specified user role
      */
-    function hasRole(bytes32 role, address account) external view override returns (bool) {
+    function hasRole(bytes32 role, address account) public view override returns (bool) {
         return registry.hasRole(role, account);
     }
 
@@ -114,7 +114,7 @@ contract AuthorityControl is Context, IAuthorityControl {
      *
      * @return bool If the address has the GOVERNOR or GUARDIAN role
      */
-    function hasAdminRole(address account) external view returns (bool) {
+    function hasAdminRole(address account) public view returns (bool) {
         return registry.hasAdminRole(account);
     }
 }
