@@ -10,6 +10,7 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
+import {StrategyNotApproved} from '@floor/utils/Errors.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
@@ -150,8 +151,13 @@ contract StrategyFactoryTest is FloorTest {
         );
     }
 
-    function test_CannotCreateStrategyWithUnapprovedStrategyImplementation() external {
-        // TODO: ..
+    function test_CannotCreateStrategyWithUnapprovedStrategyImplementation(address _strategy) external {
+        // Ensure we don't use our approved strategy
+        vm.assume(_strategy != approvedStrategy);
+
+        // Create a strategy and store the address of the new clone
+        vm.expectRevert(abi.encodeWithSelector(StrategyNotApproved.selector, _strategy));
+        strategyFactory.deployStrategy('Test Strategy 1', _strategy, _strategyInitBytes(), approvedCollection);
     }
 
     function test_CanDeploySameStrategyMultipleTimes() public {
