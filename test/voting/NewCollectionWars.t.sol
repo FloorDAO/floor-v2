@@ -732,22 +732,65 @@ contract NewCollectionWarsTest is FloorTest {
         newCollectionWars.endFloorWar();
     }
 
-    function test_CanUpdateCollectionFloorPrices(uint newFloorPrice) external defaultNewCollectionWar {
-        // Ensure that we don't have a zero value floor price, as this would revert
-        vm.assume(newFloorPrice > 0);
+    function test_CanUpdateCollectionFloorPrices() external defaultNewCollectionWar {
+        // Set our vote options contract to an arbritrary address, so we can mock a call
+        address validCaller = address(1);
+        newCollectionWars.setOptionsContract(validCaller);
 
-        // Loop through all collections in our default New Collection War
+        // Loop through all collections to give them option votes
         for (uint i; i < collections.length; ++i) {
+            // Determine the number of votes to assign
+            uint optionVotes = (i + 1) * 1 ether;
+
+            vm.prank(validCaller);
+            newCollectionWars.optionVote(validCaller, war, collections[i], optionVotes);
+
             // Determine the hash of the collection for the war
             bytes32 hash = _warCollection(war, collections[i]);
 
             // Confirm the start price is as expected
             assertEq(newCollectionWars.collectionSpotPrice(hash), floorPrices[i]);
-
-            // Update the collection floor price and confirm the that is has updated correctly
-            newCollectionWars.updateCollectionFloorPrice(collections[i], newFloorPrice);
-            assertEq(newCollectionWars.collectionSpotPrice(hash), newFloorPrice);
         }
+
+        // Now that the prices have been altered, our vote amounts should be different on the
+        // ones that we updated.
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[0])), 1 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[1])), 2 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[2])), 3 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[3])), 4 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[4])), 5 ether);
+
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[0])), 1 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[1])), 2 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[2])), 3 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[3])), 4 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[4])), 5 ether);
+
+        // Update the collection floor price and confirm the that is has updated correctly
+        newCollectionWars.updateCollectionFloorPrice(collections[0], 1 ether);  // Set to the same
+        newCollectionWars.updateCollectionFloorPrice(collections[2], 0.5 ether);  // Set to half
+        newCollectionWars.updateCollectionFloorPrice(collections[4], 1 ether);  // Set to double
+
+        // Confirm the collection prices we expect
+        assertEq(newCollectionWars.collectionSpotPrice(_warCollection(war, collections[0])), 1 ether);
+        assertEq(newCollectionWars.collectionSpotPrice(_warCollection(war, collections[1])), 0.75 ether);
+        assertEq(newCollectionWars.collectionSpotPrice(_warCollection(war, collections[2])), 0.5 ether);
+        assertEq(newCollectionWars.collectionSpotPrice(_warCollection(war, collections[3])), 0.5 ether);
+        assertEq(newCollectionWars.collectionSpotPrice(_warCollection(war, collections[4])), 1 ether);
+
+        // Now that the prices have been altered, our vote amounts should be different on the
+        // ones that we updated.
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[0])), 1 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[1])), 2 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[2])), 1.5 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[3])), 4 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, collections[4])), 10 ether);
+
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[0])), 1 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[1])), 2 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[2])), 1.5 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[3])), 4 ether);
+        assertEq(newCollectionWars.collectionNftVotes(_warCollection(war, collections[4])), 10 ether);
     }
 
     function test_CannotUpdateCollectionFloorPriceIfWarNotRunning(address collection, uint newFloorPrice) external {
