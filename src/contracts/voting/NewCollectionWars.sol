@@ -366,11 +366,25 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             return;
         }
 
-        unchecked {
+        // If we have increase the floor price of the token, then we will need to increase the
+        // relative votes.
+        if (floorPrice > oldFloorPrice) {
             // Calculate the updated NFT vote power for the collection
             uint percentage = ((floorPrice * 1e18 - oldFloorPrice * 1e18) * 100) / oldFloorPrice;
             uint increase = (collectionNftVotes[warCollection] * percentage) / 100 / 1e18;
             uint newNumber = (collectionNftVotes[warCollection] + increase);
+
+            // Update our collection votes
+            collectionVotes[warCollection] = collectionVotes[warCollection] - collectionNftVotes[warCollection] + newNumber;
+            collectionNftVotes[warCollection] = newNumber;
+        }
+        // Otherwise, if we are reducing the floor price of the token, then we will instead be
+        // decreasing the number of votes assigned.
+        else {
+            // Calculate the updated NFT vote power for the collection
+            uint percentage = ((oldFloorPrice * 1e18 - floorPrice * 1e18) * 100) / oldFloorPrice;
+            uint decrease = (collectionNftVotes[warCollection] * percentage) / 100 / 1e18;
+            uint newNumber = (collectionNftVotes[warCollection] - decrease);
 
             // Update our collection votes
             collectionVotes[warCollection] = collectionVotes[warCollection] - collectionNftVotes[warCollection] + newNumber;
