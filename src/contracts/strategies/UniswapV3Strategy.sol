@@ -80,6 +80,7 @@ contract UniswapV3Strategy is BaseStrategy {
      */
     function deposit(uint amount0Desired, uint amount1Desired, uint amount0Min, uint amount1Min, uint deadline)
         external
+        nonReentrant
         returns (uint liquidity, uint amount0, uint amount1)
     {
         // Check that we aren't trying to deposit nothing
@@ -133,13 +134,13 @@ contract UniswapV3Strategy is BaseStrategy {
             );
         }
 
-        // Send leftovers back to the caller
-        params.token0.withdrawTokens(msg.sender, amount0Desired - amount0);
-        params.token1.withdrawTokens(msg.sender, amount1Desired - amount1);
-
         // Remove approvals
         params.token0.approveToken(params.positionManager, 0);
         params.token1.approveToken(params.positionManager, 0);
+
+        // Send leftovers back to the caller
+        params.token0.withdrawTokens(msg.sender, amount0Desired - amount0);
+        params.token1.withdrawTokens(msg.sender, amount1Desired - amount1);
 
         emit Deposit(params.token0, amount0, msg.sender);
         emit Deposit(params.token1, amount1, msg.sender);
