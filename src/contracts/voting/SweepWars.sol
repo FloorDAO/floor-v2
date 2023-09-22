@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SignedMath} from '@openzeppelin/contracts/utils/math/SignedMath.sol';
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
@@ -149,7 +149,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
         }
 
         // Get an absolute value of our cast amount
-        uint absAmount = abs(_amount);
+        uint absAmount = SignedMath.abs(_amount);
 
         // Ensure the user has enough votes available to cast
         uint votesAvailable = userVotesAvailable(msg.sender);
@@ -448,12 +448,5 @@ contract SweepWars is AuthorityControl, ISweepWars {
      */
     function voteOptions() public view returns (address[] memory) {
         return collectionRegistry.approvedCollections();
-    }
-
-    /**
-     * Math helper function to allow us to get the absolute value of an int
-     */
-    function abs(int x) private pure returns (uint) {
-        return x >= 0 ? uint(x) : uint(-x);
     }
 }

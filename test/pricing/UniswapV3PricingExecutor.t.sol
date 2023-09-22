@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {UniswapV3PricingExecutor, UnknownUniswapPool} from '@floor/pricing/UniswapV3PricingExecutor.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 
+import {ERC20Mock} from '../mocks/erc/ERC20Mock.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 /**
@@ -28,9 +29,9 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     address internal X2Y2 = 0x1E4EDE388cbc9F4b5c79681B7f94d36a11ABEBC9; // 18 decimals
     address internal WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    uint128 internal FLOORV1_ETH_PRICE = 1550575122257810; // 001550575122257810
-    uint128 internal USDC_ETH_PRICE = 819268955245994; // 000819268955245994
-    uint128 internal X2Y2_ETH_PRICE = 34621444139728; // 000034621444139728
+    uint128 internal FLOORV1_ETH_PRICE = 1566237497230112;
+    uint128 internal USDC_ETH_PRICE = 827544399238378;
+    uint128 internal X2Y2_ETH_PRICE = 34971155696695;
 
     uint128 internal USDC_FLOOR_PRICE = 528364568401592303; // 0.528364568401592303
     uint128 internal X2Y2_FLOOR_PRICE = 22328130796601020; // 0.022328130796601020
@@ -71,8 +72,10 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * for, then we will expect a revert.
      */
     function test_ETHPriceOfUnknownToken() public {
+        address mockToken = address(new ERC20Mock());
+
         vm.expectRevert(UnknownUniswapPool.selector);
-        executor.getETHPrice(UNKNOWN);
+        executor.getETHPrice(mockToken);
     }
 
     /**
@@ -81,6 +84,22 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      */
     function test_ETHPriceOfFloor() public {
         assertEq(executor.getETHPrice(FLOORV1), FLOORV1_ETH_PRICE);
+    }
+
+    /**
+     * If a token is tested with an invalid number of decimals then we expect it
+     * to revert.
+     */
+    function test_ETHPriceOfTokenWithInvalidDecimals(uint8 decimals) public {
+        // Ensure that we only test mocked tokens with > 18 decimals
+        vm.assume(decimals > 18);
+
+        // Set our a mocked token with invalid decimals
+        ERC20Mock mock = new ERC20Mock();
+        mock.setDecimals(decimals);
+
+        vm.expectRevert('Invalid token decimals');
+        executor.getETHPrice(address(mock));
     }
 
     /**
@@ -146,8 +165,10 @@ contract UniswapV3PricingExecutorTest is FloorTest {
      * token = 0 mapping.
      */
     function test_ETHPriceOfMultipleTokensWithPartiallyInvalidTokens() public {
-        address[] memory tokens = new address[](1);
-        tokens[0] = UNKNOWN;
+        address[] memory tokens = new address[](3);
+        tokens[0] = X2Y2;
+        tokens[1] = address(new ERC20Mock());
+        tokens[2] = USDC;
 
         vm.expectRevert(UnknownUniswapPool.selector);
         executor.getETHPrices(tokens);

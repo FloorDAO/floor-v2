@@ -151,7 +151,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     function _getPrice(address token) internal returns (uint) {
         // Ensure our token decimals don't exceed the standard 18
         uint tokenDecimals = ERC20(token).decimals();
-        require(tokenDecimals <= 18, 'Invalid token count');
+        require(tokenDecimals <= 18, 'Invalid token decimals');
 
         // We can get the cached / fresh pool address for our token <-> WETH pool. If the
         // pool doesn't exist then this function will revert our tx.
