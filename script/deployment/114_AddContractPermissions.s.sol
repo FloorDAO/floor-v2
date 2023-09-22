@@ -19,6 +19,7 @@ contract AddContractPermissions is DeploymentScript {
         address migrateFloorToken = requireDeployment('MigrateFloorToken');
         address registerSweep = requireDeployment('RegisterSweepTrigger');
         address treasury = requireDeployment('Treasury');
+        address veFloorStaking = requireDeployment('VeFloorStaking');
         address vestingClaim = requireDeployment('VestingClaim');
 
         // Allow our specified contracts to mint Floor tokens
@@ -35,6 +36,9 @@ contract AddContractPermissions is DeploymentScript {
         // RegisterSweep needs TREASURY_MANAGER and STRATEGY_MANAGER
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), registerSweep);
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), registerSweep);
+
+        // VeFloorStaking needs to be VOTE_MANAGER
+        authorityRegistry.grantRole(authorityControl.VOTE_MANAGER(), veFloorStaking);
 
         // Transfer ownership of any required contracts
         // None currently required..
