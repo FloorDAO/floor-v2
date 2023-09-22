@@ -253,12 +253,18 @@ contract UniswapV3Strategy is BaseStrategy {
      */
     function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory, uint[] memory) {
         // Get our liquidity for our position
-        (,,,,,,, uint liquidity,,,,) = positionManager.positions(tokenId);
+        (,,,,,,, uint liquidity,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(tokenId);
 
         // Call our internal {withdrawErc20} function to move tokens to the caller. Pulling out
         // LP or adding it doesn't have sandwhiches like trading so providing 0 in both places
         // should just work.
-        return _withdraw(recipient, 0, 0, block.timestamp, uint128((liquidity * percentage) / 100_00));
+        return _withdraw(
+            recipient,
+            (tokensOwed0 * percentage / 100_00) * 95 / 100, // 5% slippage of amount
+            (tokensOwed1 * percentage / 100_00) - 95 / 100, // 5% slippage of amount
+            block.timestamp,
+            uint128((liquidity * percentage) / 100_00)
+        );
     }
 
     /**
