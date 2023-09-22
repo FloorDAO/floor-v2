@@ -37,5 +37,6 @@ contract DeployFloorWarsContracts is DeploymentScript {
 
         // Update our vefloor staking contract references
         VeFloorStaking(veFloorStaking).setVotingContracts(address(newCollectionWars), address(sweepWars));
+        VeFloorStaking(veFloorStaking).setMaxLossRatio(90_0000000); // 90%
     }
 }
