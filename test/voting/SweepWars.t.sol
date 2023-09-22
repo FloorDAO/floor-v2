@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {SignedMath} from '@openzeppelin/contracts/utils/math/SignedMath.sol';
 
 import {AccountDoesNotHaveRole} from '@floor/authorities/AuthorityControl.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
@@ -189,7 +190,7 @@ contract SweepWarsTest is FloorTest {
         vm.prank(alice);
         sweepWars.vote(approvedCollection1, voteAmount);
 
-        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice] - abs(voteAmount));
+        assertEq(sweepWars.userVotesAvailable(alice), votePower[alice] - SignedMath.abs(voteAmount));
     }
 
     function test_cannotVoteWithZeroBalance() public {
@@ -251,7 +252,7 @@ contract SweepWarsTest is FloorTest {
 
         // Check how many votes we will have at current epoch when vote was cast
         assertEq(sweepWars.userVotingPower(alice), initialVotePower);
-        assertEq(sweepWars.userVotesAvailable(alice), initialVotePower - abs(votes));
+        assertEq(sweepWars.userVotesAvailable(alice), initialVotePower - SignedMath.abs(votes));
         assertEq(sweepWars.votes(approvedCollection1), votes);
     }
 
@@ -645,6 +646,21 @@ contract SweepWarsTest is FloorTest {
         vm.stopPrank();
     }
 
+    /**
+     * Ensures that the used library returns the correct abs() responses.
+     */
+    function test_CanGetCorrectAbsResults() external {
+        // Ensure our `type(int).min` is handled
+        assertEq(type(int).min, -57896044618658097711785492504343953926634992332820282019728792003956564819968);
+        assertEq(SignedMath.abs(type(int).min), 57896044618658097711785492504343953926634992332820282019728792003956564819968);
+
+        // Confirm 0 = 0
+        assertEq(SignedMath.abs(int(0)), 0);
+
+        // Confirm our max value is handled
+        assertEq(type(int).max, 57896044618658097711785492504343953926634992332820282019728792003956564819967);
+        assertEq(SignedMath.abs(type(int).max), 57896044618658097711785492504343953926634992332820282019728792003956564819967);
+    }
 
     function _createCollectionVault(address collection, string memory vaultName) internal returns (address vaultAddr_) {
         // Approvals aren't needed and may throw issues with our mocked setups
@@ -655,13 +671,6 @@ contract SweepWarsTest is FloorTest {
 
         // Label the vault for debugging help
         vm.label(vaultAddr_, vaultName);
-    }
-
-    /**
-     * Math helper function to allow us to get the absolute value of an int
-     */
-    function abs(int x) private pure returns (uint) {
-        return x >= 0 ? uint(x) : uint(-x);
     }
 
     /**
