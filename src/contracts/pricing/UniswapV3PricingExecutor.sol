@@ -57,9 +57,6 @@ interface IUniswapV3Pool {
  * tokens in a peripheral multicall to return a price of TOKEN -> ETH. We will
  * need to calculate the pool address for TOKEN:ETH and then find the spot
  * price.
- *
- * Multicall documentation can be found here:
- * https://github.com/Uniswap/v3-periphery/blob/main/contracts/base/Multicall.sol
  */
 contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /// Maintain an immutable address of the Uniswap V3 Pool Factory contract
@@ -74,7 +71,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     /**
      * Set our immutable contract addresses.
      *
-     * @dev Mainnet Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
+     * @dev Mainnet UniswapV3Factory: 0x1F98431c8aD98523631AE4a59f267346ea31F984
      */
     constructor(address _poolFactory, address _weth) {
         if (_poolFactory == address(0) || _weth == address(0)) revert CannotSetNullAddress();
@@ -152,6 +149,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * @return Price of the token in ETH
      */
     function _getPrice(address token) internal returns (uint) {
+        // Ensure our token decimals don't exceed the standard 18
+        uint tokenDecimals = ERC20(token).decimals();
+        require(tokenDecimals <= 18, 'Invalid token count');
+
         // We can get the cached / fresh pool address for our token <-> WETH pool. If the
         // pool doesn't exist then this function will revert our tx.
         address pool = _poolAddress(token);
@@ -183,6 +184,10 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
             ago = block.timestamp - oldestAvailableAge;
             secondsAgos[0] = uint32(ago);
 
+            // Ensure that our minimum oldest available observation passes a minimum timing
+            // threshold to avoid exploitation. This is currently set to 5 minutes.
+            require(ago >= 300, 'Pool too fresh');
+
             // Call observe() again to get the oldest available
             (success, data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
             if (!success) revertBytes(data);
@@ -197,8 +202,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         // Get our token price
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
 
-        // Remove our fee from this amount by our 1% fee (1000 = 1%)
-        return (_decodeSqrtPriceX96(token, 10 ** (18 - ERC20(token).decimals()), sqrtPriceX96) * 99000) / 100000;
+        return _decodeSqrtPriceX96(token, 10 ** (18 - tokenDecimals), sqrtPriceX96);
     }
 
     /**
