@@ -260,8 +260,8 @@ contract UniswapV3Strategy is BaseStrategy {
         // should just work.
         return _withdraw(
             recipient,
-            ((tokensOwed0 * percentage) / 100_00) * 5 / 100, // 5% slippage
-            ((tokensOwed1 * percentage) / 100_00) * 5 / 100, // 5% slippage
+            (tokensOwed0 * percentage / 100_00) - ((tokensOwed0 * percentage / 100_00) * 5 / 100), // 5% slippage of amount
+            (tokensOwed1 * percentage / 100_00) - ((tokensOwed1 * percentage / 100_00) * 5 / 100), // 5% slippage of amount
             block.timestamp,
             uint128((liquidity * percentage) / 100_00)
         );
