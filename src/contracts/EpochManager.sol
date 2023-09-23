@@ -18,9 +18,6 @@ import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 /// @param timelockExpiry The timestamp at which the epoch can next be run
 error EpochTimelocked(uint timelockExpiry);
 
-/// If not pricing executor has been set before a call that requires it
-error NoPricingExecutorSet();
-
 /**
  * Handles epoch management for all other contracts.
  */
