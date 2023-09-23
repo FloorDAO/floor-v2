@@ -27,6 +27,7 @@ import {Treasury} from '@floor/Treasury.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
+import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract LiquidateNegativeCollectionTest is FloorTest {
@@ -129,8 +130,12 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         revenueStrategy = DistributedRevenueStakingStrategy(_strategy);
 
+        // Set up our mock pricing executor
+        PricingExecutorMock pricingExecutorMock = new PricingExecutorMock();
+
         // Register our epoch end trigger that stores our liquidation
         liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
+            address(pricingExecutorMock),
             address(sweepWars),
             address(strategyFactory),
             address(revenueStrategy),

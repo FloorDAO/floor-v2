@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
@@ -10,6 +11,7 @@ import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 
+import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
@@ -19,18 +21,24 @@ import {IUniversalRouter} from '@floor-interfaces/uniswap/IUniversalRouter.sol';
  * When an epoch ends, the vote with the most negative votes will be liquidated to an amount
  * relative to the number of negative votes it received.
  */
-contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered {
+contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// WETH address interface
     IWETH public immutable WETH;
 
     /// The sweep war contract used by this contract
     ISweepWars public immutable sweepWars;
 
+    /// Internal strategies
     StrategyFactory public immutable strategyFactory;
     DistributedRevenueStakingStrategy public immutable revenueStrategy;
 
+    /// The Uniswap Universal Router
     IUniversalRouter public immutable uniswapUniversalRouter;
+
+    /// The executor used to determine the liquidation price
+    IBasePricingExecutor public pricingExecutor;
 
     /// A threshold percentage that would be worth us working with
     uint public constant THRESHOLD = 1_000; // 1%
@@ -64,13 +72,21 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
     /**
      * Sets our internal contracts.
      */
-    constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy, address _uniswapUniversalRouter, address _weth) {
+    constructor(
+        address _pricingExecutor,
+        address _sweepWars,
+        address _strategyFactory,
+        address _revenueStrategy,
+        address _uniswapUniversalRouter,
+        address _weth
+    ) {
         // Prevent any zero-address contracts from being set
-        if (_sweepWars == address(0) || _strategyFactory == address(0) || _revenueStrategy == address(0) ||
-            _uniswapUniversalRouter == address(0) || _weth == address(0)) {
+        if (_pricingExecutor == address(0) || _sweepWars == address(0) || _strategyFactory == address(0) ||
+            _revenueStrategy == address(0) || _uniswapUniversalRouter == address(0) || _weth == address(0)) {
             revert CannotSetNullAddress();
         }
 
+        pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         sweepWars = ISweepWars(_sweepWars);
         strategyFactory = StrategyFactory(_strategyFactory);
         revenueStrategy = DistributedRevenueStakingStrategy(_revenueStrategy);
@@ -87,7 +103,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
      *
      * @param epoch The epoch that is ending
      */
-    function endEpoch(uint epoch) external onlyEpochManager {
+    function endEpoch(uint epoch) external onlyEpochManager nonReentrant {
         address worstCollection;
         int negativeCollectionVotes;
         int grossVotes;
@@ -155,10 +171,17 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered 
                     // Add our swap parameters
                     inputs.push(
                         abi.encode(
+                            // [address] The recipient of the output of the trade
                             address(this),
+                            // [uint] The amount of input tokens for the trade
                             amounts[k],
-                            amounts[k] - (amounts[k] * slippage / 100000), // Minimum output
+                            // [uint] Get the WETH value of the token amounts that we will expect
+                            // to receive back from our swap, minus a slippage percentage.
+                            pricingExecutor.getETHPrice(tokens[k]) * amounts[k] * (100_000 - slippage) / 100_000, // Minimum output
+                            // [bytes] The UniswapV3 encoded path to trade along
                             abi.encodePacked(tokens[k], uint24(10000), address(WETH)),
+                            // [bool] A flag for whether the input tokens should come from the msg.sender
+                            // (through Permit2) or whether the funds are already in the UniversalRouter
                             false
                         )
                     );
