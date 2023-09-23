@@ -170,6 +170,12 @@ contract UniswapV3Strategy is BaseStrategy {
         internal
         returns (address[] memory tokens_, uint[] memory amounts_)
     {
+        // If we don't have a token ID created, then we want to prevent further
+        // processing as this would result in a revert.
+        if (tokenId == 0) {
+            return (tokens_, amounts_);
+        }
+
         // Burns liquidity stated, amount0Min and amount1Min are the least you get for
         // burning that liquidity (else reverted).
         (uint amount0, uint amount1) = positionManager.decreaseLiquidity(
@@ -213,6 +219,12 @@ contract UniswapV3Strategy is BaseStrategy {
      * Gets rewards that are available to harvest.
      */
     function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+        // If we don't have a token ID created, then we want to prevent further
+        // processing as this would result in a revert.
+        if (tokenId == 0) {
+            return (tokens_, amounts_);
+        }
+
         (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(tokenId);
         tokens_ = validTokens();
         amounts_ = new uint[](2);
@@ -224,6 +236,10 @@ contract UniswapV3Strategy is BaseStrategy {
      * There will never be any rewards to harvest in this strategy.
      */
     function harvest(address _recipient) external override onlyOwner {
+        // If we don't have a token ID created, then we want to prevent further
+        // processing as this would result in a revert.
+        if (tokenId == 0) return;
+
         // Collect fees from the pool
         (uint amount0, uint amount1) = positionManager.collect(
             IUniswapV3NonfungiblePositionManager.CollectParams({
@@ -275,6 +291,12 @@ contract UniswapV3Strategy is BaseStrategy {
      * @return liquidity The amount of liquidity for the tokens
      */
     function tokenBalances() public view returns (uint token0Amount, uint token1Amount, uint128 liquidity) {
+        // If we don't have a token ID created, then we want to prevent further
+        // processing as this would result in a revert.
+        if (tokenId == 0) {
+            return (token0Amount, token1Amount, liquidity);
+        }
+
         // Get our `sqrtPriceX96` from the `slot0`
         IUniswapV3Pool pool = IUniswapV3Pool(params.pool);
         (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
