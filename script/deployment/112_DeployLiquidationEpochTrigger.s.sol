@@ -31,6 +31,7 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
 
         // Register our epoch end trigger that stores our liquidation
         LiquidateNegativeCollectionTrigger liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
+            requireDeployment('UniswapV3PricingExecutor'),
             sweepWars,
             strategyFactory,
             _strategy,
