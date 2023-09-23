@@ -297,7 +297,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      *
      * @return highestVoteCollection The collection address that received the most votes
      */
-    function endFloorWar() external onlyRole(COLLECTION_MANAGER) returns (address highestVoteCollection) {
+    function endFloorWar() external onlyRole(EPOCH_TRIGGER) returns (address highestVoteCollection) {
         // Ensure that we have a current war running
         require(currentWar.index != 0, 'No war currently running');
 
