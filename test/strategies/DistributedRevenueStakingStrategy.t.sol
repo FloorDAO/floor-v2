@@ -40,7 +40,10 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     // Set some constants for our test tokens
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         // Create our {EpochManager}

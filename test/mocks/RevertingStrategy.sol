@@ -45,26 +45,36 @@ contract RevertingStrategy is BaseStrategy {
     /**
      * Withdraws an amount of our position from the strategy.
      *
-     * @param amount Amount of token to withdraw
-     *
      * @return uint Amount of the token returned
      */
-    function withdrawErc20(address recipient, address token, uint amount) external onlyOwner returns (uint) {
+    function withdrawErc20(address /* recipient */, address /* token */, uint /* amount */) external view onlyOwner returns (uint) {
         revert('Prevent Withdraw');
+    }
+
+    /**
+     * Allows for liquidation of the strategy based on a percentage value. This withdraws the
+     * percentage of the underlying tokens that were initially deposited, using the relevant
+     * withdraw functions.
+     *
+     * The tokens will be withdrawn to the caller of the function, so relevant permissions should
+     * be checked.
+     */
+    function withdrawPercentage(address /* recipient */, uint /* percentage */) external override view onlyOwner returns (address[] memory, uint[] memory) {
+        revert('Prevent Withdraw Percentage');
     }
 
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() external pure override returns (address[] memory, uint[] memory) {
         revert('Prevent Available');
     }
 
     /**
      * There will never be any rewards to harvest in this strategy.
      */
-    function harvest(address _recipient) external override onlyOwner {
-        revert('Prevent harvest');
+    function harvest(address /* _recipient */) external override view onlyOwner {
+        revert('Prevent Harvest');
     }
 
     /**

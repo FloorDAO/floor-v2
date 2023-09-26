@@ -30,6 +30,9 @@ contract VestingClaimTest is FloorTest {
     uint internal constant claimCost = 0.001 ether;
 
     constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our migration contract
         newFloor = new FLOOR(address(authorityRegistry));
         weth = new ERC20Mock();

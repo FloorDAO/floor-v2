@@ -28,6 +28,9 @@ contract MigrateFloorTokenTest is FloorTest {
      * {FloorTest} environment when we try and grant a `role`.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our migration contract
         newFloor = new FLOOR(address(authorityRegistry));
 

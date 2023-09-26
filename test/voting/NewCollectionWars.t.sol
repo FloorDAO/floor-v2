@@ -73,6 +73,9 @@ contract NewCollectionWarsTest is FloorTest {
     uint[] floorPrices;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 

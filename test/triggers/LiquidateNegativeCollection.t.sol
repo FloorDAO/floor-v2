@@ -68,6 +68,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Define our strategy implementation
         address strategyImplementation = address(new DistributedRevenueStakingStrategy(address(authorityRegistry)));
 
@@ -203,6 +206,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
          * Collection 3 : -4
          * Floor Token  : -2
          */
+
+        // Set slippsge to allow for bad returns as we are using a mock price executor
+        liquidateNegativeCollectionTrigger.setSlippage(100_000);
 
         epochManager.endEpoch();
 

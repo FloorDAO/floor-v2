@@ -16,6 +16,9 @@ contract FloorTokenTest is FloorTest {
     FLOOR floor;
 
     constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Deploy our FLOOR token contract
         floor = new FLOOR(address(authorityRegistry));
 

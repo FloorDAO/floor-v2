@@ -20,6 +20,11 @@ contract StrategyRegistryTest is FloorTest {
     // Set up a small collection of users to test with
     address alice;
 
+    constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
+
     /**
      * Deploys our StrategyRegistry. We don't set up any approved
      * strategies at this point, as we want to allow tests to have

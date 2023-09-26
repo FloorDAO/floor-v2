@@ -19,6 +19,9 @@ contract CharmFinanceVaultTest is FloorTest {
     CharmWithdraw charmWithdraw;
 
     constructor() forkBlock(17_094_248) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Send this address as the {Treasury} parameter so we can see what comes back
         charmCreateVault = new CharmCreateVault();
         charmDeposit = new CharmDeposit();
@@ -55,7 +58,7 @@ contract CharmFinanceVaultTest is FloorTest {
 
         // Confirm our created vault address. This will be newly deployed, but in
         // this test scenario it is deterministic.
-        assertEq(vaultAddress, 0x5B0091f49210e7B2A57B03dfE1AB9D08289d9294);
+        assertEq(vaultAddress, 0xffD4505B3452Dc22f8473616d50503bA9E1710Ac);
 
         // We need to supply our test contract with sufficient funds to place the
         // deposit.
@@ -90,7 +93,7 @@ contract CharmFinanceVaultTest is FloorTest {
 
         // Confirm our strategy address. This will be newly deployed, but in this test
         // scenario it is deterministic.
-        assertEq(strategyAddress, 0xDD4c722d1614128933d6DC7EFA50A6913e804E12);
+        assertEq(strategyAddress, 0x8d2C17FAd02B7bb64139109c6533b7C2b9CADb81);
 
         // Rebalance the vault
         charmRebalance.execute(abi.encode(strategyAddress));

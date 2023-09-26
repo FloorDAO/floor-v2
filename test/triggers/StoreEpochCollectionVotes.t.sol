@@ -51,6 +51,9 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Create our registries
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         strategyRegistry = new StrategyRegistry(address(authorityRegistry));

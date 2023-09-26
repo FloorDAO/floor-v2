@@ -31,7 +31,10 @@ contract GemSweepTest is FloorTest {
     /**
      * Sets up our mainnet fork.
      */
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         action = new GemSweep();

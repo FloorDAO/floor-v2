@@ -22,6 +22,9 @@ contract AuthorityControlTest is FloorTest {
      * expected roles and permissions in the constructor.
      */
     constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up a small pool of test users
         (alice, bob, carol) = (users[0], users[1], users[2]);
     }
@@ -33,11 +36,11 @@ contract AuthorityControlTest is FloorTest {
      */
     function test_ExpectedRolesCreatedOnConstruct() public {
         // Our expected roles are defined in our test contract
-        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), utilities.deployer()));
-        assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), utilities.deployer()));
+        assertTrue(authorityControl.hasRole(authorityControl.TREASURY_MANAGER(), DEPLOYER));
+        assertTrue(authorityControl.hasRole(authorityControl.STRATEGY_MANAGER(), DEPLOYER));
+        assertTrue(authorityControl.hasRole(authorityControl.COLLECTION_MANAGER(), DEPLOYER));
+        assertTrue(authorityControl.hasRole(authorityControl.GOVERNOR(), DEPLOYER));
+        assertTrue(authorityControl.hasRole(authorityControl.GUARDIAN(), DEPLOYER));
     }
 
     /**

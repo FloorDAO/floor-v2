@@ -36,7 +36,10 @@ contract UniswapV3PricingExecutorTest is FloorTest {
     uint128 internal USDC_FLOOR_PRICE = 528364568401592303; // 0.528364568401592303
     uint128 internal X2Y2_FLOOR_PRICE = 22328130796601020; // 0.022328130796601020
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     /**
      * Deploy our contract, set up our fork and roll the block to set up our fork.

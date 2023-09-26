@@ -9,8 +9,6 @@ import {ERC20Mock} from './../mocks/erc/ERC20Mock.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
-import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
-import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
@@ -27,7 +25,7 @@ import {FloorTest} from '../utilities/Environments.sol';
  * @dev This is defined as {Test} rather than {FloorTest} as there was a Foundry
  * bug with the block fork that was causing the contracts to read incorrectly.
  */
-contract UniswapV3StrategyTest is Test {
+contract UniswapV3StrategyTest is FloorTest {
     /// The mainnet contract address of our Uniswap Position Manager
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     uint24 internal constant POOL_FEE = 500;
@@ -41,8 +39,6 @@ contract UniswapV3StrategyTest is Test {
     uint internal constant BLOCK_NUMBER = 16_989_012;
 
     /// Store our internal contracts
-    AuthorityControl authorityControl;
-    AuthorityRegistry authorityRegistry;
     CollectionRegistry collectionRegistry;
     StrategyFactory strategyFactory;
     StrategyRegistry strategyRegistry;
@@ -60,23 +56,15 @@ contract UniswapV3StrategyTest is Test {
     /**
      * Sets up our mainnet fork and register our action contract.
      */
-    constructor() {
-        // Generate a mainnet fork
-        uint mainnetFork = vm.createFork(vm.rpcUrl('mainnet'));
-        vm.selectFork(mainnetFork);
-        vm.rollFork(BLOCK_NUMBER);
-
-        // Set up our authority registry
-        authorityRegistry = new AuthorityRegistry();
-
-        // Attach our registry control to our control contract
-        authorityControl = new AuthorityControl(address(authorityRegistry));
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
 
         // Deploy our strategy implementation
         strategyImplementation = address(new UniswapV3Strategy());
 
         // Define a treasury wallet address that we can test against
-        treasury = address(1);
+        treasury = users[1];
 
         // Create our {CollectionRegistry} and approve our collections
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));

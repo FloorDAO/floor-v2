@@ -37,7 +37,9 @@ contract StrategyFactoryTest is FloorTest {
     /// Store a test user
     address alice;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        super._deployAuthority();
+    }
 
     /**
      * Deploy the {StrategyFactory} contract but don't create any strategies, as we want to
@@ -219,13 +221,13 @@ contract StrategyFactoryTest is FloorTest {
         (uint strategyId, address strategyAddr) = strategyFactory.deployStrategy('Reverting Strategy', address(strategy), _strategyInitBytes(), approvedCollection);
 
         // We can confirm that the calls we expect will now revert
-        vm.expectRevert('error code 1');
+        vm.expectRevert('Prevent Available');
         strategyFactory.snapshot(strategyId, 0);
-        vm.expectRevert('error code 2');
+        vm.expectRevert('Prevent Harvest');
         strategyFactory.harvest(strategyId);
-        vm.expectRevert('error code 3');
+        vm.expectRevert('Unable to withdraw');
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
-        vm.expectRevert('error code 4');
+        vm.expectRevert('Prevent Withdraw Percentage');
         strategyFactory.withdrawPercentage(strategyAddr, 20_00);
 
         // Bypass the strategy in the factory
@@ -241,7 +243,7 @@ contract StrategyFactoryTest is FloorTest {
         strategyFactory.bypassStrategy(strategyAddr, false);
 
         // .. and we should go back to reverting as before
-        vm.expectRevert('error code 1');
+        vm.expectRevert('Prevent Available');
         strategyFactory.snapshot(strategyId, 0);
     }
 }

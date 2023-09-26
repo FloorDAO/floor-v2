@@ -49,7 +49,10 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     // Set up a test user
     address alice;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         // Set up our strategy implementation

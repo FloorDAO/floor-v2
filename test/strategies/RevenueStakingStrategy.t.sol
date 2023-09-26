@@ -27,7 +27,10 @@ contract RevenueStakingStrategyTest is FloorTest {
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address constant PUNK = 0x269616D549D7e8Eaa82DFb17028d0B212D11232A;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         address[] memory tokens = new address[](2);
