@@ -6,29 +6,40 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 
+/**
+ * `TokenUtils` library forked from DefiSaver and manipulated to better suit the
+ * Floor codebase and also in reflection of code audit.
+ */
 library TokenUtils {
     using SafeERC20 for IERC20;
-
-    address public constant WSTETH_ADDR = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    address public constant STETH_ADDR = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
     address public constant ETH_ADDR = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     function approveToken(address _tokenAddr, address _to, uint _amount) internal {
+        // Native token won't require approval
         if (_tokenAddr == ETH_ADDR) return;
 
+        // If we don't already have sufficient allowance, we can increase our approval
         if (IERC20(_tokenAddr).allowance(address(this), _to) < _amount) {
+            // Certain tokens, such as USDT, will fail when attempting to assign a non-zero
+            // approval whilst one exists.
+            IERC20(_tokenAddr).approve(_to, 0);
             IERC20(_tokenAddr).approve(_to, _amount);
         }
     }
 
     function pullTokensIfNeeded(address _token, address _from, uint _amount) internal returns (uint) {
-        // handle max uint amount
-        if (_amount == type(uint).max) {
-            _amount = getBalance(_token, _from);
+        // If we are pulling native tokens, we need to ensure that the `msg.value` is sufficient
+        if (_token == ETH_ADDR) {
+            require(msg.value >= _amount, 'Insufficient ETH');
+            _amount = msg.value;
         }
+        else if (_from != address(0) && _from != address(this) && _amount != 0) {
+            // If a max amount if requested, then we convert to the entire balance
+            if (_amount == type(uint).max) {
+                _amount = getBalance(_token, _from);
+            }
 
-        if (_from != address(0) && _from != address(this) && _token != ETH_ADDR && _amount != 0) {
             IERC20(_token).safeTransferFrom(_from, address(this), _amount);
         }
 
@@ -59,12 +70,4 @@ library TokenUtils {
             return IERC20(_tokenAddr).balanceOf(_acc);
         }
     }
-
-    /*
-    function getTokenDecimals(address _token) internal view returns (uint256) {
-        if (_token == ETH_ADDR) return 18;
-
-        return IERC20(_token).decimals();
-    }
-    */
 }
