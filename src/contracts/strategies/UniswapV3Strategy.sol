@@ -222,14 +222,15 @@ contract UniswapV3Strategy is BaseStrategy {
         // If we don't have a token ID created, then we want to prevent further
         // processing as this would result in a revert.
         if (tokenId == 0) {
-            return (tokens_, amounts_);
+            tokens_ = validTokens();
+            amounts_ = new uint[](2);
+        } else {
+            (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(tokenId);
+            tokens_ = validTokens();
+            amounts_ = new uint[](2);
+            amounts_[0] = tokensOwed0;
+            amounts_[1] = tokensOwed1;
         }
-
-        (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(tokenId);
-        tokens_ = validTokens();
-        amounts_ = new uint[](2);
-        amounts_[0] = tokensOwed0;
-        amounts_[1] = tokensOwed1;
     }
 
     /**
@@ -268,6 +269,12 @@ contract UniswapV3Strategy is BaseStrategy {
      * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
     function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory, uint[] memory) {
+        // If we don't have a token ID created, then we want to prevent further
+        // processing as this would result in a revert.
+        if (tokenId == 0) {
+            return (validTokens(), new uint[](2));
+        }
+
         // Get our token balances and liquidity for our position
         (uint token0Amount, uint token1Amount, uint liquidity) = tokenBalances();
 
