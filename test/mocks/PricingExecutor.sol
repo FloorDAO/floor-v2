@@ -14,6 +14,9 @@ contract PricingExecutorMock is IBasePricingExecutor {
     // direct 1:1 relation of the address uint value.
     uint160 floor = 11;
 
+    // Set a multiplier to allow for different prices returned
+    uint priceMultiplier = 1 ether;
+
     /**
      * Name of the pricing executor.
      */
@@ -24,14 +27,14 @@ contract PricingExecutorMock is IBasePricingExecutor {
     /**
      * Gets our live price of a token to ETH.
      */
-    function getETHPrice(address token) external pure returns (uint) {
+    function getETHPrice(address token) external view returns (uint) {
         return _getPrice(token);
     }
 
     /**
      * Gets our live prices of multiple tokens to ETH.
      */
-    function getETHPrices(address[] memory tokens) external pure returns (uint[] memory output) {
+    function getETHPrices(address[] memory tokens) external view returns (uint[] memory output) {
         return _getPrices(tokens);
     }
 
@@ -42,8 +45,8 @@ contract PricingExecutorMock is IBasePricingExecutor {
     /**
      * Retrieves the token price in WETH from a Uniswap pool.
      */
-    function _getPrice(address token) internal pure returns (uint) {
-        return uint(uint160(token)) * 1 ether;
+    function _getPrice(address token) internal view returns (uint) {
+        return uint(uint160(token)) * priceMultiplier;
     }
 
     /**
@@ -51,7 +54,7 @@ contract PricingExecutorMock is IBasePricingExecutor {
      * subsequently calls `_getPrice` for each token passed. Not really gas efficient, but
      * unfortunately the best we can do with what we have.
      */
-    function _getPrices(address[] memory tokens) internal pure returns (uint[] memory) {
+    function _getPrices(address[] memory tokens) internal view returns (uint[] memory) {
         uint[] memory prices = new uint[](tokens.length);
         for (uint i; i < tokens.length;) {
             prices[i] = _getPrice(tokens[i]);
@@ -60,5 +63,9 @@ contract PricingExecutorMock is IBasePricingExecutor {
             }
         }
         return prices;
+    }
+
+    function setPriceMultiplier(uint _priceMultiplier) public {
+        priceMultiplier = _priceMultiplier;
     }
 }

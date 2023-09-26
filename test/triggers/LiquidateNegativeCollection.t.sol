@@ -157,6 +157,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);
+
+        // Set a low price multiplier as we have high address values
+        pricingExecutorMock.setPriceMultiplier(1);
     }
 
     function setUp() public {
