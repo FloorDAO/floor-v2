@@ -32,6 +32,9 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
     address alice;
 
     constructor() forkBlock(17_094_248) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our actions
         buyNfts = new SudoswapBuyNftsWithEth();
         createPair = new SudoswapCreatePair(payable(0x6aFF0d25C7801a84241ae1537FC05B79C12c9629));
@@ -60,6 +63,8 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
     }
 
     function test_CanCreateEthPair() public {
+        deal(alice, 10 ether);
+
         uint vaultAddressUint = createPair.execute{value: 10 ether}(
             abi.encode(
                 address(0), // address token,
@@ -117,6 +122,8 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
     }
 
     function test_CanBuyNftsWithEth() public {
+        deal(alice, 100 ether);
+
         uint vaultAddressUint = createPair.execute{value: 10 ether}(
             abi.encode(
                 address(0), // address token,
@@ -171,6 +178,8 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
     function test_CannotBuyMoreTokensThanAvailableOrZero(uint nftAmount) public {
         vm.assume(nftAmount == 0 || nftAmount == 4);
 
+        deal(alice, 10 ether);
+
         uint vaultAddressUint = createPair.execute{value: 10 ether}(
             abi.encode(
                 address(0), // address token,
@@ -202,6 +211,8 @@ contract SudoswapTest is FloorTest, IERC721Receiver {
     }
 
     function test_CannotBuyWithInsufficientBalance() public {
+        deal(alice, 10 ether);
+
         uint vaultAddressUint = createPair.execute{value: 10 ether}(
             abi.encode(
                 address(0), // address token,

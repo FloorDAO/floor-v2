@@ -39,7 +39,7 @@ contract DeploymentScript is Script {
      */
     function requireDeployment(string memory key) internal view returns (address payable) {
         // @dev This will raise an error if it cannot be read
-        bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), 'deployments');
+        bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), '.deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
 
         // Try to store our deployment address

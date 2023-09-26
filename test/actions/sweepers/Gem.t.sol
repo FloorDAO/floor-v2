@@ -29,6 +29,9 @@ contract GemSweeperTest is FloorTest {
     GemSweeper action;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Send this address as the {Treasury} parameter so we can see what comes back
         action = new GemSweeper();
         action.setGemSwapContract(payable(TARGET));

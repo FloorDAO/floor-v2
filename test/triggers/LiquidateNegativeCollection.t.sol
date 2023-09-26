@@ -27,6 +27,7 @@ import {Treasury} from '@floor/Treasury.sol';
 import {INftStaking} from '@floor-interfaces/staking/NftStaking.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
+import {PricingExecutorMock} from '../mocks/PricingExecutor.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract LiquidateNegativeCollectionTest is FloorTest {
@@ -67,6 +68,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
     address bob;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Define our strategy implementation
         address strategyImplementation = address(new DistributedRevenueStakingStrategy(address(authorityRegistry)));
 
@@ -129,8 +133,12 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         revenueStrategy = DistributedRevenueStakingStrategy(_strategy);
 
+        // Set up our mock pricing executor
+        PricingExecutorMock pricingExecutorMock = new PricingExecutorMock();
+
         // Register our epoch end trigger that stores our liquidation
         liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
+            address(pricingExecutorMock),
             address(sweepWars),
             address(strategyFactory),
             address(revenueStrategy),
@@ -149,6 +157,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
         // Set up shorthand for our test users
         (alice, bob) = (users[0], users[1]);
+
+        // Set a low price multiplier as we have high address values
+        pricingExecutorMock.setPriceMultiplier(1);
     }
 
     function setUp() public {
@@ -198,6 +209,9 @@ contract LiquidateNegativeCollectionTest is FloorTest {
          * Collection 3 : -4
          * Floor Token  : -2
          */
+
+        // Set slippsge to allow for bad returns as we are using a mock price executor
+        liquidateNegativeCollectionTrigger.setSlippage(100_000);
 
         epochManager.endEpoch();
 

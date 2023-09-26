@@ -36,6 +36,9 @@ contract SushiswapRemoveLiquidityTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up a floor migration contract
         addAction = new SushiswapAddLiquidity(UNISWAP_ROUTER);
         action = new SushiswapRemoveLiquidity(UNISWAP_ROUTER, UNISWAP_FACTORY);

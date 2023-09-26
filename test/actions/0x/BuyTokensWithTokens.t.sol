@@ -30,6 +30,9 @@ contract ZeroXBuyTokensWithTokensTest is FloorTest {
     address treasury;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up a test address to be our {Treasury}
         treasury = users[1];
 
@@ -73,6 +76,8 @@ contract ZeroXBuyTokensWithTokensTest is FloorTest {
     }
 
     function test_CanBuyTokensWithEth() external {
+        vm.deal(treasury, 10 ether);
+
         vm.startPrank(treasury);
         uint received = action.execute{value: 10 ether}(
             abi.encode(
@@ -84,7 +89,7 @@ contract ZeroXBuyTokensWithTokensTest is FloorTest {
         vm.stopPrank();
 
         assertEq(received, 2818252655420925357752);
-        assertEq(IERC20(WETH).balanceOf(treasury), 9000000000000000000);
+        assertEq(IERC20(WETH).balanceOf(treasury), 9 ether);
         assertEq(IERC20(BUY_TOKEN).balanceOf(treasury), received);
     }
 

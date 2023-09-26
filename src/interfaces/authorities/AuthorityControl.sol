@@ -6,6 +6,9 @@ interface IAuthorityControl {
     /// CollectionManager - Can approve token addresses to be allowed to be used in strategies
     function COLLECTION_MANAGER() external returns (bytes32);
 
+    /// EpochTrigger - Can run epoch trigger contract specific logic
+    function EPOCH_TRIGGER() external returns (bytes32);
+
     /// FloorManager - Can mint and manage Floor and VeFloor tokens
     function FLOOR_MANAGER() external returns (bytes32);
 

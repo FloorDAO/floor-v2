@@ -25,7 +25,7 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
-import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
+import {EpochManager, EpochTimelocked} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, Treasury} from '@floor/Treasury.sol';
 
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
@@ -80,6 +80,9 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     StrategyRegistry strategyRegistry;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Create our test users
         alice = users[0];
 
@@ -252,7 +255,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         // Mock our vaults response (our {StrategyFactory} has a hardcoded address(8) when we
         // set up the {Treasury} contract).
         address[] memory vaults = new address[](vaultCount);
-        address payable[] memory stakers = utilities.createUsers(maxStakerCount);
+        createUsers(maxStakerCount);
 
         // Keep a linear track ID so that we can have the same token output from multiple
         // strategies
@@ -306,7 +309,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
             // Each staker will then deposit and vote
             for (uint j; j < tracker % 8; ++j) {
                 // Cast votes from this user for the vault collection
-                vm.prank(stakers[j]);
+                vm.prank(users[j]);
                 sweepWars.vote(collection, int(((tracker % 10) + 1) * 1 ether));
             }
         }

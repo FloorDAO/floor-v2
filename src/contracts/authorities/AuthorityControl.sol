@@ -37,6 +37,9 @@ contract AuthorityControl is Context, IAuthorityControl {
     /// CollectionManager - Can approve token addresses to be allowed to be used in strategies
     bytes32 public constant COLLECTION_MANAGER = keccak256('CollectionManager');
 
+    /// EpochTrigger - Can run epoch trigger contract specific logic
+    bytes32 public constant EPOCH_TRIGGER = keccak256('EpochTrigger');
+
     /// FloorManager - Can mint and manage Floor and VeFloor tokens
     bytes32 public constant FLOOR_MANAGER = keccak256('FloorManager');
 

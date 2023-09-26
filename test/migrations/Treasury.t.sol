@@ -28,6 +28,9 @@ contract MigrateFloorTokenTest is FloorTest {
      *
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our {Floor} token
         FLOOR floor = new FLOOR(address(authorityRegistry));
 

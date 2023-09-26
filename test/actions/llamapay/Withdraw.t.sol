@@ -29,6 +29,9 @@ contract LlamaPayWithdrawTest is FloorTest {
     LlamapayWithdraw action;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our LlamaPay Router
         llamapayRouter = new LlamapayRouter(LLAMAPAY_CONTRACT);
 

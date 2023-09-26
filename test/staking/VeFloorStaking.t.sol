@@ -26,6 +26,9 @@ contract VeFloorStakingTest is FloorTest {
     VeFloorStaking veFloor;
 
     constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Map our test user(s)
         alice = users[0];
 

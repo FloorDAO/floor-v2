@@ -43,6 +43,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     /// Mapping of collection to strategy addresses
     mapping(address => address[]) internal _collectionStrategies;
 
+    /// Stores a list of bypassed strategies
+    mapping(address => bool) internal _bypassStrategy;
+
     /**
      * Store our registries, mapped to their interfaces.
      *
@@ -164,6 +167,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         onlyRole(STRATEGY_MANAGER)
         returns (address[] memory tokens, uint[] memory amounts)
     {
+        // Prevent a bypassed strategy from snapshotting
+        if (_bypassStrategy[strategyIds[_strategyId]]) {
+            return (tokens, amounts);
+        }
+
         (tokens, amounts) = IBaseStrategy(strategyIds[_strategyId]).snapshot();
         emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
     }
@@ -176,6 +184,8 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _strategyId Strategy ID to be harvested
      */
     function harvest(uint _strategyId) external onlyRole(STRATEGY_MANAGER) {
+        if (_bypassStrategy[strategyIds[_strategyId]]) return;
+
         IBaseStrategy(strategyIds[_strategyId]).harvest(treasury);
     }
 
@@ -193,6 +203,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _data Strategy withdraw function call, using `encodeWithSelector`
      */
     function withdraw(uint _strategyId, bytes calldata _data) external onlyRole(STRATEGY_MANAGER) {
+        // If we are bypassing the strategy, then skip this call
+        if (_bypassStrategy[strategyIds[_strategyId]]) return;
+
         // Extract the selector from data
         bytes4 _selector = bytes4(_data);
 
@@ -221,14 +234,31 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     function withdrawPercentage(address _strategy, uint _percentage)
         external
         onlyRole(STRATEGY_MANAGER)
-        returns (address[] memory, uint[] memory)
+        returns (address[] memory tokens_, uint[] memory amounts_)
     {
         // Ensure our percentage is valid (less than 100% to 2 decimal places)
         require(_percentage > 0, 'Invalid percentage');
         require(_percentage <= 100_00, 'Invalid percentage');
 
+        // Prevent a bypassed strategy from parsing withdrawal calculations
+        if (_bypassStrategy[_strategy]) {
+            return (tokens_, amounts_);
+        }
+
         // Calls our strategy to withdraw a percentage of the holdings
         return IBaseStrategy(_strategy).withdrawPercentage(msg.sender, _percentage);
+    }
+
+    /**
+     * Allow a strategy to be skipped when being processing. This is beneficial if a
+     * strategy becomes corrupted at an external point and would otherwise prevent an
+     * epoch from ending.
+     *
+     * @dev This does not shutdown the strategy as it can be undone. If a strategy wants
+     * to wind down, then it should also be paused and a full withdraw made.
+     */
+    function bypassStrategy(address _strategy, bool _bypass) external onlyRole(STRATEGY_MANAGER) {
+        _bypassStrategy[_strategy] = _bypass;
     }
 
     /**

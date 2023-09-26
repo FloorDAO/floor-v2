@@ -133,8 +133,9 @@ contract PopulateContractEvents is DeploymentScript {
         */
 
 
-        address WALLET = 0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348;
+        // address WALLET = 0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348;
 
+        /*
         // Set up a mock erc20
         ERC20Mock erc20Mock = new ERC20Mock();
         erc20Mock.setDecimals(18);
@@ -160,12 +161,13 @@ contract PopulateContractEvents is DeploymentScript {
 
         // Secure test address
         address testAddress = 0x498E93Bc04955fCBAC04BCF1a3BA792f01Dbaa96; // twade.eth
-
+        */
 
         /**
          * src/contracts/Treasury.sol
          */
 
+        /*
         console.log('TREASURY');
 
         {
@@ -233,12 +235,13 @@ contract PopulateContractEvents is DeploymentScript {
 
             treasury.processAction(payable(address(action)), approvals, abi.encode(WALLET, 0.01 ether), 0);
         }
-
+        */
 
         /**
          * src/contracts/authorities/AuthorityRegistry.sol
          */
 
+        /*
         {
             console.log('AUTHORITY CONTROL / REGISTRY');
 
@@ -251,33 +254,33 @@ contract PopulateContractEvents is DeploymentScript {
             // emit RoleRevoked(role, account, _msgSender());
             authorityRegistry.revokeRole(authorityControl.COLLECTION_MANAGER(), testAddress);
         }
-
+        */
 
         /**
          * src/contracts/staking/VeFloorStaking.sol
          */
 
         {
-            console.log('VE FLOOR STAKING');
+            // console.log('VE FLOOR STAKING');
 
-            VeFloorStaking staking = VeFloorStaking(requireDeployment('VeFloorStaking'));
+            // VeFloorStaking staking = VeFloorStaking(requireDeployment('VeFloorStaking'));
 
             // emit FeeReceiverSet(feeReceiver_);
-            staking.setFeeReceiver(staking.feeReceiver());
+            // staking.setFeeReceiver(staking.feeReceiver());
 
             // emit MaxLossRatioSet(maxLossRatio_);
-            staking.setMaxLossRatio(staking.maxLossRatio());
+            // staking.setMaxLossRatio(90_0000000);
 
             // emit MinLockPeriodRatioSet(minLockPeriodRatio_);
-            staking.setMinLockPeriodRatio(0);
+            // staking.setMinLockPeriodRatio(0);
 
             // emit EmergencyExitSet(emergencyExit_);
-            staking.setEmergencyExit(false);
+            // staking.setEmergencyExit(false);
 
             // emit Deposit(account, amount);
             // Requires floor held in the account for this call
-            treasury.floor().approve(address(staking), type(uint).max);
-            staking.deposit(1 ether, 3);
+            // treasury.floor().approve(address(staking), type(uint).max);
+            // staking.deposit(1 ether, 3);
 
             // emit Withdraw(msg.sender, balance);
             // TODO: Cannot run due to timelock: staking.earlyWithdraw(0, 1 ether);
@@ -288,7 +291,8 @@ contract PopulateContractEvents is DeploymentScript {
          * src/contracts/voting/NewCollectionWars.sol
          */
 
-         console.log('NEW COLLECTION WARS');
+        /*
+        console.log('NEW COLLECTION WARS');
 
         NewCollectionWars newCollectionWars = NewCollectionWars(requireDeployment('NewCollectionWars'));
 
@@ -304,12 +308,13 @@ contract PopulateContractEvents is DeploymentScript {
             _floorPrices[2] = 3 ether;
             newCollectionWars.createFloorWar(1, _collections, _isErc1155, _floorPrices);
         }
-
+        */
 
         /**
          * src/contracts/voting/SweepWars.sol
          */
 
+        /*
         {
             console.log('SWEEP WARS');
 
@@ -327,29 +332,29 @@ contract PopulateContractEvents is DeploymentScript {
             // Cast vote again so that we have content for epoch sweep
             sweepWars.vote(address(erc721Mock), 1 ether);
         }
-
+        */
 
         /**
          * src/contracts/strategies/StrategyFactory.sol
          */
 
         {
-            console.log('STRATEGY');
+            // console.log('STRATEGY');
 
-            StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
+            // StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
+            // strategyFactory.pause(6, true);
 
             // emit StrategyCreated(strategyId_, strategyAddr_, _collection);
-            strategyFactory.deployStrategy(
-                'Mock Strategy',
-                requireDeployment('RevenueStakingStrategy'),
-                _strategyData(),
-                address(erc721Mock)
-            );
+            // strategyFactory.deployStrategy(
+            //     'Mock Strategy',
+            //     requireDeployment('RevenueStakingStrategy'),
+            //     _strategyData(),
+            //     address(erc721Mock)
+            // );
 
             // emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
             // This should be tested when endEpoch is called.
         }
-
 
         /**
          * src/contracts/EpochManager.sol
@@ -367,11 +372,11 @@ contract PopulateContractEvents is DeploymentScript {
             epochManager.endEpoch();
         }
 
-
         /**
          * src/contracts/voting/NewCollectionWars.sol
          */
 
+        /*
         {
             console.log('NEW COLLECTION WAR VOTING');
 
@@ -386,12 +391,13 @@ contract PopulateContractEvents is DeploymentScript {
             newCollectionWars.optionVote(WALLET, 1, address(erc721Mock), 1 ether);
             newCollectionWars.setOptionsContract(address(0));
         }
-
+        */
 
         /**
          * src/contracts/Treasury.sol
          */
 
+        /*
         {
             console.log('SWEEP EPOCH');
 
@@ -409,6 +415,7 @@ contract PopulateContractEvents is DeploymentScript {
             // emit EpochSwept(epochIndex);
             treasury.sweepEpoch(0, address(manualSweeper), '', 0);
         }
+        */
 
         /**
          * src/contracts/strategies/NFTXLiquidityPoolStakingStrategy.sol
@@ -451,8 +458,8 @@ contract PopulateContractEvents is DeploymentScript {
         console.log('COLLECTION UNAPPROVE');
 
         // emit CollectionRevoked(contractAddr);
-        CollectionRegistry collectionRegistry = CollectionRegistry(requireDeployment('CollectionRegistry'));
-        collectionRegistry.unapproveCollection(address(erc721Mock));
+        // CollectionRegistry collectionRegistry = CollectionRegistry(requireDeployment('CollectionRegistry'));
+        // collectionRegistry.unapproveCollection(address(erc721Mock));
 
 
         /**

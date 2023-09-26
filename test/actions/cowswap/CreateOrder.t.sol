@@ -25,6 +25,9 @@ contract CowSwapCreateOrderTest is FloorTest {
     CowSwapCreateOrder action;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our action contract
         action = new CowSwapCreateOrder(SETTLEMENT_CONTRACT, WETH);
 

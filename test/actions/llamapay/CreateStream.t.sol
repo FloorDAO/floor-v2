@@ -31,6 +31,9 @@ contract LlamaPayCreateStreamTest is FloorTest {
     LlamapayRouter llamapayRouter;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our recipient test user
         alice = users[1];
         bob = users[2];

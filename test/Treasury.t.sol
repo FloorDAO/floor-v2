@@ -20,7 +20,7 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
-import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
+import {EpochManager, EpochTimelocked} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
@@ -66,6 +66,9 @@ contract TreasuryTest is FloorTest {
     MercenarySweeperMock mercenarySweeperMock;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 
@@ -298,9 +301,10 @@ contract TreasuryTest is FloorTest {
      * This should emit {Withdraw}.
      */
     function test_CanWithdrawNativeToken(uint depositAmount, uint withdrawAmount) public {
+        deal(alice, depositAmount);
+
         // The deposit amount must be >= the withdraw amount, but less than Alice's ETH balance
         vm.assume(depositAmount >= withdrawAmount);
-        vm.assume(depositAmount <= address(alice).balance);
 
         // Capture Alice's starting ETH balance
         uint aliceStartAmount = address(alice).balance;
@@ -329,6 +333,8 @@ contract TreasuryTest is FloorTest {
      * This should not emit {Withdraw}.
      */
     function test_CannotWithdrawNativeTokenWithoutPermissions() public {
+        deal(alice, 10 ether);
+
         // Send the {Treasury} 10ETH from Alice
         vm.prank(alice);
         (bool sent,) = address(treasury).call{value: 10 ether}('');
@@ -772,6 +778,8 @@ contract TreasuryTest is FloorTest {
      * standards to be approved to test that logic also.
      */
     function test_CanCallAction() public {
+        deal(alice, 100 ether);
+
         // Send some native token to the Treasury contract
         vm.prank(alice);
         (bool sent,) = address(treasury).call{value: 50 ether}('');

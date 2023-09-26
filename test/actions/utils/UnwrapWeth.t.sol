@@ -22,6 +22,9 @@ contract UnwrapWethTest is FloorTest {
     uint internal constant BLOCK_NUMBER = 16_134_863;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up a test address to be our {Treasury}
         treasury = users[1];
 

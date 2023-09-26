@@ -40,7 +40,10 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     // Set some constants for our test tokens
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         // Create our {EpochManager}
@@ -477,5 +480,48 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(strategy.epochYield(1), 0 ether);
         assertEq(strategy.epochYield(2), 25 ether);
         assertEq(strategy.epochYield(3), 0 ether);
+    }
+
+    /**
+     * Test that we cannot exploit the `setMaxEpochYield` function to withdraw
+     * multiple times during the same epoch.
+     */
+    function test_CannotExploitSetMaxEpochYield() external {
+        // Make a deposit of 70 ether into the strategy as we will need to test that the
+        // amount is reallocated correctly. This will split to 20/20/20/10.
+        vm.startPrank(testUser);
+        IERC20(WETH).approve(address(strategy), 70 ether);
+        strategy.depositErc20(70 ether);
+        vm.stopPrank();
+
+        // For the purposes of this test, we set the {Treasury} to this test contract so
+        // that we can easily monitor the receipt of WETH.
+        strategyFactory.setTreasury(address(this));
+
+        // Shift our epoch 1 forward and change the distribution
+        setCurrentEpoch(address(epochManager), 1);
+
+        // Confirm that we have WETH available to claim
+        (, uint[] memory amounts) = strategy.available();
+        assertEq(amounts[0], 20 ether);
+
+        // Withdraw the yield and then set the max epoch yield again
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
+
+        // Confirm that we no longer have the yield available
+        (, amounts) = strategy.available();
+        assertEq(amounts[0], 0);
+
+        strategy.setMaxEpochYield(15 ether);
+
+        // Confirm that we still don't have WETH available after setting a new max yield
+        (, amounts) = strategy.available();
+        assertEq(amounts[0], 0);
+
+        // Whilst in the same epoch, try to withdraw again. This won't revert, but will
+        // not give us any additional WETH.
+        assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector));
+        assertEq(IERC20(WETH).balanceOf(address(this)), 20 ether);
     }
 }

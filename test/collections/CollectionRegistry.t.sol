@@ -29,6 +29,11 @@ contract CollectionRegistryTest is FloorTest {
     address internal DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address internal SHIB = 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE;
 
+    constructor() {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
+
     /**
      * Deploys our CollectionRegistry. We don't set up any approved
      * collections at this point, as we want to allow tests to have

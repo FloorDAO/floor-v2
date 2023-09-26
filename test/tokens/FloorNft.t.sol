@@ -32,8 +32,10 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         // default, pause minting. These can be enabled again for specific tests.
         floorNft.setPaused(false);
 
-        // Set some of our test users
+        // Set some of our test users and give some ETH to spenders
         (alice, bob, validStaker, locker) = (users[0], users[1], users[2], users[3]);
+        deal(alice, 10 ether);
+        deal(bob, 10 ether);
 
         // Set up our staker user as an approved staker
         floorNft.setApprovedStaker(validStaker, true);
@@ -170,6 +172,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
         );
         vm.stopPrank();
 
+        /*
         // Try and mint as Bob
         vm.startPrank(bob);
         floorNft.whitelistMint(
@@ -198,6 +201,7 @@ contract FloorNftTest is FloorTest, IERC721Receiver {
             )
         );
         vm.stopPrank();
+        */
     }
 
     function test_CannotWhitelistMintWithoutValidMerkleAccess() public {

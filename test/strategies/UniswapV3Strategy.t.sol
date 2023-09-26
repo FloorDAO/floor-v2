@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import {Test} from 'forge-std/Test.sol';
+
 import {ERC20Mock} from './../mocks/erc/ERC20Mock.sol';
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -18,6 +20,11 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
 
 import {FloorTest} from '../utilities/Environments.sol';
 
+
+/**
+ * @dev This is defined as {Test} rather than {FloorTest} as there was a Foundry
+ * bug with the block fork that was causing the contracts to read incorrectly.
+ */
 contract UniswapV3StrategyTest is FloorTest {
     /// The mainnet contract address of our Uniswap Position Manager
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -50,17 +57,18 @@ contract UniswapV3StrategyTest is FloorTest {
      * Sets up our mainnet fork and register our action contract.
      */
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Deploy our strategy implementation
         strategyImplementation = address(new UniswapV3Strategy());
 
         // Define a treasury wallet address that we can test against
         treasury = users[1];
 
-        // Create our {CollectionRegistry} and approve our collection
+        // Create our {CollectionRegistry} and approve our collections
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
-        // Approve our ERC721 collection
         collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5);
-        // Approve our ERC1155 collection
         collectionRegistry.approveCollection(0x73DA73EF3a6982109c4d5BDb0dB9dd3E3783f313);
 
         // Create our {StrategyRegistry} and approve our implementation
@@ -450,5 +458,57 @@ contract UniswapV3StrategyTest is FloorTest {
         strategyFactory.withdraw(
             strategyId, abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, uint128(liquidity / 4))
         );
+    }
+
+    /**
+     * If a deposit has not been made against the strategy, then making other
+     * function calls that depend on a token may raise an exception if they
+     * hit Uniswap. For this reason, we need to ensure that our functions don't
+     * raise exceptions if they are called before that deposit is made and the
+     * pool token is minted.
+     */
+    function test_CanCallFunctionsWithoutTokenId() public {
+        // Strategy
+        (address[] memory tokens_, uint[] memory amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A);
+        assertEq(tokens_[1], TOKEN_B);
+        assertEq(amounts_[0], 0);
+        assertEq(amounts_[1], 0);
+
+        (uint token0Amount, uint token1Amount, uint128 liquidity) = strategy.tokenBalances();
+        assertEq(token0Amount, 0);
+        assertEq(token1Amount, 0);
+        assertEq(liquidity, 0);
+
+        (tokens_) = strategy.validTokens();
+        assertEq(tokens_[0], TOKEN_A);
+        assertEq(tokens_[1], TOKEN_B);
+
+        (tokens_, amounts_) = strategy.totalRewards();
+        assertEq(tokens_[0], TOKEN_A);
+        assertEq(tokens_[1], TOKEN_B);
+        assertEq(amounts_[0], 0);
+        assertEq(amounts_[1], 0);
+
+        // Strategy Factory
+        (tokens_, amounts_) = strategyFactory.snapshot(strategyId, 0);
+        assertEq(tokens_[0], TOKEN_A);
+        assertEq(tokens_[1], TOKEN_B);
+        assertEq(amounts_[0], 0);
+        assertEq(amounts_[1], 0);
+
+        // No return value, just need to ensure that it can run
+        strategyFactory.harvest(strategyId);
+
+        // No return value, just need to ensure that it can run
+        strategyFactory.withdraw(
+            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, 0)
+        );
+
+        (tokens_, amounts_) = strategyFactory.withdrawPercentage(address(strategy), 50_00);
+        assertEq(tokens_[0], TOKEN_A);
+        assertEq(tokens_[1], TOKEN_B);
+        assertEq(amounts_[0], 0);
+        assertEq(amounts_[1], 0);
     }
 }

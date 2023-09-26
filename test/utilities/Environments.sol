@@ -9,33 +9,21 @@ import {AuthorityRegistry} from '@floor/authorities/AuthorityRegistry.sol';
 
 import {IEpochManager} from '@floor-interfaces/EpochManager.sol';
 
-import {Utilities} from '../utilities/Utilities.sol';
-
 contract FloorTest is Test {
     using stdStorage for StdStorage;
-
-    uint mainnetFork;
 
     AuthorityControl authorityControl;
     AuthorityRegistry authorityRegistry;
 
-    Utilities utilities;
     address payable[] users;
 
     /// Store our deployer address
     address constant DEPLOYER = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
-
-    /// Store an underlying token that has sufficient liquidity in Uniswap. Most tests will
-    /// use the mocked pricing executor which will automatically pass, or it won't be set
-    /// in the collection registry so it will be bypassed, but this is just easier.
-    address constant SUFFICIENT_LIQUIDITY_COLLECTION = 0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3;
+    bytes32 internal nextUser = keccak256(abi.encodePacked('user address'));
 
     constructor() {
-        // Set up our utilities class
-        utilities = new Utilities();
-
         // Set up a small pool of test users
-        users = utilities.createUsers(5, 100 ether);
+        createUsers(5);
 
         // Label our users
         vm.label(users[0], 'Alice');
@@ -43,7 +31,9 @@ contract FloorTest is Test {
         vm.label(users[2], 'Carol');
         vm.label(users[3], 'David');
         vm.label(users[4], 'Earl');
+    }
 
+    function _deployAuthority() internal {
         // Set up our authority registry
         authorityRegistry = new AuthorityRegistry();
 
@@ -58,10 +48,11 @@ contract FloorTest is Test {
      */
     modifier forkBlock(uint blockNumber) {
         // Generate a mainnet fork
-        mainnetFork = vm.createFork(vm.rpcUrl('mainnet'));
+        uint mainnetFork = vm.createFork(vm.rpcUrl('mainnet'));
 
         // Select our fork for the VM
         vm.selectFork(mainnetFork);
+        assertEq(vm.activeFork(), mainnetFork);
 
         // Set our block ID to a specific, test-suitable number
         vm.rollFork(blockNumber);
@@ -110,5 +101,27 @@ contract FloorTest is Test {
 
         // Confirm that the current epoch has been correctly updated
         assertEq(IEpochManager(epochManager).currentEpoch(), epoch);
+    }
+
+    /**
+     * Variation of our createUsers functions that does not require labels or
+     * an `initialFund`, but instead just defaults to give 100 ether.
+     */
+    function createUsers(uint userNum) public {
+        for (uint i = 0; i < userNum; ++i) {
+            // Add the user to our return array
+            address payable user = getNextUserAddress();
+            users.push(user);
+        }
+    }
+
+    /**
+     * Generates a new user address that we can use.
+     */
+    function getNextUserAddress() private returns (address payable) {
+        // bytes32 to address conversion
+        address payable user = payable(address(uint160(uint(nextUser) + users.length)));
+        nextUser = keccak256(abi.encodePacked(nextUser));
+        return user;
     }
 }

@@ -18,7 +18,7 @@ import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
 import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
-import {EpochManager, EpochTimelocked, NoPricingExecutorSet} from '@floor/EpochManager.sol';
+import {EpochManager, EpochTimelocked} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
 
 import {ERC1155Mock} from '../mocks/erc/ERC1155Mock.sol';
@@ -73,6 +73,9 @@ contract NewCollectionWarsTest is FloorTest {
     uint[] floorPrices;
 
     constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         // Set up our mock pricing executor
         pricingExecutorMock = new PricingExecutorMock();
 
@@ -173,8 +176,8 @@ contract NewCollectionWarsTest is FloorTest {
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
 
         /* Allows our trigger and the epoch manager to end a floor war */
-        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
-        authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));
+        authorityRegistry.grantRole(authorityControl.EPOCH_TRIGGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.EPOCH_TRIGGER(), address(epochManager));
 
         // Grant Alice and Bob plenty of veFLOOR tokens to play with
         floor.mint(alice, 200 ether);
@@ -717,7 +720,7 @@ contract NewCollectionWarsTest is FloorTest {
     function test_CannotEndFloorWarWithoutPermissions() external {
         // Make our call as a user without permissions
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.COLLECTION_MANAGER()));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.EPOCH_TRIGGER()));
         newCollectionWars.endFloorWar();
         vm.stopPrank();
     }

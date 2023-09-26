@@ -42,7 +42,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     /// Set up a {Treasury} contract address
     address treasury;
 
-    constructor() forkBlock(BLOCK_NUMBER) {}
+    constructor() forkBlock(BLOCK_NUMBER) {
+        // Deploy our authority contracts
+        super._deployAuthority();
+    }
 
     function setUp() public {
         // Set up our strategy implementation
@@ -363,7 +366,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // The redeemed NFT would normally be pseudo-random, but as we have a hard fork of
         // the block, we should see it to be the same each time.
-        assertEq(IERC721(strategy.assetAddress()).ownerOf(9643), treasury);
+        assertEq(IERC721(strategy.assetAddress()).ownerOf(8360), treasury);
 
         vm.stopPrank();
     }
@@ -392,10 +395,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // Confirm our account has a balance of the erc721 token
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 1), 1);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 2), 1);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 7), 1);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 13), 1);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 1), 0);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 2), 0);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 7), 13);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 13), 56);
 
         // Build our token ID array
         uint[] memory tokenIds = new uint[](2);
@@ -413,10 +416,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // Confirm that the ERC721s are now held by the vault
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 1), 0);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 2), 0);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 7), 1);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 13), 1);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 1), 1);
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 2), 1);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 7), 13);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 13), 56);
 
         // The amount of xToken returned to the strategy is less than 1, because this uses
         // xToken share value. This is expected to be variable and less that the depositted
@@ -447,9 +450,9 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // The redeemed NFT would normally be pseudo-random, but as we have a hard fork of
         // the block, we should see it to be the same each time.
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 7), 1);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(treasury, 7), 1);
-        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 7), 12);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 13), 1);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(treasury, 13), 1);
+        assertEq(IERC1155(_strategy.assetAddress()).balanceOf(_strategy.underlyingToken(), 13), 55);
 
         vm.stopPrank();
     }

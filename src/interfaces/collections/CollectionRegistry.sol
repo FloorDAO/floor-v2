@@ -16,9 +16,6 @@ interface ICollectionRegistry {
     /// Emitted when a collection has been successfully revoked
     event CollectionRevoked(address contractAddr);
 
-    /// Emitted when the pricing executor is updated
-    event PricingExecutorUpdated(address pricingExecutor);
-
     /**
      * Returns `true` if the contract address is an approved collection, otherwise
      * returns `false`.
