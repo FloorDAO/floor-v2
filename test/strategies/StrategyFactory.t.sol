@@ -14,6 +14,7 @@ import {StrategyNotApproved} from '@floor/utils/Errors.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
+import {RevertingStrategy} from '../mocks/RevertingStrategy.sol';
 import {SweepWarsMock} from '../mocks/SweepWars.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -205,5 +206,42 @@ contract StrategyFactoryTest is FloorTest {
         strategyFactory.deployStrategy('Test Strategy 1', approvedStrategy, _strategyInitBytes(), approvedCollection);
 
         vm.stopPrank();
+    }
+
+    function test_CanBypassRevertingStrategy() public {
+        // Deploy our reverting strategy
+        RevertingStrategy strategy = new RevertingStrategy();
+
+        // Approve our strategy to be used and deployed
+        strategyRegistry.approveStrategy(address(strategy), true);
+
+        // We can deploy the strategy
+        (uint strategyId, address strategyAddr) = strategyFactory.deployStrategy('Reverting Strategy', address(strategy), _strategyInitBytes(), approvedCollection);
+
+        // We can confirm that the calls we expect will now revert
+        vm.expectRevert('error code 1');
+        strategyFactory.snapshot(strategyId, 0);
+        vm.expectRevert('error code 2');
+        strategyFactory.harvest(strategyId);
+        vm.expectRevert('error code 3');
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
+        vm.expectRevert('error code 4');
+        strategyFactory.withdrawPercentage(strategyAddr, 20_00);
+
+        // Bypass the strategy in the factory
+        strategyFactory.bypassStrategy(strategyAddr, true);
+
+        // Now make the calls again and confirm that they no longer revert
+        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.harvest(strategyId);
+        strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
+        strategyFactory.withdrawPercentage(strategyAddr, 20_00);
+
+        // Then un-bypass the strategy to confirm that we can
+        strategyFactory.bypassStrategy(strategyAddr, false);
+
+        // .. and we should go back to reverting as before
+        vm.expectRevert('error code 1');
+        strategyFactory.snapshot(strategyId, 0);
     }
 }
