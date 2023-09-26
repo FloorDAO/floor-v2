@@ -231,7 +231,7 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered,
      * @param _slippage New slippage percentage
      */
     function setSlippage(uint _slippage) public onlyOwner {
-        require(_slippage < 100_000, 'Slippage too high');
+        require(_slippage <= 100_000, 'Slippage too high');
         slippage = _slippage;
     }
 }
