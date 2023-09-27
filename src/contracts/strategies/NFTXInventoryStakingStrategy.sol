@@ -143,6 +143,9 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         // Push tokens out
         stakingZap.provideInventory721(vaultId, tokenIds);
+
+        // Update our deposits as a whole token
+        deposits += tokensLength * 1 ether;
     }
 
     function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
@@ -154,6 +157,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         // Push tokens out
         stakingZap.provideInventory1155(vaultId, tokenIds, amounts);
+
+        // Increase our deposits based on the number of tokens transferred
+        uint amountsLength = amounts.length;
+        for (uint i; i < amountsLength;) {
+            deposits += amounts[i] * 1 ether;
+            unchecked { ++i; }
+        }
     }
 
     /**
@@ -222,12 +232,9 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Transfer the received token to the caller
         IERC20(underlyingToken).safeTransfer(recipient, amount_);
 
-        unchecked {
-            deposits -= amount_;
-
-            // We can now reduce the users position and total position held by the strategy
-            position[yieldToken] -= amount;
-        }
+        // We can now reduce the users position and total position held by the strategy
+        deposits -= amount_;
+        position[yieldToken] -= amount;
 
         // Fire an event to show amount of token claimed and the recipient
         emit Withdraw(underlyingToken, amount_, recipient);
@@ -259,9 +266,11 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         _nftReceiver = _recipient;
 
         // Get the start balance of the expected _partial token to receive if requested
-        uint startTokenBalance;
+        uint startUnderlyingTokenBalance;
+        uint startYieldTokenBalance;
         if (_partial != 0) {
-            startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+            startUnderlyingTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+            startYieldTokenBalance = IERC20(yieldToken).balanceOf(address(this));
         }
 
         // Unstake our ERC721's and partial remaining tokens
@@ -274,10 +283,19 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // this over.
         if (_partial > 0) {
             // Find the new balance of the tokens that we are withdrawing
-            uint transferBalance = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
-            if (transferBalance != 0) {
-                IERC20(underlyingToken).safeTransfer(_recipient, transferBalance);
+            uint underlyingBalanceChange = IERC20(underlyingToken).balanceOf(address(this)) - startUnderlyingTokenBalance;
+            uint yieldBalanceChange = startYieldTokenBalance - IERC20(yieldToken).balanceOf(address(this));
+
+            if (underlyingBalanceChange != 0) {
+                IERC20(underlyingToken).safeTransfer(_recipient, underlyingBalanceChange);
             }
+
+            // We can now reduce the users position and total position held by the strategy
+            deposits -= underlyingBalanceChange;
+            position[yieldToken] -= yieldBalanceChange;
+
+            // Fire an event to show amount of token claimed and the recipient
+            emit Withdraw(underlyingToken, underlyingBalanceChange, _recipient);
         }
     }
 
