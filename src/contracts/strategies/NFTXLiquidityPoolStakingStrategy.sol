@@ -253,7 +253,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(underlyingToken, amount_, msg.sender);
+        emit Withdraw(underlyingToken, amount_, recipient);
     }
 
     /**
