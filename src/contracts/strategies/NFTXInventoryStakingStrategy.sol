@@ -128,7 +128,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         inventoryStaking.deposit(vaultId, amount);
     }
 
-    function depositErc721(uint[] calldata tokenIds) external updatesPosition(yieldToken) {
+    function depositErc721(uint[] calldata tokenIds) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
         // Pull tokens in
         uint tokensLength = tokenIds.length;
         for (uint i; i < tokensLength;) {
@@ -145,7 +145,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         stakingZap.provideInventory721(vaultId, tokenIds);
     }
 
-    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external updatesPosition(yieldToken) {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
@@ -159,11 +159,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /**
      * Withdraws an amount of our position from the NFTX strategy.
      *
+     * @dev Implements `nonReentrant` through `_withdrawErc20`
+     *
      * @param amount Amount of yield token to withdraw
      *
      * @return amount_ Amount of the underlying token returned
      */
-    function withdrawErc20(address recipient, uint amount) external nonReentrant onlyOwner returns (uint amount_) {
+    function withdrawErc20(address recipient, uint amount) external onlyOwner returns (uint amount_) {
         // Prevent users from trying to claim nothing
         if (amount == 0) {
             revert CannotWithdrawZeroAmount();
@@ -172,7 +174,34 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         return _withdrawErc20(recipient, amount);
     }
 
-    function _withdrawErc20(address recipient, uint amount) internal returns (uint amount_) {
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @dev Implements `nonReentrant` through `_withdrawErc20`
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
+        // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
+        // of the token.
+        uint amount = (position[yieldToken] * percentage) / 100_00;
+
+        // Set up our return arrays
+        tokens_ = new address[](1);
+        tokens_[0] = yieldToken;
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        amounts_ = new uint[](1);
+        amounts_[0] = _withdrawErc20(recipient, amount);
+    }
+
+    function _withdrawErc20(address recipient, uint amount) internal nonReentrant returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
         if (amount > position[yieldToken]) {
             revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
@@ -204,15 +233,25 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         emit Withdraw(underlyingToken, amount_, recipient);
     }
 
-    function withdrawErc721(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
+    /**
+     * Withdraws an ERC721 token from the Inventory position. This will be pseudo-random.
+     *
+     * @dev Implements `nonReentrant` through `_unstakeInventory`
+     */
+    function withdrawErc721(address _recipient, uint _numNfts, uint _partial) external onlyOwner {
         _unstakeInventory(_recipient, _numNfts, _partial);
     }
 
-    function withdrawErc1155(address _recipient, uint _numNfts, uint _partial) external nonReentrant onlyOwner {
+    /**
+     * Withdraws an ERC1155 token from the Inventory position. This will be pseudo-random.
+     *
+     * @dev Implements `nonReentrant` through `_unstakeInventory`
+     */
+    function withdrawErc1155(address _recipient, uint _numNfts, uint _partial) external onlyOwner {
         _unstakeInventory(_recipient, _numNfts, _partial);
     }
 
-    function _unstakeInventory(address _recipient, uint _numNfts, uint _partial) internal {
+    function _unstakeInventory(address _recipient, uint _numNfts, uint _partial) internal nonReentrant {
         // Before we can withdraw, we need to allow the contract to manage our ERC20
         IERC20(yieldToken).approve(address(unstakingZap), type(uint).max);
 
@@ -277,31 +316,6 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         address[] memory tokens_ = new address[](1);
         tokens_[0] = underlyingToken;
         return tokens_;
-    }
-
-    /**
-     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
-     *
-     * @param recipient Recipient of the withdrawal
-     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
-     */
-    function withdrawPercentage(address recipient, uint percentage)
-        external
-        override
-        onlyOwner
-        returns (address[] memory tokens_, uint[] memory amounts_)
-    {
-        // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
-        // of the token.
-        uint amount = (position[yieldToken] * percentage) / 100_00;
-
-        // Set up our return arrays
-        tokens_ = new address[](1);
-        tokens_[0] = yieldToken;
-
-        // Call our internal {withdrawErc20} function to move tokens to the caller
-        amounts_ = new uint[](1);
-        amounts_[0] = _withdrawErc20(recipient, amount);
     }
 
     /**
