@@ -258,6 +258,12 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Set our NFT receiver so that our safe transfer will pass it on
         _nftReceiver = _recipient;
 
+        // Get the start balance of the expected _partial token to receive if requested
+        uint startTokenBalance;
+        if (_partial != 0) {
+            startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        }
+
         // Unstake our ERC721's and partial remaining tokens
         unstakingZap.unstakeInventory(vaultId, _numNfts, _partial);
 
@@ -267,7 +273,11 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // If we have requested `_partial` token to be returned, then we need to send
         // this over.
         if (_partial > 0) {
-            IERC20(underlyingToken).safeTransfer(_recipient, _partial - 1);
+            // Find the new balance of the tokens that we are withdrawing
+            uint transferBalance = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+            if (transferBalance != 0) {
+                IERC20(underlyingToken).safeTransfer(_recipient, transferBalance);
+            }
         }
     }
 
