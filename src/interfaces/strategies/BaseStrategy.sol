@@ -21,7 +21,7 @@ interface IBaseStrategy {
     event Harvest(address token, uint amount);
 
     /// @dev When a staked user exits their position
-    event Withdraw(address token, uint amount, address caller);
+    event Withdraw(address token, uint amount, address recipient);
 
     /**
      * Allows the strategy to be initialised.
