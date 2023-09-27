@@ -106,7 +106,13 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
      *
      * @return amount_ Amount of yield token returned from NFTX
      */
-    function depositErc20(uint amount) external nonReentrant whenNotPaused updatesPosition(yieldToken) returns (uint amount_) {
+    function depositErc20(uint amount)
+        external
+        nonReentrant
+        whenNotPaused
+        updatesPosition(yieldToken)
+        returns (uint amount_)
+    {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
@@ -129,7 +135,13 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
     }
 
-    function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn) external updatesPosition(yieldToken) refundsWeth {
+    function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn)
+        external
+        nonReentrant
+        whenNotPaused
+        updatesPosition(yieldToken)
+        refundsWeth
+    {
         // Pull tokens in
         uint tokensLength = tokenIds.length;
         for (uint i; i < tokensLength;) {
@@ -152,6 +164,8 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
     function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts, uint minWethIn, uint wethIn)
         external
+        nonReentrant
+        whenNotPaused
         updatesPosition(yieldToken)
         refundsWeth
     {
@@ -172,11 +186,13 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /**
      * Withdraws an amount of our position from the NFTX strategy.
      *
+     * @dev Implements `nonReentrant` through `_withdrawErc20`
+     *
      * @param amount Amount of yield token to withdraw
      *
      * @return amount_ Amount of the underlying token returned
      */
-    function withdrawErc20(address recipient, uint amount) external nonReentrant onlyOwner returns (uint amount_) {
+    function withdrawErc20(address recipient, uint amount) external onlyOwner returns (uint) {
         // Prevent users from trying to claim nothing
         if (amount == 0) {
             revert CannotWithdrawZeroAmount();
@@ -185,7 +201,30 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         return _withdrawErc20(recipient, amount);
     }
 
-    function _withdrawErc20(address recipient, uint amount) internal returns (uint amount_) {
+    /**
+     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
+     *
+     * @param recipient Recipient of the withdrawal
+     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
+     */
+    function withdrawPercentage(address recipient, uint percentage)
+        external
+        override
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
+        // Get the total amount of underlyingToken that has been deposited. From that, take
+        // the percentage of the token.
+        uint amount = (position[yieldToken] * percentage) / 100_00;
+
+        tokens_ = this.validTokens();
+
+        // Call our internal {withdrawErc20} function to move tokens to the caller
+        amounts_ = new uint[](1);
+        amounts_[0] = _withdrawErc20(recipient, amount);
+    }
+
+    function _withdrawErc20(address recipient, uint amount) internal nonReentrant returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
         if (amount > position[yieldToken]) {
             revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
@@ -253,29 +292,6 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         emit Harvest(yieldToken, amounts[0]);
-    }
-
-    /**
-     * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
-     *
-     * @param recipient Recipient of the withdrawal
-     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
-     */
-    function withdrawPercentage(address recipient, uint percentage)
-        external
-        override
-        onlyOwner
-        returns (address[] memory tokens_, uint[] memory amounts_)
-    {
-        // Get the total amount of underlyingToken that has been deposited. From that, take
-        // the percentage of the token.
-        uint amount = (position[yieldToken] * percentage) / 100_00;
-
-        tokens_ = this.validTokens();
-
-        // Call our internal {withdrawErc20} function to move tokens to the caller
-        amounts_ = new uint[](1);
-        amounts_[0] = _withdrawErc20(recipient, amount);
     }
 
     /**
