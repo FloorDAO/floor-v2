@@ -1,8 +1,9 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
 forge-std/=lib/forge-std/src/
-@openzeppelin/=lib/openzeppelin-contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin-upgradeable/=lib/openzeppelin-contracts-upgradeable/
+@openzeppelin/=lib/openzeppelin-contracts/
 @uniswap/=lib/
 @chainlink/=lib/chainlink/
 @murky/=lib/murky/src/
@@ -16,3 +17,4 @@ forge-std/=lib/forge-std/src/
 @floor-scripts/=script/
 @ERC721A/=lib/ERC721A/contracts/
 foundry-random=lib/foundry-random/src/
+lssvm2=lib/lssvm2/src/

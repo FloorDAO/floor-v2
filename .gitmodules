@@ -45,3 +45,6 @@
 	path = lib/foundry-random
 	url = https://github.com/joejordan/foundry-random
 	branch = v1.0.2
+[submodule "lib/lssvm2"]
+	path = lib/lssvm2
+	url = https://github.com/sudoswap/lssvm2
