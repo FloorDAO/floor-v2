@@ -7,6 +7,7 @@ import {LSSVMPairETH} from 'lssvm2/LSSVMPairETH.sol';
 import {LSSVMPairERC20} from 'lssvm2/LSSVMPairERC20.sol';
 import {GDACurve} from 'lssvm2/bonding-curves/GDACurve.sol';
 import {LSSVMPairFactory, IERC721, IERC1155, ILSSVMPairFactoryLike} from 'lssvm2/LSSVMPairFactory.sol';
+import {IPropertyChecker} from 'lssvm2/property-checking/IPropertyChecker.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
@@ -24,24 +25,48 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  */
 contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
 
-    /// ..
+    /// External Sudoswap contracts
     LSSVMPairFactory public immutable pairFactory;
-
-    /// ..
     GDACurve public immutable gdaCurve;
 
-    /// ..
+    /// Contract that will detect valid NFT properties
+    SudoswapSweeperPropertyChecker public propertyChecker;
+
+    /// The address of our {Treasury} that will receive assets
     address payable immutable treasury;
 
-    /// ..
+    /// A mapping of our collections to their sweeper pool, allowing us to update
+    /// and deposit additional ETH over time.
     mapping (address => address) public sweeperPools;
+
+    /// Controls how fast the price decays
+    uint internal constant alphaAndLambda = type(uint16).max;
+
+    /// Our initial spot price is set as a low value that builds over time. This
+    /// amount should be below floor of our lowest asset.
+    uint128 initialSpotPrice = 0.1 ether;
 
     /**
      * Defines our immutable contracts.
      */
-    constructor(address payable _treasury, address payable _pairFactory, address _gdaCurve) {
+    constructor(
+        address payable _treasury,
+        address payable _pairFactory,
+        address _gdaCurve,
+        address _propertyChecker
+    ) {
+        // Ensure
         if (_treasury == address(0) || _pairFactory == address(0) || _gdaCurve == address(0)) {
             revert CannotSetNullAddress();
+        }
+
+        // Deploy our broad property checker if a different property checker
+        // contract has not been specified.
+        if (_propertyChecker == address(0)) {
+            propertyChecker = new SudoswapSweeperPropertyChecker();
+        }
+        else {
+            propertyChecker = SudoswapSweeperPropertyChecker(_propertyChecker);
         }
 
         treasury = _treasury;
@@ -49,25 +74,19 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
         gdaCurve = GDACurve(_gdaCurve);
     }
 
-    /// ..
-    function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata data)
+    /**
+     * Deposits ETH into a Sudoswap pool position to purchase ERC721 tokens over time. This
+     * uses a GDA curve to gradually increase the offered price over time.
+     *
+     * @dev This execution does not support ERC1155
+     */
+    function execute(address[] calldata collections, uint[] calldata amounts, bytes calldata /* data */)
         external
         payable
         override
         nonReentrant
         returns (string memory)
     {
-        // TODO: dafuq is this?
-        uint alphaAndLambda;
-        address propertyChecker;
-
-        // Add support to `data` the defines 721 / 1155
-        (bool[] memory is1155) = abi.decode(data, (bool[]));
-
-        // TODO: Does the GDA Curve max out at the ETH balance in pool? Does it work
-        // on a timestamp basis or would it just restart when addition ETH supplied?
-        uint128 initialSpotPrice = 0.1 ether;
-
         // Loop through collections
         for (uint i; i < collections.length; ++i) {
             // Check if a sweeper pool already exists. If it doesn't then we need
@@ -77,38 +96,34 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                 uint128 delta = (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp));
 
                 LSSVMPair pair;
-                if (is1155[i] == false) {
-                    pair = pairFactory.createPairERC721ETH{value: amounts[i]}({
-                        _nft: IERC721(collections[i]),
-                        _bondingCurve: gdaCurve,
-                        _assetRecipient: treasury,
-                        _poolType: LSSVMPair.PoolType.TOKEN,
-                        _delta: delta,
-                        _fee: 0,
-                        _spotPrice: initialSpotPrice,
-                        _propertyChecker: propertyChecker,
-                        _initialNFTIDs: empty
-                    });
-                } else {
-                    pair = pairFactory.createPairERC1155ETH{value: msg.value}({
-                        _nft: IERC1155(collections[i]),
-                        _bondingCurve: gdaCurve,
-                        _assetRecipient: treasury,
-                        _poolType: LSSVMPair.PoolType.TOKEN,
-                        _delta: delta,
-                        _fee: 0,
-                        _spotPrice: initialSpotPrice,
-                        _nftId: 0, // TODO: Can only supply a single ERC1155 token ID?
-                        _initialNFTBalance: 0
-                    });
-                }
+                pair = pairFactory.createPairERC721ETH{value: amounts[i]}(
+                    IERC721(collections[i]),  // _nft
+                    gdaCurve,                 // _bondingCurve
+                    treasury,                 // _assetRecipient
+                    LSSVMPair.PoolType.TOKEN, // _poolType
+                    delta,                    // _delta
+                    0,                        // _fee
+                    initialSpotPrice,         // _spotPrice
+                    address(propertyChecker), // _propertyChecker
+                    empty                     // _initialNFTIDs
+                );
 
                 sweeperPools[collections[i]] = address(pair);
             }
             // If the sweeper _does_ already exist, then we can just fund it with
             // additional ETH.
             else {
-                // TODO: Do we need to alter the delta at this point?
+                // When we provide additional ETH, we need to reset the spot price and delta
+                // to ensure that we aren't sweeping above market price.
+                uint currentSpotPrice = LSSVMPair(sweeperPools[collections[i]]).spotPrice();
+                uint currentBalance = payable(sweeperPools[collections[i]]).balance;
+
+                if (currentSpotPrice > currentBalance) {
+                    LSSVMPair(sweeperPools[collections[i]]).changeSpotPrice(uint128(currentBalance));
+                    LSSVMPair(sweeperPools[collections[i]]).changeDelta(
+                        (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp))
+                    );
+                }
 
                 // Deposit ETH to pair
                 (bool sent,) = sweeperPools[collections[i]].call{value: amounts[i]}('');
@@ -126,10 +141,11 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
      *
      * @dev This will be run as a {Treasury} {Action}.
      */
-    function endSweep(address recipient, address pool) public onlyOwner {
-        // LSSVMPairETH(payable(address(pair))).withdrawETH(amount);
-        // recipient.safeTransferETH(amount);
-        // emit WithdrawETH(pair, amount, recipient);
+    function endSweep(address recipient, address payable pool) public onlyOwner {
+        LSSVMPairETH(pool).withdrawETH(payable(pool).balance);
+
+        (bool sent,) = recipient.call{value: payable(address(this)).balance}('');
+        if (!sent) revert TransferFailed();
     }
 
     /**
@@ -138,9 +154,17 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     function permissions() public pure override returns (bytes32) {
         return '';
     }
+}
 
-    /**
-     * Allows our contract to receive dust ETH back from our sweep.
-     */
-    receive() external payable {}
+/**
+ * Defines a broad property that allows any properties to be swept in our process. This
+ * contract will be deployed and used if a specific property checker is not defined when
+ * deploying the {SudoswapSweeper} contract.
+ */
+contract SudoswapSweeperPropertyChecker is IPropertyChecker {
+
+    function hasProperties(uint256[] calldata /* ids */, bytes calldata /* params */) external pure returns (bool) {
+        return true;
+    }
+
 }
