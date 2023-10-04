@@ -30,17 +30,18 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     GDACurve public immutable gdaCurve;
 
     /// Contract that will detect valid NFT properties
-    SudoswapSweeperPropertyChecker public propertyChecker;
+    address public immutable propertyChecker;
 
     /// The address of our {Treasury} that will receive assets
     address payable immutable treasury;
 
     /// A mapping of our collections to their sweeper pool, allowing us to update
     /// and deposit additional ETH over time.
-    mapping (address => address) public sweeperPools;
+    mapping (address => address payable) public sweeperPools;
 
     /// Controls how fast the price decays
-    uint internal constant alphaAndLambda = type(uint16).max;
+    // uint80 internal constant alphaAndLambda = 132039004365459280618771543;
+    uint internal alphaAndLambda;
 
     /// Our initial spot price is set as a low value that builds over time. This
     /// amount should be below floor of our lowest asset.
@@ -60,18 +61,14 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
             revert CannotSetNullAddress();
         }
 
-        // Deploy our broad property checker if a different property checker
-        // contract has not been specified.
-        if (_propertyChecker == address(0)) {
-            propertyChecker = new SudoswapSweeperPropertyChecker();
-        }
-        else {
-            propertyChecker = SudoswapSweeperPropertyChecker(_propertyChecker);
-        }
-
         treasury = _treasury;
         pairFactory = LSSVMPairFactory(_pairFactory);
         gdaCurve = GDACurve(_gdaCurve);
+        propertyChecker = _propertyChecker;
+
+        // alpha = bound(alpha, 1e9 + 1, 2e9);
+        // lambda = bound(lambda, 0, type(uint40).max);
+        alphaAndLambda = uint80(((1.05e9) << 40) + 2e9);
     }
 
     /**
@@ -95,8 +92,7 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                 uint[] memory empty;
                 uint128 delta = (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp));
 
-                LSSVMPair pair;
-                pair = pairFactory.createPairERC721ETH{value: amounts[i]}(
+                LSSVMPair pair = pairFactory.createPairERC721ETH{value: amounts[i]}(
                     IERC721(collections[i]),  // _nft
                     gdaCurve,                 // _bondingCurve
                     treasury,                 // _assetRecipient
@@ -104,11 +100,11 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                     delta,                    // _delta
                     0,                        // _fee
                     initialSpotPrice,         // _spotPrice
-                    address(propertyChecker), // _propertyChecker
+                    propertyChecker,          // _propertyChecker
                     empty                     // _initialNFTIDs
                 );
 
-                sweeperPools[collections[i]] = address(pair);
+                sweeperPools[collections[i]] = payable(address(pair));
             }
             // If the sweeper _does_ already exist, then we can just fund it with
             // additional ETH.
@@ -116,7 +112,7 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                 // When we provide additional ETH, we need to reset the spot price and delta
                 // to ensure that we aren't sweeping above market price.
                 uint currentSpotPrice = LSSVMPair(sweeperPools[collections[i]]).spotPrice();
-                uint currentBalance = payable(sweeperPools[collections[i]]).balance;
+                uint currentBalance = sweeperPools[collections[i]].balance;
 
                 if (currentSpotPrice > currentBalance) {
                     LSSVMPair(sweeperPools[collections[i]]).changeSpotPrice(uint128(currentBalance));
@@ -141,10 +137,10 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
      *
      * @dev This will be run as a {Treasury} {Action}.
      */
-    function endSweep(address recipient, address payable pool) public onlyOwner {
+    function endSweep(address payable pool) public onlyOwner {
         LSSVMPairETH(pool).withdrawETH(payable(pool).balance);
 
-        (bool sent,) = recipient.call{value: payable(address(this)).balance}('');
+        (bool sent,) = treasury.call{value: payable(address(this)).balance}('');
         if (!sent) revert TransferFailed();
     }
 
@@ -154,17 +150,9 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     function permissions() public pure override returns (bytes32) {
         return '';
     }
-}
 
-/**
- * Defines a broad property that allows any properties to be swept in our process. This
- * contract will be deployed and used if a specific property checker is not defined when
- * deploying the {SudoswapSweeper} contract.
- */
-contract SudoswapSweeperPropertyChecker is IPropertyChecker {
-
-    function hasProperties(uint256[] calldata /* ids */, bytes calldata /* params */) external pure returns (bool) {
-        return true;
-    }
-
+    /**
+     * Allow the contract to receive ETH back during the `endSweep` call.
+     */
+    receive() external payable {}
 }
