@@ -54,13 +54,13 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
     function test_CanCreateErc721Pool() public {
         // Confirm that the sweeper pool mapping does not currently exist
-        assertEq(sweeper.sweeperPools(address(mock721)), address(0));
+        assertEq(address(sweeper.sweeperPools(address(mock721))), address(0));
 
         // Create a mock 721 sweep with 20 ether allocated to the pool
         _singleCollectionExecute(address(mock721), 20 ether);
 
         // The mapping should now be set
-        assertEq(sweeper.sweeperPools(address(mock721)), 0x42a2C8c73Cab9e0b948b0C96393711B8bCFbF90d);
+        assertEq(address(sweeper.sweeperPools(address(mock721))), 0x42a2C8c73Cab9e0b948b0C96393711B8bCFbF90d);
 
         // Confirm that the pool is set up as expected
         LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
@@ -156,6 +156,41 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         assertEq(royaltyAmount, 5094400000000000000);
     }
 
+    function test_PoolSpotPriceReducesAfterEthDeposit() public {
+        // Create our collection that we will sell into. This funding amount will
+        // be below the initial spot price
+        _singleCollectionExecute(address(mock721), 0.05 ether);
+
+        // Define our pair contract
+        LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
+
+        // Our output amount will be above the actual funds in the pool, meaning the
+        // trade cannot be completed. The reduced dust amount is for the protocol fee.
+        (,,, uint outputAmount,,) = pair.getSellNFTQuote(0, 1);
+        assertEq(outputAmount, 0.0995 ether);
+
+        // Skip forward a week to increase the output amount further
+        skip(1 weeks);
+
+        // If we now deposit some additional ETH into the pool, we need the initial
+        // spot price to be reduced again to mean that ongoing increases won't be
+        // exploitable.
+        _singleCollectionExecute(address(mock721), 100 ether);
+
+        // With this in mind, our output amount should now be back at the initial
+        // ether balance before the addition. Again, there is a reduced dust amount
+        // for the protocol fee.
+        (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
+        assertEq(outputAmount, 0.04975 ether);
+
+        // If we make another deposit after a short time now, we need to ensure that
+        // the price does not increase to the maximum threshold.
+        skip(4 weeks);
+        _singleCollectionExecute(address(mock721), 10 ether);
+        (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
+        assertEq(outputAmount, 50.944 ether);
+    }
+
     function test_CanReceiveEthFromErc721Pool() public {
         // Create our collection that we will sell into
         _singleCollectionExecute(address(mock721), 20 ether);
@@ -207,7 +242,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         uint startBalance = ASSET_RECIPIENT.balance;
 
         // Now we want to remove the ether from the pool
-        sweeper.endSweep(sweeper.sweeperPools(address(mock721)));
+        sweeper.endSweep(address(mock721));
 
         // Confirm that the pool now has no ether balance
         assertEq(payable(address(pair)).balance, 0);

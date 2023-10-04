@@ -37,15 +37,15 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
 
     /// A mapping of our collections to their sweeper pool, allowing us to update
     /// and deposit additional ETH over time.
-    mapping (address => address payable) public sweeperPools;
+    mapping (address => LSSVMPairETH) public sweeperPools;
 
     /// Controls how fast the price decays
     // uint80 internal constant alphaAndLambda = 132039004365459280618771543;
-    uint internal alphaAndLambda;
+    uint80 internal immutable alphaAndLambda;
 
     /// Our initial spot price is set as a low value that builds over time. This
     /// amount should be below floor of our lowest asset.
-    uint128 initialSpotPrice = 0.1 ether;
+    uint128 public constant initialSpotPrice = 0.1 ether;
 
     /**
      * Defines our immutable contracts.
@@ -88,41 +88,33 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
         for (uint i; i < collections.length; ++i) {
             // Check if a sweeper pool already exists. If it doesn't then we need
             // to create it with sufficient ETH.
-            if (sweeperPools[collections[i]] == address(0)) {
-                uint[] memory empty;
-                uint128 delta = (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp));
-
-                LSSVMPair pair = pairFactory.createPairERC721ETH{value: amounts[i]}(
+            if (address(sweeperPools[collections[i]]) == address(0)) {
+                // Map our collection to a newly created pair
+                sweeperPools[collections[i]] = pairFactory.createPairERC721ETH{value: amounts[i]}(
                     IERC721(collections[i]),  // _nft
                     gdaCurve,                 // _bondingCurve
                     treasury,                 // _assetRecipient
                     LSSVMPair.PoolType.TOKEN, // _poolType
-                    delta,                    // _delta
+                    (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp)), // _delta
                     0,                        // _fee
                     initialSpotPrice,         // _spotPrice
                     propertyChecker,          // _propertyChecker
-                    empty                     // _initialNFTIDs
+                    new uint[](0)             // _initialNFTIDs
                 );
-
-                sweeperPools[collections[i]] = payable(address(pair));
             }
             // If the sweeper _does_ already exist, then we can just fund it with
             // additional ETH.
             else {
                 // When we provide additional ETH, we need to reset the spot price and delta
                 // to ensure that we aren't sweeping above market price.
-                uint currentSpotPrice = LSSVMPair(sweeperPools[collections[i]]).spotPrice();
-                uint currentBalance = sweeperPools[collections[i]].balance;
-
-                if (currentSpotPrice > currentBalance) {
-                    LSSVMPair(sweeperPools[collections[i]]).changeSpotPrice(uint128(currentBalance));
-                    LSSVMPair(sweeperPools[collections[i]]).changeDelta(
-                        (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp))
-                    );
+                LSSVMPairETH pair = sweeperPools[collections[i]];
+                if (pair.spotPrice() > payable(pair).balance) {
+                    pair.changeSpotPrice(uint128(payable(pair).balance));
+                    pair.changeDelta((uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp)));
                 }
 
                 // Deposit ETH to pair
-                (bool sent,) = sweeperPools[collections[i]].call{value: amounts[i]}('');
+                (bool sent,) = payable(pair).call{value: amounts[i]}('');
                 if (!sent) revert TransferFailed();
             }
         }
@@ -137,9 +129,11 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
      *
      * @dev This will be run as a {Treasury} {Action}.
      */
-    function endSweep(address payable pool) public onlyOwner {
-        LSSVMPairETH(pool).withdrawETH(payable(pool).balance);
+    function endSweep(address collection) public onlyOwner {
+        // Withdraw all ETH from the pool
+        sweeperPools[collection].withdrawAllETH();
 
+        // Transfer it to our Treasury
         (bool sent,) = treasury.call{value: payable(address(this)).balance}('');
         if (!sent) revert TransferFailed();
     }
