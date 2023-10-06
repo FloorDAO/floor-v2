@@ -45,6 +45,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Register our Sudoswap contract addresses
         address payable PAIR_FACTORY = payable(0xA020d57aB0448Ef74115c112D18a9C231CC86000);
         address GDA_CURVE = 0x1fD5876d4A3860Eb0159055a3b7Cb79fdFFf6B67;
+        gdaCurve = GDACurve(GDA_CURVE);
 
         // Deploy our sweeper contract
         sweeper = new SudoswapSweeper(ASSET_RECIPIENT, PAIR_FACTORY, GDA_CURVE);
@@ -121,6 +122,27 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Run our multicall to fund one pool and create both a royalty-enabled
         // and non-royalty pool.
         sweeper.execute{value: 65 ether}(collections, amounts, '');
+    }
+
+    function test_magicGDAValues() public {
+
+        uint256 inputValue;
+        uint128 spotPrice = 1 ether;
+
+        // Warp 1 day
+        vm.warp(24 hours + 1);
+
+        uint128 magicDelta20 = sweeper.getPackedDelta(1100000000, 11574, 1);
+        (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta20, 1, 0, 0);
+        assertApproxEqAbs(inputValue, spotPrice*2, spotPrice/10**4);
+
+        uint128 magicDelta15 = sweeper.getPackedDelta(1100000000, 6770, 1);
+        (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta15, 1, 0, 0);
+        assertApproxEqAbs(inputValue, spotPrice*3/2, spotPrice/10**4);
+
+        uint128 magicDelta13 = sweeper.getPackedDelta(1100000000, 4802, 1);
+        (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta13, 1, 0, 0);
+        assertApproxEqAbs(inputValue, spotPrice*4/3, spotPrice/10**3);
     }
 
     function test_PoolPriceUpdatesOverTime() public {

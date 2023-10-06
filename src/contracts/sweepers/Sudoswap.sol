@@ -72,6 +72,16 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
         setAlphaLambda(1.05e9, 0.00005e9);
     }
 
+    // Magic lambda for 2x increase or 50% decrease per day is when _lambda = 11574
+    // Magic lambda for 1.5x increase or 33% decrease per day is when _lambda = 6770
+    // Magic lambda for 1.33x increase or 25% decrease per day is when _lambda = 4802
+    function getPackedDelta(uint40 _alpha, uint40 _lambda, uint48 _time) public pure returns (uint128) {
+        return
+            ((uint128(_alpha) << 88)) |
+            ((uint128(_lambda) << 48)) |
+            uint128(_time);
+    }
+
     /**
      * Deposits ETH into a Sudoswap pool position to purchase ERC721 tokens over time. This
      * uses a GDA curve to gradually increase the offered price over time.
