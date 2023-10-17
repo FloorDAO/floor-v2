@@ -70,10 +70,17 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
      * @param index The Collection Addition array index
      */
     function scheduleCollectionAddtionEpoch(uint epoch, uint index) external {
+        // Ensure that only our {NewCollectionWars} contract can make this call
         require(msg.sender == address(newCollectionWars), 'Invalid caller');
+
+        // Set our new collection epoch
         collectionEpochs[epoch] = index;
 
-        // Handle Vote Market epoch increments
+        // If we have a {VoteMarket} contract set, then we need to increase the number
+        // of epochs of any bribes that overlap the new collection war epoch. This is
+        // done as only Sweep Wars utilise bribe logic and have a preset number of epochs
+        // covered at the point of creation, so by taking one of their epochs we append
+        // another to their bribe epoch window.
         if (address(voteMarket) != address(0)) {
             voteMarket.extendBribes(epoch);
         }
