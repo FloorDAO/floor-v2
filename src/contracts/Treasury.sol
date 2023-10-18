@@ -437,6 +437,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param _approved True to approve, False to unapprove
      */
     function approveSweeper(address _sweeper, bool _approved) external onlyRole(TREASURY_MANAGER) {
+        if (_sweeper == address(0)) revert CannotSetNullAddress();
         approvedSweepers[_sweeper] = _approved;
     }
 

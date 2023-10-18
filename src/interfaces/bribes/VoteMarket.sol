@@ -48,13 +48,13 @@ interface IVoteMarket {
 
     /// Store our claim merkles that define the available rewards for each user across
     /// all collections and bribes.
-    // function epochMerkles(uint epoch) external returns (bytes32);
+    function epochMerkles(uint epoch) external returns (bytes32);
 
     /// Stores a list of all bribes created, across past, live and future
-    // function bribes(uint index) external returns (Bribe memory);
+    function bribes(uint index) external returns (Bribe memory);
 
     /// A mapping of collection addresses to an array of bribe array indexes
-    // function collectionBribes(address) external returns (uint[] memory);
+    function collectionBribes(address) external returns (uint[] memory);
 
     /// Blacklisted addresses per bribe that aren't counted for rewards arithmetics.
     function isBlacklisted(uint bribeId, address account) external returns (bool);
@@ -85,6 +85,9 @@ interface IVoteMarket {
         address[] calldata blacklist
     ) external returns (uint newBribeID);
 
+    /**
+     * Claims against any bribes for a user.
+     */
     function claim(
         address account,
         uint[] calldata epoch,
@@ -94,6 +97,9 @@ interface IVoteMarket {
         bytes32[][] calldata merkleProof
     ) external;
 
+    /**
+     * Claims against all bribes in a collection for a user.
+     */
     function claimAll(
         address account,
         uint[] calldata epoch,
@@ -102,13 +108,39 @@ interface IVoteMarket {
         bytes32[][] calldata merkleProof
     ) external;
 
+    /**
+     * Allows the bribe creator to withdraw unclaimed funds when the claim window has expired.
+     *
+     * @param bribeId The bribe ID to be reclaimed
+     */
+    function reclaimExpiredFunds(uint bribeId) external;
+
+    /**
+     * Checks if the user has already claimed against a bribe at an epoch.
+     */
     function hasUserClaimed(uint bribeId, uint epoch) external view returns (bool);
 
+    /**
+     * Allows our oracle wallet to upload a merkle root to define claims available against
+     * a bribe when the epoch ends.
+     */
     function registerClaims(uint epoch, bytes32 merkleRoot, address[] calldata collections, uint[] calldata collectionVotes) external;
 
+    /**
+     * Sets our authorised oracle wallet that will upload bribe claims.
+     */
     function setOracleWallet(address _oracleWallet) external;
 
+    /**
+     * Allows our platform to increase the length of any sweep war bribes.
+     *
+     * @dev This will be called by the {EpochManager} when a New Collection War is created
+     * to extend the duration any Sweep War bribes that would be active at that epoch.
+     */
     function extendBribes(uint epoch) external;
 
+    /**
+     * Allows our oracle wallet to expire collection bribes when they have expired.
+     */
     function expireCollectionBribes(address[] calldata collection, uint[] calldata index) external;
 }

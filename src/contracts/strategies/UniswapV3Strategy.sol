@@ -151,6 +151,8 @@ contract UniswapV3Strategy is BaseStrategy {
     /**
      * Makes a withdrawal of both tokens from our Uniswap token position.
      *
+     * @dev Implements `nonReentrant` through `_withdraw`
+     *
      * @param recipient The recipient of the withdrawal
      * @param amount0Min The minimum amount of token0 that should be accounted for the burned liquidity
      * @param amount1Min The minimum amount of token1 that should be accounted for the burned liquidity
@@ -159,7 +161,6 @@ contract UniswapV3Strategy is BaseStrategy {
      */
     function withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity)
         external
-        nonReentrant
         onlyOwner
         returns (address[] memory tokens_, uint[] memory amounts_)
     {
@@ -168,6 +169,7 @@ contract UniswapV3Strategy is BaseStrategy {
 
     function _withdraw(address recipient, uint amount0Min, uint amount1Min, uint deadline, uint128 liquidity)
         internal
+        nonReentrant
         returns (address[] memory tokens_, uint[] memory amounts_)
     {
         // If we don't have a token ID created, then we want to prevent further
@@ -265,6 +267,8 @@ contract UniswapV3Strategy is BaseStrategy {
     /**
      * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
      *
+     * @dev Implements `nonReentrant` through `_withdraw`
+     *
      * @param recipient Recipient of the withdrawal
      * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
@@ -284,7 +288,7 @@ contract UniswapV3Strategy is BaseStrategy {
         return _withdraw(
             recipient,
             ((token0Amount * percentage / 100_00) * 95) / 100, // 5% slippage of amount
-            ((token1Amount * percentage / 100_00) - 95) / 100, // 5% slippage of amount
+            ((token1Amount * percentage / 100_00) * 95) / 100, // 5% slippage of amount
             block.timestamp,
             uint128((liquidity * percentage) / 100_00)
         );
