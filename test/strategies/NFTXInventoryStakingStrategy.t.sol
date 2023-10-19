@@ -75,8 +75,8 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
             strategyImplementation,
             abi.encode(
                 392, // _vaultId
-                0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _underlyingToken
-                0x5D1C5Dee420004767d3e2fb7AA7C75AA92c33117, // _yieldToken
+                0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _underlyingToken (vToken)
+                0x5D1C5Dee420004767d3e2fb7AA7C75AA92c33117, // _yieldToken (xToken)
                 0x3E135c3E981fAe3383A5aE0d323860a34CfAB893, // _inventoryStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
                 0x2374a32ab7b4f7BE058A69EA99cb214BFF4868d3 // _unstakingZap

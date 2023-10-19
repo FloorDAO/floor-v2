@@ -17,20 +17,28 @@ import {CannotSetNullAddress, TransferFailed} from '@floor/utils/Errors.sol';
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 
 /**
+ * Takes ETH and deposits it into individual pools against NFT collections. This allows
+ * the sale price to be put onto a curve, allowing external parties to sell into it with
+ * instant liquidity. When a purchase is made, the price will dip slightly and continue
+ * to rise.
  *
+ * When additional ETH is deposited against a pool that already exists it will reset the
+ * ETH price to the previously held ETH balance and then restart. This prevents the curve
+ * rising without sufficient ETH and then allowing for an over generous trade when more
+ * ETH is deposited.
  *
  * @dev Only the recipient can withdraw ETH. This would mean that it would have to
  * be the {Treasury} that makes the call. If this is the case, then we should be able
  * to run this via an {Action}. We will need to test this theory.
+ *
+ * @dev Alpha/lambda graphing calculator can be found here:
+ * https://www.desmos.com/calculator/03pdgzfpo4
  */
 contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
 
     /// External Sudoswap contracts
     LSSVMPairFactory public immutable pairFactory;
     GDACurve public immutable gdaCurve;
-
-    /// Contract that will detect valid NFT properties
-    address public immutable propertyChecker;
 
     /// The address of our {Treasury} that will receive assets
     address payable immutable treasury;
@@ -40,35 +48,28 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     mapping (address => LSSVMPairETH) public sweeperPools;
 
     /// Controls how fast the price decays
-    // uint80 internal constant alphaAndLambda = 132039004365459280618771543;
-    uint80 internal immutable alphaAndLambda;
+    uint80 internal alphaAndLambda;
 
     /// Our initial spot price is set as a low value that builds over time. This
     /// amount should be below floor of our lowest asset.
-    uint128 public constant initialSpotPrice = 0.1 ether;
+    uint128 public constant initialSpotPrice = 0.01 ether;
 
     /**
      * Defines our immutable contracts.
      */
-    constructor(
-        address payable _treasury,
-        address payable _pairFactory,
-        address _gdaCurve,
-        address _propertyChecker
-    ) {
-        // Ensure
+    constructor(address payable _treasury, address payable _pairFactory, address _gdaCurve) {
+        // Ensure that we don't reference null addresses
         if (_treasury == address(0) || _pairFactory == address(0) || _gdaCurve == address(0)) {
             revert CannotSetNullAddress();
         }
 
+        // Register our contracts
         treasury = _treasury;
         pairFactory = LSSVMPairFactory(_pairFactory);
         gdaCurve = GDACurve(_gdaCurve);
-        propertyChecker = _propertyChecker;
 
-        // alpha = bound(alpha, 1e9 + 1, 2e9);
-        // lambda = bound(lambda, 0, type(uint40).max);
-        alphaAndLambda = uint80(((1.05e9) << 40) + 2e9);
+        // Set our default alpha/lambda value
+        setAlphaLambda(1.05e9, 0.00005e9);
     }
 
     /**
@@ -98,7 +99,7 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                     (uint128(alphaAndLambda) << 48) + uint128(uint48(block.timestamp)), // _delta
                     0,                        // _fee
                     initialSpotPrice,         // _spotPrice
-                    propertyChecker,          // _propertyChecker
+                    address(0),               // _propertyChecker
                     new uint[](0)             // _initialNFTIDs
                 );
             }
@@ -143,6 +144,16 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
      */
     function permissions() public pure override returns (bytes32) {
         return '';
+    }
+
+    /**
+     *
+     */
+    function setAlphaLambda(uint alpha, uint lambda) public onlyOwner {
+        require(alpha > 1e9 && alpha <= 2e9);
+        require(lambda >= 0 && lambda <= type(uint40).max);
+
+        alphaAndLambda = uint80((alpha << 40) + lambda);
     }
 
     /**

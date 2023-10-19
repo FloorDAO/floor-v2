@@ -47,7 +47,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         address GDA_CURVE = 0x1fD5876d4A3860Eb0159055a3b7Cb79fdFFf6B67;
 
         // Deploy our sweeper contract
-        sweeper = new SudoswapSweeper(ASSET_RECIPIENT, PAIR_FACTORY, GDA_CURVE, address(0));
+        sweeper = new SudoswapSweeper(ASSET_RECIPIENT, PAIR_FACTORY, GDA_CURVE);
 
         alice = users[0];
     }
@@ -64,8 +64,8 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // Confirm that the pool is set up as expected
         LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
-        assertEq(pair.spotPrice(), 0.1 ether, 'Invalid spot price');
-        assertEq(pair.delta(), 324959260312975272114441422495994967, 'Invalid delta');
+        assertEq(pair.spotPrice(), 0.01 ether, 'Invalid spot price');
+        assertEq(pair.delta(), 324959260312412336234768946028794967, 'Invalid delta');
         assertEq(pair.fee(), 0, 'Invalid fee');
         assertEq(uint(pair.pairVariant()), 0, 'Invalid pair variant');
         assertEq(address(pair.bondingCurve()), address(sweeper.gdaCurve()), 'Invalid bonding curve');
@@ -77,10 +77,10 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // Confirm how the alpha / lambda affects a new purchase
         (, uint newSpotPrice, uint newDelta, uint inputAmount, uint protocolFee, uint royaltyAmount) = pair.getBuyNFTQuote(0, 1);
-        assertEq(newSpotPrice, 0.105 ether, 'Invalid new spot price');
-        assertEq(newDelta, 324959260312975272114441422495994967, 'Invalid new delta');
-        assertEq(inputAmount, 0.1005 ether, 'Invalid input amount');
-        assertEq(protocolFee, 0.0005 ether, 'Invalid protocol fee');
+        assertEq(newSpotPrice, 0.0105 ether, 'Invalid new spot price');
+        assertEq(newDelta, 324959260312412336234768946028794967, 'Invalid new delta');
+        assertEq(inputAmount, 0.01005 ether, 'Invalid input amount');
+        assertEq(protocolFee, 0.00005 ether, 'Invalid protocol fee');
         assertEq(royaltyAmount, 0, 'Invalid royalty amount');
 
         // Confirm that the ETH balance deposited is registered
@@ -132,28 +132,27 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // sell NFTs to pair
         (,,, uint outputAmount, uint protocolFee, uint royaltyAmount) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 94525000000000000);
-        assertEq(protocolFee, 500000000000000);
-        assertEq(royaltyAmount, 4975000000000000);
+        assertEq(outputAmount, 9452500000000000);
+        assertEq(protocolFee, 50000000000000);
+        assertEq(royaltyAmount, 497500000000000);
 
         // Wait for price change
-        skip(6 hours);
+        skip(1 hours);
 
         // sell NFTs to pair
         (,,, outputAmount, protocolFee, royaltyAmount) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 96793600000000000000);
-        assertEq(protocolFee, 512000000000000000);
-        assertEq(royaltyAmount, 5094400000000000000);
+        assertEq(outputAmount, 10708584925758532);
+        assertEq(protocolFee, 56644194264789);
+        assertEq(royaltyAmount, 563609732934659);
 
         // Wait for price change
         skip(12 hours);
 
         // sell NFTs to pair
-        // TODO: Why is this same price?
         (,,, outputAmount, protocolFee, royaltyAmount) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 96793600000000000000);
-        assertEq(protocolFee, 512000000000000000);
-        assertEq(royaltyAmount, 5094400000000000000);
+        assertEq(outputAmount, 47858256818016269);
+        assertEq(protocolFee, 253151318794055);
+        assertEq(royaltyAmount, 2518855622000856);
     }
 
     function test_PoolSpotPriceReducesAfterEthDeposit() public {
@@ -167,7 +166,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Our output amount will be above the actual funds in the pool, meaning the
         // trade cannot be completed. The reduced dust amount is for the protocol fee.
         (,,, uint outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 0.0995 ether);
+        assertEq(outputAmount, 0.00995 ether);
 
         // Skip forward a week to increase the output amount further
         skip(1 weeks);
@@ -181,14 +180,14 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // ether balance before the addition. Again, there is a reduced dust amount
         // for the protocol fee.
         (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 0.04975 ether);
+        assertEq(outputAmount, 10188800000000000000);
 
         // If we make another deposit after a short time now, we need to ensure that
         // the price does not increase to the maximum threshold.
         skip(4 weeks);
         _singleCollectionExecute(address(mock721), 10 ether);
         (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 50.944 ether);
+        assertEq(outputAmount, 10.1888 ether);
     }
 
     function test_CanReceiveEthFromErc721Pool() public {
@@ -229,6 +228,49 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // .. and Alice should now have the expected amount of ETH
         assertEq(payable(alice).balance - startBalance, outputAmount, 'Did not receive correct ETH');
+    }
+
+    /**
+     * If someone deposits dust, does it reset the curve or just the curve start point? We need
+     * to ensure that a user cannot just put in dust and reset the curve growth.
+     */
+    function test_CanHandleDustGriefing() public {
+        // We need to create 2 pools that will have the same growth and scale to compare
+        _singleCollectionExecute(address(mock721), 10 ether);
+        _singleCollectionExecute(address(mock721Alt), 10 ether);
+
+        // Define our 2 pairs
+        LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
+        LSSVMPair pairAlt = LSSVMPair(sweeper.sweeperPools(address(mock721Alt)));
+
+        // Move forward a small amount
+        skip(6 hours);
+
+        // Confirm that the 2 pools hold the same execution price
+        (, uint newSpotPrice, uint newDelta, uint inputAmount, uint protocolFee, uint royaltyAmount) = pair.getBuyNFTQuote(0, 1);
+        (, uint newSpotPriceAlt, uint newDeltaAlt, uint inputAmountAlt, uint protocolFeeAlt, uint royaltyAmountAlt) = pairAlt.getBuyNFTQuote(0, 1);
+
+        assertEq(newSpotPrice, newSpotPriceAlt);
+        assertEq(newDelta, newDeltaAlt);
+        assertEq(inputAmount, inputAmountAlt);
+        assertEq(protocolFee, protocolFeeAlt);
+        assertEq(royaltyAmount, royaltyAmountAlt);
+
+        // Make a small dust deposit into the alternate pool
+        _singleCollectionExecute(address(mock721Alt), 0.001 ether);
+
+        // Move time forward a little bit more
+        skip(6 weeks);
+
+        // Confirm that the 2 pools still hold the same execution price
+        (, newSpotPrice, newDelta, inputAmount, protocolFee, royaltyAmount) = pair.getBuyNFTQuote(0, 1);
+        (, newSpotPriceAlt, newDeltaAlt, inputAmountAlt, protocolFeeAlt, royaltyAmountAlt) = pairAlt.getBuyNFTQuote(0, 1);
+
+        assertEq(newSpotPrice, newSpotPriceAlt);
+        assertEq(newDelta, newDeltaAlt);
+        assertEq(inputAmount, inputAmountAlt);
+        assertEq(protocolFee, protocolFeeAlt);
+        assertEq(royaltyAmount, royaltyAmountAlt);
     }
 
     function test_CanWithdrawEthFromPool() public {
