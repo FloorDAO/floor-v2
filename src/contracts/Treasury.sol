@@ -248,7 +248,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      */
     function registerSweep(uint epoch, address[] calldata collections, uint[] calldata amounts, TreasuryEnums.SweepType sweepType)
         external
-        onlyRole(TREASURY_MANAGER)
+        onlyRole(EPOCH_TRIGGER)
     {
         // Ensure that the epoch does not already have a completed sweep registered
         require(!epochSweeps[epoch].completed, 'Epoch sweep already registered');
