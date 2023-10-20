@@ -296,9 +296,9 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
     }
 
     /**
-     * Ensure that someone cannot 
+     * Ensure that pools can correctly reset even after their balance is zeroed out
      */
-    function test_canHandleClearingOutEntirePoolBalance() public {
+    function test_CanHandleClearingOutEntirePoolBalance() public {
 
         // Mint ID 1 to the test
         mock721.mint(address(this), 1);
@@ -324,8 +324,48 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
 
         // Make a larger deposit of 10 ETH into the pool (intending to sweep more than 1 item)
-        // (This reverts because it sets spotPrice to 0, which is bad!)
+        // (This reverts because it sets spotPrice to 0)
         _singleCollectionExecute(address(mock721), 10 ether);
+    }
+
+        /**
+     * Ensure that pools can correctly reset even after their balance is zeroed out
+     */
+    function test_CanHandleInitialDustPools() public {
+
+        // Mint ID 1 to the test
+        mock721.mint(address(this), 1);
+
+        // Create a pool, seed with low amount
+        _singleCollectionExecute(address(mock721), 0.1 ether);
+
+        // Define the pair
+        LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
+
+        // Wait 7 days
+        skip(7 days);
+        (, , , uint outputAmount, uint256 protocolFeeAmount, uint256 royaltyAmount) = pair.getSellNFTQuote(0, 1);
+
+        // Make a larger deposit of 10 ETH into the pool (intending to sweep more than 1 item)
+        // No one has made a swap with the pool yet, so the spot price and scaling are not adjusted
+        _singleCollectionExecute(address(mock721), 10 ether);
+
+        // Swap 1 NFT for the entire 10 ETH balance
+        // Manually send in the excess ETH
+        if (outputAmount + protocolFeeAmount + royaltyAmount > address(pair).balance) {
+            uint256 ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
+            payable(address(pair)).call{value: ethDiff}('');
+        }
+
+        // Do the swap and take all 10 ETH for 1 NFT
+        mock721.setApprovalForAll(address(pair), true);
+        uint256[] memory id = new uint256[](1);
+        id[0] = 1;
+        pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
+
+        // We have zeroed out the pair for just 1 NFT
+        // (Not ideal!)
+        assertEq(address(pair).balance, 0);
     }
 
     function test_CanWithdrawEthFromPool() public {
