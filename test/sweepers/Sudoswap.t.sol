@@ -295,6 +295,39 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         assertEq(royaltyAmount, royaltyAmountAlt);
     }
 
+    /**
+     * Ensure that someone cannot 
+     */
+    function test_canHandleClearingOutEntirePoolBalance() public {
+
+        // Mint ID 1 to the test
+        mock721.mint(address(this), 1);
+
+        // Create a pool, seed with low amount
+        _singleCollectionExecute(address(mock721), 0.1 ether);
+
+        // Define the pair
+        LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
+
+        // Wait 7 days
+        skip(7 days);
+        (, , , uint outputAmount, uint256 protocolFeeAmount, uint256 royaltyAmount) = pair.getSellNFTQuote(0, 1);
+
+        // Manually send in the excess ETH so we can zero out the pair balance
+        uint256 ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
+        payable(address(pair)).call{value: ethDiff}('');
+
+        // Do the swap
+        mock721.setApprovalForAll(address(pair), true);
+        uint256[] memory id = new uint256[](1);
+        id[0] = 1;
+        pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
+
+        // Make a larger deposit of 10 ETH into the pool (intending to sweep more than 1 item)
+        // (This reverts because it sets spotPrice to 0, which is bad!)
+        _singleCollectionExecute(address(mock721), 10 ether);
+    }
+
     function test_CanWithdrawEthFromPool() public {
         // Create our collection pair with 20 ether to start
         _singleCollectionExecute(address(mock721), 20 ether);
@@ -324,4 +357,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         sweeper.execute{value: _amount}(collection, amount, '');
     }
+
+    // Take ETH
+    receive() payable external {}
 }
