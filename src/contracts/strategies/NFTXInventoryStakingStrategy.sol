@@ -35,10 +35,10 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     uint public vaultId;
 
     /// The underlying token will be the same as the address of the NFTX vault.
-    address public underlyingToken;
+    IERC20 public vToken;
 
     /// The reward yield will be a vault xToken as defined by the InventoryStaking contract.
-    address public yieldToken;
+    IERC20 public xToken;
 
     /// The ERC721 / ERC1155 token asset for the NFTX vault
     address public assetAddress;
@@ -50,7 +50,8 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     INFTXStakingZap public stakingZap;
     INFTXUnstakingInventoryZap public unstakingZap;
 
-    /// Track the amount of deposit token
+    /// Track the amount of deposit token, which in this instance will be recorded
+    /// as the received xToken, and not the initial vToken.
     uint public deposits;
 
     /// Stores the temporary recipient of any ERC721 and ERC1155 tokens that are received
@@ -74,8 +75,8 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Extract the NFTX information from our initialisation bytes data
         (
             uint _vaultId,
-            address _underlyingToken,
-            address _yieldToken,
+            address _vToken,
+            address _xToken,
             address _inventoryStaking,
             address _stakingZap,
             address _unstakingZap
@@ -83,17 +84,17 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         // Map our NFTX information
         vaultId = _vaultId;
-        underlyingToken = _underlyingToken;
-        yieldToken = _yieldToken;
+        vToken = IERC20(_vToken);
+        xToken = IERC20(_xToken);
         stakingZap = INFTXStakingZap(_stakingZap);
         unstakingZap = INFTXUnstakingInventoryZap(_unstakingZap);
         inventoryStaking = INFTXInventoryStaking(_inventoryStaking);
 
         // Set our ERC721 / ERC1155 token asset address
-        assetAddress = INFTXVault(_underlyingToken).assetAddress();
+        assetAddress = INFTXVault(_vToken).assetAddress();
 
         // Set the underlying token as valid to process
-        _validTokens[underlyingToken] = true;
+        _validTokens[_vToken] = true;
 
         // Transfer ownership to the caller
         _transferOwnership(msg.sender);
@@ -111,24 +112,27 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      *   - This deposit will be timelocked
      * - We receive xToken back to the strategy
      */
-    function depositErc20(uint amount) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
+    function depositErc20(uint amount) external nonReentrant whenNotPaused {
         // Prevent users from trying to deposit nothing
         if (amount == 0) {
             revert CannotDepositZeroAmount();
         }
 
         // Transfer the underlying token from our caller
-        IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
-        deposits += amount;
+        vToken.safeTransferFrom(msg.sender, address(this), amount);
 
         // Approve the NFTX contract against our underlying token
-        IERC20(underlyingToken).approve(address(inventoryStaking), amount);
+        vToken.approve(address(inventoryStaking), amount);
 
         // Deposit the token into the NFTX contract
         inventoryStaking.deposit(vaultId, amount);
+
+        // Increase the user's position and the total position for the strategy
+        deposits += amount;
+        emit Deposit(address(vToken), amount, msg.sender);
     }
 
-    function depositErc721(uint[] calldata tokenIds) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
+    function depositErc721(uint[] calldata tokenIds) external nonReentrant whenNotPaused {
         // Pull tokens in
         uint tokensLength = tokenIds.length;
         for (uint i; i < tokensLength;) {
@@ -144,11 +148,12 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Push tokens out
         stakingZap.provideInventory721(vaultId, tokenIds);
 
-        // Update our deposits as a whole token
-        deposits += tokensLength * 1 ether;
+        // Increase the user's position and the total position for the strategy
+        deposits += (tokensLength * 1 ether);
+        emit Deposit(address(vToken), (tokensLength * 1 ether), msg.sender);
     }
 
-    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external nonReentrant whenNotPaused updatesPosition(yieldToken) {
+    function depositErc1155(uint[] calldata tokenIds, uint[] calldata amounts) external nonReentrant whenNotPaused {
         // Pull tokens in
         IERC1155(assetAddress).safeBatchTransferFrom(msg.sender, address(this), tokenIds, amounts, '');
 
@@ -158,12 +163,15 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Push tokens out
         stakingZap.provideInventory1155(vaultId, tokenIds, amounts);
 
-        // Increase our deposits based on the number of tokens transferred
-        uint amountsLength = amounts.length;
-        for (uint i; i < amountsLength;) {
-            deposits += amounts[i] * 1 ether;
+        // Increase the user's position and the total position for the strategy
+        uint newDeposits;
+        for (uint i; i < tokenIds.length;) {
+            newDeposits += amounts[i];
             unchecked { ++i; }
         }
+
+        deposits += (newDeposits * 1 ether);
+        emit Deposit(address(vToken), (newDeposits * 1 ether), msg.sender);
     }
 
     /**
@@ -171,14 +179,14 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      *
      * @dev Implements `nonReentrant` through `_withdrawErc20`
      *
-     * @param amount Amount of yield token to withdraw
+     * @param amount Amount of yield token to withdraw defined in vToken
      *
      * @return amount_ Amount of the underlying token returned
      */
     function withdrawErc20(address recipient, uint amount) external onlyOwner returns (uint amount_) {
-        // Prevent users from trying to claim nothing
-        if (amount == 0) {
-            revert CannotWithdrawZeroAmount();
+        // Ensure our user has sufficient xToken balance to withdraw from
+        if (amount > deposits) {
+            revert InsufficientPosition(address(vToken), amount, deposits);
         }
 
         return _withdrawErc20(recipient, amount);
@@ -198,13 +206,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         onlyOwner
         returns (address[] memory tokens_, uint[] memory amounts_)
     {
-        // Get the total amount of underlyingToken that has been deposited. From that, take the percentage
-        // of the token.
-        uint amount = (position[yieldToken] * percentage) / 100_00;
+        // Get the total amount of xToken held by the strategy. From this we can reference
+        // the amount of vToken that is held.
+        uint amount = (deposits * percentage) / 100_00;
 
         // Set up our return arrays
         tokens_ = new address[](1);
-        tokens_[0] = yieldToken;
+        tokens_[0] = address(vToken);
 
         // Call our internal {withdrawErc20} function to move tokens to the caller
         amounts_ = new uint[](1);
@@ -212,32 +220,35 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     }
 
     function _withdrawErc20(address recipient, uint amount) internal nonReentrant returns (uint amount_) {
-        // Ensure our user has sufficient position to withdraw from
-        if (amount > position[yieldToken]) {
-            revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
+        // Prevent users from trying to claim nothing
+        if (amount == 0) {
+            revert CannotWithdrawZeroAmount();
         }
 
-        // Capture our starting balance
-        uint startTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        // Convert the requested amount of vToken to xToken using the share value calculation
+        uint xTokenEquivalent = amount * 1 ether / inventoryStaking.xTokenShareValue(vaultId);
 
-        // Process our withdrawal against the NFTX contract
-        inventoryStaking.withdraw(vaultId, amount);
+        // Capture our starting vToken balance
+        uint startTokenBalance = vToken.balanceOf(address(this));
 
-        // Determine the amount of `underlyingToken` received
-        amount_ = IERC20(underlyingToken).balanceOf(address(this)) - startTokenBalance;
+        // Process our withdrawal against the NFTX contract to receive vToken into the strategy
+        inventoryStaking.withdraw(vaultId, xTokenEquivalent);
+
+        // Determine the amount of `vToken` received and raise an exception if we gain
+        // no vToken in return.
+        amount_ = vToken.balanceOf(address(this)) - startTokenBalance;
         if (amount_ == 0) {
             revert ZeroAmountReceivedFromWithdraw();
         }
 
-        // Transfer the received token to the caller
-        IERC20(underlyingToken).safeTransfer(recipient, amount_);
+        // Transfer the received token to the recipient
+        vToken.safeTransfer(recipient, amount_);
 
-        // We can now reduce the users position and total position held by the strategy
+        // Update our deposit amount based on the amount of vToken withdrawn
         deposits -= amount_;
-        position[yieldToken] -= amount;
 
         // Fire an event to show amount of token claimed and the recipient
-        emit Withdraw(underlyingToken, amount_, recipient);
+        emit Withdraw(address(vToken), amount_, recipient);
     }
 
     /**
@@ -260,18 +271,13 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
     function _unstakeInventory(address _recipient, uint _numNfts, uint _partial) internal nonReentrant {
         // Before we can withdraw, we need to allow the contract to manage our ERC20
-        IERC20(yieldToken).approve(address(unstakingZap), type(uint).max);
+        xToken.approve(address(unstakingZap), type(uint).max);
 
         // Set our NFT receiver so that our safe transfer will pass it on
         _nftReceiver = _recipient;
 
         // Get the start balance of the expected _partial token to receive if requested
-        uint startUnderlyingTokenBalance;
-        uint startYieldTokenBalance;
-        if (_partial != 0) {
-            startUnderlyingTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
-            startYieldTokenBalance = IERC20(yieldToken).balanceOf(address(this));
-        }
+        uint startTokenBalance = vToken.balanceOf(address(this));
 
         // Unstake our ERC721's and partial remaining tokens
         unstakingZap.unstakeInventory(vaultId, _numNfts, _partial);
@@ -279,24 +285,25 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         // Delete our NFT receiver to prevent unexpected transactions
         delete _nftReceiver;
 
-        // If we have requested `_partial` token to be returned, then we need to send
-        // this over.
-        if (_partial > 0) {
-            // Find the new balance of the tokens that we are withdrawing
-            uint underlyingBalanceChange = IERC20(underlyingToken).balanceOf(address(this)) - startUnderlyingTokenBalance;
-            uint yieldBalanceChange = startYieldTokenBalance - IERC20(yieldToken).balanceOf(address(this));
+        // Find the new balance of the tokens that we are withdrawing
+        uint tokenDifference = vToken.balanceOf(address(this)) - startTokenBalance;
 
-            if (underlyingBalanceChange != 0) {
-                IERC20(underlyingToken).safeTransfer(_recipient, underlyingBalanceChange);
-            }
-
-            // We can now reduce the users position and total position held by the strategy
-            deposits -= underlyingBalanceChange;
-            position[yieldToken] -= yieldBalanceChange;
-
-            // Fire an event to show amount of token claimed and the recipient
-            emit Withdraw(underlyingToken, underlyingBalanceChange, _recipient);
+        // Ensure that we aren't withdrawing more than deposited
+        if (tokenDifference > deposits) {
+            revert InsufficientPosition(address(vToken), tokenDifference, deposits);
         }
+
+        // Send the acquired vTokens to our recipient, and the inventory tokens will have
+        // already been sent via the safe transfer.
+        if (tokenDifference != 0) {
+            vToken.safeTransfer(_recipient, tokenDifference);
+        }
+
+        // We can now reduce the users position and total position held by the strategy
+        deposits -= tokenDifference;
+
+        // Fire an event to show amount of token claimed and the recipient
+        emit Withdraw(address(vToken), tokenDifference, _recipient);
     }
 
     /**
@@ -307,12 +314,14 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
         tokens_ = new address[](1);
         amounts_ = new uint[](1);
 
-        // Assign our yield token as the return
-        tokens_[0] = yieldToken;
+        // Assign our vtoken as the token to claim
+        tokens_[0] = address(vToken);
 
-        // Get the xToken balance held by the strategy that is in addition to the amount
-        // deposited. This should show only the gain / rewards generated.
-        amounts_[0] = IERC20(yieldToken).balanceOf(address(this)) - position[yieldToken];
+        // Get the xToken balance held by the strategy and find the share of vToken that this
+        // is equivalent to. By removing the deposits from this, it should show only the rewards
+        // generated. We also check underflow as may have dust missing after a deposit.
+        uint vTokenEquivalent = (xToken.balanceOf(address(this)) * inventoryStaking.xTokenShareValue(vaultId)) / 1 ether;
+        amounts_[0] = (vTokenEquivalent < deposits) ? 0 : vTokenEquivalent - deposits;
     }
 
     /**
@@ -324,17 +333,17 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
 
         if (amounts[0] != 0) {
             // Withdraw our xToken to return vToken from the NFTX inventory staking contract
-            inventoryStaking.withdraw(vaultId, amounts[0]);
+            inventoryStaking.withdraw(vaultId, (amounts[0] * 1 ether) / inventoryStaking.xTokenShareValue(vaultId));
 
             // We can now withdraw all of the vToken from the contract
-            IERC20(underlyingToken).safeTransfer(_recipient, IERC20(underlyingToken).balanceOf(address(this)));
+            vToken.safeTransfer(_recipient, vToken.balanceOf(address(this)));
 
             unchecked {
-                lifetimeRewards[yieldToken] += amounts[0];
+                lifetimeRewards[address(vToken)] += amounts[0];
             }
         }
 
-        emit Harvest(yieldToken, amounts[0]);
+        emit Harvest(address(vToken), amounts[0]);
     }
 
     /**
@@ -342,31 +351,8 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
      */
     function validTokens() external view override returns (address[] memory) {
         address[] memory tokens_ = new address[](1);
-        tokens_[0] = underlyingToken;
+        tokens_[0] = address(vToken);
         return tokens_;
-    }
-
-    /**
-     * Increases our yield token position based on the logic transacted in the call.
-     *
-     * @dev This should be called for any deposit calls made.
-     */
-    modifier updatesPosition(address token) {
-        // Capture our starting balance
-        uint startBalance = IERC20(token).balanceOf(address(this));
-
-        _;
-
-        // Determine the amount of yield token returned from our deposit
-        uint amount = IERC20(token).balanceOf(address(this)) - startBalance;
-
-        // Increase the user's position and the total position for the strategy
-        unchecked {
-            position[token] += amount;
-        }
-
-        // Emit our event to followers
-        emit Deposit(token, amount, msg.sender);
     }
 
     /**
