@@ -18,6 +18,9 @@ interface ISweepWars {
     /// Sent when a user has revoked their vote, or it is revoked on their behalf
     event VotesRevoked(address account, address collection, uint forVotesRevoked, uint againstVotesRevoked);
 
+    /// Sent when the Sample Size is updated
+    event SampleSizeUpdated(uint size);
+
     /// Sent when the {NftStaking} contract address is updated
     event NftStakingUpdated(address nftStaking);
 

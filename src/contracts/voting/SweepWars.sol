@@ -425,8 +425,8 @@ contract SweepWars is AuthorityControl, ISweepWars {
      */
     function setSampleSize(uint size) external onlyRole(VOTE_MANAGER) {
         if (size == 0) revert SampleSizeCannotBeZero();
-
         sampleSize = size;
+        emit SampleSizeUpdated(size);
     }
 
     /**
