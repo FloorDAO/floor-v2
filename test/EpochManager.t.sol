@@ -240,6 +240,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Assign required roles for our trigger and epoch manager contracts
         authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweepTrigger));
+        authorityRegistry.grantRole(authorityControl.EPOCH_TRIGGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweepTrigger));
         authorityRegistry.grantRole(authorityControl.COLLECTION_MANAGER(), address(epochManager));

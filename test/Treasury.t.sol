@@ -628,23 +628,6 @@ contract TreasuryTest is FloorTest {
         treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
     }
 
-    function test_CannotRegisterSweepWithoutPermissions(uint160 epoch) external {
-        address[] memory collections = new address[](3);
-        collections[0] = address(1);
-        collections[1] = address(2);
-        collections[2] = address(3);
-
-        uint[] memory amounts = new uint[](3);
-        amounts[0] = 1 ether;
-        amounts[1] = 2 ether;
-        amounts[2] = 3 ether;
-
-        vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.TREASURY_MANAGER()));
-        treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType.SWEEP);
-        vm.stopPrank();
-    }
-
     function test_CannotRegisterSweepWithMismatchedCollectionsAndAmounts(uint160 epoch, uint8 _collections, uint8 _amounts) external {
         // Ensure that we have at least 1 collection
         vm.assume(_collections >= 1);
@@ -932,7 +915,7 @@ contract TreasuryTest is FloorTest {
 
         // Try and register the collection as a user that does not have permissions
         vm.startPrank(sender);
-        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, sender, authorityControl.TREASURY_MANAGER()));
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, sender, authorityControl.EPOCH_TRIGGER()));
         treasury.registerSweep(epoch, collections, amounts, TreasuryEnums.SweepType(_sweepType));
         vm.stopPrank();
     }
@@ -1195,6 +1178,9 @@ contract TreasuryTest is FloorTest {
      * of a sweeper to the state it is already assigned to will not break it.
      */
     function test_CanApproveSweeper(address sweeper) external {
+        // Ensure that we don't have a zero address as this is tested elsewhere
+        vm.assume(sweeper != address(0));
+
         // Ensure we don't trip and the already deployed sweeper contract
         vm.assume(sweeper != address(sweeperMock));
 
@@ -1220,6 +1206,17 @@ contract TreasuryTest is FloorTest {
         // Finally, confirm that we can re-approve a sweeper
         treasury.approveSweeper(sweeper, true);
         assertTrue(treasury.approvedSweepers(sweeper));
+    }
+
+    /**
+     * Ensure that we cannot set a sweeper with a NULL address.
+     */
+    function test_CannotSetNullAddressSweeper() external {
+        vm.expectRevert(CannotSetNullAddress.selector);
+        treasury.approveSweeper(address(0), true);
+
+        vm.expectRevert(CannotSetNullAddress.selector);
+        treasury.approveSweeper(address(0), false);
     }
 
     /**
