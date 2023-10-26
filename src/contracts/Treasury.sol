@@ -42,7 +42,7 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     uint public minSweepAmount;
 
     /// Set a sweep power that is required for public sweep execution
-    uint public constant SWEEP_EXECUTE_TOKENS = 5000 ether;
+    uint public constant SWEEP_EXECUTE_TOKENS = 5_000 ether;
 
     /// Stores our Mercenary sweeper contract address
     IMercenarySweeper public mercSweeper;
@@ -476,7 +476,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
 
         uint endBalance = floor.balanceOf(address(this));
         if (endBalance > startBalance) {
-            floor.burn(endBalance - startBalance);
+            unchecked {
+                floor.burn(endBalance - startBalance);
+            }
         }
     }
 

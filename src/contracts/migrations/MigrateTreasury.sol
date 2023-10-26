@@ -70,7 +70,7 @@ contract MigrateTreasury is Ownable {
             }
 
             // Process our withdrawal from the old {Treasury} for the token
-            oldTreasury.allocatorManage(address(token), uint(received));
+            oldTreasury.allocatorManage(address(token), received);
 
             // Get the amount of the token now held by this migration contract and approve
             // it against our new {Treasury}.

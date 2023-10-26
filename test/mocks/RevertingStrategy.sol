@@ -66,7 +66,7 @@ contract RevertingStrategy is BaseStrategy {
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external pure override returns (address[] memory, uint[] memory) {
+    function available() public pure override returns (address[] memory, uint[] memory) {
         revert('Prevent Available');
     }
 
@@ -80,7 +80,7 @@ contract RevertingStrategy is BaseStrategy {
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory) {
+    function validTokens() public view override returns (address[] memory) {
         return _tokens;
     }
 }

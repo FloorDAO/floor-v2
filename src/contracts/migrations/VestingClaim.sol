@@ -19,10 +19,10 @@ contract VestingClaim is Ownable {
     /// Stores assigned interfaces
     IFLOOR public immutable FLOOR;
     IERC20 public immutable WETH;
-    ITreasury private immutable treasury;
+    ITreasury public immutable treasury;
 
     /// Tracks available allocations
-    mapping(address => uint) internal allocation;
+    mapping(address => uint) private _allocation;
 
     /**
      * Allows our contracts to be set.
@@ -54,7 +54,7 @@ contract VestingClaim is Ownable {
      */
     function claim(address _to, uint _amount) external {
         // Ensure that we have sufficient FLOOR allocation to claim against
-        require(allocation[msg.sender] >= _amount, 'Insufficient allocation');
+        require(_allocation[msg.sender] >= _amount, 'Insufficient allocation');
 
         // We ensure that the amount is not 0, and that `_amount % 1e3` equals zero as
         // otherwise it could be exploited to acquire a non-zero amount of FLOOR tokens
@@ -69,7 +69,7 @@ contract VestingClaim is Ownable {
 
         // Reduce the allocation amount from the user. This has already been sanitized
         unchecked {
-            allocation[msg.sender] -= _amount;
+            _allocation[msg.sender] -= _amount;
         }
 
         // Transfer our FLOOR to the defined recipient
@@ -84,7 +84,7 @@ contract VestingClaim is Ownable {
      * @return uint The amount of FLOOR tokens allocated and available to claim
      */
     function redeemableFor(address _address) public view returns (uint) {
-        return allocation[_address];
+        return _allocation[_address];
     }
 
     /**
@@ -102,7 +102,7 @@ contract VestingClaim is Ownable {
         uint length = _address.length;
         for (uint i; i < length;) {
             unchecked {
-                allocation[_address[i]] += _amount[i];
+                _allocation[_address[i]] += _amount[i];
                 ++i;
             }
         }

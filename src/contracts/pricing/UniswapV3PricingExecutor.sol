@@ -2,10 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {IERC20Metadata} from '@openzeppelin/contracts/interfaces/IERC20Metadata.sol';
 
 import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
+import {IUniswapV3Pool, IUniswapV3PoolDerivedState} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
@@ -15,42 +17,6 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 /// If we are unable to find a pool for the Uniswap token combination
 error UnknownUniswapPool();
 
-/**
- * Partial interface for the {IUniswapV3Factory} contract. The full interface can be found here:
- * https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
- *
- */
-interface IUniswapV3Factory {
-    function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
-}
-
-/**
- * Partial interface for the {IUniswapV3Pool}. The full interface can be found here:
- * https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Pool.sol
- */
-interface IUniswapV3Pool {
-    function slot0()
-        external
-        view
-        returns (
-            uint160 sqrtPriceX96,
-            int24 tick,
-            uint16 observationIndex,
-            uint16 observationCardinality,
-            uint16 observationCardinalityNext,
-            uint8 feeProtocol,
-            bool unlocked
-        );
-    function liquidity() external view returns (uint128);
-    function observe(uint32[] calldata secondsAgos)
-        external
-        view
-        returns (int56[] memory tickCumulatives, uint160[] memory liquidityCumulatives);
-    function observations(uint index)
-        external
-        view
-        returns (uint32 blockTimestamp, int56 tickCumulative, uint160 liquidityCumulative, bool initialized);
-}
 
 /**
  * The Uniswap pricing executor will query either a singular token or multiple
@@ -66,7 +32,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
     IWETH public immutable WETH;
 
     /// Keep a cache of our pool addresses for gas optimisation
-    mapping(address => address) internal poolAddresses;
+    mapping(address => address) private _poolAddresses;
 
     /**
      * Set our immutable contract addresses.
@@ -125,8 +91,9 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      */
     function _poolAddress(address token) internal returns (address) {
         // If we have a cached pool, then reference this for gas saves
-        if (poolAddresses[token] != address(0)) {
-            return poolAddresses[token];
+        address _tokenPoolAddress = _poolAddresses[token];
+        if (_tokenPoolAddress != address(0)) {
+            return _tokenPoolAddress;
         }
 
         // Load our candidate pool at 1% fee
@@ -138,7 +105,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
         }
 
         // Store the token pool into our internal cache and return the address
-        return poolAddresses[token] = candidatePool;
+        return _poolAddresses[token] = candidatePool;
     }
 
     /**
@@ -150,7 +117,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      */
     function _getPrice(address token) internal returns (uint) {
         // Ensure our token decimals don't exceed the standard 18
-        uint tokenDecimals = ERC20(token).decimals();
+        uint tokenDecimals = IERC20Metadata(token).decimals();
         require(tokenDecimals <= 18, 'Invalid token decimals');
 
         // We can get the cached / fresh pool address for our token <-> WETH pool. If the
@@ -166,7 +133,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
 
         // If we cannot find an observation for our desired time, then we attempt to fallback
         // on the latest observation available to us
-        (bool success, bytes memory data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+        (bool success, bytes memory data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3PoolDerivedState.observe.selector, secondsAgos));
         if (!success) {
             if (keccak256(data) != keccak256(abi.encodeWithSignature('Error(string)', 'OLD'))) revertBytes(data);
 
@@ -189,7 +156,7 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
             require(ago >= 300, 'Pool too fresh');
 
             // Call observe() again to get the oldest available
-            (success, data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3Pool.observe.selector, secondsAgos));
+            (success, data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3PoolDerivedState.observe.selector, secondsAgos));
             if (!success) revertBytes(data);
         }
 

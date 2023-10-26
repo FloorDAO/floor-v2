@@ -233,7 +233,13 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
 
         // Create the floor war
         uint warIndex = wars.length + 1;
-        wars.push(FloorWar(warIndex, epoch, collections));
+        wars.push(
+            FloorWar({
+                index: warIndex,
+                startEpoch: epoch,
+                collections: collections
+            })
+        );
 
         bytes32 collectionHash;
         uint collectionLockEpoch = epoch + 1;
@@ -249,7 +255,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         }
 
         // Schedule our floor war onto our {EpochManager}
-        epochManager.scheduleCollectionAddtionEpoch(epoch, warIndex);
+        epochManager.scheduleCollectionAdditionEpoch(epoch, warIndex);
 
         emit CollectionAdditionWarCreated(epoch, collections, floorPrices);
 
@@ -372,7 +378,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             // Calculate the updated NFT vote power for the collection
             uint percentage = ((floorPrice * 1e18 - oldFloorPrice * 1e18) * 100) / oldFloorPrice;
             uint increase = (collectionNftVotes[warCollection] * percentage) / 100 / 1e18;
-            uint newNumber = (collectionNftVotes[warCollection] + increase);
+            uint newNumber = collectionNftVotes[warCollection] + increase;
 
             // Update our collection votes
             collectionVotes[warCollection] = collectionVotes[warCollection] - collectionNftVotes[warCollection] + newNumber;
@@ -384,7 +390,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             // Calculate the updated NFT vote power for the collection
             uint percentage = ((oldFloorPrice * 1e18 - floorPrice * 1e18) * 100) / oldFloorPrice;
             uint decrease = (collectionNftVotes[warCollection] * percentage) / 100 / 1e18;
-            uint newNumber = (collectionNftVotes[warCollection] - decrease);
+            uint newNumber = collectionNftVotes[warCollection] - decrease;
 
             // Update our collection votes
             collectionVotes[warCollection] = collectionVotes[warCollection] - collectionNftVotes[warCollection] + newNumber;

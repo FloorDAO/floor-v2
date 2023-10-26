@@ -71,9 +71,9 @@ contract SweepWars is AuthorityControl, ISweepWars {
      *
      * Mapping user address -> collection address -> amount.
      */
-    mapping(bytes32 => uint) private userForVotes;
-    mapping(bytes32 => uint) private userAgainstVotes;
-    mapping(address => uint) private totalUserVotes;
+    mapping(bytes32 => uint) private _userForVotes;
+    mapping(bytes32 => uint) private _userAgainstVotes;
+    mapping(address => uint) private _totalUserVotes;
 
     /**
      * Sets up our contract parameters.
@@ -114,14 +114,16 @@ contract SweepWars is AuthorityControl, ISweepWars {
      * @return uint Number of votes available to the user
      */
     function userVotesAvailable(address _user) public view returns (uint) {
+        uint _userVotingPower = userVotingPower(_user);
+        uint totalUserVotes = _totalUserVotes[_user];
+
         // We shouldn't be in a situation where the user's total votes is above the
         // available voting power, but to avoid reverts..
-        uint _userVotingPower = userVotingPower(_user);
-        if (totalUserVotes[_user] >= _userVotingPower) {
+        if (totalUserVotes >= _userVotingPower) {
             return 0;
         }
 
-        return _userVotingPower - totalUserVotes[_user];
+        return _userVotingPower - totalUserVotes;
     }
 
     /**
@@ -166,13 +168,13 @@ contract SweepWars is AuthorityControl, ISweepWars {
         unchecked {
             // Increase our tracked user amounts
             if (_amount < 0) {
-                userAgainstVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
+                _userAgainstVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
             } else {
-                userForVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
+                _userForVotes[keccak256(abi.encode(msg.sender, _collection))] += absAmount;
             }
 
             collectionVotes[_collection] += _amount;
-            totalUserVotes[msg.sender] += absAmount;
+            _totalUserVotes[msg.sender] += absAmount;
         }
 
         // Trigger our potential restake due to vote action
@@ -229,22 +231,22 @@ contract SweepWars is AuthorityControl, ISweepWars {
         for (uint i; i < length;) {
             // Find the collection hash for the user and get their total for and against votes
             collectionHash = keccak256(abi.encode(_account, _collections[i]));
-            userCollectionVotes = userForVotes[collectionHash] + userAgainstVotes[collectionHash];
+            userCollectionVotes = _userForVotes[collectionHash] + _userAgainstVotes[collectionHash];
 
             // Check that the user has voted for the collection in some way
             if (userCollectionVotes != 0) {
                 // Update the power and power burn based on the new amount added
-                collectionVotes[_collections[i]] += int(userAgainstVotes[collectionHash]);
-                collectionVotes[_collections[i]] -= int(userForVotes[collectionHash]);
+                collectionVotes[_collections[i]] += int(_userAgainstVotes[collectionHash]);
+                collectionVotes[_collections[i]] -= int(_userForVotes[collectionHash]);
 
                 // Reduce the number of votes cast by the user as a whole
-                totalUserVotes[_account] -= userCollectionVotes;
+                _totalUserVotes[_account] -= userCollectionVotes;
 
-                emit VotesRevoked(_account, _collections[i], userForVotes[collectionHash], userAgainstVotes[collectionHash]);
+                emit VotesRevoked(_account, _collections[i], _userForVotes[collectionHash], _userAgainstVotes[collectionHash]);
 
                 // Set the number of for and against user votes back to 0 for the collection
-                userForVotes[collectionHash] = 0;
-                userAgainstVotes[collectionHash] = 0;
+                _userForVotes[collectionHash] = 0;
+                _userAgainstVotes[collectionHash] = 0;
             }
 
             unchecked {
@@ -376,7 +378,7 @@ contract SweepWars is AuthorityControl, ISweepWars {
 
             // Loop through our currently stored collections and their votes to determine
             // if we want to shift things out.
-            for (j = 0; j < _sampleSize && j <= i;) {
+            for (j = 0; j < _sampleSize && j < i;) {
                 // If our collection has more votes than a collection in the sample size,
                 // then we need to shift all other collections from beneath it.
                 if (collections[j] == address(0) || _votes > votes(collections[j])) {

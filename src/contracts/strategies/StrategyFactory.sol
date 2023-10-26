@@ -38,13 +38,13 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
     IStrategyRegistry public immutable strategyRegistry;
 
     /// Mappings to aide is discoverability
-    mapping(uint => address) private strategyIds;
+    mapping(uint => address) private _strategyIds;
 
     /// Mapping of collection to strategy addresses
-    mapping(address => address[]) internal _collectionStrategies;
+    mapping(address => address[]) private _collectionStrategies;
 
     /// Stores a list of bypassed strategies
-    mapping(address => bool) internal _bypassStrategy;
+    mapping(address => bool) private _bypassStrategy;
 
     /**
      * Store our registries, mapped to their interfaces.
@@ -90,7 +90,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @return Address of the strategy
      */
     function strategy(uint _strategyId) external view returns (address) {
-        return strategyIds[_strategyId];
+        return _strategyIds[_strategyId];
     }
 
     /**
@@ -134,7 +134,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         _strategies.push(strategyAddr_);
 
         // Add our mappings for onchain discoverability
-        strategyIds[strategyId_] = strategyAddr_;
+        _strategyIds[strategyId_] = strategyAddr_;
         _collectionStrategies[_collection].push(strategyAddr_);
 
         // Finally we can emit our event to notify watchers of a new strategy
@@ -151,7 +151,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _paused If the strategy should be paused or unpaused
      */
     function pause(uint _strategyId, bool _paused) public onlyRole(STRATEGY_MANAGER) {
-        IBaseStrategy(strategyIds[_strategyId]).pause(_paused);
+        IBaseStrategy(_strategyIds[_strategyId]).pause(_paused);
     }
 
     /**
@@ -168,11 +168,11 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         returns (address[] memory tokens, uint[] memory amounts)
     {
         // Prevent a bypassed strategy from snapshotting
-        if (_bypassStrategy[strategyIds[_strategyId]]) {
+        if (_bypassStrategy[_strategyIds[_strategyId]]) {
             return (tokens, amounts);
         }
 
-        (tokens, amounts) = IBaseStrategy(strategyIds[_strategyId]).snapshot();
+        (tokens, amounts) = IBaseStrategy(_strategyIds[_strategyId]).snapshot();
         emit StrategySnapshot(_epoch, _strategyId, tokens, amounts);
     }
 
@@ -184,9 +184,9 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      * @param _strategyId Strategy ID to be harvested
      */
     function harvest(uint _strategyId) external onlyRole(STRATEGY_MANAGER) {
-        if (_bypassStrategy[strategyIds[_strategyId]]) return;
+        if (_bypassStrategy[_strategyIds[_strategyId]]) return;
 
-        IBaseStrategy(strategyIds[_strategyId]).harvest(treasury);
+        IBaseStrategy(_strategyIds[_strategyId]).harvest(treasury);
     }
 
     /**
@@ -204,7 +204,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
      */
     function withdraw(uint _strategyId, bytes calldata _data) external onlyRole(STRATEGY_MANAGER) {
         // If we are bypassing the strategy, then skip this call
-        if (_bypassStrategy[strategyIds[_strategyId]]) return;
+        if (_bypassStrategy[_strategyIds[_strategyId]]) return;
 
         // Extract the selector from data
         bytes4 _selector = bytes4(_data);
@@ -216,7 +216,7 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
         }
 
         // Make a call to our strategy that passes on our withdrawal data
-        (bool success,) = strategyIds[_strategyId].call(
+        (bool success,) = _strategyIds[_strategyId].call(
             // Sandwich the selector against the recipient and remaining data
             abi.encodePacked(abi.encodeWithSelector(_selector, treasury), _newData)
         );

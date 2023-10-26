@@ -35,7 +35,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
     ISweepWars public immutable sweepWars;
 
     /// Store a mapping of epoch to snapshot results
-    mapping(uint => EpochSnapshot) internal epochSnapshots;
+    mapping(uint => EpochSnapshot) private _epochSnapshots;
 
     /**
      * Sets our internal contracts.
@@ -73,7 +73,12 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
         }
 
         // Store our epoch snapshots
-        epochSnapshots[epoch] = EpochSnapshot(epoch, collectionAddrs, collectionVotes);
+        _epochSnapshots[epoch] = EpochSnapshot({
+            epoch: epoch,
+            collections: collectionAddrs,
+            votes: collectionVotes
+        });
+
         emit EpochVotesSnapshot(epoch, collectionAddrs, collectionVotes);
     }
 
@@ -81,6 +86,7 @@ contract StoreEpochCollectionVotesTrigger is EpochManaged, IEpochEndTriggered {
      * Public function to get epoch snapshot data.
      */
     function epochSnapshot(uint epoch) external view returns (address[] memory, int[] memory) {
-        return (epochSnapshots[epoch].collections, epochSnapshots[epoch].votes);
+        EpochSnapshot memory _epochSnapshot = _epochSnapshots[epoch];
+        return (_epochSnapshot.collections, _epochSnapshot.votes);
     }
 }

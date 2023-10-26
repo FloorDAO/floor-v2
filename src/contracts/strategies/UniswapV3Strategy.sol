@@ -220,7 +220,7 @@ contract UniswapV3Strategy is BaseStrategy {
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         // If we don't have a token ID created, then we want to prevent further
         // processing as this would result in a revert.
         if (tokenId == 0) {

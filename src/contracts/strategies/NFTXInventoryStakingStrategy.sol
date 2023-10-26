@@ -309,7 +309,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         // Set up our return arrays
         tokens_ = new address[](1);
         amounts_ = new uint[](1);
@@ -349,7 +349,7 @@ contract NFTXInventoryStakingStrategy is BaseStrategy {
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory) {
+    function validTokens() public view override returns (address[] memory) {
         address[] memory tokens_ = new address[](1);
         tokens_[0] = address(vToken);
         return tokens_;

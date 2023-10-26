@@ -27,10 +27,10 @@ contract GATOrder is IERC1271 {
         sellToken_.approve(settlement.vaultRelayer(), type(uint).max);
     }
 
-    function isValidSignature(bytes32 hash, bytes calldata) external view returns (bytes4 magicValue) {
+    function isValidSignature(bytes32 hash, bytes calldata) external view override returns (bytes4 magicValue) {
         require(hash == orderHash, 'invalid order');
         require(block.timestamp >= validFrom, 'not mature');
-        magicValue = 0x1626ba7e; // ERC1271_MAGIC_VALUE
+        magicValue = IERC1271.isValidSignature.selector;
     }
 
     function cancel() public {

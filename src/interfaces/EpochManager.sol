@@ -56,7 +56,7 @@ interface IEpochManager {
      * @param epoch The epoch that the Collection Addition will take place in
      * @param index The Collection Addition array index
      */
-    function scheduleCollectionAddtionEpoch(uint epoch, uint index) external;
+    function scheduleCollectionAdditionEpoch(uint epoch, uint index) external;
 
     /**
      * Triggers an epoch to end.

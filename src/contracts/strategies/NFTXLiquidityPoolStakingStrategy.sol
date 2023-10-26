@@ -217,7 +217,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         // the percentage of the token.
         uint amount = (position[yieldToken] * percentage) / 100_00;
 
-        tokens_ = this.validTokens();
+        tokens_ = validTokens();
 
         // Call our internal {withdrawErc20} function to move tokens to the caller
         amounts_ = new uint[](1);
@@ -259,7 +259,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /**
      * Gets rewards that are available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         // Set up our return arrays
         tokens_ = new address[](1);
         amounts_ = new uint[](1);
@@ -297,7 +297,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory) {
+    function validTokens() public view override returns (address[] memory) {
         address[] memory tokens_ = new address[](1);
         tokens_[0] = underlyingToken;
         return tokens_;

@@ -69,7 +69,7 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
      * @param epoch The epoch that the Collection Addition will take place in
      * @param index The Collection Addition array index
      */
-    function scheduleCollectionAddtionEpoch(uint epoch, uint index) external {
+    function scheduleCollectionAdditionEpoch(uint epoch, uint index) external {
         // Ensure that only our {NewCollectionWars} contract can make this call
         require(msg.sender == address(newCollectionWars), 'Invalid caller');
 
@@ -126,8 +126,9 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
         }
 
         // If we have a floor war ready to start, then action it
-        if (collectionEpochs[currentEpoch] != 0) {
-            newCollectionWars.startFloorWar(collectionEpochs[currentEpoch]);
+        uint collectionWarIndex = collectionEpochs[currentEpoch];
+        if (collectionWarIndex != 0) {
+            newCollectionWars.startFloorWar(collectionWarIndex);
         }
     }
 

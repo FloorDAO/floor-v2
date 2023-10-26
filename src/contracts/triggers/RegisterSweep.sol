@@ -31,17 +31,17 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
  */
 contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     /// Holds our internal contract references
-    IBasePricingExecutor public pricingExecutor;
-    INewCollectionWars public newCollectionWars;
-    ISweepWars public voteContract;
-    ITreasury public treasury;
-    IStrategyFactory public strategyFactory;
+    IBasePricingExecutor public immutable pricingExecutor;
+    INewCollectionWars public immutable newCollectionWars;
+    ISweepWars public immutable voteContract;
+    ITreasury public immutable treasury;
+    IStrategyFactory public immutable strategyFactory;
 
     /// Stores yield generated in the epoch for temporary held calculations
-    mapping(address => uint) internal yield;
+    mapping(address => uint) private _yield;
 
     /// Temp. stores our epoch tokens that have generated yield
-    address[] private epochTokens;
+    address[] private _epochTokens;
 
     /**
      * Define our required contracts.
@@ -77,37 +77,41 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         uint[] memory amounts;
 
         // Loop through our strategies to capture yielded tokens and amounts
-        for (uint i; i < strategies.length; ++i) {
-
+        uint strategiesLength = strategies.length;
+        for (uint i; i < strategiesLength;) {
             // Parse our strategy address into the {BaseStrategy} interface
             strategy = IBaseStrategy(strategies[i]);
 
             // Pull out rewards and transfer into the {Treasury}
             (tokens, amounts) = strategyFactory.snapshot(strategy.strategyId(), epoch);
 
-            for (uint k; k < tokens.length; ++k) {
+            for (uint k; k < tokens.length;) {
                 if (amounts[k] != 0) {
-                    if (yield[tokens[k]] == 0) {
-                        epochTokens.push(tokens[k]);
+                    if (_yield[tokens[k]] == 0) {
+                        _epochTokens.push(tokens[k]);
                     }
 
-                    yield[tokens[k]] += amounts[k];
+                    _yield[tokens[k]] += amounts[k];
                 }
+
+                unchecked { ++k; }
             }
+
+            unchecked { ++i; }
         }
 
         // Get the tokens that have been generated as yield and find their ETH price
-        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(epochTokens);
+        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(_epochTokens);
 
         // We can now iterate over the eth prices of the tokens. These are returned in the
         // same order that they are requested, so we can directly access the yield and
         // multiply it based on the token decimal count.
         for (uint i; i < tokenEthPrices.length;) {
-            uint ethValue = tokenEthPrices[i] * yield[epochTokens[i]] / (10 ** ERC20(epochTokens[i]).decimals());
+            uint ethValue = tokenEthPrices[i] * _yield[_epochTokens[i]] / (10 ** ERC20(_epochTokens[i]).decimals());
 
             // We can then modify the stored yield to store the ETH value, rather than the
             // amount in relative terms of the token.
-            yield[epochTokens[i]] = ethValue;
+            _yield[_epochTokens[i]] = ethValue;
 
             // This logic should be replicated for tests in: `test_CanHandleDifferentSweepTokenDecimalAccuracy`
             ethRewards += ethValue;
@@ -148,8 +152,12 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 
             // We can now remove yield from our collections based on the yield that they generated
             // in the previous epoch.
-            for (uint i; i < snapshotTokens.length; ++i) {
-                snapshotAmounts[i] = (snapshotAmounts[i] > yield[snapshotTokens[i]]) ? snapshotAmounts[i] - yield[snapshotTokens[i]] : 0;
+            unchecked {
+                // The linked mathematical operation is guaranteed to be performed safely by surrounding
+                // conditionals evaluated in either require checks or if-else constructs.
+                for (uint i; i < snapshotTokens.length; ++i) {
+                    snapshotAmounts[i] = (snapshotAmounts[i] > _yield[snapshotTokens[i]]) ? snapshotAmounts[i] - _yield[snapshotTokens[i]] : 0;
+                }
             }
 
             // Now that we have the results of the snapshot we can register them against our
@@ -158,10 +166,11 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
         }
 
         // Reset our yield monitoring
-        for (uint i; i < epochTokens.length; ++i) {
-            delete yield[epochTokens[i]];
+        for (uint i; i < _epochTokens.length;) {
+            delete _yield[_epochTokens[i]];
+            unchecked { ++i; }
         }
 
-        delete epochTokens;
+        delete _epochTokens;
     }
 }

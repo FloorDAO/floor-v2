@@ -136,7 +136,11 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered,
         // If we have no gross votes, then we cannot calculate a percentage
         if (grossVotes == 0) {
             // Don't register any WETH
-            epochSnapshot[epoch] = EpochSnapshot(address(0), 0, 0);
+            epochSnapshot[epoch] = EpochSnapshot({
+                collections: address(0),
+                votes: 0,
+                amount: 0
+            });
             return;
         }
 
@@ -147,7 +151,12 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered,
         // Ensure we have a negative vote that is past a threshold
         if (percentage < THRESHOLD) {
             // If we are below the threshold then we don't register any WETH
-            epochSnapshot[epoch] = EpochSnapshot(worstCollection, negativeCollectionVotes, 0);
+            epochSnapshot[epoch] = EpochSnapshot({
+                collections: worstCollection,
+                votes: negativeCollectionVotes,
+                amount: 0
+            });
+
             return;
         }
 
@@ -216,7 +225,11 @@ contract LiquidateNegativeCollectionTrigger is EpochManaged, IEpochEndTriggered,
         }
 
         // Store our epoch snapshot
-        epochSnapshot[epoch] = EpochSnapshot(worstCollection, negativeCollectionVotes, wethBalance);
+        epochSnapshot[epoch] = EpochSnapshot({
+            collections: worstCollection,
+            votes: negativeCollectionVotes,
+            amount: wethBalance
+        });
 
         // Delete storage
         delete commands;

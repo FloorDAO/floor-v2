@@ -94,6 +94,7 @@ contract AuthorityRegistry is Context, IAuthorityRegistry {
             }
 
             _roles[role][_msgSender()] = false;
+            emit RoleRevoked(role, _msgSender(), _msgSender());
         }
 
         _grantRole(role, account);

@@ -24,7 +24,7 @@ error AccountDoesNotHaveAdminRole(address caller);
  * addresses.
  *
  * Contracts will be able to implement the AuthorityControl to provide access to the `onlyRole` modifier or the
- * `hasRole` function. This will ensure that the `msg.sender` has is allowed to perform an action.
+ * `hasRole` function. This will ensure that the `msg.sender` is allowed to perform an action.
  *
  * Roles are referred to by their `bytes32` identifier. These should be exposed in the external API and be
  * unique. The best way to achieve this is by using `public constant` hash digests:

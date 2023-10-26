@@ -17,7 +17,7 @@ error CannotApproveNullCollection();
  */
 contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
     /// Store a mapping of our approved collections
-    mapping(address => bool) internal collections;
+    mapping(address => bool) internal _collections;
 
     /// Maintains an internal array of approved collections for iteration
     address[] internal _approvedCollections;
@@ -39,7 +39,7 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      * returns `false`.
      */
     function isApproved(address contractAddr) external view returns (bool) {
-        return collections[contractAddr];
+        return _collections[contractAddr];
     }
 
     /**
@@ -66,10 +66,10 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
         if (contractAddr == address(0)) revert CannotApproveNullCollection();
 
         // Check if our collection is already approved to prevent unrequired gas usage
-        require(!collections[contractAddr], 'Collection is already approved');
+        require(!_collections[contractAddr], 'Collection is already approved');
 
         // Approve our collection
-        collections[contractAddr] = true;
+        _collections[contractAddr] = true;
         _approvedCollections.push(contractAddr);
         emit CollectionApproved(contractAddr);
     }
@@ -85,10 +85,10 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
      */
     function unapproveCollection(address contractAddr) external onlyRole(COLLECTION_MANAGER) {
         // Ensure that our collection is approved
-        require(collections[contractAddr], 'Collection is not approved');
+        require(_collections[contractAddr], 'Collection is not approved');
 
         // Unapprove our collection
-        collections[contractAddr] = false;
+        _collections[contractAddr] = false;
 
         // Iterate through our approved collections to find our index to delete
         uint index;
@@ -106,7 +106,10 @@ contract CollectionRegistry is AuthorityControl, ICollectionRegistry {
 
         // Now that we have the index we can move the last item to the deleted position
         // and just pop the array. The array is unordered so this won't be an issue.
-        _approvedCollections[index] = _approvedCollections[length - 1];
+        if (index != length - 1) {
+            _approvedCollections[index] = _approvedCollections[length - 1];
+        }
+
         _approvedCollections.pop();
 
         // Emit our event to notify watchers

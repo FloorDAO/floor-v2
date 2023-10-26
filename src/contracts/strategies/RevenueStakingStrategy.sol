@@ -42,7 +42,8 @@ contract RevenueStakingStrategy is BaseStrategy {
         (_tokens) = abi.decode(_initData, (address[]));
 
         // Set the underlying token as valid to process
-        for (uint i; i < _tokens.length;) {
+        uint _tokensLength = _tokens.length;
+        for (uint i; i < _tokensLength;) {
             _validTokens[_tokens[i]] = true;
             unchecked {
                 ++i;
@@ -124,7 +125,7 @@ contract RevenueStakingStrategy is BaseStrategy {
      * @dev This will always return two empty arrays as we will never have
      * tokens available to harvest.
      */
-    function available() external view override returns (address[] memory tokens_, uint[] memory amounts_) {
+    function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         tokens_ = _tokens;
         amounts_ = new uint[](_tokens.length);
     }
@@ -139,7 +140,7 @@ contract RevenueStakingStrategy is BaseStrategy {
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory) {
+    function validTokens() public view override returns (address[] memory) {
         return _tokens;
     }
 }

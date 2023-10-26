@@ -120,8 +120,13 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
                 // Unset the amount from the epochYield mapping
                 delete epochYield[_activeEpochs[i]];
 
-                // Remove element
-                _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
+                // We only need to shift an element if we aren't already at the
+                // last element through iteration.
+                if (i != _activeEpochs.length - 1) {
+                    _activeEpochs[i] = _activeEpochs[_activeEpochs.length - 1];
+                }
+
+                // Remove our element
                 _activeEpochs.pop();
             } else {
                 unchecked { ++i; }
@@ -174,7 +179,7 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
     /**
      * Returns an array of tokens that the strategy supports.
      */
-    function validTokens() external view override returns (address[] memory) {
+    function validTokens() public view override returns (address[] memory) {
         return _tokens;
     }
 
@@ -221,10 +226,11 @@ contract DistributedRevenueStakingStrategy is AuthorityControl, BaseStrategy, Ep
             }
 
             // Get the amount of possible yield to attach to the epoch
-            uint epochAmount = maxEpochYield - epochYield[_epoch];
+            uint _epochYield = epochYield[_epoch];
+            uint epochAmount = maxEpochYield - _epochYield;
 
             if (epochAmount != 0) {
-                if (epochYield[_epoch] == 0) {
+                if (_epochYield == 0) {
                     _activeEpochs.push(_epoch);
                 }
 

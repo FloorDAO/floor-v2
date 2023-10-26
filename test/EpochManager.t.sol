@@ -182,7 +182,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         assertFalse(epochManager.isCollectionAdditionEpoch(epoch));
 
         vm.prank(address(newCollectionWars));
-        epochManager.scheduleCollectionAddtionEpoch(epoch, 1);
+        epochManager.scheduleCollectionAdditionEpoch(epoch, 1);
 
         assertTrue(epochManager.isCollectionAdditionEpoch(epoch));
 
