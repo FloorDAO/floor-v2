@@ -125,8 +125,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
     }
 
     function test_magicGDAValues() public {
-
-        uint256 inputValue;
+        uint inputValue;
         uint128 spotPrice = 1 ether;
 
         // Warp 1 day
@@ -134,15 +133,15 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         uint128 magicDelta20 = sweeper.getPackedDelta(1100000000, 11574, 1);
         (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta20, 1, 0, 0);
-        assertApproxEqAbs(inputValue, spotPrice*2, spotPrice/10**4);
+        assertApproxEqAbs(inputValue, spotPrice * 2, spotPrice / 10**4);
 
         uint128 magicDelta15 = sweeper.getPackedDelta(1100000000, 6770, 1);
         (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta15, 1, 0, 0);
-        assertApproxEqAbs(inputValue, spotPrice*3/2, spotPrice/10**4);
+        assertApproxEqAbs(inputValue, spotPrice * 3/2, spotPrice / 10**4);
 
         uint128 magicDelta13 = sweeper.getPackedDelta(1100000000, 4802, 1);
         (,,, inputValue,,) = gdaCurve.getSellInfo(spotPrice, magicDelta13, 1, 0, 0);
-        assertApproxEqAbs(inputValue, spotPrice*4/3, spotPrice/10**3);
+        assertApproxEqAbs(inputValue, spotPrice * 4/3, spotPrice / 10**3);
     }
 
     function test_PoolPriceUpdatesOverTime() public {
@@ -296,7 +295,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
     }
 
     /**
-     * Ensure that pools can correctly reset even after their balance is zeroed out
+     * Ensure that pools can correctly handle being emptied.
      */
     function test_CanHandleClearingOutEntirePoolBalance() public {
 
@@ -311,15 +310,17 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // Wait 7 days
         skip(7 days);
-        (, , , uint outputAmount, uint256 protocolFeeAmount, uint256 royaltyAmount) = pair.getSellNFTQuote(0, 1);
+        (, , , uint outputAmount, uint protocolFeeAmount, uint royaltyAmount) = pair.getSellNFTQuote(0, 1);
 
-        // Manually send in the excess ETH so we can zero out the pair balance
-        uint256 ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
+        // Manually send in the excess ETH so we can zero out the pair balance. This ensures
+        // that the pair will have the exact amount of ETH required to make a singular swap.
+        uint ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
         payable(address(pair)).call{value: ethDiff}('');
 
-        // Do the swap
+        // Do the swap that will zero out the pair. The entire amount of ETH will have been
+        // used and there will be no NFT in the pool as it was sent to the {Treasury}.
         mock721.setApprovalForAll(address(pair), true);
-        uint256[] memory id = new uint256[](1);
+        uint[] memory id = new uint[](1);
         id[0] = 1;
         pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
 
@@ -328,7 +329,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         _singleCollectionExecute(address(mock721), 10 ether);
     }
 
-        /**
+    /**
      * Ensure that pools can correctly reset even after their balance is zeroed out
      */
     function test_CanHandleInitialDustPools() public {
@@ -344,7 +345,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // Wait 7 days
         skip(7 days);
-        (, , , uint outputAmount, uint256 protocolFeeAmount, uint256 royaltyAmount) = pair.getSellNFTQuote(0, 1);
+        (, , , uint outputAmount, uint protocolFeeAmount, uint royaltyAmount) = pair.getSellNFTQuote(0, 1);
 
         // Make a larger deposit of 10 ETH into the pool (intending to sweep more than 1 item)
         // No one has made a swap with the pool yet, so the spot price and scaling are not adjusted
@@ -353,13 +354,13 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Swap 1 NFT for the entire 10 ETH balance
         // Manually send in the excess ETH
         if (outputAmount + protocolFeeAmount + royaltyAmount > address(pair).balance) {
-            uint256 ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
+            uint ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
             payable(address(pair)).call{value: ethDiff}('');
         }
 
         // Do the swap and take all 10 ETH for 1 NFT
         mock721.setApprovalForAll(address(pair), true);
-        uint256[] memory id = new uint256[](1);
+        uint[] memory id = new uint[](1);
         id[0] = 1;
         pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
 
