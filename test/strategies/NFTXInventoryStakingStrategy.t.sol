@@ -258,8 +258,10 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         vm.stopPrank();
 
-        // At this point the strategy should hold "2986864760090612391" yield token, which at
+        // At this point the strategy should hold "2986864760090612391" xToken, which at
         // the point the block was forked was the trade value.
+        assertEq(strategy.vToken().balanceOf(address(strategy)), 0);
+        assertEq(strategy.xToken().balanceOf(address(strategy)), 2986864760090612391);
 
         // Skip some time for the NFTX lock to expire. This will not change the value of the
         // yield token within the strategy.
@@ -268,23 +270,32 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         // Check the balance directly that should be claimable
         (, uint[] memory startRewardsAvailable) = strategy.available();
 
+        // Confirm that we have depositted 5 ether and have nothing to claim yet
         assertEq(strategy.deposits(), 5 ether);
         assertEq(startRewardsAvailable[0], 0);
 
-        /*
-        // Generate some rewards by dealing xToken to our user
-        // TODO: Update method of reward distribution
-        // deal(strategy.xToken(), address(strategy), 8 ether);
+        // Find our current xTokenShareValue
+        assertEq(strategy.inventoryStaking().xTokenShareValue(392), 1673996113519486971);
+
+        // Generate some rewards by increasing our xToken share value
+        vm.mockCall(
+            address(strategy.inventoryStaking()),
+            abi.encodeWithSelector(INFTXInventoryStaking.xTokenShareValue.selector),
+            abi.encode(2673996113519486971)
+        );
+
+        // Confirm that our mocked call has updated the xTokenShareValue call
+        assertEq(strategy.inventoryStaking().xTokenShareValue(392), 2673996113519486971);
 
         // Check the balance directly that should be claimable
         (address[] memory rewardsTokens, uint[] memory rewardsAvailable) = strategy.available();
-        assertEq(rewardsTokens[0], address(strategy.xToken()));
-        assertEq(rewardsAvailable[0], 5013135239909387609);
+        assertEq(rewardsTokens[0], address(strategy.vToken()));
+        assertEq(rewardsAvailable[0], 2986864760090612388);
 
         // Check our lifetime rewards reflect this
         (address[] memory lifetimeRewardsTokens, uint[] memory lifetimeRewardsAvailable) = strategy.totalRewards();
-        assertEq(lifetimeRewardsTokens[0], address(strategy.xToken()));
-        assertEq(lifetimeRewardsAvailable[0], 5013135239909387609);
+        assertEq(lifetimeRewardsTokens[0], address(strategy.vToken()));
+        assertEq(lifetimeRewardsAvailable[0], 2986864760090612388);
 
         // Get the {Treasury} starting balance of the reward token
         uint treasuryStartBalance = strategy.vToken().balanceOf(treasury);
@@ -299,12 +310,11 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
         // Check our lifetime rewards reflect this even after claiming
         (, uint[] memory newLifetimeRewardsAvailable) = strategy.totalRewards();
-        assertEq(newLifetimeRewardsAvailable[0], 5013135239909387609);
+        assertEq(newLifetimeRewardsAvailable[0], 2986864760090612388);
 
         // Confirm that the {Treasury} has received the rewards
         uint treasuryEndBalance = strategy.vToken().balanceOf(treasury);
-        assertEq(treasuryEndBalance, 8391968908155895774);
-        */
+        assertEq(treasuryEndBalance, 1869860608517882228);
     }
 
     /**
