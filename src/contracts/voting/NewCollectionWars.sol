@@ -124,6 +124,8 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
             unchecked {
                 collectionVotes[keccak256(abi.encode(currentWar.index, userVote))] -= userVotes[warUser];
             }
+
+            emit VoteRevoked(msg.sender, userVote, userVotes[warUser]);
         }
 
         // Ensure the user has enough votes available to cast
@@ -139,7 +141,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
         // Trigger our potential restake due to vote action
         veFloor.refreshLock(msg.sender);
 
-        emit VoteCast(msg.sender, collection, userVotes[warUser], collectionVotes[warCollection]);
+        emit VoteCast(msg.sender, collection, votesAvailable, collectionVotes[warCollection]);
     }
 
     /**

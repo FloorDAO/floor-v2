@@ -42,6 +42,9 @@ contract TreasuryTest is FloorTest {
     /// @dev Emitted when the {VeFloorStaking} contract is updated
     event VeFloorStakingUpdated(address veFloorStaking);
 
+    /// Emitted when the {StrategyFactory} contract is updated
+    event StrategyFactoryUpdated(address strategyFactory);
+
     // We want to store a small number of specific users for testing
     address alice;
     address bob;
@@ -782,6 +785,7 @@ contract TreasuryTest is FloorTest {
         approvals[0] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.NATIVE, // Token type
             address(0), // address assetContract
+            address(action), // address target
             0, // uint tokenId
             30 ether // uint amount
         );
@@ -789,6 +793,7 @@ contract TreasuryTest is FloorTest {
         approvals[1] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.ERC20, // Token type
             address(erc20), // address assetContract
+            address(action), // address target
             0, // uint tokenId
             50 ether // uint amount
         );
@@ -796,6 +801,7 @@ contract TreasuryTest is FloorTest {
         approvals[2] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.ERC721, // Token type
             address(erc721), // address assetContract
+            address(action), // address target
             1, // uint tokenId
             0 // uint amount
         );
@@ -803,6 +809,7 @@ contract TreasuryTest is FloorTest {
         approvals[3] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.ERC1155, // Token type
             address(erc1155), // address assetContract
+            address(action), // address target
             1, // uint tokenId
             2 // uint amount
         );
@@ -810,6 +817,7 @@ contract TreasuryTest is FloorTest {
         approvals[4] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.ERC1155, // Token type
             address(erc1155), // address assetContract
+            address(action), // address target
             2, // uint tokenId
             2 // uint amount
         );
@@ -1458,6 +1466,41 @@ contract TreasuryTest is FloorTest {
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
         treasury.setVeFloorStaking(contractAddr);
         vm.stopPrank();
+    }
+
+    /**
+     * We need to make sure we can set the {StrategyFactory} contract address and that the
+     * expected event is emitted.
+     *
+     * @dev We don't want to allow a zero-address, so we exclude that from fuzzing
+     */
+    function test_CanSetStrategyFactoryContract(address contractAddr) external {
+        vm.assume(contractAddr != address(0));
+
+        vm.expectEmit(true, true, false, true, address(treasury));
+        emit StrategyFactoryUpdated(contractAddr);
+
+        treasury.setStrategyFactory(contractAddr);
+        assertEq(address(treasury.strategyFactory()), contractAddr);
+    }
+
+    /**
+     * If the user does not have the correct permissions to set the {VeFloorStaking} contract
+     * then we need to make sure that the contract reverts the call without updating.
+     */
+    function test_CannotSetStrategyFactoryContractWithoutPermissions(address contractAddr) external {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, alice, authorityControl.TREASURY_MANAGER()));
+        treasury.setStrategyFactory(contractAddr);
+        vm.stopPrank();
+    }
+
+    /**
+     * We want to ensure that we cannot set a {StrategyFactory} with a zero-address.
+     */
+    function test_CannotSetStrategyFactoryContractWithZeroAddress() external {
+        vm.expectRevert(CannotSetNullAddress.selector);
+        treasury.setStrategyFactory(address(0));
     }
 
     /**

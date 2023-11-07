@@ -69,7 +69,7 @@ contract DeploymentScript is Script {
         require(deploymentAddress != address(0), 'Cannot store zero address');
 
         // Load our current JSON object
-        bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), 'deployments');
+        bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), '.deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
 
         // Create our new deployments structure

@@ -31,7 +31,7 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
 
     /// Holds our internal contract references
     INewCollectionWars public newCollectionWars;
-    IVoteMarket public voteMarket;
+    address public voteMarket;
 
     /// Stores a mapping of an epoch to a collection
     mapping(uint => uint) public collectionEpochs;
@@ -79,8 +79,8 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
         // done as only Sweep Wars utilise bribe logic and have a preset number of epochs
         // covered at the point of creation, so by taking one of their epochs we append
         // another to their bribe epoch window.
-        if (address(voteMarket) != address(0)) {
-            voteMarket.extendBribes(epoch);
+        if (voteMarket != address(0)) {
+            IVoteMarket(voteMarket).extendBribes(epoch);
         }
 
         emit CollectionAdditionWarScheduled(epoch, index);
@@ -198,10 +198,7 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
         if (_newCollectionWars == address(0)) revert CannotSetNullAddress();
 
         newCollectionWars = INewCollectionWars(_newCollectionWars);
-
-        if (_voteMarket != address(0)) {
-            voteMarket = IVoteMarket(_voteMarket);
-        }
+        voteMarket = _voteMarket;
 
         emit EpochManagerContractsUpdated(_newCollectionWars, _voteMarket);
     }

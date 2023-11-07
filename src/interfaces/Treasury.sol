@@ -36,6 +36,7 @@ interface ITreasury {
     struct ActionApproval {
         TreasuryEnums.ApprovalType _type; // Token type
         address assetContract; // Used by 20, 721 and 1155
+        address target; // Used by 20, 721 and 1155
         uint tokenId; // Used by 721 tokens
         uint amount; // Used by native and 20 tokens
     }
@@ -87,6 +88,9 @@ interface ITreasury {
 
     /// Emitted when the {VeFloorStaking} contract is updated
     event VeFloorStakingUpdated(address veFloorStaking);
+
+    /// Emitted when the {StrategyFactory} contract is updated
+    event StrategyFactoryUpdated(address strategyFactory);
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method

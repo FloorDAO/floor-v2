@@ -10,6 +10,7 @@ import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {VeFloorStaking} from '@floor/staking/VeFloorStaking.sol';
+import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, TransferFailed} from '@floor/utils/Errors.sol';
@@ -33,6 +34,9 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     /// Holds our {FLOOR} and {WETH} contract references.
     FLOOR public immutable floor;
     IWETH public immutable weth;
+
+    /// Holds our {StrategyFactory} contract reference.
+    StrategyFactory public strategyFactory;
 
     /// Holds our {VeFloorStaking} contract reference.
     VeFloorStaking public veFloor;
@@ -180,6 +184,62 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     }
 
     /**
+     * Allows the {Treasury} to make a deposit directly into a {BaseStrategy} using
+     * the strategy ID. The function selector will need to be included in the `_data`
+     * parameter, along with the deposit related parameters.
+     *
+     * @param _strategyId The ID of the strategy to be depositted into
+     * @param _data Any bytes data that should be passed to the {IAction} execution function
+     * @param approvals Any tokens that need to be approved before actioning
+     */
+    function strategyDeposit(
+        uint _strategyId,
+        bytes calldata _data,
+        ActionApproval[] calldata approvals
+    ) external nonReentrant onlyRole(TREASURY_MANAGER) {
+        // Get our strategy address from the ID
+        address strategy = strategyFactory.strategy(_strategyId);
+        require(strategy != address(0), 'Invalid strategy');
+
+        uint ethValue;
+
+        for (uint i; i < approvals.length;) {
+            if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
+                ethValue += approvals[i].amount;
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
+                IERC20(approvals[i].assetContract).approve(approvals[i].target, approvals[i].amount);
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
+                IERC721(approvals[i].assetContract).approve(approvals[i].target, approvals[i].tokenId);
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Action our call against the target recipient
+        (bool success,) = strategy.call{value: ethValue}(_data);
+        require(success, 'Transaction failed');
+
+        // Remove approvals after execution
+        for (uint i; i < approvals.length;) {
+            if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
+                IERC20(approvals[i].assetContract).approve(approvals[i].target, 0);
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
+                if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
+                    IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
+                }
+            } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
+            }
+
+            unchecked { ++i; }
+        }
+    }
+
+    /**
      * Apply an action against the Treasury. If we need any tokens to be approved before the
      * action is called, then these are approved before our call and approval is removed
      * afterwards for 1155s.
@@ -188,7 +248,12 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
      * @param approvals Any tokens that need to be approved before actioning
      * @param data Any bytes data that should be passed to the {IAction} execution function
      */
-    function processAction(address payable action, ActionApproval[] calldata approvals, bytes calldata data, uint linkedSweepEpoch)
+    function processAction(
+        address payable action,
+        ActionApproval[] calldata approvals,
+        bytes calldata data,
+        uint linkedSweepEpoch
+    )
         external
         nonReentrant
         onlyRole(TREASURY_MANAGER)
@@ -199,11 +264,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
                 ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
-                IERC20(approvals[i].assetContract).approve(action, approvals[i].amount);
+                IERC20(approvals[i].assetContract).approve(approvals[i].target, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
-                IERC721(approvals[i].assetContract).approve(action, approvals[i].tokenId);
+                IERC721(approvals[i].assetContract).approve(approvals[i].target, approvals[i].tokenId);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
-                IERC1155(approvals[i].assetContract).setApprovalForAll(action, true);
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
             }
 
             unchecked {
@@ -213,16 +278,16 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
 
         IAction(action).execute{value: ethValue}(data);
 
-        // Remove ERC1155 global approval after execution
+        // Remove approvals after execution
         for (uint i; i < approvals.length;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
-                IERC20(approvals[i].assetContract).approve(action, 0);
+                IERC20(approvals[i].assetContract).approve(approvals[i].target, 0);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
                 if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
                     IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
                 }
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
-                IERC1155(approvals[i].assetContract).setApprovalForAll(action, false);
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
             }
 
             unchecked { ++i; }
@@ -463,6 +528,17 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     function setVeFloorStaking(address _veFloorStaking) external onlyRole(TREASURY_MANAGER) {
         veFloor = VeFloorStaking(_veFloorStaking);
         emit VeFloorStakingUpdated(_veFloorStaking);
+    }
+
+    /**
+     * Allows us to set a new {StrategyFactory} contract that is used when making strategy deposits.
+     *
+     * @param _strategyFactory New StrategyFactory contract address
+     */
+    function setStrategyFactory(address _strategyFactory) external onlyRole(TREASURY_MANAGER) {
+        if (_strategyFactory == address(0)) revert CannotSetNullAddress();
+        strategyFactory = StrategyFactory(_strategyFactory);
+        emit StrategyFactoryUpdated(_strategyFactory);
     }
 
     /**
