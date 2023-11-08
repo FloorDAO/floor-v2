@@ -96,9 +96,11 @@ contract VoteInNewCollectionWar is DeploymentScript {
         _castVote(9, collectionOne);
 
         // Revoke some votes
+        vm.startBroadcast(privateKey);
         _revokeVotes(0);
         _revokeVotes(2);
         _revokeVotes(9);
+        vm.stopBroadcast();
 
         // Change the votes
         _castVote(1, collectionTwo);
@@ -115,9 +117,7 @@ contract VoteInNewCollectionWar is DeploymentScript {
     }
 
     function _revokeVotes(uint walletIndex) internal {
-        vm.startBroadcast(walletKeys[walletIndex]);
         newCollectionWars.revokeVotes(wallets[walletIndex]);
-        vm.stopBroadcast();
     }
 
 }
