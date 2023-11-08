@@ -12,6 +12,10 @@ contract DeployErc721Mock is DeploymentScript {
     function run() external deployer {
         // Deploy a mock erc721 contracts that can be used for testing in the
         // collection registry.
-        new ERC721Mock();
+        ERC721Mock mock = ERC721Mock(0xDc110028492D1baA15814fCE939318B6edA13098);
+
+        for (uint i; i < 50; ++i) {
+            mock.mint(0x84f4840E47199F1090cEB108f74C5F332219539A, 400 + i);
+        }
     }
 }
