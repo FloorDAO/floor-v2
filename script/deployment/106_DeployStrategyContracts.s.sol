@@ -8,6 +8,7 @@ import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.s
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 
@@ -19,7 +20,7 @@ contract DeployStrategyContracts is DeploymentScript {
         // Confirm that we have our required contracts deployed
         address authorityControl = requireDeployment('AuthorityControl');
         address collectionRegistry = requireDeployment('CollectionRegistry');
-        address treasury = requireDeployment('Treasury');
+        address payable treasury = requireDeployment('Treasury');
 
         // Deploy strategy strategies
         DistributedRevenueStakingStrategy distributedRevenueStakingStrategy = new DistributedRevenueStakingStrategy(address(authorityControl));
@@ -43,8 +44,17 @@ contract DeployStrategyContracts is DeploymentScript {
 
         // Store our strategy factory
         storeDeployment('StrategyFactory', address(strategyFactory));
+        storeDeployment('StrategyRegistry', address(strategyRegistry));
 
-        // Set our {Treasury} against the {StrategyFactory}
+        // Set our {Treasury} against the {StrategyFactory}, and vice versa
         strategyFactory.setTreasury(treasury);
+        Treasury(treasury).setStrategyFactory(address(strategyFactory));
+
+        // Approve our strategies
+        strategyRegistry.approveStrategy(address(distributedRevenueStakingStrategy), true);
+        strategyRegistry.approveStrategy(address(inventoryStaking), true);
+        strategyRegistry.approveStrategy(address(liquidityStaking), true);
+        strategyRegistry.approveStrategy(address(revenueStaking), true);
+        strategyRegistry.approveStrategy(address(uniswapV3Staking), true);
     }
 }
