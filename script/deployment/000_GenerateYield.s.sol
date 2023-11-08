@@ -3,15 +3,12 @@ pragma solidity ^0.8.0;
 
 import 'forge-std/console.sol';
 
-import {RawTx} from '@floor/actions/utils/RawTx.sol';
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {NFTXLiquidityPoolStakingStrategy} from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
-import {ManualSweeper} from '@floor/sweepers/Manual.sol';
-import {EpochManager} from '@floor/EpochManager.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {Treasury} from '@floor/Treasury.sol';
-import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
 
+import {IStrategyRegistry} from '@floor-interfaces/strategies/StrategyRegistry.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
@@ -23,47 +20,24 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 /**
  * Interacts with all of our event driven contracts.
  *
- *
-
  * 0xDc110028492D1baA15814fCE939318B6edA13098
  * 0xA08Bc5C704f17d404E6a3B93c25b1C494ea1c018
  * 0x572567C9aC029bd617CdBCF43b8dcC004A3D1339
-
-  0x1dF8484C675c9AbCf3bB9204D5825Ff661824025
-  Liquidation Pool
-  0x4Ba3648a5E00D03Cc5482b274baaf32d79f92bdE
-  Mock Strategy
-  0x5271af5c9FEFFD22df3F34ce72Aaf913D20d28D9
-  NFTXInventory
-  0x4b7379FA0aED2906558098539F09cfE22109D59b
-  NFTXLiquidityPool
-  0x2Fd9f67192e0B53BeF36c76242A9fC73B5496FeA
-  DistributedRevenue
-  0x5950742154AF65E907D9566Aef7bDcdfF1e9Cac0
-  RevenueStaking
-  0xfE5a2647B70690A928240d9c92B82114B6Dd9e5D
-  UniswapV3
-  0xC308054dD185342F9717bDb4b37A8EcEcDA099E8
-  UniswapV3
-  0x0090160D43C8894e0Fdf23dE5A91104B61d06016
-  Liquidation Pool
-
  *
  */
 contract GenerateYield is DeploymentScript {
 
-    // Our wallet
-    address WALLET = 0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348;
+    uint TOKEN_START = 540;
 
     function run() external deployer {
 
         // Deploy new strategies
-        StrategyFactory strategyFactory = StrategyFactory(0xdc7CDc5c198ab2F904eC1B416E2dC7f0fBaC9F50);
+        StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
 
         // Reference our NFTX strategies
         (,address _strategy) = strategyFactory.deployStrategy(
             'NFTX Mocker Inventory Strategy',
-            0x41a13e5c9686b6963DfB1E2E6cDf36c25232f725,
+            requireDeployment('NFTXInventoryStakingStrategy'),
             abi.encode(
                 69, // _vaultId
                 0x05679E29385EEC643c91cdBDB9f31d8e1415c61f, // _vToken
@@ -79,7 +53,7 @@ contract GenerateYield is DeploymentScript {
 
         (, _strategy) = strategyFactory.deployStrategy(
             'NFTX Mocker Liquidity Strategy',
-            0x62758A9C45dA5Fb9A0F8d088FceE96C0a47ca36d,
+            requireDeployment('NFTXLiquidityPoolStakingStrategy'),
             abi.encode(
                 69, // _vaultId
                 0xfe68945e076666ba1c98a059049D2f58A497E94a, // _underlyingToken     // MOCKERWETH
@@ -100,7 +74,7 @@ contract GenerateYield is DeploymentScript {
         ERC721Mock erc721 = ERC721Mock(0xDc110028492D1baA15814fCE939318B6edA13098);
 
         // Mint ERC721s into the {Treasury}
-        for (uint i = 500; i < 530; ++i) {
+        for (uint i = TOKEN_START; i < TOKEN_START + 30; ++i) {
             erc721.mint(address(treasury), i);
         }
 
@@ -117,13 +91,13 @@ contract GenerateYield is DeploymentScript {
         uint[] memory inventoryTokenIds = new uint[](5);
 
         for (uint i; i < 5; ++i) {
-            inventoryTokenIds[i] = 510 + i;
+            inventoryTokenIds[i] = TOKEN_START + 10 + i;
 
             inventoryApprovals[i] = ITreasury.ActionApproval({
                 _type: TreasuryEnums.ApprovalType.ERC721,
                 assetContract: address(erc721),
                 target: address(inventoryStaking),
-                tokenId: 510 + i,
+                tokenId: TOKEN_START + 10 + i,
                 amount: 0
             });
         }
@@ -140,7 +114,7 @@ contract GenerateYield is DeploymentScript {
         // Just pass ETH requirement
         approvals[0] = ITreasury.ActionApproval({
             _type: TreasuryEnums.ApprovalType.ERC20,
-            assetContract: 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6,
+            assetContract: 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6, // WETH
             target: address(liquidityStaking),
             tokenId: 0,
             amount: 20 ether
@@ -149,13 +123,13 @@ contract GenerateYield is DeploymentScript {
         // Create position with 721s + ETH into NFTX LP strategy
         uint[] memory liquidityTokenIds = new uint[](10);
         for (uint i; i < 10; ++i) {
-            liquidityTokenIds[i] = 500 + i;
+            liquidityTokenIds[i] = TOKEN_START + i;
 
             approvals[i + 1] = ITreasury.ActionApproval({
                 _type: TreasuryEnums.ApprovalType.ERC721,
                 assetContract: address(erc721),
                 target: address(liquidityStaking),
-                tokenId: 500 + i,
+                tokenId: TOKEN_START + i,
                 amount: 0
             });
         }
