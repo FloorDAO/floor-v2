@@ -60,21 +60,21 @@ contract MakeLotsOfVotes is DeploymentScript {
         staking = VeFloorStaking(requireDeployment('VeFloorStaking'));
 
         // Give 1 FLOOR to each of the test wallets and send them some gas
-        // vm.startBroadcast(vm.envUint('PRIVATE_KEY'));
-        // floor.mint(0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348, 100 ether);
-
-        // for (uint i; i < wallets.length; ++i) {
-            // floor.transfer(wallets[i], 1 ether);
-            // (bool sent,) = wallets[i].call{value: 0.1 ether}('');
-            // require(sent, "Failed to send Ether");
-        // }
-        // vm.stopBroadcast();
+        /*
+        vm.startBroadcast(vm.envUint('PRIVATE_KEY'));
+        floor.mint(0xa2aE3FCC8A79c0E91A8B0a152dc1b1Ef311e1348, 10 ether);
+        for (uint i; i < wallets.length; ++i) {
+            floor.transfer(wallets[i], 1 ether);
+            (bool sent,) = wallets[i].call{value: 0.1 ether}('');
+            require(sent, "Failed to send Ether");
+        }
+        vm.stopBroadcast();
 
         // Each of them need to stake their FLOOR
         for (uint i; i < wallets.length; ++i) {
-            _revokeVotes(i, collectionOne, collectionTwo);
-            _revokeVotes(i, collectionThree);
+            _stakeFloor(i);
         }
+        */
 
         // Make a fudge-tonne of votes
         _castVote(0, collectionOne,   0.75 ether);
