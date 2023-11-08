@@ -43,7 +43,7 @@ contract ExecuteSweep is DeploymentScript {
         }
 
         // Action a sweep against the previous epoch
-        treasury.sweepEpoch(epochManager.currentEpoch() - 1, address(manualSweeper), '', 0);
+        treasury.sweepEpoch(epochManager.currentEpoch() - 1, address(manualSweeper), 'Example test sweep data', 0);
 
     }
 
