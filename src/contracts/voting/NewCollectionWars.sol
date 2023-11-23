@@ -201,7 +201,7 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
 
             delete userCollectionVote[warUser];
 
-            emit VoteRevoked(msg.sender, collection, collectionVotes[warCollection]);
+            emit VoteRevoked(account, collection, collectionVotes[warCollection]);
         }
     }
 
