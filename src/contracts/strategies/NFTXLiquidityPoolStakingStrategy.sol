@@ -36,8 +36,8 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /// The underlying token will be the same as the address of the NFTX vault.
     address public underlyingToken;
 
-    /// The yield token will be a vault xToken as defined by the LP contract.
-    address public yieldToken;
+    /// The dividend token will be a vault xToken as defined by the LP contract.
+    address public dividendToken;
 
     /// The reward token will be a vToken as defined by the LP contract.
     address public rewardToken;
@@ -73,7 +73,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         (
             uint _vaultId,
             address _underlyingToken,
-            address _yieldToken,
+            address _dividendToken,
             address _rewardToken,
             address _liquidityStaking,
             address _stakingZap,
@@ -83,7 +83,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         // Map our NFTX information
         vaultId = _vaultId;
         underlyingToken = _underlyingToken;
-        yieldToken = _yieldToken;
+        dividendToken = _dividendToken;
         rewardToken = _rewardToken;
         stakingZap = INFTXStakingZap(_stakingZap);
         liquidityStaking = INFTXLiquidityStaking(_liquidityStaking);
@@ -104,13 +104,13 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     /**
      * Deposit the underlying token into the LP staking pool.
      *
-     * @return amount_ Amount of yield token returned from NFTX
+     * @return amount_ Amount of dividend token returned from NFTX
      */
     function depositErc20(uint amount)
         external
         nonReentrant
         whenNotPaused
-        updatesPosition(yieldToken)
+        updatesPosition(dividendToken)
         returns (uint amount_)
     {
         // Prevent users from trying to deposit nothing
@@ -119,7 +119,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         }
 
         // Capture our starting balance
-        uint startXTokenBalance = IERC20(yieldToken).balanceOf(address(this));
+        uint startXTokenBalance = IERC20(dividendToken).balanceOf(address(this));
 
         // Transfer the underlying token from our caller
         IERC20(underlyingToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -131,15 +131,15 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         // Deposit the token into the NFTX contract
         liquidityStaking.deposit(vaultId, amount);
 
-        // Determine the amount of yield token returned from our deposit
-        amount_ = IERC20(yieldToken).balanceOf(address(this)) - startXTokenBalance;
+        // Determine the amount of dividend token returned from our deposit
+        amount_ = IERC20(dividendToken).balanceOf(address(this)) - startXTokenBalance;
     }
 
     function depositErc721(uint[] calldata tokenIds, uint minWethIn, uint wethIn)
         external
         nonReentrant
         whenNotPaused
-        updatesPosition(yieldToken)
+        updatesPosition(dividendToken)
         refundsWeth
     {
         // Pull tokens in
@@ -166,7 +166,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         external
         nonReentrant
         whenNotPaused
-        updatesPosition(yieldToken)
+        updatesPosition(dividendToken)
         refundsWeth
     {
         // Pull tokens in
@@ -188,7 +188,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
      *
      * @dev Implements `nonReentrant` through `_withdrawErc20`
      *
-     * @param amount Amount of yield token to withdraw
+     * @param amount Amount of dividend token to withdraw
      *
      * @return amount_ Amount of the underlying token returned
      */
@@ -215,7 +215,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     {
         // Get the total amount of underlyingToken that has been deposited. From that, take
         // the percentage of the token.
-        uint amount = (position[yieldToken] * percentage) / 100_00;
+        uint amount = (position[dividendToken] * percentage) / 100_00;
 
         tokens_ = validTokens();
 
@@ -226,8 +226,8 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
     function _withdrawErc20(address recipient, uint amount) internal nonReentrant returns (uint amount_) {
         // Ensure our user has sufficient position to withdraw from
-        if (amount > position[yieldToken]) {
-            revert InsufficientPosition(yieldToken, amount, position[yieldToken]);
+        if (amount > position[dividendToken]) {
+            revert InsufficientPosition(dividendToken, amount, position[dividendToken]);
         }
 
         // Capture our starting balance
@@ -249,7 +249,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             deposits -= amount_;
 
             // We can now reduce the users position and total position held by the strategy
-            position[yieldToken] -= amount;
+            position[dividendToken] -= amount;
         }
 
         // Fire an event to show amount of token claimed and the recipient
@@ -264,12 +264,12 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
         tokens_ = new address[](1);
         amounts_ = new uint[](1);
 
-        // Assign our yield token as the return
-        tokens_[0] = yieldToken;
+        // Assign our dividend token as the return
+        tokens_[0] = rewardToken;
 
         // Get the xToken balance held by the strategy that is in addition to the amount
         // deposited. This should show only the gain / rewards generated.
-        amounts_[0] = ITimelockRewardDistributionToken(yieldToken).dividendOf(address(this));
+        amounts_[0] = ITimelockRewardDistributionToken(dividendToken).dividendOf(address(this));
     }
 
     /**
@@ -287,11 +287,11 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
             IERC20(rewardToken).safeTransfer(_recipient, IERC20(rewardToken).balanceOf(address(this)));
 
             unchecked {
-                lifetimeRewards[yieldToken] += amounts[0];
+                lifetimeRewards[rewardToken] += amounts[0];
             }
         }
 
-        emit Harvest(yieldToken, amounts[0]);
+        emit Harvest(dividendToken, amounts[0]);
     }
 
     /**
@@ -304,7 +304,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
     }
 
     /**
-     * Increases our yield token position based on the logic transacted in the call.
+     * Increases our dividend token position based on the logic transacted in the call.
      *
      * @dev This should be called for any deposit calls made.
      */
@@ -314,7 +314,7 @@ contract NFTXLiquidityPoolStakingStrategy is BaseStrategy {
 
         _;
 
-        // Determine the amount of yield token returned from our deposit
+        // Determine the amount of dividend token returned from our deposit
         uint amount = IERC20(token).balanceOf(address(this)) - startBalance;
 
         // Increase the user's position and the total position for the strategy

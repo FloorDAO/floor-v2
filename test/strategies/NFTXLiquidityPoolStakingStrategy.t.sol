@@ -83,7 +83,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
             abi.encode(
                 392, // _vaultId
                 0x15A8E38942F9e353BEc8812763fb3C104c89eCf4, // _underlyingToken     // MILADYWETH
-                0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7, // _yieldToken          // xMILADYWETH
+                0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7, // _dividendToken          // xMILADYWETH
                 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _rewardToken         // MILADY
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
@@ -126,8 +126,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
      * Our yield token should be the xToken that is defined by the
      * NFTX InventoryStaking contract.
      */
-    function test_CanGetYieldToken() public {
-        assertEq(strategy.yieldToken(), 0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7);
+    function test_CanGetDividendToken() public {
+        assertEq(strategy.dividendToken(), 0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7);
     }
 
     /**
@@ -166,23 +166,23 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm our account has a balance of the underlying token
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 100 ether);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(erc20Holder), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(erc20Holder), 0);
 
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 0);
 
         // Deposit using the underlying token to receive xToken into the strategy
         IERC20(strategy.underlyingToken()).approve(address(strategy), 10 ether);
         strategy.depositErc20(10 ether);
 
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(erc20Holder), 90 ether);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(erc20Holder), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(erc20Holder), 0);
 
         // The amount of xToken returned to the strategy is less than 1, because this uses
         // xToken share value. This is expected to be variable and less that the depositted
         // amount.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 10 ether);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 10 ether);
 
         vm.stopPrank();
     }
@@ -225,17 +225,17 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm our token holdings before we process a withdrawal
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(treasury), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 1 ether);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 1 ether);
 
         // We can now claim rewards via the strategy that will eat away from our
-        // deposit. For this test we will burn 0.5 xToken (yieldToken) to claim
+        // deposit. For this test we will burn 0.5 xToken (dividendToken) to claim
         // back our underlying token.
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
 
         // The strategy should now hold a reduced amount of token and our {Treasury}
         // should hold the reward.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(treasury), 0.5 ether);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0.5 ether);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 0.5 ether);
     }
 
     /**
@@ -248,7 +248,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Get the start balance of our {Treasury}
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(treasury)), 0);
 
         // We first need to deposit
         IERC20(strategy.underlyingToken()).approve(address(strategy), 1 ether);
@@ -267,11 +267,11 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // The strategy should now hold token and xToken. However, we need to accomodate
         // for the dust bug in the InventoryStaking zap that leaves us missing 1 wei.
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 0);
 
         // Check here for the sent value as well
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(treasury)), 1 ether);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(treasury)), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(treasury)), 0);
     }
 
     /**
@@ -302,24 +302,24 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Check that we have the expected underlying, yield and reward tokens
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 5 ether);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 5 ether);
         assertEq(IERC20(strategy.rewardToken()).balanceOf(address(strategy)), 0);
 
         // Generate some rewards by dealing xToken to our user
-        deal(strategy.yieldToken(), address(strategy), 8 ether);
+        deal(strategy.dividendToken(), address(strategy), 8 ether);
 
         // We need to distribute additional reward tokens to the to our LP staking contract
         // so that it has sufficient balance to fulfill our rewards.
-        deal(strategy.rewardToken(), address(strategy.yieldToken()), 100 ether);
+        deal(strategy.rewardToken(), address(strategy.dividendToken()), 100 ether);
 
         // Check the balance directly that should be claimable
         (address[] memory rewardsTokens, uint[] memory rewardsAvailable) = strategy.available();
-        assertEq(rewardsTokens[0], strategy.yieldToken());
+        assertEq(rewardsTokens[0], strategy.rewardToken());
         assertEq(rewardsAvailable[0], 11955376912380485207);
 
         // Check our lifetime rewards reflect this
         (address[] memory lifetimeRewardsTokens, uint[] memory lifetimeRewardsAvailable) = strategy.totalRewards();
-        assertEq(lifetimeRewardsTokens[0], strategy.yieldToken());
+        assertEq(lifetimeRewardsTokens[0], strategy.rewardToken());
         assertEq(lifetimeRewardsAvailable[0], 11955376912380485207);
 
         // Get the {Treasury} starting balance of the reward token
@@ -350,7 +350,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         (address[] memory tokens, uint[] memory amounts) = strategy.available();
 
         assertEq(tokens.length, 1);
-        assertEq(tokens[0], strategy.yieldToken());
+        assertEq(tokens[0], strategy.rewardToken());
         assertEq(amounts.length, 1);
         assertEq(amounts[0], 0);
     }
@@ -382,8 +382,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.rewardToken()).balanceOf(address(strategy)), 0);
         assertEq(IERC20(strategy.rewardToken()).balanceOf(treasury), 0);
 
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 3695533293116565944);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(treasury), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 3695533293116565944);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(treasury), 0);
 
         vm.stopPrank();
     }
@@ -396,7 +396,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
             abi.encode(
                 241, // _vaultId
                 0x8a83b072ca48c217c1ef676445A9a545c110A45B, // _underlyingToken     // CURIOWETH
-                0x566f19428ca28923218bA74f54d3513F2ba719E1, // _yieldToken          // xCURIOWETH
+                0x566f19428ca28923218bA74f54d3513F2ba719E1, // _dividendToken          // xCURIOWETH
                 0xE97e496E8494232ee128c1a8cAe0b2B7936f3CaA, // _rewardToken         // CURIO
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
@@ -449,8 +449,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Determine our initial balances following a deposit of 2 tokens and WETH to match
         assertEq(IERC20(_strategy.underlyingToken()).balanceOf(address(_strategy)), 0);
         assertEq(IERC20(_strategy.underlyingToken()).balanceOf(treasury), 0);
-        assertEq(IERC20(_strategy.yieldToken()).balanceOf(address(_strategy)), 725256818397827410);
-        assertEq(IERC20(_strategy.yieldToken()).balanceOf(treasury), 0);
+        assertEq(IERC20(_strategy.dividendToken()).balanceOf(address(_strategy)), 725256818397827410);
+        assertEq(IERC20(_strategy.dividendToken()).balanceOf(treasury), 0);
         assertEq(IERC20(_strategy.rewardToken()).balanceOf(address(_strategy)), 0);
         assertEq(IERC20(_strategy.rewardToken()).balanceOf(treasury), 0);
 
@@ -469,8 +469,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // {Treasury} now holds the expected amount of underlying token.
         assertEq(IERC20(_strategy.underlyingToken()).balanceOf(address(_strategy)), 0);
         assertEq(IERC20(_strategy.underlyingToken()).balanceOf(treasury), 500000000000000000);
-        assertEq(IERC20(_strategy.yieldToken()).balanceOf(address(_strategy)), 225256818397827410);
-        assertEq(IERC20(_strategy.yieldToken()).balanceOf(treasury), 0);
+        assertEq(IERC20(_strategy.dividendToken()).balanceOf(address(_strategy)), 225256818397827410);
+        assertEq(IERC20(_strategy.dividendToken()).balanceOf(treasury), 0);
         assertEq(IERC20(_strategy.rewardToken()).balanceOf(address(_strategy)), 0);
         assertEq(IERC20(_strategy.rewardToken()).balanceOf(treasury), 0);
 
@@ -488,7 +488,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Our 8 vToken deposit gives us a 1:1 yield token
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 8000000000000000000);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 8000000000000000000);
 
         // Confirm our rewards generated at first deposit will be zero
         assertRewards(strategy, 0, 0, 0, 0);
@@ -499,7 +499,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Generate rewards worth of 2 ETH using a mocked call
         address[] memory rewardToken = new address[](1);
-        rewardToken[0] = strategy.yieldToken();
+        rewardToken[0] = strategy.rewardToken();
         uint[] memory rewardAmount = new uint[](1);
         rewardAmount[0] = 2 ether;
 
@@ -520,7 +520,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Our strategy should now hold 7 xToken
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 7000000000000000000);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 7000000000000000000);
 
         // Snapshot the rewards
         strategyFactory.snapshot(strategyId, 0);
@@ -533,12 +533,12 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Our strategy should now hold 6 xToken
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 6000000000000000000);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 6000000000000000000);
 
         // Before we can harvest, we need to mock the NFTX calls as we won't actually have
         // any tokens available to claim.
         vm.mockCall(address(strategy.liquidityStaking()), abi.encodeWithSelector(INFTXLiquidityStaking.withdraw.selector), abi.encode(true));
-        vm.mockCall(strategy.yieldToken(), abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
+        vm.mockCall(strategy.dividendToken(), abi.encodeWithSelector(IERC20.transfer.selector), abi.encode(true));
 
         // Harvest our rewards via the strategy
         strategyFactory.harvest(strategyId);
@@ -569,7 +569,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Confirm that our tests don't have any residual tokens to start with
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(this)), 0);
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 0);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 0);
 
         // Deposit into our strategy
         vm.startPrank(erc20Holder);
@@ -589,7 +589,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm that the strategy still holds the expected number of yield token
         assertEq(IERC20(strategy.underlyingToken()).balanceOf(address(strategy)), 0);
-        assertEq(IERC20(strategy.yieldToken()).balanceOf(address(strategy)), 8e17);
+        assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 8e17);
 
         // Confirm that the strategy has an accurate record of the deposits
         uint deposits = strategy.deposits();
@@ -605,8 +605,8 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     ) internal {
         (, uint[] memory totalRewardAmounts) = _strategy.totalRewards();
         (, uint[] memory totalAvailableAmounts) = _strategy.available();
-        uint lifetimeRewards = _strategy.lifetimeRewards(_strategy.yieldToken());
-        uint lastEpochRewards = _strategy.lastEpochRewards(_strategy.yieldToken());
+        uint lifetimeRewards = _strategy.lifetimeRewards(_strategy.rewardToken());
+        uint lastEpochRewards = _strategy.lastEpochRewards(_strategy.rewardToken());
 
         assertEq(totalRewardAmounts[0], _rewardAmount);
         assertEq(totalAvailableAmounts[0], _availableAmount);
