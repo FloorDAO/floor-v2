@@ -151,10 +151,6 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
             ago = block.timestamp - oldestAvailableAge;
             secondsAgos[0] = uint32(ago);
 
-            // Ensure that our minimum oldest available observation passes a minimum timing
-            // threshold to avoid exploitation. This is currently set to 5 minutes.
-            require(ago >= 300, 'Pool too fresh');
-
             // Call observe() again to get the oldest available
             (success, data) = pool.staticcall(abi.encodeWithSelector(IUniswapV3PoolDerivedState.observe.selector, secondsAgos));
             if (!success) revertBytes(data);
