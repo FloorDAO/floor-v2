@@ -87,19 +87,18 @@ contract GenerateYield is DeploymentScript {
         IWETH(WETH).transfer(address(treasury), 20 ether);
 
         // Put 5 721s into an NFTX Inventory strategy
-        ITreasury.ActionApproval[] memory inventoryApprovals = new ITreasury.ActionApproval[](5);
+        ITreasury.ActionApproval[] memory inventoryApprovals = new ITreasury.ActionApproval[](1);
+        inventoryApprovals[0] = ITreasury.ActionApproval({
+            _type: TreasuryEnums.ApprovalType.ERC721,
+            assetContract: address(erc721),
+            target: address(inventoryStaking),
+            amount: 0
+        });
+
         uint[] memory inventoryTokenIds = new uint[](5);
 
         for (uint i; i < 5; ++i) {
             inventoryTokenIds[i] = TOKEN_START + 10 + i;
-
-            inventoryApprovals[i] = ITreasury.ActionApproval({
-                _type: TreasuryEnums.ApprovalType.ERC721,
-                assetContract: address(erc721),
-                target: address(inventoryStaking),
-                tokenId: TOKEN_START + 10 + i,
-                amount: 0
-            });
         }
 
         treasury.strategyDeposit(
@@ -109,29 +108,27 @@ contract GenerateYield is DeploymentScript {
         );
 
         // Set up approvals for ETH and 10 ERC721s
-        ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](11);
+        ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](2);
 
         // Just pass ETH requirement
         approvals[0] = ITreasury.ActionApproval({
             _type: TreasuryEnums.ApprovalType.ERC20,
             assetContract: 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6, // WETH
             target: address(liquidityStaking),
-            tokenId: 0,
             amount: 20 ether
+        });
+
+        approvals[1] = ITreasury.ActionApproval({
+            _type: TreasuryEnums.ApprovalType.ERC721,
+            assetContract: address(erc721),
+            target: address(liquidityStaking),
+            amount: 0
         });
 
         // Create position with 721s + ETH into NFTX LP strategy
         uint[] memory liquidityTokenIds = new uint[](10);
         for (uint i; i < 10; ++i) {
             liquidityTokenIds[i] = TOKEN_START + i;
-
-            approvals[i + 1] = ITreasury.ActionApproval({
-                _type: TreasuryEnums.ApprovalType.ERC721,
-                assetContract: address(erc721),
-                target: address(liquidityStaking),
-                tokenId: TOKEN_START + i,
-                amount: 0
-            });
         }
 
         treasury.strategyDeposit(

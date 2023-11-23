@@ -24,6 +24,8 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
  */
 contract ReplaceTreasury is DeploymentScript {
 
+    address APPROVED_COLLECTION = 0x056207f8Da23Ff08f1F410c1b6F4Bc7767229497;
+
     function run() external deployer {
 
         address floorToken = requireDeployment('FloorToken');
@@ -38,7 +40,6 @@ contract ReplaceTreasury is DeploymentScript {
 
         // Deploy our new {Treasury} contract
         Treasury treasury = new Treasury(address(authorityControl), floorToken, WETH);
-        storeDeployment('Treasury', address(treasury));
 
         // Set our new {Treasury} against the {StrategyFactory}
         strategyFactory.setTreasury(address(treasury));
@@ -56,7 +57,6 @@ contract ReplaceTreasury is DeploymentScript {
             address(treasury)                         // address _treasury
         );
 
-        storeDeployment('SweepWars', address(sweepWars));
 
         // Update our vefloor staking contract references
         veFloorStaking.setVotingContracts(newCollectionWars, address(sweepWars));
@@ -79,12 +79,17 @@ contract ReplaceTreasury is DeploymentScript {
         // address for {RegisterSweepTrigger}.
         epochManager.setEpochEndTrigger(requireDeployment('RegisterSweepTrigger'), false);
         epochManager.setEpochEndTrigger(address(registerSweep), true);
-        storeDeployment('RegisterSweepTrigger', address(registerSweep));
+        registerSweep.setEpochManager(address(epochManager));
+
+        // RegisterSweep needs a range of authorities
+        authorityRegistry.grantRole(authorityControl.EPOCH_TRIGGER(), address(registerSweep));
+        authorityRegistry.grantRole(authorityControl.TREASURY_MANAGER(), address(registerSweep));
+        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(registerSweep));
 
         StoreEpochCollectionVotesTrigger storeEpochVotes = new StoreEpochCollectionVotesTrigger(address(sweepWars));
         epochManager.setEpochEndTrigger(requireDeployment('StoreEpochCollectionVotesTrigger'), false);
         epochManager.setEpochEndTrigger(address(storeEpochVotes), true);
-        storeDeployment('StoreEpochCollectionVotesTrigger', address(storeEpochVotes));
+        storeEpochVotes.setEpochManager(address(epochManager));
 
         // Register a {DistributedRevenueStakingStrategy} strategy so that we can deploy a
         // {LiquidateNegativeCollectionTrigger}.
@@ -92,7 +97,7 @@ contract ReplaceTreasury is DeploymentScript {
             bytes32('Liquidation Pool'),
             requireDeployment('DistributedRevenueStakingStrategy'),
             abi.encode(WETH, 10 ether, address(epochManager)),
-            0xDc110028492D1baA15814fCE939318B6edA13098 // The collection is not important, it just needs to be approved
+            APPROVED_COLLECTION // The collection is not important, it just needs to be approved
         );
 
         LiquidateNegativeCollectionTrigger liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
@@ -107,14 +112,13 @@ contract ReplaceTreasury is DeploymentScript {
         // Register our epoch trigger
         epochManager.setEpochEndTrigger(requireDeployment('LiquidateNegativeCollectionTrigger'), false);
         epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionTrigger), true);
-        storeDeployment('LiquidateNegativeCollectionTrigger', address(liquidateNegativeCollectionTrigger));
+
+        liquidateNegativeCollectionTrigger.setEpochManager(address(epochManager));
 
         // Deploy our updated migration contracts
         MigrateTreasury migrateTreasury = new MigrateTreasury(0x91E453f442d25523F42063E1695390e325076ca2, address(treasury));
-        storeDeployment('MigrateTreasury', address(migrateTreasury));
 
         VestingClaim vestingClaim = new VestingClaim(floorToken, WETH, address(treasury));
-        storeDeployment('VestingClaim', address(vestingClaim));
 
         // Grant our new {Treasury} roles
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(treasury));
@@ -124,6 +128,14 @@ contract ReplaceTreasury is DeploymentScript {
 
         // Update the {Treasury} in the {StrategyFactory}
         strategyFactory.setTreasury(address(treasury));
+
+        storeDeployment('RegisterSweepTrigger', address(registerSweep));
+        storeDeployment('StoreEpochCollectionVotesTrigger', address(storeEpochVotes));
+        storeDeployment('LiquidateNegativeCollectionTrigger', address(liquidateNegativeCollectionTrigger));
+        storeDeployment('Treasury', address(treasury));
+        storeDeployment('SweepWars', address(sweepWars));
+        storeDeployment('MigrateTreasury', address(migrateTreasury));
+        storeDeployment('VestingClaim', address(vestingClaim));
 
     }
 

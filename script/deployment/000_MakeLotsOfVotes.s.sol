@@ -69,12 +69,13 @@ contract MakeLotsOfVotes is DeploymentScript {
             require(sent, "Failed to send Ether");
         }
         vm.stopBroadcast();
+        */
 
         // Each of them need to stake their FLOOR
         for (uint i; i < wallets.length; ++i) {
-            _stakeFloor(i);
+            _revokeVotes(i, collectionOne);
+            _revokeVotes(i, collectionTwo, collectionThree);
         }
-        */
 
         // Make a fudge-tonne of votes
         _castVote(0, collectionOne,   0.75 ether);

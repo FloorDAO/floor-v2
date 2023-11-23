@@ -38,7 +38,6 @@ contract ReplaceNewCollectionWars is DeploymentScript {
             requireDeployment('AuthorityControl'),
             requireDeployment('VeFloorStaking')
         );
-        storeDeployment('NewCollectionWars', address(newCollectionWars));
 
         // Update the required contracts
         epochManager.setEpochEndTrigger(requireDeployment('RegisterSweepTrigger'), false);
@@ -49,12 +48,15 @@ contract ReplaceNewCollectionWars is DeploymentScript {
             requireDeployment('Treasury'),
             requireDeployment('SweepWars')
         );
-        storeDeployment('RegisterSweepTrigger', address(registerSweep));
+
         epochManager.setEpochEndTrigger(address(registerSweep), true);
 
         staking.setVotingContracts(address(newCollectionWars), requireDeployment('SweepWars'));
         epochManager.setContracts(address(newCollectionWars), address(0));
         newCollectionWars.setEpochManager(address(epochManager));
+
+        storeDeployment('NewCollectionWars', address(newCollectionWars));
+        storeDeployment('RegisterSweepTrigger', address(registerSweep));
     }
 
 }
