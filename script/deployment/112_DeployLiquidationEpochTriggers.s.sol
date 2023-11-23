@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
-import {LiquidateNegativeCollectionTrigger} from '@floor/triggers/LiquidateNegativeCollection.sol';
+import {LiquidateNegativeCollectionManualTrigger} from '@floor/triggers/LiquidateNegativeCollectionManual.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -21,31 +21,28 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
         address sweepWars = requireDeployment('SweepWars');
 
         // Register a {DistributedRevenueStakingStrategy} strategy so that we can deploy a
-        // {LiquidateNegativeCollectionTrigger}.
+        // {liquidateNegativeCollectionManualTrigger}.
         (, address _strategy) = StrategyFactory(strategyFactory).deployStrategy(
             bytes32('Liquidation Pool'),
             distributedRevenueStakingStrategy,
             abi.encode(WETH, 10 ether, address(epochManager)),
-            0xDc110028492D1baA15814fCE939318B6edA13098 // The collection is not important, it just needs to be approved
+            0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6 // The collection is not important, it just needs to be approved
         );
 
         // Register our epoch end trigger that stores our liquidation
-        LiquidateNegativeCollectionTrigger liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
-            requireDeployment('UniswapV3PricingExecutor'),
+        LiquidateNegativeCollectionManualTrigger liquidateNegativeCollectionManualTrigger = new LiquidateNegativeCollectionManualTrigger(
             sweepWars,
             strategyFactory,
-            _strategy,
-            0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD, // Uniswap Universal Router
-            WETH
+            _strategy
         );
 
         // Register our epoch trigger
-        epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionTrigger), true);
+        epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionManualTrigger), true);
 
         // Finally, store our trigger
-        storeDeployment('LiquidateNegativeCollectionTrigger', address(liquidateNegativeCollectionTrigger));
+        storeDeployment('liquidateNegativeCollectionManualTrigger', address(liquidateNegativeCollectionManualTrigger));
 
         // Set our epoch manager
-        liquidateNegativeCollectionTrigger.setEpochManager(address(epochManager));
+        liquidateNegativeCollectionManualTrigger.setEpochManager(address(epochManager));
     }
 }
