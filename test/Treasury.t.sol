@@ -780,13 +780,12 @@ contract TreasuryTest is FloorTest {
 
         WrapEth action = new WrapEth(WETH);
 
-        ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](5);
+        ITreasury.ActionApproval[] memory approvals = new ITreasury.ActionApproval[](4);
 
         approvals[0] = ITreasury.ActionApproval(
             TreasuryEnums.ApprovalType.NATIVE, // Token type
             address(0), // address assetContract
             address(action), // address target
-            0, // uint tokenId
             30 ether // uint amount
         );
 
@@ -794,7 +793,6 @@ contract TreasuryTest is FloorTest {
             TreasuryEnums.ApprovalType.ERC20, // Token type
             address(erc20), // address assetContract
             address(action), // address target
-            0, // uint tokenId
             50 ether // uint amount
         );
 
@@ -802,7 +800,6 @@ contract TreasuryTest is FloorTest {
             TreasuryEnums.ApprovalType.ERC721, // Token type
             address(erc721), // address assetContract
             address(action), // address target
-            1, // uint tokenId
             0 // uint amount
         );
 
@@ -810,16 +807,7 @@ contract TreasuryTest is FloorTest {
             TreasuryEnums.ApprovalType.ERC1155, // Token type
             address(erc1155), // address assetContract
             address(action), // address target
-            1, // uint tokenId
-            2 // uint amount
-        );
-
-        approvals[4] = ITreasury.ActionApproval(
-            TreasuryEnums.ApprovalType.ERC1155, // Token type
-            address(erc1155), // address assetContract
-            address(action), // address target
-            2, // uint tokenId
-            2 // uint amount
+            0
         );
 
         treasury.processAction(

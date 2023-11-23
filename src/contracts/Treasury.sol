@@ -203,13 +203,14 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
 
         uint ethValue;
 
-        for (uint i; i < approvals.length;) {
+        uint approvalsLength = approvals.length;
+        for (uint i; i < approvalsLength;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
                 ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(approvals[i].target, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
-                IERC721(approvals[i].assetContract).approve(approvals[i].target, approvals[i].tokenId);
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
             }
@@ -224,13 +225,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         require(success, 'Transaction failed');
 
         // Remove approvals after execution
-        for (uint i; i < approvals.length;) {
+        for (uint i; i < approvalsLength;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(approvals[i].target, 0);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
-                if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
-                    IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
-                }
+                IERC721(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
             }
@@ -260,13 +259,14 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
     {
         uint ethValue;
 
-        for (uint i; i < approvals.length;) {
+        uint approvalsLength = approvals.length;
+        for (uint i; i < approvalsLength;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.NATIVE) {
                 ethValue += approvals[i].amount;
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(approvals[i].target, approvals[i].amount);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
-                IERC721(approvals[i].assetContract).approve(approvals[i].target, approvals[i].tokenId);
+                IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, true);
             }
@@ -279,13 +279,11 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
         IAction(action).execute{value: ethValue}(data);
 
         // Remove approvals after execution
-        for (uint i; i < approvals.length;) {
+        for (uint i; i < approvalsLength;) {
             if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC20) {
                 IERC20(approvals[i].assetContract).approve(approvals[i].target, 0);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC721) {
-                if (IERC721(approvals[i].assetContract).ownerOf(approvals[i].tokenId) == address(this)) {
-                    IERC721(approvals[i].assetContract).approve(address(0), approvals[i].tokenId);
-                }
+                IERC721(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
             } else if (approvals[i]._type == TreasuryEnums.ApprovalType.ERC1155) {
                 IERC1155(approvals[i].assetContract).setApprovalForAll(approvals[i].target, false);
             }

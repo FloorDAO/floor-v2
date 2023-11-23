@@ -37,7 +37,6 @@ interface ITreasury {
         TreasuryEnums.ApprovalType _type; // Token type
         address assetContract; // Used by 20, 721 and 1155
         address target; // Used by 20, 721 and 1155
-        uint tokenId; // Used by 721 tokens
         uint amount; // Used by native and 20 tokens
     }
 
