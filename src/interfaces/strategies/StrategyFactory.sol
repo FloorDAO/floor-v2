@@ -24,6 +24,11 @@ interface IStrategyFactory {
     event TreasuryUpdated(address treasury);
 
     /**
+     * Our stored {Treasury} address.
+     */
+    function treasury() external view returns (address);
+
+    /**
      * Provides a list of all strategies created.
      *
      * @return Array of all strategies created by the {StrategyFactory}
