@@ -116,6 +116,11 @@ contract UniswapV3PricingExecutor is IBasePricingExecutor {
      * @return Price of the token in ETH
      */
     function _getPrice(address token) internal returns (uint) {
+        // Skip if this is going to be WETH:WETH / ETH:WETH
+        if (token == address(WETH)) {
+            return 1 ether;
+        }
+
         // Ensure our token decimals don't exceed the standard 18
         uint tokenDecimals = IERC20Metadata(token).decimals();
         require(tokenDecimals <= 18, 'Invalid token decimals');
