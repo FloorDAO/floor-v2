@@ -19,7 +19,7 @@ contract DeployCoreContracts is DeploymentScript {
         address payable treasury = requireDeployment('Treasury');
 
         // Deploy our pricing executor, powered by Uniswap
-        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0x1F98431c8aD98523631AE4a59f267346ea31F984, WETH);
+        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0xDD2dce9C403f93c10af1846543870D065419E70b, WETH);
         storeDeployment('UniswapV3PricingExecutor', address(pricingExecutor));
 
         // Deploy our veFloor staking contracts

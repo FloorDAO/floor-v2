@@ -25,20 +25,8 @@ contract EndEpoch is DeploymentScript {
 
     function run() external deployer {
 
-        NewCollectionWars ncw = NewCollectionWars(requireDeployment('NewCollectionWars'));
-        Treasury treasury = Treasury(requireDeployment('Treasury'));
-
-        (TreasuryEnums.SweepType sweepType, bool completed, string memory message) = treasury.epochSweeps(1);
-
-        console.log(uint8(sweepType));
-        console.log(completed);
-        console.log(message);
-
-        console.log(ncw.floorWarWinner(0));
-        console.log(ncw.floorWarWinner(1));
-
-        // EpochManager epochManager = EpochManager(requireDeployment('EpochManager'));
-        // epochManager.endEpoch();
+        EpochManager epochManager = EpochManager(requireDeployment('EpochManager'));
+        epochManager.endEpoch();
     }
 
 }
