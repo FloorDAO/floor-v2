@@ -214,11 +214,11 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Calling the epoch again should result in a reversion as we have not
         // respected the enforced timelock.
-        vm.expectRevert(abi.encodeWithSelector(EpochTimelocked.selector, block.timestamp + 7 days));
+        vm.expectRevert(abi.encodeWithSelector(EpochTimelocked.selector, block.timestamp + epochManager.EPOCH_LENGTH()));
         epochManager.endEpoch();
 
-        // After moving forwards 7 days, we can now successfully end another epoch
-        vm.warp(block.timestamp + 7 days);
+        // After moving forwards, we can now successfully end another epoch
+        vm.warp(block.timestamp + epochManager.EPOCH_LENGTH());
         epochManager.endEpoch();
     }
 
@@ -547,10 +547,13 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
     }
 
     function test_CanGetEpochLength() external {
-        assertEq(epochManager.EPOCH_LENGTH(), 7 days);
+        assertEq(epochManager.EPOCH_LENGTH(), 2 days);
     }
 
     function test_CanGetEpochIterationTimestamp() external {
+        // Store our epoch length
+        uint epochLength = epochManager.EPOCH_LENGTH();
+
         // Set our epoch ahead of our test epochs
         setCurrentEpoch(address(epochManager), 10);
 
@@ -558,33 +561,33 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692572869);
 
         // Test a range of times
-        assertEq(epochManager.epochIterationTimestamp(1), 1692572869 - 63 days);
-        assertEq(epochManager.epochIterationTimestamp(2), 1692572869 - 56 days);
-        assertEq(epochManager.epochIterationTimestamp(5), 1692572869 - 35 days);
-        assertEq(epochManager.epochIterationTimestamp(9), 1692572869 - 7 days);
+        assertEq(epochManager.epochIterationTimestamp(1), 1692572869 - (epochLength * 9));
+        assertEq(epochManager.epochIterationTimestamp(2), 1692572869 - (epochLength * 8));
+        assertEq(epochManager.epochIterationTimestamp(5), 1692572869 - (epochLength * 5));
+        assertEq(epochManager.epochIterationTimestamp(9), 1692572869 - (epochLength * 1));
 
         assertEq(epochManager.epochIterationTimestamp(10), 1692572869);
 
-        assertEq(epochManager.epochIterationTimestamp(11), 1692572869 + 7 days);
-        assertEq(epochManager.epochIterationTimestamp(12), 1692572869 + 14 days);
-        assertEq(epochManager.epochIterationTimestamp(15), 1692572869 + 35 days);
-        assertEq(epochManager.epochIterationTimestamp(19), 1692572869 + 63 days);
+        assertEq(epochManager.epochIterationTimestamp(11), 1692572869 + (epochLength * 1));
+        assertEq(epochManager.epochIterationTimestamp(12), 1692572869 + (epochLength * 2));
+        assertEq(epochManager.epochIterationTimestamp(15), 1692572869 + (epochLength * 5));
+        assertEq(epochManager.epochIterationTimestamp(19), 1692572869 + (epochLength * 9));
 
         // Update our last epoch timestamp
         stdstore.target(address(epochManager)).sig('lastEpoch()').checked_write(1692531530);
 
         // Test a range of times to show they are reflected
-        assertEq(epochManager.epochIterationTimestamp(1), 1692531530 - 63 days);
-        assertEq(epochManager.epochIterationTimestamp(2), 1692531530 - 56 days);
-        assertEq(epochManager.epochIterationTimestamp(5), 1692531530 - 35 days);
-        assertEq(epochManager.epochIterationTimestamp(9), 1692531530 - 7 days);
+        assertEq(epochManager.epochIterationTimestamp(1), 1692531530 - (epochLength * 9));
+        assertEq(epochManager.epochIterationTimestamp(2), 1692531530 - (epochLength * 8));
+        assertEq(epochManager.epochIterationTimestamp(5), 1692531530 - (epochLength * 5));
+        assertEq(epochManager.epochIterationTimestamp(9), 1692531530 - (epochLength * 1));
 
         assertEq(epochManager.epochIterationTimestamp(10), 1692531530);
 
-        assertEq(epochManager.epochIterationTimestamp(11), 1692531530 + 7 days);
-        assertEq(epochManager.epochIterationTimestamp(12), 1692531530 + 14 days);
-        assertEq(epochManager.epochIterationTimestamp(15), 1692531530 + 35 days);
-        assertEq(epochManager.epochIterationTimestamp(19), 1692531530 + 63 days);
+        assertEq(epochManager.epochIterationTimestamp(11), 1692531530 + (epochLength * 1));
+        assertEq(epochManager.epochIterationTimestamp(12), 1692531530 + (epochLength * 2));
+        assertEq(epochManager.epochIterationTimestamp(15), 1692531530 + (epochLength * 5));
+        assertEq(epochManager.epochIterationTimestamp(19), 1692531530 + (epochLength * 9));
     }
 
     function test_CannotSetNullEpochEndTrigger() external {
