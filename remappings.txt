@@ -18,3 +18,4 @@ forge-std/=lib/forge-std/src/
 @ERC721A/=lib/ERC721A/contracts/
 foundry-random=lib/foundry-random/src/
 lssvm2=lib/lssvm2/src/
+@nftx-protocol-v3=lib/nftx-protocol-v3/src/
