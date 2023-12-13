@@ -8,6 +8,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
 import {INFTXRouter} from "@nftx-protocol-v3/interfaces/INFTXRouter.sol";
+import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
 import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
@@ -19,6 +20,12 @@ import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {INonfungiblePositionManager} from "@uni-periphery/interfaces/INonfungiblePositionManager.sol";
 
 import {FloorTest} from '../utilities/Environments.sol';
+
+
+interface IMintable {
+    function mint(uint) external returns (uint[] memory);
+    function setApprovalForAll(address, bool) external;
+}
 
 
 /**
@@ -395,6 +402,70 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
 
         assertEq(amounts_[0], 0);
         assertEq(amounts_[1], 0);
+    }
+
+    function test_CanGetAvailableTokensWithPositionAndTokensOwed() public {
+        // Deal us some assets to deposit
+        deal(TOKEN_A, address(this), 100 ether);
+        deal(address(this), 100 ether);
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), type(uint).max);
+
+        // Make our initial deposit that will mint our token (1 vToken + 100 ETH). As this is
+        // our first deposit, this will also mint a token.
+        strategy.deposit{value: 100 ether}({
+            vTokenDesired: 1 ether,
+            nftIds: new uint[](0),
+            nftAmounts: new uint[](0),
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
+
+        // Confirm the positionId that has been minted and that our strategy contract is the owner
+        assertEq(strategy.positionId(), 35, 'Incorrect position ID');
+
+        // Mint some MILADY tokens against our test contract
+        uint[] memory miladyTokens = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(3);
+        uint[] memory amounts = new uint[](miladyTokens.length);
+        for (uint i; i < miladyTokens.length; ++i) {
+            amounts[i] = 1;
+        }
+
+        // Approve all tokens to be minted
+        IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).setApprovalForAll(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5, true);
+
+        // Mint into the pool
+        INFTXVaultV3(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5).mint{value: 10 ether}(
+            miladyTokens,
+            amounts,
+            address(this),
+            address(this)
+        );
+
+        // Check our strategies available tokens call
+        (address[] memory tokens_, uint[] memory amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 9223308835697248, 'Incorrect amount1');
+
+        // Collect fees from the pool
+        vm.startPrank(address(strategy));
+        (uint amount0, uint amount1) = strategy.positionManager().collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: strategy.positionId(),
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+        vm.stopPrank();
+
+        // Compare the amounts collected to the amounts that we were read as available
+        assertEq(amount0, amounts_[0]);
+        assertEq(amount1, amounts_[1]);
     }
 
     function test_CanHarvestWithoutActivePosition() public {

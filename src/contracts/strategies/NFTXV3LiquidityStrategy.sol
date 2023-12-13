@@ -9,10 +9,12 @@ import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
 
 import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import {IUniswapV3Pool} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {FixedPoint128} from '@uniswap/v3-core/contracts/libraries/FixedPoint128.sol';
+import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import {LiquidityAmounts} from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
-import {INonfungiblePositionManager} from "@uni-periphery/interfaces/INonfungiblePositionManager.sol";
+import {INonfungiblePositionManager} from '@uni-periphery/interfaces/INonfungiblePositionManager.sol';
 
 import {BaseStrategy} from '@floor/strategies/BaseStrategy.sol';
 import {CannotDepositZeroAmount} from '@floor/utils/Errors.sol';
@@ -40,10 +42,10 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
     INFTXVaultV3 public vault;
 
     /// Store our pool information
-    uint24 fee;
-    uint96 sqrtPriceX96;
-    int24 tickLower;
-    int24 tickUpper;
+    uint24 public fee;
+    uint96 public sqrtPriceX96;
+    int24 public tickLower;
+    int24 public tickUpper;
 
     /// Store our NFTX V3 vToken
     IERC20 public vToken;
@@ -312,10 +314,74 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         if (positionId == 0) {
             amounts_ = new uint[](2);
         } else {
-            (,,,,,,,,,, uint128 tokensOwed0, uint128 tokensOwed1) = positionManager.positions(positionId);
+            // Get our token information from our position
+            (
+                ,,
+                address token0,
+                address token1,
+                ,,,
+                uint128 liquidity,
+                uint feeGrowthInside0LastX128,
+                uint feeGrowthInside1LastX128,
+                uint128 positionTokensOwed0,
+                uint128 positionTokensOwed1
+            ) = positionManager.positions(positionId);
+
+            // If we have liquidity in our position, then we need additional calculation
+            if (liquidity > 0) {
+                //
+                IUniswapV3Pool pool = IUniswapV3Pool(_pool);
+
+                // Get our slot0 tick and the global feeGrowth for both tokens
+                (, int24 tickCurrent,,,,,) = pool.slot0();
+                uint feeGrowthGlobal0X128 = pool.feeGrowthGlobal0X128();
+                uint feeGrowthGlobal1X128 = pool.feeGrowthGlobal1X128();
+
+                // We need to store our inside growth outside of unchecked statement so
+                // that it persists.
+                uint feeGrowthInside0X128;
+                uint feeGrowthInside1X128;
+
+                unchecked {
+                    // Get the outside growth from the upper and lower ticks
+                    (,, uint feeGrowthOutsideLower0, uint feeGrowthOutsideLower1,,,,) = pool.ticks(tickLower);
+                    (,, uint feeGrowthOutsideUpper0, uint feeGrowthOutsideUpper1,,,,) = pool.ticks(tickUpper);
+
+                    // Calculate fee growth below from the lower tick
+                    uint256 feeGrowthBelow0X128;
+                    uint256 feeGrowthBelow1X128;
+                    if (tickCurrent >= tickLower) {
+                        feeGrowthBelow0X128 = feeGrowthOutsideLower0;
+                        feeGrowthBelow1X128 = feeGrowthOutsideLower1;
+                    } else {
+                        feeGrowthBelow0X128 = feeGrowthGlobal0X128 - feeGrowthOutsideLower0;
+                        feeGrowthBelow1X128 = feeGrowthGlobal1X128 - feeGrowthOutsideLower1;
+                    }
+
+                    // Calculate fee growth above from the upper tick
+                    uint256 feeGrowthAbove0X128;
+                    uint256 feeGrowthAbove1X128;
+                    if (tickCurrent < tickUpper) {
+                        feeGrowthAbove0X128 = feeGrowthOutsideUpper0;
+                        feeGrowthAbove1X128 = feeGrowthOutsideUpper1;
+                    } else {
+                        feeGrowthAbove0X128 = feeGrowthGlobal0X128 - feeGrowthOutsideUpper0;
+                        feeGrowthAbove1X128 = feeGrowthGlobal1X128 - feeGrowthOutsideUpper1;
+                    }
+
+                    // Use this to determine the growth inside the range
+                    feeGrowthInside0X128 = feeGrowthGlobal0X128 - feeGrowthBelow0X128 - feeGrowthAbove0X128;
+                    feeGrowthInside1X128 = feeGrowthGlobal1X128 - feeGrowthBelow1X128 - feeGrowthAbove1X128;
+                }
+
+                // Calculate the accrued fees for each token
+                positionTokensOwed0 += uint128(FullMath.mulDiv(feeGrowthInside0X128 - feeGrowthInside0LastX128, liquidity, FixedPoint128.Q128));
+                positionTokensOwed1 += uint128(FullMath.mulDiv(feeGrowthInside1X128 - feeGrowthInside1LastX128, liquidity, FixedPoint128.Q128));
+            }
+
             amounts_ = new uint[](2);
-            amounts_[0] = tokensOwed0;
-            amounts_[1] = tokensOwed1;
+            amounts_[0] = (tokens_[0] == token0) ? uint(positionTokensOwed0) : uint(positionTokensOwed1);
+            amounts_[1] = (tokens_[1] == token1) ? uint(positionTokensOwed1) : uint(positionTokensOwed0);
         }
     }
 
