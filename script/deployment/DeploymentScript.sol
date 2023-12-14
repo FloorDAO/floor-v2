@@ -39,6 +39,23 @@ contract DeploymentScript is Script {
      * @return The address of the deployed contract
      */
     function requireDeployment(string memory key) internal view returns (address payable) {
+        // Try to store our deployment address
+        address deploymentAddress = getDeployment(key);
+
+        // Ensure we found a deployment address and return it if we did
+        require(deploymentAddress != address(0), 'Contract has not been deployed');
+        return payable(deploymentAddress);
+    }
+
+    /**
+     * Gets the stored deployment address. If none is present then a zero address
+     * will be returned
+     *
+     * @param key The key assigned to the deployed contract
+     *
+     * @return The address of the deployed contract
+     */
+    function getDeployment(string memory key) internal view returns (address payable) {
         // @dev This will raise an error if it cannot be read
         bytes memory deploymentData = vm.parseJson(vm.readFile(JSON_PATH), '.deployments');
         Deployment[] memory deployments = abi.decode(deploymentData, (Deployment[]));
@@ -54,8 +71,6 @@ contract DeploymentScript is Script {
             }
         }
 
-        // Ensure we found a deployment address and return it if we did
-        require(deploymentAddress != address(0), 'Contract has not been deployed');
         return payable(deploymentAddress);
     }
 
