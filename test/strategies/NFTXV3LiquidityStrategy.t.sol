@@ -426,23 +426,8 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // Confirm the positionId that has been minted and that our strategy contract is the owner
         assertEq(strategy.positionId(), 35, 'Incorrect position ID');
 
-        // Mint some MILADY tokens against our test contract
-        uint[] memory miladyTokens = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(3);
-        uint[] memory amounts = new uint[](miladyTokens.length);
-        for (uint i; i < miladyTokens.length; ++i) {
-            amounts[i] = 1;
-        }
-
-        // Approve all tokens to be minted
-        IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).setApprovalForAll(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5, true);
-
-        // Mint into the pool
-        INFTXVaultV3(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5).mint{value: 10 ether}(
-            miladyTokens,
-            amounts,
-            address(this),
-            address(this)
-        );
+        // Mint some MILADY tokens against our test contract and generate fees
+        _generateLiquidityFees();
 
         // Check our strategies available tokens call
         (address[] memory tokens_, uint[] memory amounts_) = strategy.available();
@@ -466,6 +451,166 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // Compare the amounts collected to the amounts that we were read as available
         assertEq(amount0, amounts_[0]);
         assertEq(amount1, amounts_[1]);
+    }
+
+    function test_CanGetAvailableBalanceWithMultipleIntermediaryInteractions() public {
+        // Deal us some assets to deposit
+        deal(TOKEN_A, address(this), 100 ether);
+        deal(address(this), 100 ether);
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), type(uint).max);
+
+        // Make our initial deposit that will mint our token (1 vToken + 100 ETH). As this is
+        // our first deposit, this will also mint a token.
+        strategy.deposit{value: 50 ether}({
+            vTokenDesired: 1 ether,
+            nftIds: new uint[](0),
+            nftAmounts: new uint[](0),
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
+
+        // Confirm the positionId that has been minted and that our strategy contract is the owner
+        assertEq(strategy.positionId(), 35, 'Incorrect position ID');
+
+        // Check our lifetime rewards start as nothing
+        (address[] memory lifetimeRewardsTokens, uint[] memory lifetimeRewards) = strategy.totalRewards();
+        assertEq(lifetimeRewardsTokens[0], TOKEN_A);
+        assertEq(lifetimeRewardsTokens[1], TOKEN_B);
+        assertEq(lifetimeRewards[0], 0);
+        assertEq(lifetimeRewards[1], 0);
+
+        // Generate pool liquidity
+        _generateLiquidityFees();
+
+        // Check our strategies available tokens call
+        (address[] memory tokens_, uint[] memory amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 9223308835697248, 'Incorrect amount1');
+
+        // Our total rewards will reflect the available fees as well, but no other rewards
+        // have yet been claimed.
+        (, lifetimeRewards) = strategy.totalRewards();
+        assertEq(lifetimeRewards[0], 0);
+        assertEq(lifetimeRewards[1], 9223308835697248);
+
+        // Warp forward in time and generate more liquidity
+        vm.warp(block.timestamp + 4 weeks);
+        _generateLiquidityFees();
+
+        // Check our strategies available tokens call
+        (tokens_, amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 18446617671394497, 'Incorrect amount1');
+
+        // Collect fees from the pool
+        vm.prank(strategy.owner());
+        strategy.harvest(treasury);
+
+        // Confirm that available fees are now null
+        (tokens_, amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 0, 'Incorrect amount1');
+
+        // Once fees have been collected, our total rewards will increase
+        (, lifetimeRewards) = strategy.totalRewards();
+        assertEq(lifetimeRewards[0], 0);
+        assertEq(lifetimeRewards[1], 18446617671394497);
+
+        // Confirm that our {Treasury} holds the collected fees. The collect will give the
+        // correct TOKEN_B value, which is WETH as this was called directly against the
+        // {PositionManager}.
+        assertEq(IERC20(TOKEN_A).balanceOf(treasury), 0, 'Invalid Treasury vToken');
+        assertEq(IERC20(TOKEN_B).balanceOf(treasury), lifetimeRewards[1], 'Invalid Treasury WETH');
+
+        // Generate some more liquidity after we have collected
+        _generateLiquidityFees();
+
+        // Confirm the available fees
+        (tokens_, amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 9223308835697248, 'Incorrect amount1');
+
+        // Add some more liquidity to our position
+        strategy.deposit{value: 50 ether}({
+            vTokenDesired: 1 ether,
+            nftIds: new uint[](0),
+            nftAmounts: new uint[](0),
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
+
+        // Confirm the available fees
+        (tokens_, amounts_) = strategy.available();
+        assertEq(tokens_[0], TOKEN_A, 'Incorrect token0');
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
+        assertEq(amounts_[1], 9223308835697248, 'Incorrect amount1');
+
+        // Move time foward to unlock our position
+        vm.warp(block.timestamp + 7 days);
+
+        // If we remove liquidity, we should also action a harvest which will also update
+        // our rewards.
+        (,, uint128 liquidity) = strategy.tokenBalances();
+        assertEq(liquidity, 1591987874288285496, 'Incorrect liquidity');
+        strategyFactory.withdraw(
+            strategyId, abi.encodeWithSelector(
+                strategy.withdraw.selector,
+                0,
+                0,
+                block.timestamp,
+                liquidity / 4
+            )
+        );
+
+        // After we have withdrawn from our liquidity position, this will internally
+        // trigger a collection event. This should be reflected in the totalRewards call
+        // and also remove the available fees.
+        (, amounts_) = strategy.available();
+        assertEq(amounts_[0], 0, 'Incorrect amount0');
+        assertEq(amounts_[1], 0, 'Incorrect amount1');
+
+        (, lifetimeRewards) = strategy.totalRewards();
+        assertEq(lifetimeRewards[0], 0);
+        assertEq(lifetimeRewards[1], 27669926507091745);
+
+        // Confirm that our {Treasury} holds the collected fees. This will also include the
+        // additional amounts that have been withdrawn, but these are not reflected in the
+        // lifetime rewards.
+        //
+        // The ETH and WETH is split on the {Treasury} from different methods of token
+        // receipt. WETH is received from collect and ETH is received when withdrawing from
+        // an existing liquidity position.
+        assertEq(IERC20(TOKEN_A).balanceOf(treasury), 499999999999999999, 'Invalid Treasury vToken');
+        assertEq(IERC20(TOKEN_B).balanceOf(treasury), 27669926507091745, 'Invalid Treasury WETH');
+        assertEq(payable(treasury).balance, 316803173985116738, 'Invalid Treasury ETH');
+
+        // After our withdraw, we should have no fees to collect
+        vm.startPrank(address(strategy));
+        (uint amount0, uint amount1) = strategy.positionManager().collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: strategy.positionId(),
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+        vm.stopPrank();
+
+        assertEq(amount0, 0);
+        assertEq(amount1, 0);
     }
 
     function test_CanHarvestWithoutActivePosition() public {
@@ -499,6 +644,26 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
 
     function _getTickDistance(uint24 fee) internal returns (uint tickDistance_) {
         tickDistance_ = uint(uint24(IUniswapV3Factory(INFTXRouter(NFTX_ROUTER).router().factory()).feeAmountTickSpacing(fee)));
+    }
+
+    function _generateLiquidityFees() internal {
+        // Mint some MILADY tokens against our test contract
+        uint[] memory miladyTokens = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(3);
+        uint[] memory amounts = new uint[](miladyTokens.length);
+        for (uint i; i < miladyTokens.length; ++i) {
+            amounts[i] = 1;
+        }
+
+        // Approve all tokens to be minted
+        IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).setApprovalForAll(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5, true);
+
+        // Mint into the pool
+        INFTXVaultV3(0xEa0bb4De9f595439059aF786614DaF2FfADa72d5).mint{value: 10 ether}(
+            miladyTokens,
+            amounts,
+            address(this),
+            address(this)
+        );
     }
 
     receive() external payable {
