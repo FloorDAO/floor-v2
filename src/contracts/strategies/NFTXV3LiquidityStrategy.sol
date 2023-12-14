@@ -291,9 +291,8 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         }
 
         if (ethBalance > 0) {
-            (bool success,) = payable(recipient).call{value: ethBalance}('');
-            require(success, 'Unable to refund ETH');
-
+            weth.deposit{value: ethBalance}();
+            weth.transfer(recipient, ethBalance);
             emit Withdraw(address(weth), ethBalance, recipient);
         }
 
@@ -393,7 +392,7 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         // processing as this would result in a revert.
         if (positionId == 0) return;
 
-        // Collect fees from the pool
+        // Collect fees from the pool aand send them directly to the recipient
         (uint amount0, uint amount1) = positionManager.collect(
             INonfungiblePositionManager.CollectParams({
                 tokenId: positionId,
@@ -403,11 +402,14 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
             })
         );
 
+        // This should always be our vToken amount
         if (amount0 != 0) {
             lifetimeRewards[address(vToken)] += amount0;
             emit Harvest(address(vToken), amount0);
         }
 
+        // This should always be a WETH amount, so we don't need to convert this
+        // from ETH to WETH.
         if (amount1 != 0) {
             lifetimeRewards[address(weth)] += amount1;
             emit Harvest(address(weth), amount1);
@@ -460,16 +462,18 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
     function onERC721Received(address, address, uint, bytes calldata) external view returns (bytes4) {
         // Ensure that the sender of the ERC721 is the Uniswap position manager
         require(msg.sender == address(positionManager), 'Not a Uniswap NFT');
-
         return this.onERC721Received.selector;
     }
 
     /**
      * Allows our strategy to receive ETH refunds back from the {NFTXRouter} when not
      * fully utilised. This should be refunded in the `payable` functions that call it.
+     *
+     * When we receive ETH, we want to wrap it into WETH so that it becomes properly
+     * accounted for more easily.
      */
     receive() external payable {
-        // ..
+        //
     }
 
 }

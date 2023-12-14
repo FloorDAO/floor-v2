@@ -284,14 +284,16 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
 
         // We can now withdraw from the strategy
         strategyFactory.withdraw(
-            strategyId, abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, uint128(liquidity / 4))
+            strategyId,
+            abi.encodeWithSelector(strategy.withdraw.selector, 0, 0, block.timestamp, uint128(liquidity / 4))
         );
 
-        // Confirm that we now hold the token we expect. We also receive ETH, rather than WETH, so
-        // we need to check our balance directly. Our ETH balance of the {Treasury} is 0 before the
-        // withdraw function is called.
+        // Confirm that we now hold the token we expect. We want to ensure that all of our
+        // received ETH is wrapped into WETH before being sent to us. For this reason we
+        // expect that we will have ETH balance.
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 2499999999999999999);
-        assertEq(payable(treasury).balance, 1584015869925583691);
+        assertEq(IERC20(TOKEN_B).balanceOf(treasury), 1584015869925583691);
+        assertEq(payable(treasury).balance, 0);
 
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
@@ -304,7 +306,8 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
 
         // Confirm that we now hold the token we expect
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 6249999999999999998);
-        assertEq(payable(treasury).balance, 3960039674813959228);
+        assertEq(IERC20(TOKEN_B).balanceOf(treasury), 3960039674813959228);
+        assertEq(payable(treasury).balance, 0);
 
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
@@ -360,10 +363,6 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         assertEq(amounts[0], 1999999999999999999);
         assertEq(amounts[1], 1267212695940466953);
 
-        // Confirm that our recipient received the expected amount of tokens
-        assertEq(IERC20(TOKEN_A).balanceOf(address(this)), 91999999999999999999);
-        assertEq(payable(address(this)).balance, 94931149216238132185);
-
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
         assertEq(liquidity, 6367951497153141988, 'Incorrect liquidity');
@@ -377,10 +376,6 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         assertEq(tokens[1], TOKEN_B);
         assertEq(newAmounts[0], 7999999999999999999);
         assertEq(newAmounts[1], 5068850783761867813);
-
-        // Confirm that our recipient received the expected amount of tokens
-        assertEq(IERC20(TOKEN_A).balanceOf(address(this)), 99999999999999999998);
-        assertEq(payable(address(this)).balance, 99999999999999999998);
 
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
@@ -436,7 +431,8 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         assertEq(tokens_[1], TOKEN_B, 'Incorrect token1');
         assertEq(amounts_[1], 9223308835697248, 'Incorrect amount1');
 
-        // Collect fees from the pool
+        // Collect fees from the pool. This should not be done via this route in proper
+        // execution, as it would be done through the `harvest` function.
         vm.startPrank(address(strategy));
         (uint amount0, uint amount1) = strategy.positionManager().collect(
             INonfungiblePositionManager.CollectParams({
@@ -590,19 +586,19 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // additional amounts that have been withdrawn, but these are not reflected in the
         // lifetime rewards.
         //
-        // The ETH and WETH is split on the {Treasury} from different methods of token
-        // receipt. WETH is received from collect and ETH is received when withdrawing from
+        // The ETH should be "deposited" into WETH in the {Treasury} from different methods of
+        // token receipt. WETH is received from collect and ETH is received when withdrawing from
         // an existing liquidity position.
         assertEq(IERC20(TOKEN_A).balanceOf(treasury), 499999999999999999, 'Invalid Treasury vToken');
-        assertEq(IERC20(TOKEN_B).balanceOf(treasury), 27669926507091745, 'Invalid Treasury WETH');
-        assertEq(payable(treasury).balance, 316803173985116738, 'Invalid Treasury ETH');
+        assertEq(IERC20(TOKEN_B).balanceOf(treasury), 344473100492208483, 'Invalid Treasury WETH');
+        assertEq(payable(treasury).balance, 0, 'Invalid Treasury ETH');
 
         // After our withdraw, we should have no fees to collect
         vm.startPrank(address(strategy));
         (uint amount0, uint amount1) = strategy.positionManager().collect(
             INonfungiblePositionManager.CollectParams({
                 tokenId: strategy.positionId(),
-                recipient: address(this),
+                recipient: treasury,
                 amount0Max: type(uint128).max,
                 amount1Max: type(uint128).max
             })
