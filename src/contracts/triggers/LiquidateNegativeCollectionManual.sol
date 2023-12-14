@@ -120,4 +120,13 @@ contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTrig
             unchecked { ++i; }
         }
     }
+
+    /**
+     * If our `withdrawPercentage` function receives ETH, then we will need to in
+     * turn send this amount to the {Treasury} stored against the {StrategyFacyory}.
+     */
+    receive() external payable {
+        (bool sent,) = payable(strategyFactory.treasury()).call{value: msg.value}('');
+        require(sent, 'Failed to send ETH to Treasury');
+    }
 }
