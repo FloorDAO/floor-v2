@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.0;
 
+import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
+
+
 library TreasuryEnums {
     /// Different sweep types that can be specified.
     enum SweepType {
@@ -90,6 +93,11 @@ interface ITreasury {
 
     /// Emitted when the {StrategyFactory} contract is updated
     event StrategyFactoryUpdated(address strategyFactory);
+
+    /**
+     * Our stored WETH address for the {Treasury}
+     */
+    function weth() external returns (IWETH);
 
     /**
      * Allow FLOOR token to be minted. This should be called from the deposit method

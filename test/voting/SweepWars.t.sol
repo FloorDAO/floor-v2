@@ -13,6 +13,7 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {
+    CannotVoteWeth,
     CannotVoteWithZeroAmount,
     CollectionNotApproved,
     SweepWars,
@@ -50,6 +51,7 @@ contract SweepWarsTest is FloorTest {
     address approvedCollection1 = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address approvedCollection2 = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
     address approvedCollection3 = 0x524cAB2ec69124574082676e6F654a18df49A048;
+    address weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address unapprovedCollection1 = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address unapprovedCollection2 = 0xd68c4149Ec6fC585124E8827a2b102b68712543c;
     address floorTokenCollection;
@@ -93,7 +95,7 @@ contract SweepWarsTest is FloorTest {
         treasury = new Treasury(
             address(authorityRegistry),
             address(floor),
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+            weth
         );
 
         // Set up our veFloor token
@@ -238,6 +240,12 @@ contract SweepWarsTest is FloorTest {
         vm.expectRevert(CannotVoteWithZeroAmount.selector);
         vm.prank(alice);
         sweepWars.vote(approvedCollection1, 0);
+    }
+
+    function test_CannotVoteOnWeth() public {
+        vm.expectRevert(CannotVoteWeth.selector);
+        vm.prank(alice);
+        sweepWars.vote(weth, 1 ether);
     }
 
     function test_canVote(int votes) public assumeVotesInRange(alice, votes) {

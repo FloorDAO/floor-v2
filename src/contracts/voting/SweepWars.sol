@@ -15,6 +15,9 @@ import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol
 import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 import {ITreasury} from '@floor-interfaces/Treasury.sol';
 
+/// If a vote is cast against our WETH address
+error CannotVoteWeth();
+
 /// If a vote with a zero amount is sent
 error CannotVoteWithZeroAmount();
 
@@ -148,6 +151,11 @@ contract SweepWars is AuthorityControl, ISweepWars {
     function vote(address _collection, int _amount) external {
         if (_amount == 0) {
             revert CannotVoteWithZeroAmount();
+        }
+
+        // Prevent a vote against WETH as this is a protected collection
+        if (_collection == address(treasury.weth())) {
+            revert CannotVoteWeth();
         }
 
         // Get an absolute value of our cast amount
