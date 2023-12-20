@@ -296,7 +296,7 @@ contract LiquidateNegativeCollectionTest is FloorTest {
 
     function test_CannotSetSlippageAboveOneHundredPercent(uint badSlippage) public {
         // Try and set our slippage above 100%
-        vm.assume(badSlippage >= 100000);
+        vm.assume(badSlippage > 100000);
         vm.expectRevert('Slippage too high');
         liquidateNegativeCollectionTrigger.setSlippage(badSlippage);
     }

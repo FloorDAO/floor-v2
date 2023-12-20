@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import 'forge-std/console.sol';
+
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
@@ -184,12 +186,18 @@ contract StrategyFactory is AuthorityControl, IStrategyFactory {
                 // Snapshot our strategy
                 (tokens, amounts) = IBaseStrategy(_strategies[i]).snapshot();
 
+                // Capture the strategy address, even if we receive no WETH yield
+                strategies_[i] = _strategies[i];
+
                 // Iterate over tokens to just find WETH amounts
                 tokensLength = tokens.length;
                 for (uint l; l < tokensLength;) {
+                    // Ensure that we only handle WETH tokens with amounts
                     if (tokens[l] == address(weth) && amounts[l] != 0) {
-                        strategies_[i] = _strategies[i];
+                        // Capture the WETH yield relative to the strategy
                         amounts_[i] = amounts[l];
+
+                        // Keep a tally of the total amount of WETH earned
                         totalAmount_ += amounts[l];
                     }
 

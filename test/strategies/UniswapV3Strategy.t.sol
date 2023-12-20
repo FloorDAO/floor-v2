@@ -14,6 +14,7 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {CannotDepositZeroAmount} from '@floor/utils/Errors.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
@@ -63,9 +64,6 @@ contract UniswapV3StrategyTest is FloorTest {
         // Deploy our strategy implementation
         strategyImplementation = address(new UniswapV3Strategy());
 
-        // Define a treasury wallet address that we can test against
-        treasury = users[1];
-
         // Create our {CollectionRegistry} and approve our collections
         collectionRegistry = new CollectionRegistry(address(authorityRegistry));
         collectionRegistry.approveCollection(0x5Af0D9827E0c53E4799BB226655A1de152A425a5);
@@ -81,6 +79,13 @@ contract UniswapV3StrategyTest is FloorTest {
             address(collectionRegistry),
             address(strategyRegistry)
         );
+
+        // Deploy our {Treasury} and assign it to our {StrategyFactory}
+        treasury = address(new Treasury(
+            address(authorityRegistry),
+            address(1),
+            TOKEN_B  // WETH
+        ));
         strategyFactory.setTreasury(treasury);
 
         // Deploy our strategy
@@ -227,18 +232,14 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 10000_000000);
         assertEq(totalRewardAmounts[1], 5 ether);
 
-        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, 0);
-        assertEq(snapshotTokens[0], TOKEN_A);
-        assertEq(snapshotTokens[1], TOKEN_B);
-        assertEq(snapshotAmounts[0], 10000_000000);
-        assertEq(snapshotAmounts[1], 5 ether);
+        (address[] memory snapshotStrategies, uint[] memory snapshotAmounts,) = strategyFactory.snapshot(0);
+        assertEq(snapshotStrategies[0], address(strategy));
+        assertEq(snapshotAmounts[0], 5 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, 0);
-        assertEq(snapshotTokens[0], TOKEN_A);
-        assertEq(snapshotTokens[1], TOKEN_B);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(0);
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 0);
-        assertEq(snapshotAmounts[1], 0);
 
         // We can, however, still see the total amounts of rewards generated
         (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
@@ -491,11 +492,9 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(amounts_[1], 0);
 
         // Strategy Factory
-        (tokens_, amounts_) = strategyFactory.snapshot(strategyId, 0);
-        assertEq(tokens_[0], TOKEN_A);
-        assertEq(tokens_[1], TOKEN_B);
-        assertEq(amounts_[0], 0);
-        assertEq(amounts_[1], 0);
+        (address[] memory snapshotStrategies, uint[] memory snapshotAmounts,) = strategyFactory.snapshot(0);
+        assertEq(snapshotStrategies[0], address(strategy));
+        assertEq(snapshotAmounts[0], 0);
 
         // No return value, just need to ensure that it can run
         strategyFactory.harvest(strategyId);

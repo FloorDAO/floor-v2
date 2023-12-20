@@ -101,6 +101,9 @@ contract NewCollectionWarsTest is FloorTest {
             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         );
 
+        // Set our {Treasury} against the {StrategyFactory}
+        strategyFactory.setTreasury(address(treasury));
+
         // Mock some WETH into our {Treasury} to fund the sweeps
         deal(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, address(treasury), 1000 ether);
 

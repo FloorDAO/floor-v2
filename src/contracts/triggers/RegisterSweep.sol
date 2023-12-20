@@ -68,9 +68,6 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
      */
     function endEpoch(uint epoch) external onlyEpochManager {
 
-        // Get our strategies
-        address[] memory strategies = strategyFactory.strategies();
-
         // Capture the amount of ETH / WETH rewards from our strategies
         (,, uint ethRewards) = strategyFactory.snapshot(epoch);
 

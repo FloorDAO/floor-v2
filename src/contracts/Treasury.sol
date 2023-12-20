@@ -5,6 +5,8 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {IERC721} from '@openzeppelin/contracts/interfaces/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/interfaces/IERC1155.sol';
 
+import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
+import {IERC1155Receiver} from '@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol';
 import {ERC1155Holder} from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
@@ -25,7 +27,7 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 /**
  * The Treasury will hold all assets.
  */
-contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, ReentrancyGuard {
+contract Treasury is AuthorityControl, EpochManaged, IERC721Receiver, IERC1155Receiver, ITreasury, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// An array of sweeps that map against the epoch iteration.
@@ -554,6 +556,48 @@ contract Treasury is AuthorityControl, EpochManaged, ERC1155Holder, ITreasury, R
                 floor.burn(endBalance - startBalance);
             }
         }
+    }
+
+    /**
+     * If we receive a direct ERC721 safeTransfer, then we additionally need to handle this
+     * and fire an event.
+     */
+    function onERC721Received(address token, address, uint tokenId, bytes memory) public virtual returns (bytes4) {
+        emit DepositERC721(token, tokenId);
+        return this.onERC721Received.selector;
+    }
+
+    /**
+     * If we receive a direct ERC1155 safeTransfer, then we additionally need to handle this
+     * and fire an event.
+     */
+    function onERC1155Received(address token, address, uint tokenId, uint amount, bytes memory) public virtual override returns (bytes4) {
+        emit DepositERC1155(token, tokenId, amount);
+        return this.onERC1155Received.selector;
+    }
+
+    /**
+     * If we receive a direct batch of ERC1155 safeTransfer, then we additionally need to
+     * handle this and fire an event for each token received.
+     */
+    function onERC1155BatchReceived(address token, address, uint256[] memory tokenIds, uint256[] memory amounts, bytes memory) public virtual override returns (bytes4) {
+        for (uint i; i < tokenIds.length;) {
+            emit DepositERC1155(token, tokenIds[i], amounts[i]);
+            unchecked { ++i; }
+        }
+
+        return this.onERC1155BatchReceived.selector;
+    }
+
+    /**
+     * Expose that we support interfaces for ERC721 and ERC1155 safeTramsfer.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return (
+            interfaceId == this.onERC721Received.selector ||
+            interfaceId == this.onERC1155Received.selector ||
+            interfaceId == this.onERC1155BatchReceived.selector
+        );
     }
 
     /**
