@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
