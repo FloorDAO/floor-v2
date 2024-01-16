@@ -163,6 +163,9 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
 
         // Define our ERC20 token
         erc20 = new ERC20Mock();
+
+        // Set the {Treasury} in the {StrategyFactory}
+        strategyFactory.setTreasury(address(treasury));
     }
 
     function test_CanSetContracts() external {
@@ -284,8 +287,13 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
                 // collection tokens to be offset against the yield as the strategy collection
                 // address will match tokens when it crosses over. The strategy collection
                 // addresses start at 5 and increment from there. This means that tokens with
-                // the address of 5 and 6 will offset against themselves.
-                _tokens[t] = address(uint160((tracker % 6) + 1));
+                // the address of 5 and 6 will offset against themselves. We ensure, however,
+                // that one of the tokens is WETH as this gives our output.
+                if (t == 0) {
+                    _tokens[t] = WETH;
+                } else {
+                    _tokens[t] = address(uint160((tracker % 6) + 1));
+                }
                 _amounts[t] = (tracker % 20) * 1 ether;
 
                 // We additionally need to mock the decimal count returned against a token. We
@@ -327,11 +335,11 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         expectedCollections[4] = 0x0000000000000000000000000000000000000005;
 
         uint[] memory expectedAmounts = new uint[](5);
-        expectedAmounts[0] = 67200000000000000000;
-        expectedAmounts[1] = 141600000000000000000;
-        expectedAmounts[2] = 121371428571428571024;
-        expectedAmounts[3] = 101142857142857142756;
-        expectedAmounts[4] = 0;
+        expectedAmounts[0] = 26400000000000000000;
+        expectedAmounts[1] = 13200000000000000000;
+        expectedAmounts[2] = 11314285714285714248;
+        expectedAmounts[3] = 9428571428571428562;
+        expectedAmounts[4] = 5657142857142857190;
 
         // Confirm that we receive the expect event emit when the sweep is registered
         vm.expectEmit(true, true, false, true, address(treasury));
@@ -377,6 +385,8 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
          * Confirm that the ETH initially held was spent, and that additional WETH was
          * unwrapped to cover the additional requirement.
          *
+         * @dev TODO: This text no longer makes sense with WETH only output.
+         *
          * The amount of ETH allocated to the sweep is: 431_314285714285713780
          *
          * With the manual sweep, the ETH sent to the sweeper is sent back to the caller,
@@ -389,8 +399,8 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
          * and 250 + (250 - 181~) as the remaining ETH balance.
          */
 
-        assertEq(address(treasury).balance, 431_314285714285713780);
-        assertEq(ERC20(WETH).balanceOf(address(treasury)), 68_685714285714286220);
+        assertEq(address(treasury).balance, 250 ether);
+        assertEq(ERC20(WETH).balanceOf(address(treasury)), 250 ether);
 
         // We can then confirm that the sum of these two balances is the same as our original
         // ETH + WETH balance (500 ether).

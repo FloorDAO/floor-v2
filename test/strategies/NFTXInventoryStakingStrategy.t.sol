@@ -15,6 +15,7 @@ import {
 } from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {INFTXInventoryStaking} from '@floor-interfaces/nftx/NFTXInventoryStaking.sol';
 
@@ -33,6 +34,9 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
 
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_240_153;
+
+    // Set some constants for our test tokens
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// Define a number of ERC holders that we can test with
     address erc20Holder = 0x56bf24f635B39aC01DA6761C69AEe7ba4f1cFE3f;
@@ -88,8 +92,12 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         strategy = NFTXInventoryStakingStrategy(_strategy);
         strategyId = _strategyId;
 
-        // Set a {Treasury} address that we can treat as a recipient
-        treasury = users[2];
+        // Deploy our {Treasury} and assign it to our {StrategyFactory}
+        treasury = address(new Treasury(
+            address(authorityRegistry),
+            address(1),
+            WETH
+        ));
         strategyFactory.setTreasury(treasury);
     }
 
@@ -525,7 +533,7 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
         assertEq(strategy.xToken().balanceOf(address(strategy)), 4181610664126857347);
 
         // Snapshot the rewards
-        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.snapshot(0);
 
         // Withdraw another xToken
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether));

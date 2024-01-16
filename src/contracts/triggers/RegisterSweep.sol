@@ -68,56 +68,8 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
      */
     function endEpoch(uint epoch) external onlyEpochManager {
 
-        // Get our strategies
-        address[] memory strategies = strategyFactory.strategies();
-
-        uint ethRewards;
-        IBaseStrategy strategy;
-        address[] memory tokens;
-        uint[] memory amounts;
-
-        // Loop through our strategies to capture yielded tokens and amounts
-        uint strategiesLength = strategies.length;
-        for (uint i; i < strategiesLength;) {
-            // Parse our strategy address into the {BaseStrategy} interface
-            strategy = IBaseStrategy(strategies[i]);
-
-            // Pull out rewards and transfer into the {Treasury}
-            (tokens, amounts) = strategyFactory.snapshot(strategy.strategyId(), epoch);
-
-            for (uint k; k < tokens.length;) {
-                if (amounts[k] != 0) {
-                    if (_yield[tokens[k]] == 0) {
-                        _epochTokens.push(tokens[k]);
-                    }
-
-                    _yield[tokens[k]] += amounts[k];
-                }
-
-                unchecked { ++k; }
-            }
-
-            unchecked { ++i; }
-        }
-
-        // Get the tokens that have been generated as yield and find their ETH price
-        uint[] memory tokenEthPrices = pricingExecutor.getETHPrices(_epochTokens);
-
-        // We can now iterate over the eth prices of the tokens. These are returned in the
-        // same order that they are requested, so we can directly access the yield and
-        // multiply it based on the token decimal count.
-        for (uint i; i < tokenEthPrices.length;) {
-            uint ethValue = tokenEthPrices[i] * _yield[_epochTokens[i]] / (10 ** ERC20(_epochTokens[i]).decimals());
-
-            // We can then modify the stored yield to store the ETH value, rather than the
-            // amount in relative terms of the token.
-            _yield[_epochTokens[i]] = ethValue;
-
-            // This logic should be replicated for tests in: `test_CanHandleDifferentSweepTokenDecimalAccuracy`
-            ethRewards += ethValue;
-
-            unchecked { ++i; }
-        }
+        // Capture the amount of ETH / WETH rewards from our strategies
+        (,, uint ethRewards) = strategyFactory.snapshot(epoch);
 
         // We want the ability to set a minimum sweep amount, so that when we are first
         // starting out the sweeps aren't pathetic.
@@ -133,11 +85,11 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
             // the winner of the Floor War instead. This will be allocated the full yield
             // amount. Format the collection and amount into the array format that our
             // sweep registration is expecting.
-            tokens = new address[](1);
+            address[] memory tokens = new address[](1);
             tokens[0] = newCollectionWars.endFloorWar();
 
             // Allocate the full yield rewards into the single collection
-            amounts = new uint[](1);
+            uint[] memory amounts = new uint[](1);
             amounts[0] = ethRewards;
 
             // Now that we have the results of the new collection addition we can register them

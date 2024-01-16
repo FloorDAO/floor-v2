@@ -15,6 +15,7 @@ import {
 } from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {INFTXLiquidityStaking} from '@floor-interfaces/nftx/NFTXLiquidityStaking.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
@@ -83,7 +84,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
             abi.encode(
                 392, // _vaultId
                 0x15A8E38942F9e353BEc8812763fb3C104c89eCf4, // _underlyingToken     // MILADYWETH
-                0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7, // _dividendToken          // xMILADYWETH
+                0x6c6BCe43323f6941FD6febe8ff3208436e8e0Dc7, // _dividendToken       // xMILADYWETH
                 0x227c7DF69D3ed1ae7574A1a7685fDEd90292EB48, // _rewardToken         // MILADY
                 0x688c3E4658B5367da06fd629E41879beaB538E37, // _liquidityStaking
                 0xdC774D5260ec66e5DD4627E1DD800Eff3911345C, // _stakingZap
@@ -95,10 +96,6 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Cast our strategy to the NFTX Inventory Staking Strategy contract
         strategy = NFTXLiquidityPoolStakingStrategy(_strategy);
         strategyId = _strategyId;
-
-        // Set a {Treasury} address that we can treat as a recipient
-        treasury = users[2];
-        strategyFactory.setTreasury(treasury);
 
         // As the forked block has no non-contract holders of the ERC20 token, we send
         // some directly from the LP Staking contract to `alice` for testing
@@ -113,6 +110,14 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         // Deal some WETH to our erc holders so that we can action Liquidity stakes
         deal(address(WETH), address(erc721Holder), 100 ether);
         deal(address(WETH), address(erc1155Holder), 100 ether);
+
+        // Deploy our {Treasury} and assign it to our {StrategyFactory}
+        treasury = address(new Treasury(
+            address(authorityRegistry),
+            address(1),
+            address(WETH)
+        ));
+        strategyFactory.setTreasury(treasury);
     }
 
     /**
@@ -523,7 +528,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         assertEq(IERC20(strategy.dividendToken()).balanceOf(address(strategy)), 7000000000000000000);
 
         // Snapshot the rewards
-        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.snapshot(0);
 
         // Withdraw another xToken
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 1 ether));

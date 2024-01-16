@@ -14,6 +14,7 @@ import {
     DistributedRevenueStakingStrategy
 } from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
@@ -78,6 +79,14 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         // Cast our strategy to the NFTX Inventory Staking Strategy contract
         strategy = DistributedRevenueStakingStrategy(_strategy);
         strategyId = _strategyId;
+
+        // Deploy our {Treasury} and assign it to our {StrategyFactory}
+        Treasury treasury = new Treasury(
+            address(authorityRegistry),
+            address(1),
+            WETH
+        );
+        strategyFactory.setTreasury(address(treasury));
     }
 
     /**
@@ -164,8 +173,8 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
 
         // If we call snapshot, then we shouldn't be able to get anything as it is not ready until
         // the next epoch.
-        (address[] memory snapshotTokens, uint[] memory snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (address[] memory snapshotStrategies, uint[] memory snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 0);
 
         /**========================================
@@ -183,13 +192,13 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 20 ether);
 
         // Our snapshot will now yield 20 ether
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 20 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 0 ether);
 
         // We can, however, still see the total amounts of rewards generated
@@ -211,13 +220,13 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 50 ether);
 
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 30 ether);
 
         // If we call the snapshot function against, we should see that no tokens are detected
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 0 ether);
 
         // We can, however, still see the total amounts of rewards generated
@@ -238,8 +247,8 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
         assertEq(totalRewardTokens[0], WETH);
         assertEq(totalRewardAmounts[0], 50 ether);
 
-        (snapshotTokens, snapshotAmounts) = strategyFactory.snapshot(strategyId, epochManager.currentEpoch());
-        assertEq(snapshotTokens[0], WETH);
+        (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(epochManager.currentEpoch());
+        assertEq(snapshotStrategies[0], address(strategy));
         assertEq(snapshotAmounts[0], 0 ether);
     }
 

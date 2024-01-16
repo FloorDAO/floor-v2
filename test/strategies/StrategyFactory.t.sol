@@ -11,6 +11,7 @@ import {CollectionNotApproved, StrategyFactory, StrategyNameCannotBeEmpty} from 
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {StrategyNotApproved} from '@floor/utils/Errors.sol';
+import {Treasury} from '@floor/Treasury.sol';
 
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 
@@ -33,6 +34,9 @@ contract StrategyFactoryTest is FloorTest {
 
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_075_930;
+
+    // Set some constants for our test tokens
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// Store a test user
     address alice;
@@ -72,6 +76,14 @@ contract StrategyFactoryTest is FloorTest {
             address(collectionRegistry),
             address(strategyRegistry)
         );
+
+        // Deploy our {Treasury} and assign it to our {StrategyFactory}
+        Treasury treasury = new Treasury(
+            address(authorityRegistry),
+            address(1),
+            WETH
+        );
+        strategyFactory.setTreasury(address(treasury));
 
         // Set our test user
         alice = users[1];
@@ -222,7 +234,7 @@ contract StrategyFactoryTest is FloorTest {
 
         // We can confirm that the calls we expect will now revert
         vm.expectRevert('Prevent Available');
-        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.snapshot(0);
         vm.expectRevert('Prevent Harvest');
         strategyFactory.harvest(strategyId);
         vm.expectRevert('Unable to withdraw');
@@ -234,7 +246,7 @@ contract StrategyFactoryTest is FloorTest {
         strategyFactory.bypassStrategy(strategyAddr, true);
 
         // Now make the calls again and confirm that they no longer revert
-        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.snapshot(0);
         strategyFactory.harvest(strategyId);
         strategyFactory.withdraw(strategyId, abi.encodeWithSelector(strategy.withdrawErc20.selector, 0.5 ether));
         strategyFactory.withdrawPercentage(strategyAddr, 20_00);
@@ -244,6 +256,6 @@ contract StrategyFactoryTest is FloorTest {
 
         // .. and we should go back to reverting as before
         vm.expectRevert('Prevent Available');
-        strategyFactory.snapshot(strategyId, 0);
+        strategyFactory.snapshot(0);
     }
 }
