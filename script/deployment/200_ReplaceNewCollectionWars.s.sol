@@ -50,6 +50,7 @@ contract ReplaceNewCollectionWars is DeploymentScript {
         staking.setVotingContracts(address(newCollectionWars), requireDeployment('SweepWars'));
         epochManager.setContracts(address(newCollectionWars), address(0));
         newCollectionWars.setEpochManager(address(epochManager));
+        registerSweep.setEpochManager(address(epochManager));
 
         storeDeployment('NewCollectionWars', address(newCollectionWars));
         storeDeployment('RegisterSweepTrigger', address(registerSweep));
