@@ -475,6 +475,31 @@ contract NewCollectionWarsTest is FloorTest {
         assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(0));
     }
 
+    function test_CanRevokeVotesWithNoWarActive() public defaultNewCollectionWar {
+        vm.startPrank(alice);
+
+        // Cast our vote on the first collection
+        newCollectionWars.vote(address(mock721));
+
+        // Confirm the updated vote standings
+        assertEq(newCollectionWars.userVotesAvailable(war, alice), 0);
+        assertEq(newCollectionWars.userVotes(_warUser(war, alice)), 100 ether);
+        assertEq(newCollectionWars.collectionVotes(_warCollection(war, address(mock721))), 100 ether);
+        assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(mock721));
+
+        vm.stopPrank();
+
+        // End the current war
+        epochManager.endEpoch();
+
+        // Attempt to revoke the user's votes. This should fail silently, as there is no
+        // war currently running so there is nothing to revoke. We don't make this hard revert
+        // as we don't want to break any triggers that may call on this in a blanket statement.
+        // As such, the valid passing test for this is just that we can call this function
+        // without it reverting.
+        newCollectionWars.revokeVotes(alice);
+    }
+
     function test_CanRevokeVotesWithoutUserHavingCastAVote() external defaultNewCollectionWar {
         // Check bob's initial vote power
         assertEq(newCollectionWars.userVotesAvailable(war, bob), 50 ether);

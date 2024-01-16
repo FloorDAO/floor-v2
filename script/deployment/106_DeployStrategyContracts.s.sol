@@ -29,22 +29,11 @@ contract DeployStrategyContracts is DeploymentScript {
         RevenueStakingStrategy revenueStaking = new RevenueStakingStrategy();
         UniswapV3Strategy uniswapV3Staking = new UniswapV3Strategy();
 
-        // Store our strategies deployment address
-        storeDeployment('DistributedRevenueStakingStrategy', address(distributedRevenueStakingStrategy));
-        storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
-        storeDeployment('NFTXLiquidityPoolStakingStrategy', address(liquidityStaking));
-        storeDeployment('RevenueStakingStrategy', address(revenueStaking));
-        storeDeployment('UniswapV3Strategy', address(uniswapV3Staking));
-
         // Deploy our strategy registry
         StrategyRegistry strategyRegistry = new StrategyRegistry(authorityControl);
 
         // Deploy our strategy factory
         StrategyFactory strategyFactory = new StrategyFactory(authorityControl, collectionRegistry, address(strategyRegistry));
-
-        // Store our strategy factory
-        storeDeployment('StrategyFactory', address(strategyFactory));
-        storeDeployment('StrategyRegistry', address(strategyRegistry));
 
         // Set our {Treasury} against the {StrategyFactory}, and vice versa
         strategyFactory.setTreasury(treasury);
@@ -56,5 +45,16 @@ contract DeployStrategyContracts is DeploymentScript {
         strategyRegistry.approveStrategy(address(liquidityStaking), true);
         strategyRegistry.approveStrategy(address(revenueStaking), true);
         strategyRegistry.approveStrategy(address(uniswapV3Staking), true);
+
+        // Store our strategies deployment address
+        storeDeployment('DistributedRevenueStakingStrategy', address(distributedRevenueStakingStrategy));
+        storeDeployment('NFTXInventoryStakingStrategy', address(inventoryStaking));
+        storeDeployment('NFTXLiquidityPoolStakingStrategy', address(liquidityStaking));
+        storeDeployment('RevenueStakingStrategy', address(revenueStaking));
+        storeDeployment('UniswapV3Strategy', address(uniswapV3Staking));
+
+        // Store our strategy factory
+        storeDeployment('StrategyFactory', address(strategyFactory));
+        storeDeployment('StrategyRegistry', address(strategyRegistry));
     }
 }

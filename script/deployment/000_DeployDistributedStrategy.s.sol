@@ -16,14 +16,10 @@ contract DeployDistributedStrategy is DeploymentScript {
 
     function run() external deployer {
 
-        CollectionRegistry collectionRegistry = CollectionRegistry(requireDeployment('CollectionRegistry'));
         address epochManager = requireDeployment('EpochManager');
         StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
         address implementation = requireDeployment('DistributedRevenueStakingStrategy');
         IWETH weth = IWETH(WETH);
-
-        // Add WETH as an approved collection
-        collectionRegistry.approveCollection(address(weth));
 
         // Deploy our strategy
         (uint strategyId, address strategy) = strategyFactory.deployStrategy(

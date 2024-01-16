@@ -50,7 +50,7 @@ contract DeployNFTXV3Strategies is DeploymentScript {
                 -887220,
                 887220
             ),
-            0x67523B71Bc3eeF7E5d90492aeD7a4B447Bc1deCd
+            0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6
         );
 
         console.log(_strategyId);
@@ -61,10 +61,10 @@ contract DeployNFTXV3Strategies is DeploymentScript {
             bytes32('MILADY/WETH Inventory'),
             address(nftxV3Strategy),
             abi.encode(
-                6,  // Pudgy Penguins Vault ID
+                3,  // Milady Vault ID
                 0xfBFf0635f7c5327FD138E1EBa72BD9877A6a7C1C  // INFTXInventoryStakingV3
             ),
-            0x67523B71Bc3eeF7E5d90492aeD7a4B447Bc1deCd
+            0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6
         );
 
         console.log(_strategyId);
@@ -82,7 +82,7 @@ contract DeployNFTXV3Strategies is DeploymentScript {
                 -887220,
                 887220
             ),
-            0x67523B71Bc3eeF7E5d90492aeD7a4B447Bc1deCd
+            0xa807e2a221C6dAAFE1b4A3ED2dA5E8A53fDAf6BE
         );
 
         console.log(_strategyId);

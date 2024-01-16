@@ -18,10 +18,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
  */
 contract ReplaceNewCollectionWars is DeploymentScript {
 
-    address collectionOne   = 0xbB12Ad601d0024aE2cD6B763a823aD3E6A53e1e7;
-    address collectionTwo   = 0x4dB1E9Aa44cd6a8F01d13D286149AE7664e3131F;
-    address collectionThree = 0xB56061B12CD9F97918ac4AF319f17AEd4d7FB13b;
-
     EpochManager epochManager;
     FLOOR floor;
     NewCollectionWars newCollectionWars;

@@ -181,8 +181,10 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
      * @param account The address of the account that is having their vote revoked
      */
     function revokeVotes(address account) external onlyRole(VOTE_MANAGER) {
-        // Ensure a war is currently running
-        require(currentWar.index != 0, 'No war currently running');
+        // Ensure a war is currently running, otherwise we can't process anything
+        if (currentWar.index == 0) {
+            return;
+        }
 
         // Confirm that the collection being voted for is in the war
         bytes32 warUser = keccak256(abi.encode(currentWar.index, account));

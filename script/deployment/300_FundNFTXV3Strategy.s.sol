@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'forge-std/console.sol';
-
+import {NFTXV3Strategy} from '@floor/strategies/NFTXV3Strategy.sol';
 import {NFTXV3LiquidityStrategy} from '@floor/strategies/NFTXV3LiquidityStrategy.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -14,19 +13,25 @@ contract FundNFTXV3Strategy is DeploymentScript {
 
     function run() external deployer {
 
-        // PUDGY LIQUIDITY
-        NFTXV3LiquidityStrategy strategy = NFTXV3LiquidityStrategy(payable(0x2be7ee2f6a925426A3F209277595e6C32B136484));
+        /*
+        NFTXV3LiquidityStrategy strategy = NFTXV3LiquidityStrategy(payable(0xae60868aF7791eb1278a3482A42C9A6A975c369f));
 
         strategy.vToken().approve(address(strategy), type(uint).max);
-
-        strategy.deposit{value: 5 ether}({
-            vTokenDesired: strategy.vToken().balanceOf(address(WALLET)),
+        strategy.deposit{value: 10 ether}({
+            vTokenDesired: 5 ether,
             nftIds: new uint[](0),
             nftAmounts: new uint[](0),
             vTokenMin: 0,
             wethMin: 0,
             deadline: block.timestamp + 3600
         });
+        */
+
+        /*
+        NFTXV3Strategy strategy = NFTXV3Strategy(payable(0x9A1A42DEe50a182a11A280584f72d110a9862f3E));
+        strategy.vToken().approve(address(strategy), type(uint).max);
+        strategy.depositErc20(5 ether);
+        */
 
     }
 

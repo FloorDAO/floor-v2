@@ -24,6 +24,7 @@ contract ExecuteSweep is DeploymentScript {
         ManualSweeper manualSweeper = ManualSweeper(requireDeployment('ManualSweeper'));
         Treasury treasury = Treasury(requireDeployment('Treasury'));
 
+        /*
         // Ensure our {Treasury} has enough ETH for the sweep. This also checks if
         // we need to wrap additional WETH from our dev wallet's ETH.
         if (treasury.weth().balanceOf(address(treasury)) < 0.5 ether) {
@@ -41,9 +42,20 @@ contract ExecuteSweep is DeploymentScript {
         if (treasury.minSweepAmount() != 0.1 ether) {
             treasury.setMinSweepAmount(0.1 ether);
         }
+        */
 
         // Action a sweep against the previous epoch
-        treasury.sweepEpoch(epochManager.currentEpoch() - 1, address(manualSweeper), 'Example test sweep data', 0);
+        /*
+        treasury.sweepEpoch(
+            epochManager.currentEpoch() - 1,
+            address(manualSweeper),
+            'Example test sweep data',
+            0
+        );
+        */
+
+        // Action a SudoSwap Sweep
+        treasury.sweepEpoch(3, requireDeployment('SudoswapSweeper'), '', 0);
 
     }
 

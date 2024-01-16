@@ -384,19 +384,6 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         /**
          * Confirm that the ETH initially held was spent, and that additional WETH was
          * unwrapped to cover the additional requirement.
-         *
-         * @dev TODO: This text no longer makes sense with WETH only output.
-         *
-         * The amount of ETH allocated to the sweep is: 431_314285714285713780
-         *
-         * With the manual sweep, the ETH sent to the sweeper is sent back to the caller,
-         * which in this case is the {Treasury}.
-         *
-         * With the amount of ETH in the {Treasury} to being with being 250 ether, this will
-         * leave a remaining amount of WETH to be unwrapped: 181_314285714285713780.
-         *
-         * So with this in mind, we should expect 250 - 181~ as the remaining WETH balance,
-         * and 250 + (250 - 181~) as the remaining ETH balance.
          */
 
         assertEq(address(treasury).balance, 250 ether);

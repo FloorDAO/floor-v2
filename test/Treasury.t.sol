@@ -1536,7 +1536,7 @@ contract TreasuryTest is FloorTest {
     }
 
     /**
-     * ..
+     * Allows us to ensure that our sweep type only conforms to one of our expected enums.
      */
     modifier variesSweepType(uint8 _sweepType) {
         // We only have 2 sweep types, so we want to toggle it between those indexes
@@ -1546,7 +1546,7 @@ contract TreasuryTest is FloorTest {
     }
 
     /**
-     * ..
+     * Ensures that our {MercenarySweeper} is set to the Mock contract defined for the test.
      */
     modifier hasMercenarySweeper() {
         treasury.setMercenarySweeper(address(mercenarySweeperMock));

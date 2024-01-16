@@ -32,11 +32,11 @@ contract DeployFloorWarsContracts is DeploymentScript {
             treasury                // address _treasury
         );
 
-        storeDeployment('NewCollectionWars', address(newCollectionWars));
-        storeDeployment('SweepWars', address(sweepWars));
-
         // Update our vefloor staking contract references
         VeFloorStaking(veFloorStaking).setVotingContracts(address(newCollectionWars), address(sweepWars));
         VeFloorStaking(veFloorStaking).setMaxLossRatio(90_0000000); // 90%
+
+        storeDeployment('NewCollectionWars', address(newCollectionWars));
+        storeDeployment('SweepWars', address(sweepWars));
     }
 }

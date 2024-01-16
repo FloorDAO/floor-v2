@@ -7,8 +7,8 @@ cd ../deployment
 files=$(find . -maxdepth 1 -type f -name "*.s.sol" | sort)
 
 # Set chain
-chainId="5"
-rpcUrl="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9"
+chainId="11155111"
+rpcUrl="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9"
 
 # If verifying
 verify="" # "--verify"
@@ -22,21 +22,26 @@ for file in $files; do
 done
 
 '''
-forge script 101_DeployAuthorityRegistry.s.sol:DeployAuthorityRegistry --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 102_DeployFloorToken.s.sol:DeployFloorToken --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 104_DeployCollectionRegistry.s.sol:DeployCollectionRegistry --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 105_DeployTreasuryContract.s.sol:DeployTreasuryContract --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 106_DeployStrategyContracts.s.sol:DeployStrategyContracts --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 107_DeployCoreContracts.s.sol:DeployCoreContracts --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 108_DeployFloorWarsContracts.s.sol:DeployFloorWarsContracts --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 110_DeployEpochManager.s.sol:DeployEpochManager --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 111_DeployEpochTriggers.s.sol:DeployEpochTriggers --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 112_DeployLiquidationEpochTrigger.s.sol:DeployLiquidationEpochTriggers --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 113_DeployTreasuryMigration.s.sol:DeployTreasuryMigration --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-forge script 114_AddContractPermissions.s.sol:AddContractPermissions --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/101_DeployAuthorityRegistry.s.sol:DeployAuthorityRegistry --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/102_DeployFloorToken.s.sol:DeployFloorToken --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+# forge script script/deployment/103_DeployFloorNft.s.sol:DeployFloorNft --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/104_DeployCollectionRegistry.s.sol:DeployCollectionRegistry --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/105_DeployTreasuryContract.s.sol:DeployTreasuryContract --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/106_DeployStrategyContracts.s.sol:DeployStrategyContracts --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/107_DeployCoreContracts.s.sol:DeployCoreContracts --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/108_DeployFloorWarsContracts.s.sol:DeployFloorWarsContracts --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/110_DeployEpochManager.s.sol:DeployEpochManager --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/111_DeployEpochTriggers.s.sol:DeployEpochTriggers --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
 
-# forge script 000_MockErc721Contracts.s.sol:DeployErc721Mock --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
-# forge script 000_ApproveCollection.s.sol:ApproveCollection --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/000_ApproveCollection.s.sol:ApproveCollection --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
 
-forge script 000_PopulateContractsEvents.s.sol:ApproveCollection --broadcast --chain-id=5 --rpc-url="https://eth-goerli.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/112_DeployLiquidationEpochTriggers.s.sol:DeployLiquidationEpochTriggers --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/113_DeployTreasuryMigration.s.sol:DeployTreasuryMigration --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/114_AddContractPermissions.s.sol:AddContractPermissions --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/115_ApproveSweepers.s.sol:ApproveSweepers --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+forge script script/deployment/116_DeployNFTXV3Strategies.s.sol:DeployNFTXV3Strategies --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+
+forge script script/deployment/200_SetSampleSize.s.sol:SetSampleSize --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
+
+forge script script/deployment/000_EndEpoch.s.sol:EndEpoch --broadcast --chain-id=11155111 --rpc-url="https://eth-sepolia.g.alchemy.com/v2/CCP2hUmJJ6AOwDmyJLmTXuIfetOPcpZ9" --optimize --optimizer-runs=200
 '''

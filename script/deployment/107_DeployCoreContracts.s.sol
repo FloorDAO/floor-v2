@@ -20,11 +20,12 @@ contract DeployCoreContracts is DeploymentScript {
 
         // Deploy our pricing executor, powered by Uniswap
         UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0xDD2dce9C403f93c10af1846543870D065419E70b, WETH);
-        storeDeployment('UniswapV3PricingExecutor', address(pricingExecutor));
 
         // Deploy our veFloor staking contracts
         address veFloorStaking = address(new VeFloorStaking(IERC20(floor), treasury));
-        storeDeployment('VeFloorStaking', veFloorStaking);
         Treasury(treasury).setVeFloorStaking(veFloorStaking);
+
+        storeDeployment('UniswapV3PricingExecutor', address(pricingExecutor));
+        storeDeployment('VeFloorStaking', veFloorStaking);
     }
 }
