@@ -55,7 +55,7 @@ contract ExecuteSweep is DeploymentScript {
         */
 
         // Action a SudoSwap Sweep
-        treasury.sweepEpoch(3, requireDeployment('SudoswapSweeper'), '', 0);
+        treasury.sweepEpoch(8, requireDeployment('SudoswapSweeper'), '', 0);
 
     }
 
