@@ -69,7 +69,7 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
         gdaCurve = GDACurve(_gdaCurve);
 
         // Set our default alpha/lambda value
-        setAlphaLambda(1.05e9, 0.00005e9);
+        setAlphaLambda(1.05e9, 0.000005e9);
     }
 
     /**
