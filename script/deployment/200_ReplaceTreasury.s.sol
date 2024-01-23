@@ -24,8 +24,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
  */
 contract ReplaceTreasury is DeploymentScript {
 
-    address APPROVED_COLLECTION = 0x056207f8Da23Ff08f1F410c1b6F4Bc7767229497;
-
     function run() external deployer {
 
         address floorToken = requireDeployment('FloorToken');
@@ -39,7 +37,7 @@ contract ReplaceTreasury is DeploymentScript {
         VeFloorStaking veFloorStaking = VeFloorStaking(requireDeployment('VeFloorStaking'));
 
         // Deploy our new {Treasury} contract
-        Treasury treasury = new Treasury(address(authorityControl), floorToken, WETH);
+        Treasury treasury = new Treasury(address(authorityControl), floorToken, DEPLOYMENT_WETH);
 
         // Set our new {Treasury} against the {StrategyFactory}
         strategyFactory.setTreasury(address(treasury));
@@ -96,8 +94,8 @@ contract ReplaceTreasury is DeploymentScript {
         (, address _strategy) = strategyFactory.deployStrategy(
             bytes32('Liquidation Pool'),
             requireDeployment('DistributedRevenueStakingStrategy'),
-            abi.encode(WETH, 10 ether, address(epochManager)),
-            APPROVED_COLLECTION // The collection is not important, it just needs to be approved
+            abi.encode(DEPLOYMENT_WETH, 10 ether, address(epochManager)),
+            DEPLOYMENT_WETH
         );
 
         LiquidateNegativeCollectionTrigger liquidateNegativeCollectionTrigger = new LiquidateNegativeCollectionTrigger(
@@ -106,7 +104,7 @@ contract ReplaceTreasury is DeploymentScript {
             address(strategyFactory),
             _strategy,
             0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD, // Uniswap Universal Router
-            WETH
+            DEPLOYMENT_WETH
         );
 
         // Register our epoch trigger
@@ -118,7 +116,7 @@ contract ReplaceTreasury is DeploymentScript {
         // Deploy our updated migration contracts
         MigrateTreasury migrateTreasury = new MigrateTreasury(0x91E453f442d25523F42063E1695390e325076ca2, address(treasury));
 
-        VestingClaim vestingClaim = new VestingClaim(floorToken, WETH, address(treasury));
+        VestingClaim vestingClaim = new VestingClaim(floorToken, DEPLOYMENT_WETH, address(treasury));
 
         // Grant our new {Treasury} roles
         authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(treasury));

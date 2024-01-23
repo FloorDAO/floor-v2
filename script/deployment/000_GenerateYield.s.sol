@@ -61,7 +61,7 @@ contract GenerateYield is DeploymentScript {
                 0x05679E29385EEC643c91cdBDB9f31d8e1415c61f, // _rewardToken         // MOCKER
                 0xAfC303423580239653aFB6fb06d37D666ea0f5cA, // _liquidityStaking
                 0x775e23b64610dA2806dc5ed3b0862955e122DDc6, // _stakingZap
-                WETH // _weth
+                DEPLOYMENT_WETH // _weth
             ),
             0xDc110028492D1baA15814fCE939318B6edA13098
         );
@@ -83,8 +83,8 @@ contract GenerateYield is DeploymentScript {
         require(sent, 'Failed to fund Treasury');
 
         // Wrap some WETH and send it to the {Treasury}
-        IWETH(WETH).deposit{value: 20 ether}();
-        IWETH(WETH).transfer(address(treasury), 20 ether);
+        IWETH(DEPLOYMENT_WETH).deposit{value: 20 ether}();
+        IWETH(DEPLOYMENT_WETH).transfer(address(treasury), 20 ether);
 
         // Put 5 721s into an NFTX Inventory strategy
         ITreasury.ActionApproval[] memory inventoryApprovals = new ITreasury.ActionApproval[](1);

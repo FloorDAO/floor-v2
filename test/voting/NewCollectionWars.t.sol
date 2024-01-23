@@ -29,9 +29,6 @@ contract NewCollectionWarsTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
-    // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 3;
-
     /// Sent when a Collection Addition War is started
     event CollectionAdditionWarStarted(uint warIndex);
 
@@ -1093,7 +1090,7 @@ contract NewCollectionWarsTest is FloorTest {
         epochManager.endEpoch();
 
         // Skip forward so that epoch is unlocked
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + epochManager.EPOCH_LENGTH());
 
         _;
     }

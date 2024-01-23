@@ -12,9 +12,8 @@ contract ZeroXBuyTokensWithTokensTest is FloorTest {
     // Mainnet 0x swapTarget contract
     address internal constant ZEROX_CONTRACT = 0xDef1C0ded9bec7F1a1670819833240f027b25EfF;
 
-    /// Mainnet WETH contract
+    /// Mainnet ETH contract
     address public immutable ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     // Set our test token contract addresses
     address BUY_TOKEN = 0x111111111117dC0aa78b770fA6A738034120C302; // 1Inch

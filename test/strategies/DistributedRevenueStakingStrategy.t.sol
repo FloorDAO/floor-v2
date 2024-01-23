@@ -38,9 +38,6 @@ contract DistributedRevenueStakingStrategyTest is FloorTest {
     // NFTX DAO - Holds 50.242376308170344638 $PUNK at block
     address testUser = 0xaA29881aAc939A025A3ab58024D7dd46200fB93D;
 
-    // Set some constants for our test tokens
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     constructor() forkBlock(BLOCK_NUMBER) {
         // Deploy our authority contracts
         super._deployAuthority();

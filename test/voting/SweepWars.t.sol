@@ -34,9 +34,6 @@ contract SweepWarsTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
-    // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 3;
-
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;
@@ -613,22 +610,22 @@ contract SweepWarsTest is FloorTest {
         // 1) Deposit at the lowest possible lock length (2 weeks)
         veFloor.deposit(10 ether, 0);
 
-        assertEq(sweepWars.userVotingPower(carol), uint(10 ether) / uint(6));
-        assertEq(sweepWars.userVotesAvailable(carol), uint(10 ether) / uint(6));
+        assertEq(sweepWars.userVotingPower(carol), _calculateVotePower(10 ether, 0));
+        assertEq(sweepWars.userVotesAvailable(carol), _calculateVotePower(10 ether, 0));
         assertEq(sweepWars.votes(floorTokenCollection), 0);
 
         // 2) Vote in the opposite of the preferred direction (with 1/6 ie about 16.67% of total votes)
         sweepWars.vote(floorTokenCollection, -1 ether);
 
-        assertEq(sweepWars.userVotingPower(carol), uint(10 ether) / uint(6));
-        assertEq(sweepWars.userVotesAvailable(carol), (uint(10 ether) / uint(6)) - 1 ether);
+        assertEq(sweepWars.userVotingPower(carol), _calculateVotePower(10 ether, 0));
+        assertEq(sweepWars.userVotesAvailable(carol), _calculateVotePower(10 ether, 0) - 1 ether);
         assertEq(sweepWars.votes(floorTokenCollection), int(-1 ether));
 
         // 3) Extend lock by depositing again to the longest lock length (12 epochs)
         veFloor.deposit(10 ether, MAX_EPOCH_INDEX);
 
-        assertEq(sweepWars.userVotingPower(carol), 20 ether);
-        assertEq(sweepWars.userVotesAvailable(carol), 19 ether);
+        assertEq(sweepWars.userVotingPower(carol), _calculateVotePower(20 ether, MAX_EPOCH_INDEX));
+        assertEq(sweepWars.userVotesAvailable(carol), _calculateVotePower(20 ether, MAX_EPOCH_INDEX) - 1 ether);
         assertEq(sweepWars.votes(floorTokenCollection), int(-1 ether));
 
         vm.stopPrank();
@@ -650,8 +647,8 @@ contract SweepWarsTest is FloorTest {
         veFloor.deposit(10 ether, MAX_EPOCH_INDEX);
         sweepWars.vote(floorTokenCollection, 10 ether);
 
-        assertEq(sweepWars.userVotingPower(carol), 10 ether);
-        assertEq(sweepWars.userVotesAvailable(carol), 0);
+        assertEq(sweepWars.userVotingPower(carol), _calculateVotePower(10 ether, MAX_EPOCH_INDEX));
+        assertEq(sweepWars.userVotesAvailable(carol), _calculateVotePower(10 ether, MAX_EPOCH_INDEX) - 10 ether);
         assertEq(sweepWars.votes(floorTokenCollection), 10 ether);
 
         vm.stopPrank();

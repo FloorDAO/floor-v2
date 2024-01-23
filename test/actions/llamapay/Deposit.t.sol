@@ -16,9 +16,6 @@ contract LlamaPayDepositTest is FloorTest {
     // Mainnet 0x swapTarget contract
     address internal constant LLAMAPAY_CONTRACT = 0xde1C04855c2828431ba637675B6929A684f84C7F;
 
-    /// Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_134_863;
 

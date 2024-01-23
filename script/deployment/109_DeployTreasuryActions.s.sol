@@ -62,10 +62,10 @@ contract DeployTreasuryActions is DeploymentScript {
         storeDeployment('UniswapCreatePool', address(new UniswapCreatePool(uniswapPositionManager)));
         storeDeployment('UniswapMintPosition', address(new UniswapMintPosition(uniswapPositionManager)));
         storeDeployment('UniswapRemoveLiquidity', address(new UniswapRemoveLiquidity(uniswapPositionManager)));
-        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564, WETH)));
+        storeDeployment('UniswapSellTokensForETH', address(new UniswapSellTokensForETH(0xE592427A0AEce92De3Edee1F18E0157C05861564, DEPLOYMENT_WETH)));
         storeDeployment('RawTx', address(new RawTx()));
         storeDeployment('SendEth', address(new SendEth()));
-        storeDeployment('UnwrapWeth', address(new UnwrapWeth(WETH)));
-        storeDeployment('WrapEth', address(new WrapEth(WETH)));
+        storeDeployment('UnwrapWeth', address(new UnwrapWeth(DEPLOYMENT_WETH)));
+        storeDeployment('WrapEth', address(new WrapEth(DEPLOYMENT_WETH)));
     }
 }

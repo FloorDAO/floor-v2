@@ -17,7 +17,6 @@ contract MigrateFloorTokenTest is FloorTest {
     MigrateTreasury migrateTreasury;
     Treasury treasury;
 
-    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant LEGACY_TREASURY = 0x91E453f442d25523F42063E1695390e325076ca2;
 
     uint internal constant BLOCK_NUMBER = 17_385_629;

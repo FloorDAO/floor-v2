@@ -45,7 +45,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
     address treasury;
 
     // Define our WETH token
-    IWETH WETH;
+    IWETH _WETH;
 
     // Set up a test user
     address alice;
@@ -105,17 +105,17 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         vm.stopPrank();
 
         // Set up our WETH token
-        WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
         // Deal some WETH to our erc holders so that we can action Liquidity stakes
-        deal(address(WETH), address(erc721Holder), 100 ether);
-        deal(address(WETH), address(erc1155Holder), 100 ether);
+        deal(WETH, address(erc721Holder), 100 ether);
+        deal(WETH, address(erc1155Holder), 100 ether);
 
         // Deploy our {Treasury} and assign it to our {StrategyFactory}
         treasury = address(new Treasury(
             address(authorityRegistry),
             address(1),
-            address(WETH)
+            WETH
         ));
         strategyFactory.setTreasury(treasury);
     }
@@ -374,7 +374,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Deposit using the ERC721 tokens to receive xToken into the strategy
         IERC721(strategy.assetAddress()).setApprovalForAll(address(strategy), true);
-        WETH.approve(address(strategy), 20 ether);
+        _WETH.approve(address(strategy), 20 ether);
         strategy.depositErc721(tokenIds, 0, 20 ether);
 
         // Confirm that the ERC721s are now held by the vault
@@ -433,7 +433,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
         amounts[1] = 1;
 
         // Approve our WETH allocation for the strategy
-        WETH.approve(address(_strategy), 5 ether);
+        _WETH.approve(address(_strategy), 5 ether);
 
         // Deposit using the ERC721 tokens to receive xToken into the strategy
         IERC1155(_strategy.assetAddress()).setApprovalForAll(address(_strategy), true);
@@ -441,7 +441,7 @@ contract NFTXLiquidityPoolStakingStrategyTest is FloorTest {
 
         // Confirm that, although we sent 5 WETH that we have received an amount back. This
         // account started with 100 WETH, so we can use that as a base to test from.
-        assertEq(WETH.balanceOf(erc1155Holder), 99732516493129423305); // 100 ether - 2.7~ ether
+        assertEq(_WETH.balanceOf(erc1155Holder), 99732516493129423305); // 100 ether - 2.7~ ether
 
         // Confirm that the ERC721s are now held by the vault
         assertEq(IERC1155(_strategy.assetAddress()).balanceOf(erc1155Holder, 1), 0);

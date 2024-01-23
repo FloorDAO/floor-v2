@@ -20,9 +20,6 @@ contract StoreEpochCollectionVotesTriggerTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 16_616_037;
 
-    // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 3;
-
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     EpochManager epochManager;

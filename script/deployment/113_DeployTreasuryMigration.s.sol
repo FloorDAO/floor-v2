@@ -20,7 +20,7 @@ contract DeployTreasuryMigration is DeploymentScript {
 
         // Deploy our migration contracts
         MigrateTreasury migrateTreasury = new MigrateTreasury(oldTreasury, newTreasury);
-        VestingClaim vestingClaim = new VestingClaim(floorToken, WETH, newTreasury);
+        VestingClaim vestingClaim = new VestingClaim(floorToken, DEPLOYMENT_WETH, newTreasury);
 
         // Store our deployment addresses
         storeDeployment('MigrateTreasury', address(migrateTreasury));

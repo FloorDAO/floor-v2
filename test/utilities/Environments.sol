@@ -21,6 +21,12 @@ contract FloorTest is Test {
     address constant DEPLOYER = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
     bytes32 internal nextUser = keccak256(abi.encodePacked('user address'));
 
+    /// Store our max epoch index
+    uint internal constant MAX_EPOCH_INDEX = 3;
+
+    /// Define our WETH address
+    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     constructor() {
         // Set up a small pool of test users
         createUsers(5);
@@ -123,5 +129,14 @@ contract FloorTest is Test {
         address payable user = payable(address(uint160(uint(nextUser) + users.length)));
         nextUser = keccak256(abi.encodePacked(nextUser));
         return user;
+    }
+
+    /**
+     * Calculates the vote power based on lock periods. The lock period will need to be
+     * updated if they are updated on the sweep contract.
+     */
+    function _calculateVotePower(uint _amount, uint _lockPeriodIndex) internal pure returns (uint) {
+        uint8[4] memory lockPeriods = [uint8(2), 3, 4, 6];
+        return _amount * lockPeriods[_lockPeriodIndex] / lockPeriods[MAX_EPOCH_INDEX];
     }
 }

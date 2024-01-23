@@ -33,9 +33,6 @@ contract TreasuryTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_641_210;
 
-    // Mainnet WETH contract
-    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// @dev Emitted when a sweep is registered
     event SweepRegistered(uint sweepEpoch, TreasuryEnums.SweepType sweepType, address[] collections, uint[] amounts);
 

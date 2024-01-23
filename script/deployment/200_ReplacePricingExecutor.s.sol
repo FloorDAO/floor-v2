@@ -41,7 +41,7 @@ contract ReplacePricingExecutor is DeploymentScript {
         epochManager.setEpochEndTrigger(registerSweep, false);
 
         // Deploy our new {PricingExecutor}
-        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0xDD2dce9C403f93c10af1846543870D065419E70b, WETH);
+        UniswapV3PricingExecutor pricingExecutor = new UniswapV3PricingExecutor(0xDD2dce9C403f93c10af1846543870D065419E70b, DEPLOYMENT_WETH);
 
         // Deploy our new {RegisterSweep} contract
         RegisterSweepTrigger newRegisterSweep = new RegisterSweepTrigger(

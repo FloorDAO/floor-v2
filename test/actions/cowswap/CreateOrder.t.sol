@@ -9,9 +9,6 @@ import {CowSwapCreateOrder} from '@floor/actions/cowswap/CreateOrder.sol';
 import {FloorTest} from '../../utilities/Environments.sol';
 
 contract CowSwapCreateOrderTest is FloorTest {
-    /// Map our WETH contract addresses
-    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// Store our CowSwap settlement contract address
     address internal constant SETTLEMENT_CONTRACT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
 

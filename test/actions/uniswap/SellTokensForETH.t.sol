@@ -14,7 +14,6 @@ contract UniswapSellTokensForETHTest is FloorTest {
 
     // We will be using USDC as our base token and WETH as the received token
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     // The pool fee for USDC/ETH is 0.05%
     uint24 internal constant USDC_FEE = 500;

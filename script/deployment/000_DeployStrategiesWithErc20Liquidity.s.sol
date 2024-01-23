@@ -20,7 +20,6 @@ import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
-import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -55,7 +54,7 @@ contract DeployStrategiesWithErc20Liquidity is DeploymentScript {
                 0xA0951BC039799cdA0f9A4df13c0fA206a680eA96, // _rewardToken         // MILADY
                 0xAfC303423580239653aFB6fb06d37D666ea0f5cA, // _liquidityStaking
                 0x775e23b64610dA2806dc5ed3b0862955e122DDc6, // _stakingZap
-                WETH // _weth
+                DEPLOYMENT_WETH // _weth
             ),
             0x18F6CF0E62C438241943516C1ac880188304620C
         );
@@ -92,7 +91,7 @@ contract DeployStrategiesWithErc20Liquidity is DeploymentScript {
                 0xA8294Fa8065127AB27F483D4b0A70b4f77e5a072, // _rewardToken         // MILADY
                 0xAfC303423580239653aFB6fb06d37D666ea0f5cA, // _liquidityStaking
                 0x775e23b64610dA2806dc5ed3b0862955e122DDc6, // _stakingZap
-                WETH // _weth
+                DEPLOYMENT_WETH // _weth
             ),
             0xbB12Ad601d0024aE2cD6B763a823aD3E6A53e1e7
         );
@@ -129,7 +128,7 @@ contract DeployStrategiesWithErc20Liquidity is DeploymentScript {
                 0x11801A32b1055Ff80dCCe28ED7269862e8B3E8Ee, // _rewardToken         // MILADY         // _rewardToken
                 0xAfC303423580239653aFB6fb06d37D666ea0f5cA, // _liquidityStaking
                 0x775e23b64610dA2806dc5ed3b0862955e122DDc6, // _stakingZap
-                WETH // _weth
+                DEPLOYMENT_WETH // _weth
             ),
             0x056207f8Da23Ff08f1F410c1b6F4Bc7767229497
         );

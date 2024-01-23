@@ -23,7 +23,6 @@ import {SendEth} from '@floor/actions/utils/SendEth.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
-import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
@@ -492,7 +491,7 @@ contract PopulateContractEvents is DeploymentScript {
 
     function _strategyData() internal pure returns (bytes memory) {
         address[] memory tokens = new address[](2);
-        tokens[0] = WETH;
+        tokens[0] = DEPLOYMENT_WETH;
         tokens[1] = 0x269616D549D7e8Eaa82DFb17028d0B212D11232A;
 
         return abi.encode(tokens);

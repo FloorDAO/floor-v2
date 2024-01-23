@@ -33,11 +33,6 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
-    // Store our max epoch index
-    uint internal constant MAX_EPOCH_INDEX = 3;
-
-    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     DistributedRevenueStakingStrategy revenueStrategy;

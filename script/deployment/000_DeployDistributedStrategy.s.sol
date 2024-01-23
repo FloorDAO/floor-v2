@@ -19,14 +19,14 @@ contract DeployDistributedStrategy is DeploymentScript {
         address epochManager = requireDeployment('EpochManager');
         StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
         address implementation = requireDeployment('DistributedRevenueStakingStrategy');
-        IWETH weth = IWETH(WETH);
+        IWETH weth = IWETH(DEPLOYMENT_WETH);
 
         // Deploy our strategy
         (uint strategyId, address strategy) = strategyFactory.deployStrategy(
             'WETH Revenue',
             implementation,
             abi.encode(address(weth), 0.1 ether, epochManager),
-            address(weth)
+            DEPLOYMENT_WETH
         );
 
         // Wrap an ETH into WETH

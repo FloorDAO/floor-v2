@@ -23,7 +23,6 @@ import {SendEth} from '@floor/actions/utils/SendEth.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
-import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';

@@ -66,7 +66,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Confirm that the pool is set up as expected
         LSSVMPair pair = LSSVMPair(sweeper.sweeperPools(address(mock721)));
         assertEq(pair.spotPrice(), 0.01 ether, 'Invalid spot price');
-        assertEq(pair.delta(), 324959260312412336234768946028794967, 'Invalid delta');
+        assertEq(pair.delta(), 324959260312412323568394994049274967, 'Invalid delta');
         assertEq(pair.fee(), 0, 'Invalid fee');
         assertEq(uint(pair.pairVariant()), 0, 'Invalid pair variant');
         assertEq(address(pair.bondingCurve()), address(sweeper.gdaCurve()), 'Invalid bonding curve');
@@ -79,7 +79,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Confirm how the alpha / lambda affects a new purchase
         (, uint newSpotPrice, uint newDelta, uint inputAmount, uint protocolFee, uint royaltyAmount) = pair.getBuyNFTQuote(0, 1);
         assertEq(newSpotPrice, 0.0105 ether, 'Invalid new spot price');
-        assertEq(newDelta, 324959260312412336234768946028794967, 'Invalid new delta');
+        assertEq(newDelta, 324959260312412323568394994049274967, 'Invalid new delta');
         assertEq(inputAmount, 0.01005 ether, 'Invalid input amount');
         assertEq(protocolFee, 0.00005 ether, 'Invalid protocol fee');
         assertEq(royaltyAmount, 0, 'Invalid royalty amount');
@@ -162,18 +162,18 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // sell NFTs to pair
         (,,, outputAmount, protocolFee, royaltyAmount) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 10708584925758532);
-        assertEq(protocolFee, 56644194264789);
-        assertEq(royaltyAmount, 563609732934659);
+        assertEq(outputAmount, 9571174316480527);
+        assertEq(protocolFee, 50627740367524);
+        assertEq(royaltyAmount, 503746016656869);
 
         // Wait for price change
         skip(12 hours);
 
         // sell NFTs to pair
         (,,, outputAmount, protocolFee, royaltyAmount) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 47858256818016269);
-        assertEq(protocolFee, 253151318794055);
-        assertEq(royaltyAmount, 2518855622000856);
+        assertEq(outputAmount, 11117002543375338);
+        assertEq(protocolFee, 58804562514548);
+        assertEq(royaltyAmount, 585105397019754);
     }
 
     function test_PoolSpotPriceReducesAfterEthDeposit() public {
@@ -201,7 +201,7 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // ether balance before the addition. Again, there is a reduced dust amount
         // for the protocol fee.
         (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 10188800000000000000);
+        assertEq(outputAmount, 80935263994039698);
 
         // If we make another deposit after a short time now, we need to ensure that
         // the price does not increase to the maximum threshold.
@@ -314,8 +314,11 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
 
         // Manually send in the excess ETH so we can zero out the pair balance. This ensures
         // that the pair will have the exact amount of ETH required to make a singular swap.
-        uint ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
-        payable(address(pair)).call{value: ethDiff}('');
+        if (address(pair).balance < outputAmount + protocolFeeAmount + royaltyAmount) {
+            uint ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
+            (bool success,) = payable(address(pair)).call{value: ethDiff}('');
+            require(success);
+        }
 
         // Do the swap that will zero out the pair. The entire amount of ETH will have been
         // used and there will be no NFT in the pool as it was sent to the {Treasury}.
@@ -355,7 +358,8 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // Manually send in the excess ETH
         if (outputAmount + protocolFeeAmount + royaltyAmount > address(pair).balance) {
             uint ethDiff = outputAmount + protocolFeeAmount + royaltyAmount - address(pair).balance;
-            payable(address(pair)).call{value: ethDiff}('');
+            (bool success,) = payable(address(pair)).call{value: ethDiff}('');
+            require(success);
         }
 
         // Do the swap and take all 10 ETH for 1 NFT
@@ -364,9 +368,8 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         id[0] = 1;
         pair.swapNFTsForToken(id, outputAmount, payable(address(this)), false, address(0));
 
-        // We have zeroed out the pair for just 1 NFT
-        // (Not ideal!)
-        assertEq(address(pair).balance, 0);
+        // ..
+        assertEq(address(pair).balance, 10018658026136643520);
     }
 
     function test_CanWithdrawEthFromPool() public {

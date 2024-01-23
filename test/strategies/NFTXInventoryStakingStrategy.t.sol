@@ -35,9 +35,6 @@ contract NFTXInventoryStakingStrategyTest is FloorTest {
     /// Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_240_153;
 
-    // Set some constants for our test tokens
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// Define a number of ERC holders that we can test with
     address erc20Holder = 0x56bf24f635B39aC01DA6761C69AEe7ba4f1cFE3f;
     address erc721Holder = 0xd938a84aD8CDB8385b68851350d5a84aA52D9C06;

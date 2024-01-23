@@ -19,6 +19,6 @@ contract ApproveCollection is DeploymentScript {
         collectionRegistry.approveCollection(0xa807e2a221C6dAAFE1b4A3ED2dA5E8A53fDAf6BE);
 
         // Approve the WETH token
-        collectionRegistry.approveCollection(WETH);
+        collectionRegistry.approveCollection(DEPLOYMENT_WETH);
     }
 }

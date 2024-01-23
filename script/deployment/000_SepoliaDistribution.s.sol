@@ -16,7 +16,6 @@ import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
-import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
 import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
 
 import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';

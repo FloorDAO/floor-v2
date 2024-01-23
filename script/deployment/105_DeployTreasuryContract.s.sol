@@ -17,7 +17,7 @@ contract DeployTreasuryContract is DeploymentScript {
         address floorToken = requireDeployment('FloorToken');
 
         // Set up our Treasury contract
-        Treasury treasury = new Treasury(authorityControl, floorToken, WETH);
+        Treasury treasury = new Treasury(authorityControl, floorToken, DEPLOYMENT_WETH);
 
         // Store our {Treasury} contract address
         storeDeployment('Treasury', address(treasury));
