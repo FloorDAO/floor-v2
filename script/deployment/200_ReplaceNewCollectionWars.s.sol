@@ -43,7 +43,7 @@ contract ReplaceNewCollectionWars is DeploymentScript {
         // Update the required contracts
         epochManager.setEpochEndTrigger(requireDeployment('RegisterSweepTrigger'), false);
         RegisterSweepTrigger registerSweep = new RegisterSweepTrigger(
-            requireDeployment('NewCollectionWars'),
+            address(newCollectionWars),
             requireDeployment('UniswapV3PricingExecutor'),
             requireDeployment('StrategyFactory'),
             requireDeployment('Treasury'),
