@@ -16,6 +16,9 @@ contract DeployCollectionRegistry is DeploymentScript {
         // Deploy our {CollectionRegistry} contract
         CollectionRegistry collectionRegistry = new CollectionRegistry(authorityControl);
 
+        // Register WETH as an approved collection
+        collectionRegistry.approveCollection(DEPLOYMENT_WETH);
+
         // Store our collection registry deployment address
         storeDeployment('CollectionRegistry', address(collectionRegistry));
     }
