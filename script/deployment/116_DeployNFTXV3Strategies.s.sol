@@ -38,6 +38,7 @@ contract DeployNFTXV3Strategies is DeploymentScript {
         strategyRegistry.approveStrategy(address(nftxV3Strategy), true);
         strategyRegistry.approveStrategy(address(nftxV3LiquidityStrategy), true);
 
+        /*
         // Deploy our strategy
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('MILADY/WETH Full Range Liquidity'),
@@ -87,6 +88,7 @@ contract DeployNFTXV3Strategies is DeploymentScript {
 
         console.log(_strategyId);
         console.log(_strategy);
+        */
 
         // Store our strategies deployment address
         storeDeployment('NFTXV3Strategy', address(nftxV3Strategy));
