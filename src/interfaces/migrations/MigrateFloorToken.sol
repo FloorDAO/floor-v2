@@ -13,5 +13,5 @@ interface IMigrateFloorToken {
      * The balance of all tokens will be attempted to be migrated, so 4 full approvals
      * should be made prior to calling this contract function.
      */
-    function upgradeFloorToken() external;
+    function migrateFloorToken() external;
 }

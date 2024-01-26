@@ -58,7 +58,7 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
     error ZeroAddress();
 
     /// Set a list of locking periods that the user can lock for
-    uint8[] public LOCK_PERIODS = [uint8(2), 3, 4, 6];
+    uint8[] public LOCK_PERIODS = [uint8(2), 3, 4, 8];
 
     /// Our FLOOR token
     IERC20 public immutable floor;

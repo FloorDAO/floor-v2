@@ -136,7 +136,7 @@ contract FloorTest is Test {
      * updated if they are updated on the sweep contract.
      */
     function _calculateVotePower(uint _amount, uint _lockPeriodIndex) internal pure returns (uint) {
-        uint8[4] memory lockPeriods = [uint8(2), 3, 4, 6];
+        uint8[4] memory lockPeriods = [uint8(2), 3, 4, 8];
         return _amount * lockPeriods[_lockPeriodIndex] / lockPeriods[MAX_EPOCH_INDEX];
     }
 }

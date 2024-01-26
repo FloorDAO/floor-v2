@@ -16,7 +16,7 @@ import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStaki
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {RegisterSweepTrigger} from '@floor/triggers/RegisterSweep.sol';
-import {NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
+import {CannotVoteWithZeroAmount, NewCollectionWars} from '@floor/voting/NewCollectionWars.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager, EpochTimelocked} from '@floor/EpochManager.sol';
 import {CannotSetNullAddress, InsufficientAmount, PercentageTooHigh, Treasury} from '@floor/Treasury.sol';
@@ -241,11 +241,6 @@ contract NewCollectionWarsTest is FloorTest {
         vm.prank(bob);
         newCollectionWars.vote(address(mock721));
 
-        // Even though Carol has no voting power available, she is still able to vote but
-        // we see no power assigned. Is this as expected?
-        vm.prank(carol);
-        newCollectionWars.vote(address(mock1155));
-
         // Confirm our voting levels across users
         assertEq(newCollectionWars.userVotesAvailable(war, alice), 0);
         assertEq(newCollectionWars.userVotes(_warUser(war, alice)), 100 ether);
@@ -262,7 +257,7 @@ contract NewCollectionWarsTest is FloorTest {
         // Confirm the collections our system understands our users to have voted vote
         assertEq(newCollectionWars.userCollectionVote(_warUser(war, alice)), address(1));
         assertEq(newCollectionWars.userCollectionVote(_warUser(war, bob)), address(mock721));
-        assertEq(newCollectionWars.userCollectionVote(_warUser(war, carol)), address(mock1155));
+        assertEq(newCollectionWars.userCollectionVote(_warUser(war, carol)), address(0));
     }
 
     /**
@@ -289,6 +284,11 @@ contract NewCollectionWarsTest is FloorTest {
         uint expectedVotes = uint(depositAmount) * veFloor.LOCK_PERIODS(depositLock) / veFloor.LOCK_PERIODS(MAX_EPOCH_INDEX);
         assertEq(newCollectionWars.userVotingPower(ethan), expectedVotes);
         assertEq(newCollectionWars.userVotesAvailable(war, ethan), expectedVotes);
+    }
+
+    function test_CannotVoteWithZeroPower() public defaultNewCollectionWar {
+        vm.expectRevert(CannotVoteWithZeroAmount.selector);
+        newCollectionWars.vote(address(9));
     }
 
     function test_CanRevote() external defaultNewCollectionWar {

@@ -138,6 +138,20 @@ contract RevenueStakingStrategy is BaseStrategy {
     }
 
     /**
+     * It will not be possible to withdraw a percentage or liquidate against this strategy.
+     */
+    function withdrawPercentage(address /* recipient */, uint /* percentage */)
+        external
+        override
+        view
+        onlyOwner
+        returns (address[] memory tokens_, uint[] memory amounts_)
+    {
+        tokens_ = validTokens();
+        amounts_ = new uint[](tokens_.length);
+    }
+
+    /**
      * Returns an array of tokens that the strategy supports.
      */
     function validTokens() public view override returns (address[] memory) {

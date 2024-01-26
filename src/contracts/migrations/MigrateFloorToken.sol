@@ -56,7 +56,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
      *
      * @dev For the gFloor token, we need to update the decimal accuracy from 9 to 18.
      */
-    function upgradeFloorToken() external override {
+    function migrateFloorToken() external override {
         // Keep a running total of allocated tokens
         uint floorAllocation;
         uint tokenBalance;

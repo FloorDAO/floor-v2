@@ -125,7 +125,7 @@ contract MigrateFloorTokenTest is FloorTest {
         }
 
         // Run our floor token migration contract
-        migrateFloorToken.upgradeFloorToken();
+        migrateFloorToken.migrateFloorToken();
 
         // We can now stop pranking as the test user
         vm.stopPrank();

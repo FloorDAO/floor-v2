@@ -17,6 +17,10 @@ import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {INewCollectionWars} from '@floor-interfaces/voting/NewCollectionWars.sol';
 import {INewCollectionWarOptions} from '@floor-interfaces/voting/NewCollectionWarOptions.sol';
 
+
+/// If a vote with a zero amount is sent
+error CannotVoteWithZeroAmount();
+
 /**
  * When a new collection is going to be voted in to the ecosystem, we set up a New Collection
  * War with a range of collections that will then be open to vote on. Votes will be made by
@@ -111,6 +115,11 @@ contract NewCollectionWars is AuthorityControl, EpochManaged, INewCollectionWars
     function vote(address collection) external {
         // Ensure a war is currently running
         require(currentWar.index != 0, 'No war currently running');
+
+        // Prevent a zero amount vote
+        if (userVotingPower(msg.sender) == 0) {
+            revert CannotVoteWithZeroAmount();
+        }
 
         // Ensure the collection is part of the current war
         bytes32 warCollection = keccak256(abi.encode(currentWar.index, collection));
