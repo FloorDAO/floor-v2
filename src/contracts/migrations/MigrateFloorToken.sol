@@ -27,12 +27,10 @@ contract MigrateFloorToken is IMigrateFloorToken {
     using SafeERC20 for IERC20;
 
     /// List of FLOOR V1 token contract addresses on mainnet
-    address[] private MIGRATED_TOKENS = [
-        0xf59257E961883636290411c11ec5Ae622d19455e, // Floor
-        0x0C3983165E9BcE0a9Bb43184CC4eEBb26dce48fA, // aFloor
-        0xb1Cc59Fc717b8D4783D41F952725177298B5619d, // gFloor
-        0x164AFe96912099543BC2c48bb9358a095Db8e784 // sFloor
-    ];
+    address[] public MIGRATED_TOKENS;
+
+    /// Store our gFloor contract that holds specific `balanceFrom` logic
+    address public immutable gFloorToken;
 
     /// Contract address of new FLOOR V2 token
     address public immutable newFloor;
@@ -45,9 +43,11 @@ contract MigrateFloorToken is IMigrateFloorToken {
      *
      * @param _newFloor Address of our deployed FLOOR V2 token
      */
-    constructor(address _newFloor) {
+    constructor(address _newFloor, address[] memory _migratedTokens, address _gFloorToken) {
         if (_newFloor == address(0)) revert CannotSetNullAddress();
         newFloor = _newFloor;
+        MIGRATED_TOKENS = _migratedTokens;
+        gFloorToken = _gFloorToken;
     }
 
     /**
@@ -76,7 +76,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
 
                 // If we have a gFLOOR token, then we need to find the underlying FLOOR that
                 // is staked and mint that for the user.
-                if (address(token) == 0xb1Cc59Fc717b8D4783D41F952725177298B5619d) {
+                if (address(token) == gFloorToken) {
                     tokenBalance = IgFLOOR(address(token)).balanceFrom(tokenBalance);
                 }
 

@@ -7,6 +7,10 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {MigrateFloorToken} from '@floor/migrations/MigrateFloorToken.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
 
+// Mocked contract imports for Sepolia deployments
+import {ERC20Mock} from '../../test/mocks/erc/ERC20Mock.sol';
+import {GFloorMock} from '../../test/mocks/GFloor.sol';
+
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract MigrateFloorTokenTest is FloorTest {
@@ -34,8 +38,19 @@ contract MigrateFloorTokenTest is FloorTest {
         // Set up our migration contract
         newFloor = new FLOOR(address(authorityRegistry));
 
+        // Define our tokens that will be migrated
+        address[] memory migratedTokens = new address[](4);
+        migratedTokens[0] = 0xf59257E961883636290411c11ec5Ae622d19455e; // Floor
+        migratedTokens[1] = 0x0C3983165E9BcE0a9Bb43184CC4eEBb26dce48fA; // aFloor
+        migratedTokens[2] = 0xb1Cc59Fc717b8D4783D41F952725177298B5619d; // gFloor
+        migratedTokens[3] = 0x164AFe96912099543BC2c48bb9358a095Db8e784; // sFloor
+
         // Set up a floor migration contract
-        migrateFloorToken = new MigrateFloorToken(address(newFloor));
+        migrateFloorToken = new MigrateFloorToken(
+            address(newFloor),
+            migratedTokens,
+            migratedTokens[2]
+        );
 
         // Give our Floor token migration contract the role to mint floor
         // tokens directly.
@@ -93,6 +108,62 @@ contract MigrateFloorTokenTest is FloorTest {
     function test_CannotUpgradeIfNotApproved() public {
         // Test FLOOR
         assertTokenTransfer(0xf59257E961883636290411c11ec5Ae622d19455e, 0xC401d60e25490c14A614c89166b0742e5C677a2d, 0, false);
+    }
+
+    function test_CanMigrateMockTokens() public {
+        // Define our tokens that will be migrated
+        address[] memory migratedTokens = new address[](4);
+
+        // Sepolia addresses and set their decimal values
+        ERC20Mock mockToken1 = new ERC20Mock();
+        mockToken1.setDecimals(9);
+        ERC20Mock mockToken2 = new ERC20Mock();
+        mockToken2.setDecimals(9);
+        ERC20Mock mockToken3 = new ERC20Mock();
+        mockToken3.setDecimals(9);
+
+        migratedTokens[0] = address(mockToken1);  // Floor
+        migratedTokens[1] = address(mockToken2);  // aFloor
+        migratedTokens[2] = address(new GFloorMock()); // gFloor
+        migratedTokens[3] = address(mockToken3);  // sFloor
+
+        // Set up a floor migration contract
+        migrateFloorToken = new MigrateFloorToken(
+            address(newFloor),
+            migratedTokens,
+            migratedTokens[2]
+        );
+
+        // Give our Floor token migration contract the role to mint floor tokens directly.
+        authorityRegistry.grantRole(authorityControl.FLOOR_MANAGER(), address(migrateFloorToken));
+
+        // Mint 100 of each token to our test user
+        deal(migratedTokens[0], address(this), 100 * 1e9);
+        deal(migratedTokens[1], address(this), 100 * 1e9);
+        deal(migratedTokens[2], address(this), 100 * 1e18);
+        deal(migratedTokens[3], address(this), 100 * 1e9);
+
+        // Approve our tokens
+        ERC20Mock(migratedTokens[0]).approve(address(migrateFloorToken), 100 ether);
+        ERC20Mock(migratedTokens[1]).approve(address(migrateFloorToken), 100 ether);
+        ERC20Mock(migratedTokens[2]).approve(address(migrateFloorToken), 100 ether);
+        ERC20Mock(migratedTokens[3]).approve(address(migrateFloorToken), 100 ether);
+
+        uint expectedBalance = 300 ether + (GFloorMock(migratedTokens[2]).balanceFrom(100 ether) * 1e9);
+
+        // Process our migration
+        vm.expectEmit(true, true, false, true, address(migrateFloorToken));
+        emit FloorMigrated(address(this), expectedBalance);
+        migrateFloorToken.migrateFloorToken();
+
+        // Confirm we have no token balances
+        assertEq(ERC20Mock(migratedTokens[0]).balanceOf(address(this)), 0);
+        assertEq(ERC20Mock(migratedTokens[1]).balanceOf(address(this)), 0);
+        assertEq(ERC20Mock(migratedTokens[2]).balanceOf(address(this)), 0);
+        assertEq(ERC20Mock(migratedTokens[3]).balanceOf(address(this)), 0);
+
+        // Confirm we have new token
+        assertEq(newFloor.balanceOf(address(this)), expectedBalance);
     }
 
     function assertTokenTransfer(address _token, address _account, uint _output, bool _approved) private returns (uint) {
