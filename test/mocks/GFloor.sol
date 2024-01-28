@@ -8,7 +8,7 @@ contract GFloorMock is ERC20Mock {
     constructor() ERC20Mock() {}
 
     function balanceFrom(uint _gFloorAmount) public pure returns (uint) {
-        return (3983414875 * 1 ether) / _gFloorAmount;
+        return (3983414875 * _gFloorAmount) / 1 ether;
     }
 
 }
