@@ -9,7 +9,7 @@ import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
 import {INFTXRouter} from "@nftx-protocol-v3/interfaces/INFTXRouter.sol";
 import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
-import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
+import {IUniswapV3Factory} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import {CollectionRegistry} from '@floor/collections/CollectionRegistry.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';

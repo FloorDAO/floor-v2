@@ -4,10 +4,10 @@ pragma solidity ^0.8.0;
 
 import {IERC20Metadata} from '@openzeppelin/contracts/interfaces/IERC20Metadata.sol';
 
-import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
-import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
-import {IUniswapV3Pool, IUniswapV3PoolDerivedState} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import {FullMath} from '@uniswap-v3/v3-core/contracts/libraries/FullMath.sol';
+import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
+import {IUniswapV3Factory} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
+import {IUniswapV3Pool, IUniswapV3PoolDerivedState} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 

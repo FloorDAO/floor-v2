@@ -6,7 +6,7 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
 
 import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
 import {UniswapClaimPoolRewards} from '@floor/actions/uniswap/ClaimPoolRewards.sol';

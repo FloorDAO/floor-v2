@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
+import {TransferHelper} from '@uniswap-v3/v3-periphery/contracts/libraries/TransferHelper.sol';
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 

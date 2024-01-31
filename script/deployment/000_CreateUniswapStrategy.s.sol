@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';

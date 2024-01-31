@@ -9,11 +9,11 @@ import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy
 import {CannotDepositZeroAmount, CannotWithdrawZeroAmount, NoRewardsAvailableToClaim} from '@floor/utils/Errors.sol';
 import {TokenUtils} from '@floor/utils/TokenUtils.sol';
 
-import {IUniswapV3Pool} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import {FixedPoint128} from '@uniswap/v3-core/contracts/libraries/FixedPoint128.sol';
-import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
-import {LiquidityAmounts} from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+import {IUniswapV3Pool} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import {FixedPoint128} from '@uniswap-v3/v3-core/contracts/libraries/FixedPoint128.sol';
+import {FullMath} from '@uniswap-v3/v3-core/contracts/libraries/FullMath.sol';
+import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
+import {LiquidityAmounts} from '@uniswap-v3/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 
 import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IUniswapV3NonfungiblePositionManager.sol';
 
@@ -349,9 +349,7 @@ contract UniswapV3Strategy is BaseStrategy {
         // Get our token balances and liquidity for our position
         (uint token0Amount, uint token1Amount, uint liquidity) = tokenBalances();
 
-        // Call our internal {withdrawErc20} function to move tokens to the caller. Pulling out
-        // LP or adding it doesn't have sandwhiches like trading so providing 0 in both places
-        // should just work.
+        // Call our internal {withdrawErc20} function to move tokens to the caller
         return _withdraw(
             recipient,
             ((token0Amount * percentage / 100_00) * 99_50) / 100_00, // 0.5% slippage of amount

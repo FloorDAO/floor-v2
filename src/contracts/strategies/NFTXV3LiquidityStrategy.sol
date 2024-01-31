@@ -7,12 +7,12 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {INFTXRouter} from '@nftx-protocol-v3/interfaces/INFTXRouter.sol';
 import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
 
-import {IUniswapV3Factory} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
-import {IUniswapV3Pool} from '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import {FixedPoint128} from '@uniswap/v3-core/contracts/libraries/FixedPoint128.sol';
-import {FullMath} from '@uniswap/v3-core/contracts/libraries/FullMath.sol';
-import {LiquidityAmounts} from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
-import {TickMath} from '@uniswap/v3-core/contracts/libraries/TickMath.sol';
+import {IUniswapV3Factory} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
+import {IUniswapV3Pool} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import {FixedPoint128} from '@uniswap-v3/v3-core/contracts/libraries/FixedPoint128.sol';
+import {FullMath} from '@uniswap-v3/v3-core/contracts/libraries/FullMath.sol';
+import {LiquidityAmounts} from '@uniswap-v3/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
 
 import {INonfungiblePositionManager} from '@uni-periphery/interfaces/INonfungiblePositionManager.sol';
 
@@ -233,9 +233,7 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         // Get our token balances and liquidity for our position
         (uint token0Amount, uint token1Amount, uint liquidity) = tokenBalances();
 
-        // Call our internal {withdrawErc20} function to move tokens to the caller. Pulling out
-        // LP or adding it doesn't have sandwhiches like trading so providing 0 in both places
-        // should just work.
+        // Call our internal {withdrawErc20} function to move tokens to the caller
         return _withdraw(
             recipient,
             ((token0Amount * percentage / 100_00) * 99_50) / 100_00, // 0.5% slippage of amount
