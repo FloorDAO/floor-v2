@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {Test} from 'forge-std/Test.sol';
 
 import {ERC20Mock} from './../mocks/erc/ERC20Mock.sol';
+import {UniswapV3StrategyMock} from './../mocks/UniswapV3StrategyMock.sol';
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
@@ -198,12 +199,6 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(totalRewardAmounts[0], 0);
         assertEq(totalRewardAmounts[1], 0);
 
-        // Mock some rewards against our pool. When we call collect it will be the UV3 pool that
-        // sends the tokens, not the position manager. So we give the tokens to the pool, but update
-        // the position on our {PositionManager}.
-        deal(TOKEN_A, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 10000_000000); // $10,000
-        deal(TOKEN_B, 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640, 5 ether); // 5 WETH
-
         // Update our returned positions to modify the tokens owed to our strategy. We don't reference
         // any of the other variables, so we can just give them nulled values for now.
         vm.mockCall(
@@ -226,15 +221,22 @@ contract UniswapV3StrategyTest is FloorTest {
         );
 
         // We should now see some rewards available in the pool
+        (address[] memory availableTokens, uint[] memory availableAmounts) = strategy.available();
+        assertEq(availableTokens[0], TOKEN_A);
+        assertEq(availableTokens[1], TOKEN_B);
+        assertEq(availableAmounts[0], 10108_693603);
+        assertEq(availableAmounts[1], 5_056281262_254956426);
+
+        // We should now see some rewards available in the pool
         (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], TOKEN_A);
         assertEq(totalRewardTokens[1], TOKEN_B);
-        assertEq(totalRewardAmounts[0], 10000_000000);
-        assertEq(totalRewardAmounts[1], 5 ether);
+        assertEq(totalRewardAmounts[0], availableAmounts[0]);
+        assertEq(totalRewardAmounts[1], availableAmounts[1]);
 
         (address[] memory snapshotStrategies, uint[] memory snapshotAmounts,) = strategyFactory.snapshot(0);
         assertEq(snapshotStrategies[0], address(strategy));
-        assertEq(snapshotAmounts[0], 5 ether);
+        assertEq(snapshotAmounts[0], availableAmounts[1]);
 
         // If we call the snapshot function against, we should see that no tokens are detected
         (snapshotStrategies, snapshotAmounts,) = strategyFactory.snapshot(0);
@@ -245,8 +247,8 @@ contract UniswapV3StrategyTest is FloorTest {
         (totalRewardTokens, totalRewardAmounts) = strategy.totalRewards();
         assertEq(totalRewardTokens[0], TOKEN_A);
         assertEq(totalRewardTokens[1], TOKEN_B);
-        assertEq(totalRewardAmounts[0], 10000_000000);
-        assertEq(totalRewardAmounts[1], 5 ether);
+        assertEq(totalRewardAmounts[0], availableAmounts[0]);
+        assertEq(totalRewardAmounts[1], availableAmounts[1]);
     }
 
     /**
@@ -510,4 +512,117 @@ contract UniswapV3StrategyTest is FloorTest {
         assertEq(amounts_[0], 0);
         assertEq(amounts_[1], 0);
     }
+
+}
+
+
+/**
+ * An additional test suite that takes a specific block reference against a Sepolia scenario.
+ */
+contract UniswapV3StrategyTestTwo is FloorTest {
+    /// The mainnet contract address of our Uniswap Position Manager
+    address internal constant UNISWAP_POSITION_MANAGER = 0x1238536071E1c677A632429e3655c799b22cDA52;
+    uint24 internal constant POOL_FEE = 10000;
+
+    /// Two tokens that we can test with
+    address internal constant TOKEN_A = 0xfEff35011D41F1d60655a008405D3FA851C29822; // FLOOR (18 decimals)
+    address internal constant TOKEN_B = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14; // WETH (18 decimals)
+
+    /// Our Uniswap V3 test pool address
+    address internal constant POOL_ADDRESS = 0xc09D4849a695799FC5fD0022b0A740614c404063;
+
+    /// Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 5_184_087;
+
+    /**
+     * Check that we can get the correct amount of available tokens.
+     */
+    function test_CanGetAvailableTokens() public {
+        // Generate a sepolia fork
+        uint sepoliaFork = vm.createFork(vm.rpcUrl('sepolia'));
+
+        // Select our fork for the VM
+        vm.selectFork(sepoliaFork);
+        assertEq(vm.activeFork(), sepoliaFork);
+
+        // Set our block ID to a specific, test-suitable number
+        vm.rollFork(BLOCK_NUMBER);
+
+        // Confirm that our block number has set successfully
+        require(block.number == BLOCK_NUMBER);
+
+        // Query the strategy with overwritten values to etch in the params
+        UniswapV3StrategyMock strategy = new UniswapV3StrategyMock();
+        strategy.initialize(
+            bytes32('USDC/WETH UV3 Pool'),
+            0,
+            abi.encode(
+                TOKEN_A, // address token0
+                TOKEN_B, // address token1
+                POOL_FEE, // uint24 fee
+                2480730815269278797686718984, // uint96 sqrtPriceX96
+                -887200, // int24 tickLower
+                887200, // int24 tickUpper
+                POOL_ADDRESS, // address pool
+                UNISWAP_POSITION_MANAGER // address positionManager
+            )
+        );
+
+        // Set our tokenId
+        strategy.setTokenId(uint24(7801));
+
+        // Call available
+        (address[] memory tokens, uint[] memory amounts) = strategy.available();
+
+        // We should see 0.1 FLOOR token and 0 WETH available to claim
+        assertEq(tokens[0], TOKEN_A);
+        assertEq(tokens[1], TOKEN_B);
+        assertEq(amounts[0], 100000000_099999999);
+        assertEq(amounts[1], 0);
+    }
+
+    function test_CanGetAvailableTokensAlt() public {
+        // Generate a sepolia fork
+        uint sepoliaFork = vm.createFork(vm.rpcUrl('sepolia'));
+
+        // Select our fork for the VM
+        vm.selectFork(sepoliaFork);
+        assertEq(vm.activeFork(), sepoliaFork);
+
+        // Set our block ID to a specific, test-suitable number
+        vm.rollFork(5187182);
+
+        // Confirm that our block number has set successfully
+        require(block.number == 5187182);
+
+        // Query the strategy with overwritten values to etch in the params
+        UniswapV3StrategyMock strategy = new UniswapV3StrategyMock();
+        strategy.initialize(
+            bytes32('USDC/WETH UV3 Pool'),
+            0,
+            abi.encode(
+                0xfEff35011D41F1d60655a008405D3FA851C29822, // address token0
+                0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14, // address token1
+                10000, // uint24 fee
+                2480730815269278797686718984, // uint96 sqrtPriceX96
+                -887200, // int24 tickLower
+                887200, // int24 tickUpper
+                0xc09D4849a695799FC5fD0022b0A740614c404063, // address pool
+                UNISWAP_POSITION_MANAGER // address positionManager
+            )
+        );
+
+        // Set our tokenId
+        strategy.setTokenId(uint24(7813));
+
+        // Call available
+        (address[] memory tokens, uint[] memory amounts) = strategy.available();
+
+        // We should see 0.1 FLOOR token and 0 WETH available to claim
+        assertEq(tokens[0], TOKEN_A);
+        assertEq(tokens[1], TOKEN_B);
+        assertEq(amounts[0], 66447390278528247);
+        assertEq(amounts[1], 7309212930638107);
+    }
+
 }

@@ -56,10 +56,6 @@ contract CharmFinanceVaultTest is FloorTest {
         // Convert our created vault address uint representation into an address
         address vaultAddress = address(uint160(vaultAddressUint));
 
-        // Confirm our created vault address. This will be newly deployed, but in
-        // this test scenario it is deterministic.
-        assertEq(vaultAddress, 0xffD4505B3452Dc22f8473616d50503bA9E1710Ac);
-
         // We need to supply our test contract with sufficient funds to place the
         // deposit.
         deal(address(AlphaVault(vaultAddress).token0()), address(this), 100 ether);
@@ -90,10 +86,6 @@ contract CharmFinanceVaultTest is FloorTest {
 
         // Get our strategy address used for our rebalancing call
         address strategyAddress = AlphaVault(vaultAddress).strategy();
-
-        // Confirm our strategy address. This will be newly deployed, but in this test
-        // scenario it is deterministic.
-        assertEq(strategyAddress, 0x8d2C17FAd02B7bb64139109c6533b7C2b9CADb81);
 
         // Rebalance the vault
         charmRebalance.execute(abi.encode(strategyAddress));

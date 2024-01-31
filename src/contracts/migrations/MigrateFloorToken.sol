@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.0;
 
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import {FLOOR} from '@floor/tokens/Floor.sol';
@@ -23,7 +24,7 @@ error NoTokensAvailableToMigrate();
  * The balance of all tokens will be attempted to be migrated, so 4 full approvals
  * should be made prior to calling this contract function.
  */
-contract MigrateFloorToken is IMigrateFloorToken {
+contract MigrateFloorToken is IMigrateFloorToken, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// List of FLOOR V1 token contract addresses on mainnet
@@ -56,7 +57,7 @@ contract MigrateFloorToken is IMigrateFloorToken {
      *
      * @dev For the gFloor token, we need to update the decimal accuracy from 9 to 18.
      */
-    function migrateFloorToken() external override {
+    function migrateFloorToken() external override nonReentrant {
         // Keep a running total of allocated tokens
         uint floorAllocation;
         uint tokenBalance;

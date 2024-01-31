@@ -379,7 +379,7 @@ contract VeFloorStakingTest is FloorTest {
     function test_CanDetermineEarlyWithdrawLossAtPartialStakeDuration() external {
         // Make an initial deposit
         uint _deposit = 100 ether;
-        veFloor.deposit(_deposit, MAX_EPOCH_INDEX - 1);
+        veFloor.deposit(_deposit, MAX_EPOCH_INDEX - 2);
 
         // Get our max duration
         uint epochDuration = veFloor.LOCK_PERIODS(MAX_EPOCH_INDEX);

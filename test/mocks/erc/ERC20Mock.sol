@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 contract ERC20Mock is ERC20 {
-    uint8 internal _decimals;
+    uint8 internal _decimals = 18;
 
     constructor() ERC20('ERC20Mock', 'E20M') {}
 
