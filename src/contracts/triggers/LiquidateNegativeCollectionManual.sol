@@ -22,6 +22,9 @@ import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
 contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTriggered, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// Event fired when losing collection strategy is liquidated
+    event CollectionTokensLiquidated(address _worstCollection, address _strategy, address[] tokens, uint[] amounts);
+
     /// The sweep war contract used by this contract
     ISweepWars public immutable sweepWars;
 
@@ -117,13 +120,15 @@ contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTrig
                 unchecked { ++k; }
             }
 
+            emit CollectionTokensLiquidated(worstCollection, strategies[i], tokens, amounts);
+
             unchecked { ++i; }
         }
     }
 
     /**
      * If our `withdrawPercentage` function receives ETH, then we will need to in
-     * turn send this amount to the {Treasury} stored against the {StrategyFacyory}.
+     * turn send this amount to the {Treasury} stored against the {StrategyFactory}.
      */
     receive() external payable {
         (bool sent,) = payable(strategyFactory.treasury()).call{value: msg.value}('');
