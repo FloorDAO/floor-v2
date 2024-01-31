@@ -160,7 +160,6 @@ contract NewCollectionWarsTest is FloorTest {
         // Register our epoch end trigger that stores our treasury sweep
         RegisterSweepTrigger registerSweepTrigger = new RegisterSweepTrigger(
             address(newCollectionWars),
-            address(pricingExecutorMock),
             address(strategyFactory),
             address(treasury),
             address(sweepWars)

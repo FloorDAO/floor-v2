@@ -17,14 +17,12 @@ contract DeployEpochTriggers is DeploymentScript {
 
         // Load our required contract addresses
         address newCollectionWars = requireDeployment('NewCollectionWars');
-        address pricingExecutor = requireDeployment('UniswapV3PricingExecutor');
         address strategyFactory = requireDeployment('StrategyFactory');
         address sweepWars = requireDeployment('SweepWars');
         address payable treasury = requireDeployment('Treasury');
 
         // Deploy our triggers
-        RegisterSweepTrigger registerSweep =
-            new RegisterSweepTrigger(newCollectionWars, pricingExecutor, strategyFactory, treasury, sweepWars);
+        RegisterSweepTrigger registerSweep = new RegisterSweepTrigger(newCollectionWars, strategyFactory, treasury, sweepWars);
         StoreEpochCollectionVotesTrigger storeEpochVotes = new StoreEpochCollectionVotesTrigger(sweepWars);
 
         // Register our epoch triggers

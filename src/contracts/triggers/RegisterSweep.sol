@@ -7,7 +7,6 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 
-import {IBasePricingExecutor} from '@floor-interfaces/pricing/BasePricingExecutor.sol';
 import {IBaseStrategy} from '@floor-interfaces/strategies/BaseStrategy.sol';
 import {IStrategyFactory} from '@floor-interfaces/strategies/StrategyFactory.sol';
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
@@ -31,7 +30,6 @@ import {ITreasury, TreasuryEnums} from '@floor-interfaces/Treasury.sol';
  */
 contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     /// Holds our internal contract references
-    IBasePricingExecutor public immutable pricingExecutor;
     INewCollectionWars public immutable newCollectionWars;
     ISweepWars public immutable voteContract;
     ITreasury public immutable treasury;
@@ -46,14 +44,13 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
     /**
      * Define our required contracts.
      */
-    constructor(address _newCollectionWars, address _pricingExecutor, address _strategyFactory, address _treasury, address _voteContract) {
-        if (_newCollectionWars == address(0) || _pricingExecutor == address(0) || _strategyFactory == address(0) ||
+    constructor(address _newCollectionWars, address _strategyFactory, address _treasury, address _voteContract) {
+        if (_newCollectionWars == address(0) || _strategyFactory == address(0) ||
             _treasury == address(0) || _voteContract == address(0)) {
             revert CannotSetNullAddress();
         }
 
         newCollectionWars = INewCollectionWars(_newCollectionWars);
-        pricingExecutor = IBasePricingExecutor(_pricingExecutor);
         strategyFactory = IStrategyFactory(_strategyFactory);
         treasury = ITreasury(_treasury);
         voteContract = ISweepWars(_voteContract);
@@ -61,10 +58,7 @@ contract RegisterSweepTrigger is EpochManaged, IEpochEndTriggered {
 
     /**
      * When our epoch ends, we need to find the tokens yielded from each strategy, as well as
-     * the respective amounts. We will then call our {PricingExecutor} to find the ETH value of
-     * each token. If the WETH token is called, then it will automatically map this as a 1:1.
-     *
-     * We then find the ETH values of the tokens that are yielded.
+     * the respective amounts.
      */
     function endEpoch(uint epoch) external onlyEpochManager {
 

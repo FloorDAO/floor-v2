@@ -53,7 +53,6 @@ contract PopulateContractEvents is DeploymentScript {
             // Redeploy our trigger
             RegisterSweepTrigger registerSweep = new RegisterSweepTrigger(
                 requireDeployment('NewCollectionWars'),
-                requireDeployment('UniswapV3PricingExecutor'),
                 requireDeployment('StrategyFactory'),
                 requireDeployment('Treasury'),
                 requireDeployment('SweepWars')

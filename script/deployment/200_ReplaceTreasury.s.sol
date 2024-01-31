@@ -66,7 +66,6 @@ contract ReplaceTreasury is DeploymentScript {
         // {SweepWars} contract.
         RegisterSweepTrigger registerSweep = new RegisterSweepTrigger(
             newCollectionWars,
-            pricingExecutor,
             address(strategyFactory),
             address(treasury),
             address(sweepWars)
