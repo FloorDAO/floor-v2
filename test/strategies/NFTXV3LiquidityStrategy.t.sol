@@ -314,7 +314,7 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         assertEq(liquidity, 2984977264290535307, 'Incorrect liquidity');
     }
 
-    function test_CanWithdrawPercentage() public {
+    function test_CannotWithdrawPercentage() public {
         // Deal us some assets to deposit
         deal(TOKEN_A, address(this), 100 ether);
         deal(address(this), 100 ether);
@@ -354,32 +354,32 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // We need to warp to bypass the timelock
         vm.warp(lockedUntil + 1);
 
-        // Action a 20% percentage withdrawal through the strategy factory
+        // Try to action a 20% percentage withdrawal through the strategy factory
         (address[] memory tokens, uint[] memory amounts) = strategyFactory.withdrawPercentage(address(strategy), 20_00);
 
         // Confirm our response variables
         assertEq(tokens[0], TOKEN_A);
         assertEq(tokens[1], TOKEN_B);
-        assertEq(amounts[0], 1999999999999999999);
-        assertEq(amounts[1], 1267212695940466953);
+        assertEq(amounts[0], 0);
+        assertEq(amounts[1], 0);
 
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
-        assertEq(liquidity, 6367951497153141988, 'Incorrect liquidity');
+        assertEq(liquidity, 7959939371441427485, 'Incorrect liquidity');
 
-        // We can now withdraw the remaining 100%
+        // Try to withdraw the remaining 100%
         uint[] memory newAmounts;
         (tokens, newAmounts) = strategyFactory.withdrawPercentage(address(strategy), 100_00);
 
         // Confirm our response variables
         assertEq(tokens[0], TOKEN_A);
         assertEq(tokens[1], TOKEN_B);
-        assertEq(newAmounts[0], 7999999999999999999);
-        assertEq(newAmounts[1], 5068850783761867813);
+        assertEq(newAmounts[0], 0);
+        assertEq(newAmounts[1], 0);
 
         // Get our liquidity from our position
         (,,,,,,, liquidity,,,,) = strategy.positionManager().positions(strategy.positionId());
-        assertEq(liquidity, 0, 'Incorrect liquidity');
+        assertEq(liquidity, 7959939371441427485, 'Incorrect liquidity');
     }
 
     function test_CanGetPoolTokenBalancesWithoutActivePosition() public {

@@ -138,7 +138,7 @@ contract DeploymentScript is Script {
      */
     modifier deployer() {
         // Load our seed phrase from a protected file
-        uint privateKey = vm.envUint('PRIVATE_KEY');
+        uint privateKey = vm.envUint('DEPLOY_PRIVATE_KEY');
 
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.

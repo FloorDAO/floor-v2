@@ -23,38 +23,17 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
         IAuthorityRegistry authorityRegistry = IAuthorityRegistry(requireDeployment('AuthorityRegistry'));
 
         // Load our required contract addresses
-        address distributedRevenueStakingStrategy = requireDeployment('DistributedRevenueStakingStrategy');
         address strategyFactory = requireDeployment('StrategyFactory');
         address sweepWars = requireDeployment('SweepWars');
-
-        // Register a {DistributedRevenueStakingStrategy} strategy so that we can deploy a
-        // {liquidateNegativeCollectionManualTrigger}.
-        (, address _strategy) = StrategyFactory(strategyFactory).deployStrategy(
-            bytes32('Liquidation Pool'),
-            distributedRevenueStakingStrategy,
-            abi.encode(DEPLOYMENT_WETH, 10 ether, address(epochManager)),
-            DEPLOYMENT_WETH // The collection is not important, it just needs to be approved
-        );
 
         // Register our epoch end trigger that stores our liquidation
         LiquidateNegativeCollectionManualTrigger liquidateNegativeCollectionManualTrigger = new LiquidateNegativeCollectionManualTrigger(
             sweepWars,
-            strategyFactory,
-            _strategy
+            strategyFactory
         );
-
-        // Check if we have an existing liquidation trigger and unset it if present
-        address existingLiquidationManualTrigger = getDeployment('LiquidateNegativeCollectionManualTrigger');
-        if (existingLiquidationManualTrigger != address(0)) {
-            epochManager.setEpochEndTrigger(existingLiquidationManualTrigger, false);
-            authorityRegistry.revokeRole(authorityControl.STRATEGY_MANAGER(), existingLiquidationManualTrigger);
-        }
 
         // Register our epoch trigger
         epochManager.setEpochEndTrigger(address(liquidateNegativeCollectionManualTrigger), true);
-
-        // The trigger needs the `STRATEGY_MANAGER` role
-        authorityRegistry.grantRole(authorityControl.STRATEGY_MANAGER(), address(liquidateNegativeCollectionManualTrigger));
 
         // Set our epoch manager
         liquidateNegativeCollectionManualTrigger.setEpochManager(address(epochManager));

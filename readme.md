@@ -52,3 +52,20 @@ Additional chain IDs can be found here: https://chainlist.org/
 Anvil is a local testnet node for deploying and testing smart contracts via Foundry Forge. It can also be used to fork other EVM compatible networks.
 
 We can use Anvil to test deployment by first calling `anvil` and then using the localhost address being listened to as the `--rpc-url` value. We also need to remove the `--verify` call as etherscan won't have context of it.
+
+
+### Deployment Flow for New Chain
+To ensure that the contract addresses remain the same regardless of chain, the deployment scripts numbered `1xx_` should be run sequentially. After these have been run to completion, any non-"Contract Creation" executions should be done using the Manager wallet that will have the `GUARDIAN` role following the deployment.
+
+Before initialising the deployment, the following files will need to be modified for **each** chain:
+- `DeploymentScript.sol#141` - Set the private key used to `DEPLOY_PRIVATE_KEY`
+- `DeploymentScript.sol#28` - Set the `DEPLOYMENT_WETH` address to the WETH contract address for the chain
+- `EpochManager.sol#30` - Set the desired `EPOCH_LENGTH`
+- `SweepWars.sol#50` - Set the desired initial `sampleSize` value
+- The following deployment scripts have chain-dependant addresses inside:
+ - `102` - Change the V1 vesting token addresses
+ - `114` - Change the `GUARDIAN` address
+ - `115` - Change the `SudoswapSweeper` constructor variables
+ - `116` - Change the `NFTX_ROUTER` address
+
+On Sepolia, we will run the `000_ApproveCollection` script after deployment. This should **only** be done via the Manager address and will need to be edited to the Sepolia contract list.

@@ -282,21 +282,13 @@ contract UniswapV3StrategyTest is FloorTest {
     /**
      * Ensure that we can withdraw a specific percentage value form the strategy.
      */
-    function test_CanWithdrawPercentage() public {
-        // Set our max approvals
-        IERC20(TOKEN_A).approve(address(strategy), 100000_000000);
-        IERC20(TOKEN_B).approve(address(strategy), 100 ether);
-
-        // Make our initial deposit that will mint our token (5000 USDC + 2 WETH). As this is
-        // our first deposit, we will also mint a token.
-        strategy.deposit(10000_000000, 100 ether, 0, 0, block.timestamp);
-
+    function test_CannotWithdrawPercentage() public {
         // Action a 20% percentage withdrawal through the strategy factory
-        strategyFactory.withdrawPercentage(address(strategy), 2000);
-
-        // Confirm that our recipient received the expected amount of tokens
-        assertEq(IERC20(TOKEN_A).balanceOf(address(this)), 91999999999);
-        assertEq(IERC20(TOKEN_B).balanceOf(address(this)), 95716584441191985162);
+        (address[] memory tokens, uint[] memory amounts) = strategyFactory.withdrawPercentage(address(strategy), 2000);
+        assertEq(tokens[0], TOKEN_A);
+        assertEq(tokens[1], TOKEN_B);
+        assertEq(amounts[0], 0);
+        assertEq(amounts[1], 0);
     }
 
     function test_CanGetPoolTokenBalances() public {

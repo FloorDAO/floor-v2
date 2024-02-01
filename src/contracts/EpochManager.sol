@@ -27,7 +27,7 @@ contract EpochManager is IEpochManager, Ownable, ReentrancyGuard {
     uint public lastEpoch;
 
     /// Store the length of an epoch
-    uint public constant EPOCH_LENGTH = 2 weeks;
+    uint public constant EPOCH_LENGTH = 2 days;
 
     /// Holds our internal contract references
     INewCollectionWars public newCollectionWars;

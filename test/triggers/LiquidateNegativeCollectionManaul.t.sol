@@ -33,6 +33,9 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
+    /// Event fired when losing collection strategy is liquidated
+    event CollectionTokensLiquidated(address _worstCollection, address[] _strategies, uint _percentage);
+
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
     DistributedRevenueStakingStrategy revenueStrategy;
@@ -120,21 +123,10 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
         // Assign relevant war contracts
         veFloor.setVotingContracts(address(0), address(sweepWars));
 
-        // Set up a revenue strategy
-        (, address _strategy) = strategyFactory.deployStrategy(
-            bytes32('WETH Rewards Strategy'),
-            strategyImplementation,
-            abi.encode(WETH, 1 ether, address(epochManager)),
-            approvedCollection1
-        );
-
-        revenueStrategy = DistributedRevenueStakingStrategy(_strategy);
-
         // Register our epoch end trigger that stores our liquidation
         liquidateNegativeCollectionManualTrigger = new LiquidateNegativeCollectionManualTrigger(
             address(sweepWars),
-            address(strategyFactory),
-            address(revenueStrategy)
+            address(strategyFactory)
         );
 
         // Register the epoch manager against our trigger
@@ -198,6 +190,12 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
          * Floor Token  : -2
          */
 
+        address[] memory strategies = new address[](2);
+        strategies[0] = 0x669538dFce92584272a4d413a408948E990e9BFe;
+        strategies[1] = 0x31DF500B2550B78B29507E5E7705F89FA1EeCb17;
+
+        vm.expectEmit(true, true, false, true, address(liquidateNegativeCollectionManualTrigger));
+        emit CollectionTokensLiquidated(approvedCollection3, strategies, 21_05);
         epochManager.endEpoch();
     }
 

@@ -47,7 +47,7 @@ error SampleSizeCannotBeZero();
 contract SweepWars is AuthorityControl, ISweepWars {
 
     /// Keep a store of the number of collections we want to reward pick per epoch
-    uint public sampleSize = 5;
+    uint public sampleSize = 3;
 
     /// Internal contract references
     ICollectionRegistry public immutable collectionRegistry;
@@ -97,6 +97,9 @@ contract SweepWars is AuthorityControl, ISweepWars {
         strategyFactory = IStrategyFactory(_strategyFactory);
         veFloor = VeFloorStaking(_veFloor);
         treasury = ITreasury(_treasury);
+
+        // Emit our initial sampleSize
+        emit SampleSizeUpdated(sampleSize);
     }
 
     /**

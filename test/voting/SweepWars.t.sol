@@ -64,6 +64,9 @@ contract SweepWarsTest is FloorTest {
     // Store vote power from setUp
     mapping(address => uint) votePower;
 
+    // Get default sample size
+    uint startSampleSize = 3;
+
     constructor() forkBlock(BLOCK_NUMBER) {
         // Deploy our authority contracts
         super._deployAuthority();
@@ -387,26 +390,26 @@ contract SweepWarsTest is FloorTest {
     }
 
     function test_cannotSetSampleSizeWithoutPermission() public {
-        assertEq(sweepWars.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), startSampleSize);
 
         vm.expectRevert(abi.encodeWithSelector(AccountDoesNotHaveRole.selector, address(alice), authorityControl.VOTE_MANAGER()));
         vm.prank(alice);
         sweepWars.setSampleSize(10);
 
-        assertEq(sweepWars.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), startSampleSize);
     }
 
     function test_cannotSetSampleSizeToZero() public {
-        assertEq(sweepWars.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), startSampleSize);
 
         vm.expectRevert(SampleSizeCannotBeZero.selector);
         sweepWars.setSampleSize(0);
 
-        assertEq(sweepWars.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), startSampleSize);
     }
 
     function test_canSetSampleSize() public {
-        assertEq(sweepWars.sampleSize(), 5);
+        assertEq(sweepWars.sampleSize(), startSampleSize);
 
         sweepWars.setSampleSize(10);
 

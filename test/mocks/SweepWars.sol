@@ -13,7 +13,7 @@ contract SweepWarsMock {
     uint internal epochIteration;
 
     /// Store a sample size
-    uint public sampleSize = 5;
+    uint public sampleSize = 3;
 
     /// Store a storage array of collections
     address[] internal approvedCollections;

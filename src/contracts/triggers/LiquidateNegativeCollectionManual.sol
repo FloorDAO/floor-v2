@@ -2,13 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
 import {EpochManaged} from '@floor/utils/EpochManaged.sol';
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 
-import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRevenueStakingStrategy.sol';
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 
 import {IEpochEndTriggered} from '@floor-interfaces/utils/EpochEndTriggered.sol';
@@ -19,18 +15,16 @@ import {ISweepWars} from '@floor-interfaces/voting/SweepWars.sol';
  * relative to the number of negative votes it received. The amounts will be transferred to
  * the {Treasury} and will need to be subsequently liquidated by a trusted TREASURY_MANAGER.
  */
-contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTriggered, ReentrancyGuard {
-    using SafeERC20 for IERC20;
+contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTriggered {
 
     /// Event fired when losing collection strategy is liquidated
-    event CollectionTokensLiquidated(address _worstCollection, address _strategy, address[] tokens, uint[] amounts);
+    event CollectionTokensLiquidated(address _worstCollection, address[] _strategies, uint _percentage);
 
     /// The sweep war contract used by this contract
     ISweepWars public immutable sweepWars;
 
     /// Internal strategies
     StrategyFactory public immutable strategyFactory;
-    DistributedRevenueStakingStrategy public immutable revenueStrategy;
 
     /// A threshold percentage that would be worth us working with
     uint public constant THRESHOLD = 1_000; // 1%
@@ -38,25 +32,22 @@ contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTrig
     /**
      * Sets our internal contracts.
      */
-    constructor(address _sweepWars, address _strategyFactory, address _revenueStrategy) {
+    constructor(address _sweepWars, address _strategyFactory) {
         // Prevent any zero-address contracts from being set
-        if (_sweepWars == address(0) || _strategyFactory == address(0) || _revenueStrategy == address(0)) {
+        if (_sweepWars == address(0) || _strategyFactory == address(0)) {
             revert CannotSetNullAddress();
         }
 
         sweepWars = ISweepWars(_sweepWars);
         strategyFactory = StrategyFactory(_strategyFactory);
-        revenueStrategy = DistributedRevenueStakingStrategy(_revenueStrategy);
     }
 
     /**
      * When the epoch ends, we check to see if any collections received negative votes. If
      * we do, then we find the collection with the most negative votes and liquidate a percentage
      * of the position for that collection based on a formula.
-     *
-     * @dev The output of the liquidation will be sent to a {DistributedRevenueStakingStrategy}.
      */
-    function endEpoch(uint /* epoch */) external onlyEpochManager nonReentrant {
+    function endEpoch(uint /* epoch */) external onlyEpochManager {
         address worstCollection;
         int negativeCollectionVotes;
         int grossVotes;
@@ -100,38 +91,9 @@ contract LiquidateNegativeCollectionManualTrigger is EpochManaged, IEpochEndTrig
             return;
         }
 
-        // Predefine loop variables
-        address[] memory tokens;
-        uint[] memory amounts;
-
-        // Capture our {Treasury} address that will receive the token amounts
-        address treasury = strategyFactory.treasury();
-
         // We need to determine the holdings across our strategies and exit our positions sufficiently
         // and then subsequently sell against this position for ETH.
         address[] memory strategies = strategyFactory.collectionStrategies(worstCollection);
-        for (uint i; i < strategies.length;) {
-            // Get tokens from strategy
-            (tokens, amounts) = strategyFactory.withdrawPercentage(strategies[i], percentage);
-
-            for (uint k; k < tokens.length;) {
-                // Transfer the specified amount of token to the universal router
-                IERC20(tokens[k]).safeTransfer(treasury, amounts[k]);
-                unchecked { ++k; }
-            }
-
-            emit CollectionTokensLiquidated(worstCollection, strategies[i], tokens, amounts);
-
-            unchecked { ++i; }
-        }
-    }
-
-    /**
-     * If our `withdrawPercentage` function receives ETH, then we will need to in
-     * turn send this amount to the {Treasury} stored against the {StrategyFactory}.
-     */
-    receive() external payable {
-        (bool sent,) = payable(strategyFactory.treasury()).call{value: msg.value}('');
-        require(sent, 'Failed to send ETH to Treasury');
+        emit CollectionTokensLiquidated(worstCollection, strategies, percentage);
     }
 }

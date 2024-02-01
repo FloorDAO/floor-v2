@@ -25,6 +25,9 @@ contract ApproveCollection is DeploymentScript {
         collectionRegistry.approveCollection(0x09f66a094a0070EBDdeFA192a33fa5d75b59D46b); // YAYO
 
         // Sepolia collections
-        // ..
+        // collectionRegistry.approveCollection(0x3d7E741B5E806303ADbE0706c827d3AcF0696516);
+        // collectionRegistry.approveCollection(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6);
+        // collectionRegistry.approveCollection(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
+        // collectionRegistry.approveCollection(0x27F2957b2205f417f6a4761Eac9E0920C6c9c3dc);
     }
 }

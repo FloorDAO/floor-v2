@@ -219,28 +219,11 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
      * Makes a call to a strategy to withdraw a percentage of the deposited holdings.
      *
      * @dev Implements `nonReentrant` through `_withdraw`
-     *
-     * @param recipient Recipient of the withdrawal
-     * @param percentage The 2 decimal accuracy of the percentage to withdraw (e.g. 100% = 10000)
      */
-    function withdrawPercentage(address recipient, uint percentage) external override onlyOwner returns (address[] memory, uint[] memory) {
-        // If we don't have a token ID created, then we want to prevent further
-        // processing as this would result in a revert.
-        if (positionId == 0) {
-            return (validTokens(), new uint[](2));
-        }
-
-        // Get our token balances and liquidity for our position
-        (uint token0Amount, uint token1Amount, uint liquidity) = tokenBalances();
-
-        // Call our internal {withdrawErc20} function to move tokens to the caller
-        return _withdraw(
-            recipient,
-            ((token0Amount * percentage / 100_00) * 99_50) / 100_00, // 0.5% slippage of amount
-            ((token1Amount * percentage / 100_00) * 99_50) / 100_00, // 0.5% slippage of amount
-            block.timestamp,
-            uint128((liquidity * percentage) / 100_00)
-        );
+    function withdrawPercentage(address /* recipient */, uint /* percentage */) external view override onlyOwner returns (address[] memory, uint[] memory) {
+        // We currently don't implement a percentage withdraw for these strategies as it
+        // would require on-chain slippage calculation that could be sandwiched.
+        return (validTokens(), new uint[](2));
     }
 
     function _withdraw(

@@ -49,7 +49,7 @@ contract AddContractPermissions is DeploymentScript {
         authorityRegistry.grantRole(VOTE_MANAGER, veFloorStaking);
 
         // Approve our guardian
-        // authorityRegistry.grantRole(authorityControl.GUARDIAN(), 0xA9d93A5cCa9c98512C8C56547866b1db09090326);  // mainnet
+        // authorityRegistry.grantRole(GUARDIAN, 0xA9d93A5cCa9c98512C8C56547866b1db09090326);  // mainnet
         authorityRegistry.grantRole(GUARDIAN, 0x153c6D23fBB4D92335430e33882e575C5e81964A);  // sepolia
 
         // Transfer ownership of any required contracts
