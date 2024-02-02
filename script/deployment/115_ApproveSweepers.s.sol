@@ -41,8 +41,6 @@ contract ApproveSweepers is DeploymentScript {
             treasury.approveSweeper(sudoswapSweeper, true);
             storeDeployment('SudoswapSweeper', sudoswapSweeper);
         }
-
-        // treasury.approveSweeper(requireDeployment('GemSweeper'), true);
     }
 
 }

@@ -23,7 +23,6 @@ contract DeploymentScript is Script {
 
     /// Set our deployment WETH address
     // Mainnet: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-    // Goerli: 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6
     // Sepolia: 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14
     address constant DEPLOYMENT_WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
 
