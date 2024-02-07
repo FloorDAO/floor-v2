@@ -20,8 +20,8 @@ contract SweeperRouterTest is FloorTest {
     TreasuryMock internal treasury;
 
     /// Define some approved sweepers
-    address APPROVED_SWEEPER_ONE = address(1);
-    address APPROVED_SWEEPER_TWO = address(1);
+    address APPROVED_SWEEPER_ONE;
+    address APPROVED_SWEEPER_TWO;
 
     /// Define an unapproved sweeper that will revert
     address UNAPPROVED_SWEEPER = address(2);
