@@ -21,11 +21,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
  * Deploys our strategies and factory contracts.
  */
 contract DeployNFTXV3Strategies is DeploymentScript {
-    /// The address of the NFTX Router
-    // address internal constant NFTX_ROUTER = 0x70A741A12262d4b5Ff45C0179c783a380EebE42a; // Mainnet
-    address internal constant NFTX_ROUTER = 0x441b7DE4340AAa5aA86dB4DA43d9Badf7B2DAA66; // Sepolia
-    uint24 internal constant POOL_FEE = 3000;  // 1% = 1_0000
-
     function run() external deployer {
         // Confirm that we have our required contracts deployed
         StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));

@@ -24,7 +24,7 @@ contract DeploymentScript is Script {
     /// Set our deployment WETH address
     // Mainnet: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     // Sepolia: 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14
-    address constant DEPLOYMENT_WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
+    address constant DEPLOYMENT_WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /**
      * Ensures that a contract has been deployed already and returns the address of
@@ -137,7 +137,7 @@ contract DeploymentScript is Script {
      */
     modifier deployer() {
         // Load our seed phrase from a protected file
-        uint privateKey = vm.envUint('DEPLOY_PRIVATE_KEY');
+        uint privateKey = vm.envUint('DEV_PRIVATE_KEY');
 
         // Using the passed in the script call, has all subsequent calls (at this call
         // depth only) create transactions that can later be signed and sent onchain.
