@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 import {CannotSetNullAddress} from '@floor/utils/Errors.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
@@ -16,7 +15,7 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  * @dev If all collections are going to use the same sweeper approach, then this contract
  * should not be used as it will only inflate gas.
  */
-contract SweeperRouter is ISweeper, Ownable {
+contract SweeperRouter is AuthorityControl, ISweeper {
 
     /// Define a structure that holds sweep triggering information.
     struct CollectionSweeper {
@@ -34,9 +33,13 @@ contract SweeperRouter is ISweeper, Ownable {
     Treasury treasury;
 
     /**
-     * ..
+     * Sets up our contract with our authority control to restrict access to
+     * protected functions.
+     *
+     * @param _authority {AuthorityRegistry} contract address
+     * @param _treasury {Treasury} contract address
      */
-    constructor (address payable _treasury) {
+    constructor (address _authority, address payable _treasury) AuthorityControl(_authority) {
         // Ensure we are not setting {Treasury} to a zero address
         if (_treasury == address(0)) revert CannotSetNullAddress();
 
@@ -45,7 +48,12 @@ contract SweeperRouter is ISweeper, Ownable {
     }
 
     /**
-     * ..
+     * Runs each sweeper individually that is attributed to the passed in collections. If the
+     * sweeper is not set for the collection, or the sweeper is not approved, then the call
+     * will revert entirely.
+     *
+     * @dev If the same sweeper is expected to be used for all collections, then this contract
+     * should not be called, and the single sweeper should be called instead.
      */
     function execute(
         address[] calldata _collections,
@@ -81,9 +89,14 @@ contract SweeperRouter is ISweeper, Ownable {
     }
 
     /**
-     * Allows a new
+     * Allows a new sweeper configuration to be assigned to a collection. The `_data` bytes
+     * that are passed will be sent each time that the sweeper is triggered.
+     *
+     * @param _collection The address of the collection that will trigger the sweeper
+     * @param _sweeper The address of the approved `ISweeper` contract
+     * @param _data The bytes that will be sent to the sweeper each time it is called
      */
-    function setSweeper(address _collection, address _sweeper, bytes calldata _data) public onlyOwner {
+    function setSweeper(address _collection, address _sweeper, bytes calldata _data) public onlyRole(COLLECTION_MANAGER) {
         // Set the sweeper against the collection
         collectionSweepers[_collection] = CollectionSweeper({
             sweeper: ISweeper(_sweeper),

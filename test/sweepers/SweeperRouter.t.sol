@@ -27,8 +27,11 @@ contract SweeperRouterTest is FloorTest {
     address UNAPPROVED_SWEEPER = address(2);
 
     function setUp() public {
+        // Deploy our authority contracts
+        super._deployAuthority();
+
         treasury = new TreasuryMock();
-        router = new SweeperRouter(payable(address(treasury)));
+        router = new SweeperRouter(address(authorityRegistry), payable(address(treasury)));
 
         // Deploy our sweeper contract
         APPROVED_SWEEPER_ONE = address(new ManualSweeper());
@@ -48,7 +51,7 @@ contract SweeperRouterTest is FloorTest {
 
     function test_CannotDeployWithInvalidTreasury() public {
         vm.expectRevert();
-        router = new SweeperRouter(payable(address(0)));
+        router = new SweeperRouter(address(authorityRegistry), payable(address(0)));
     }
 
     function test_CanExecuteWithSameSweeper(uint8 _collections, bytes calldata _bytes) public {

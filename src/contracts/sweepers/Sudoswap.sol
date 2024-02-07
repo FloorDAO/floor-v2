@@ -152,10 +152,10 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     }
 
     /**
-     * Specify that anyone can run this sweeper.
+     * Specify that only a TREASURY_MANAGER can run this sweeper.
      */
     function permissions() public pure override returns (bytes32) {
-        return '';
+        return keccak256('TreasuryManager');
     }
 
     /**

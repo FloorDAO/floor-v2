@@ -30,14 +30,19 @@ contract CowSwapSweeperTest is FloorTest {
         CowSwapSweeper.Pool[] memory pools = new CowSwapSweeper.Pool[](1);
         pools[0] = CowSwapSweeper.Pool({
             pool: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,   // Address of the UV3 pool
-            slippage: 10_0                                      // % of slippage to 1dp accuracy
+            fee: 300,          // The UV3 pool fee
+            slippage: 10_0,    // % of slippage to 1dp accuracy
+            partSize: 1_00     // The ETH size per part for fills (2dp)
         });
 
-        sweeper.execute({
+        sweeper.execute{value: 1 ether}({
             _collections: collections,
             _amounts: amounts,
             data: abi.encode(pools)
         });
+
+        // Confirm that we now hold the expected balance in the pool
+        assertEq(sweeper.weth().balanceOf(address(sweeper)), 1 ether);
     }
 
 }
