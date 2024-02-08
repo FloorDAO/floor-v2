@@ -11,19 +11,19 @@ import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRe
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {FLOOR} from '@floor/tokens/Floor.sol';
-import {LiquidateNegativeCollectionManualTrigger} from '@floor/triggers/LiquidateNegativeCollectionManual.sol';
+import {LiquidateAllNegativeCollectionsManualTrigger} from '@floor/triggers/LiquidateAllNegativeCollectionsManual.sol';
 import {SweepWars} from '@floor/voting/SweepWars.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
 import {Treasury} from '@floor/Treasury.sol';
 
 import {FloorTest} from '../utilities/Environments.sol';
 
-contract LiquidateNegativeCollectionManualTest is FloorTest {
+contract LiquidateAllNegativeCollectionsManualTest is FloorTest {
     // Store our mainnet fork information
     uint internal constant BLOCK_NUMBER = 17_493_409;
 
     /// Event fired when losing collection strategy is liquidated
-    event CollectionTokensLiquidated(address _worstCollection, address[] _strategies, uint _percentage);
+    event CollectionTokensLiquidated(address _collection, address[] _strategies, uint _percentage);
 
     // Contract references to be deployed
     CollectionRegistry collectionRegistry;
@@ -37,7 +37,7 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
     VeFloorStaking veFloor;
 
     // Trigger to be deployed
-    LiquidateNegativeCollectionManualTrigger liquidateNegativeCollectionManualTrigger;
+    LiquidateAllNegativeCollectionsManualTrigger liquidateNegativeCollectionManualTrigger;
 
     // A set of collections to be referenced during testing
     address approvedCollection1 = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -113,7 +113,7 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
         veFloor.setVotingContracts(address(0), address(sweepWars));
 
         // Register our epoch end trigger that stores our liquidation
-        liquidateNegativeCollectionManualTrigger = new LiquidateNegativeCollectionManualTrigger(
+        liquidateNegativeCollectionManualTrigger = new LiquidateAllNegativeCollectionsManualTrigger(
             address(sweepWars),
             address(strategyFactory)
         );
@@ -147,7 +147,7 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
         vm.stopPrank();
     }
 
-    function test_CanLiquidateNegativeCollection() external {
+    function test_CanLiquidateSingleNegativeCollectionWithStrategies() external {
         vm.startPrank(alice);
         sweepWars.vote(approvedCollection1, 2 ether);
         sweepWars.vote(approvedCollection2, 10 ether);
@@ -157,13 +157,14 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
 
         vm.startPrank(bob);
         sweepWars.vote(approvedCollection1, 1 ether);
-        sweepWars.vote(approvedCollection3, -10 ether);
+        sweepWars.vote(approvedCollection3, -8 ether);
+        sweepWars.vote(floorTokenCollection, 2 ether);
         vm.stopPrank();
 
         assertEq(sweepWars.votes(approvedCollection1), 3 ether);
         assertEq(sweepWars.votes(approvedCollection2), 10 ether);
-        assertEq(sweepWars.votes(approvedCollection3), -4 ether);
-        assertEq(sweepWars.votes(floorTokenCollection), -2 ether);
+        assertEq(sweepWars.votes(approvedCollection3), -2 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), 0 ether);
 
         // Set up our collection strategies
         _deployStrategy(approvedCollection2);
@@ -173,10 +174,10 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
         /**
          * Our closing vote should look like:
          *
-         * Collection 1 : 3
+         * Collection 1 :  3
          * Collection 2 : 10
-         * Collection 3 : -4
-         * Floor Token  : -2
+         * Collection 3 : -2
+         * Floor Token  :  0
          */
 
         address[] memory strategies = new address[](2);
@@ -184,7 +185,93 @@ contract LiquidateNegativeCollectionManualTest is FloorTest {
         strategies[1] = 0x31DF500B2550B78B29507E5E7705F89FA1EeCb17;
 
         vm.expectEmit(true, true, false, true, address(liquidateNegativeCollectionManualTrigger));
-        emit CollectionTokensLiquidated(approvedCollection3, strategies, 21_05);
+        emit CollectionTokensLiquidated(approvedCollection3, strategies, 13_33);
+
+        epochManager.endEpoch();
+    }
+
+    function test_CanLiquidateSingleNegativeCollectionWithNoStrategies() external {
+        vm.startPrank(alice);
+        sweepWars.vote(approvedCollection1, 2 ether);
+        sweepWars.vote(approvedCollection2, 10 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, -2 ether);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(floorTokenCollection, -6 ether);
+        vm.stopPrank();
+
+        assertEq(sweepWars.votes(approvedCollection1), 3 ether);
+        assertEq(sweepWars.votes(approvedCollection2), 10 ether);
+        assertEq(sweepWars.votes(approvedCollection3), 6 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), -8 ether);
+
+        // Set up our collection strategies
+        _deployStrategy(approvedCollection2);
+        _deployStrategy(approvedCollection3);
+        _deployStrategy(approvedCollection3);
+
+        /**
+         * Our closing vote should look like:
+         *
+         * Collection 1 :  3
+         * Collection 2 : 10
+         * Collection 3 :  6
+         * Floor Token  : -8
+         */
+
+        vm.expectEmit(true, true, false, true, address(liquidateNegativeCollectionManualTrigger));
+        emit CollectionTokensLiquidated(floorTokenCollection, new address[](0), 29_62);
+
+        epochManager.endEpoch();
+    }
+
+    function test_CanLiquidateMultipleNegativeCollections() external {
+        vm.startPrank(alice);
+        sweepWars.vote(approvedCollection1, -3 ether);
+        sweepWars.vote(approvedCollection3, 6 ether);
+        sweepWars.vote(floorTokenCollection, 3 ether);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        sweepWars.vote(approvedCollection1, 1 ether);
+        sweepWars.vote(approvedCollection2, -1 ether);
+        sweepWars.vote(approvedCollection3, -10 ether);
+        vm.stopPrank();
+
+        assertEq(sweepWars.votes(approvedCollection1), -2 ether);
+        assertEq(sweepWars.votes(approvedCollection2), -1 ether);
+        assertEq(sweepWars.votes(approvedCollection3), -4 ether);
+        assertEq(sweepWars.votes(floorTokenCollection), 3 ether);
+
+        // Set up our collection strategies
+        _deployStrategy(approvedCollection2);
+        _deployStrategy(approvedCollection3);
+        _deployStrategy(approvedCollection3);
+
+        /**
+         * Our closing vote should look like:
+         *
+         * Collection 1 : -2
+         * Collection 2 : -1
+         * Collection 3 : -4
+         * Floor Token  :  3
+         */
+
+        address[] memory collection1Strategies = new address[](0);
+        address[] memory collection2Strategies = new address[](1);
+        collection2Strategies[0] = 0x16b0A8E55AD92746B04B7a10399a873B82141846;
+        address[] memory collection3Strategies = new address[](2);
+        collection3Strategies[0] = 0x669538dFce92584272a4d413a408948E990e9BFe;
+        collection3Strategies[1] = 0x31DF500B2550B78B29507E5E7705F89FA1EeCb17;
+
+        vm.expectEmit(true, true, false, true, address(liquidateNegativeCollectionManualTrigger));
+        emit CollectionTokensLiquidated(approvedCollection1, collection1Strategies, 20_00);
+        emit CollectionTokensLiquidated(approvedCollection2, collection2Strategies, 10_00);
+        emit CollectionTokensLiquidated(approvedCollection3, collection3Strategies, 40_00);
+
         epochManager.endEpoch();
     }
 
