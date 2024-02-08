@@ -48,3 +48,6 @@
 [submodule "lib/lssvm2"]
 	path = lib/lssvm2
 	url = https://github.com/sudoswap/lssvm2
+[submodule "lib/composable-cow"]
+	path = lib/composable-cow
+	url = https://github.com/cowprotocol/composable-cow

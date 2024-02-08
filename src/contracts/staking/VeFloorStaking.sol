@@ -146,7 +146,7 @@ contract VeFloorStaking is EpochManaged, ERC20, IVeFloorStaking, IVotable {
      * @return votingPower The voting power available at the current epoch
      */
     function votingPowerOf(address account) public view returns (uint) {
-        return (depositors[account].amount * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
+        return (uint(depositors[account].amount) * depositors[account].epochCount) / LOCK_PERIODS[LOCK_PERIODS.length - 1];
     }
 
     /**
