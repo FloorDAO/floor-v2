@@ -15,7 +15,6 @@ import {ERC1271Forwarder} from '@composable-cow/ERC1271Forwarder.sol';
 import {FullMath} from '@uniswap-v3/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
 import {IUniswapV3Pool} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
-import {FixedPoint96} from "@uniswap-v3/v3-core/contracts/libraries/FixedPoint96.sol";
 
 import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
