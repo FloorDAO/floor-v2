@@ -90,6 +90,10 @@ contract CowSwapSweeperTest is FloorTest {
         // Confirm that the expected amount is now in the {Treasury} and remaining in the pool
         assertEq(sweeper.weth().balanceOf(address(sweeper)), _wethAmount - _withdrawAmount);
         assertEq(sweeper.weth().balanceOf(sweeper.treasury()), _withdrawAmount);
+
+        // Confirm that we cannot rescue from the same order again
+        vm.expectRevert('Invalid order hash');
+        sweeper.rescueWethFromOrder(orderHash, _withdrawAmount);
     }
 
     function test_CannotWithdrawFromUnknownOrderHash() public {
