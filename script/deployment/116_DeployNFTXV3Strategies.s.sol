@@ -10,7 +10,6 @@ import {DistributedRevenueStakingStrategy} from '@floor/strategies/DistributedRe
 import {NFTXInventoryStakingStrategy} from '@floor/strategies/NFTXInventoryStakingStrategy.sol';
 import {NFTXLiquidityPoolStakingStrategy} from '@floor/strategies/NFTXLiquidityPoolStakingStrategy.sol';
 import {RevenueStakingStrategy} from '@floor/strategies/RevenueStakingStrategy.sol';
-import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {StrategyRegistry} from '@floor/strategies/StrategyRegistry.sol';
 import {UniswapV3Strategy} from '@floor/strategies/UniswapV3Strategy.sol';
 import {Treasury} from '@floor/Treasury.sol';
@@ -23,7 +22,6 @@ import {DeploymentScript} from '@floor-scripts/deployment/DeploymentScript.sol';
 contract DeployNFTXV3Strategies is DeploymentScript {
     function run() external deployer {
         // Confirm that we have our required contracts deployed
-        StrategyFactory strategyFactory = StrategyFactory(requireDeployment('StrategyFactory'));
         StrategyRegistry strategyRegistry = StrategyRegistry(requireDeployment('StrategyRegistry'));
 
         // Deploy strategy strategies

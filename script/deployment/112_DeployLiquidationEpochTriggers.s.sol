@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import {IAuthorityControl} from '@floor-interfaces/authorities/AuthorityControl.sol';
-import {IAuthorityRegistry} from '@floor-interfaces/authorities/AuthorityRegistry.sol';
-
 import {StrategyFactory} from '@floor/strategies/StrategyFactory.sol';
 import {LiquidateNegativeCollectionManualTrigger} from '@floor/triggers/LiquidateNegativeCollectionManual.sol';
 import {EpochManager} from '@floor/EpochManager.sol';
@@ -17,10 +14,6 @@ contract DeployLiquidationEpochTriggers is DeploymentScript {
     function run() external deployer {
         // Register our epoch manager so we can make calls against it
         EpochManager epochManager = EpochManager(requireDeployment('EpochManager'));
-
-        // Load and reference our live authority contracts
-        IAuthorityControl authorityControl = IAuthorityControl(requireDeployment('AuthorityControl'));
-        IAuthorityRegistry authorityRegistry = IAuthorityRegistry(requireDeployment('AuthorityRegistry'));
 
         // Load our required contract addresses
         address strategyFactory = requireDeployment('StrategyFactory');
