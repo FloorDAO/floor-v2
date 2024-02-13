@@ -8,14 +8,16 @@ import {GPv2Order} from 'cowprotocol/libraries/GPv2Order.sol';
 
 import {ComposableCoW} from '@composable-cow/ComposableCoW.sol';
 import {IConditionalOrder} from '@composable-cow/interfaces/IConditionalOrder.sol';
-import {TWAP} from '@composable-cow/types/twap/TWAP.sol';
-import {TWAPOrder} from '@composable-cow/types/twap/libraries/TWAPOrder.sol';
+import {TWAP, TWAPOrder} from '@composable-cow/types/twap/TWAP.sol';
+import {TWAPOrderMathLib} from '@composable-cow/types/twap/libraries/TWAPOrderMathLib.sol';
 import {ERC1271Forwarder} from '@composable-cow/ERC1271Forwarder.sol';
 
 import {FullMath} from '@uniswap-v3/v3-core/contracts/libraries/FullMath.sol';
 import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
 import {IUniswapV3Pool} from '@uniswap-v3/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import {FixedPoint96} from "@uniswap-v3/v3-core/contracts/libraries/FixedPoint96.sol";
+
+import {AuthorityControl} from '@floor/authorities/AuthorityControl.sol';
 
 import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
 import {IWETH} from '@floor-interfaces/tokens/WETH.sol';
@@ -30,8 +32,11 @@ import {ITreasury} from '@floor-interfaces/Treasury.sol';
  * Orders will be filled over time, and competing fillers will strive to get the
  * best possible price. This is beneficial over traditional exact swaps.
  */
-contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
+contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
     using GPv2Order for *;
+
+    /// Register event that is emitted when new sweep is created
+    event CowSwapOrderCreated(PoolExit _poolExit);
 
     /// The pool structure is required for price acquisition and set per call
     struct Pool {
@@ -39,6 +44,12 @@ contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
         uint24 fee;       // The UV3 pool fee
         uint16 slippage;  // % of slippage to 1dp accuracy
         uint32 partSize;  // The ETH size per part for fills
+    }
+
+    /// Information to allow for WETH withdrawal
+    struct PoolExit {
+        uint192 maxAmount;
+        uint64 unlockTimestamp;
     }
 
     /// CowSwap related contract addresses
@@ -53,6 +64,9 @@ contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
     /// Our unique salt used to index orders
     bytes32 constant public salt = keccak256('floordao.cowswap.twap');
 
+    /// Maintain a mapping of swap values for WETH rescue
+    mapping (bytes32 => PoolExit) public swaps;
+
     /**
      * Registers a range of CowSwap contracts and our internal {Treasury} contract as
      * this will receive any purchased tokens.
@@ -63,11 +77,12 @@ contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
      * @param _twapHandler The TWAP contract that structures our order
      */
     constructor (
+        address _authority,
         address payable _treasury,
         address _relayer,
         address _composableCow,
         address _twapHandler
-    ) ERC1271Forwarder(ComposableCoW(_composableCow)) {
+    ) AuthorityControl(_authority) ERC1271Forwarder(ComposableCoW(_composableCow)) {
         // Set our {Treasury} address and extract the network WETH address
         treasury = _treasury;
         weth = ITreasury(treasury).weth();
@@ -118,8 +133,16 @@ contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
                 1000
             );
 
+            // Determine the number of parts that our sweep will be divided into. For a
+            // TWAPOrder to be created, we are required to have at least 2 parts, so we
+            // make an explicit check for this scenario.
+            uint32 numberOfParts = uint32(_amounts[i] / (uint(pool[i].partSize) * 1e16)) + 1;
+            if (numberOfParts < 2) {
+                numberOfParts = 2;
+            }
+
             // Create our CowSwap TWAP order
-            _placeOrder(buyToken, _amounts[i], spotPriceWithSlippage, uint32(_amounts[i] / (uint(pool[i].partSize) * 1e16)) + 1);
+            _placeOrder(buyToken, _amounts[i], spotPriceWithSlippage, numberOfParts);
 
             unchecked { ++i; }
         }
@@ -144,28 +167,69 @@ contract CowSwapSweeper is ISweeper, ERC1271Forwarder {
         uint _buyAmount,
         uint32 _numberOfParts
     ) internal {
+        // Build our TWAP order data
+        TWAPOrder.Data memory twapOrder = TWAPOrder.Data({
+            sellToken: weth,
+            buyToken: IERC20(_buyToken),
+            receiver: address(treasury),
+            partSellAmount: _sellAmount / _numberOfParts,
+            minPartLimit: _buyAmount / _numberOfParts,
+            t0: block.timestamp,
+            n: _numberOfParts,
+            t: 1 days,
+            span: 0,  // We want to action the sweep all day
+            appData: salt
+        });
+
+        // Validate our TWAP order
+        TWAPOrder.validate(twapOrder);
+
+        // Register our order params
+        IConditionalOrder.ConditionalOrderParams memory orderParams = IConditionalOrder.ConditionalOrderParams({
+            handler: twap,
+            salt: salt,
+            staticInput: abi.encode(twapOrder)
+        });
+
         // Create our CowSwap TWAP Order
         composableCow.create({
-            params: IConditionalOrder.ConditionalOrderParams({
-                handler: twap,
-                salt: salt,
-                staticInput: abi.encode(
-                    TWAPOrder.Data({
-                        sellToken: weth,
-                        buyToken: IERC20(_buyToken),
-                        receiver: address(treasury),
-                        partSellAmount: _sellAmount / _numberOfParts,
-                        minPartLimit: _buyAmount / _numberOfParts,
-                        t0: block.timestamp + 60,
-                        n: _numberOfParts,
-                        t: 1 days,
-                        span: 0,  // We want to action the sweep all day
-                        appData: salt
-                    })
-                )
-            }),
+            params: orderParams,
             dispatch: true
         });
+
+        // Register our orders internally so that we can rescue WETH if needed
+        bytes32 orderHash = composableCow.hash(orderParams);
+        emit CowSwapOrderCreated(
+            swaps[orderHash] = PoolExit({
+                maxAmount: uint192(_sellAmount),
+                unlockTimestamp: uint64(TWAPOrderMathLib.calculateValidTo(twapOrder.t0, twapOrder.n, twapOrder.t, twapOrder.span))
+            })
+        );
+    }
+
+    /**
+     * Allows a caller to remove expired order WETH. The order must have expired and we cannot
+     * valid the order spend, so this must be calculated off-chain.
+     *
+     * @param _orderHash The hash of the order to withdraw against
+     * @param _amount The amount of WETH to claim back from the order
+     */
+    function rescueWethFromOrder(bytes32 _orderHash, uint _amount) public onlyRole(TREASURY_MANAGER) {
+        // Ensure that this contract is the owner
+        PoolExit memory poolExit = swaps[_orderHash];
+        require(poolExit.maxAmount != 0, 'Invalid order hash');
+
+        // Now that we have it stored, delete the existing data to prevent reentrancy concerns
+        delete swaps[_orderHash];
+
+        // Ensure that the amount requested is less than the max
+        require(_amount <= poolExit.maxAmount, 'Withdraw amount too high');
+
+        // Load our order check the expiry time
+        require(block.timestamp >= poolExit.unlockTimestamp, 'Withdraw not unlocked');
+
+        // Transfer the amount of WETH back to the {Treasury}
+        weth.transfer(treasury, _amount);
     }
 
     /**

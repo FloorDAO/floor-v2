@@ -69,6 +69,27 @@ contract FloorTest is Test {
     }
 
     /**
+     * Sets up the logic to fork from a sepolia chain block, based on just an integer passed.
+     *
+     * @dev This should be applied to a constructor.
+     */
+    modifier forkSepoliaBlock(uint blockNumber) {
+        // Generate a mainnet fork
+        uint fork = vm.createFork(vm.rpcUrl('sepolia'));
+
+        // Select our fork for the VM
+        vm.selectFork(fork);
+        assertEq(vm.activeFork(), fork);
+
+        // Set our block ID to a specific, test-suitable number
+        vm.rollFork(blockNumber);
+
+        // Confirm that our block number has set successfully
+        require(block.number == blockNumber);
+        _;
+    }
+
+    /**
      * Tests if a value is within a certain variance of another value.
      */
     function assertAlmostEqual(uint a, uint b, uint v) internal {

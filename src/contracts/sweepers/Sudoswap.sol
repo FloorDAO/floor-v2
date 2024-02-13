@@ -111,7 +111,8 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
                 LSSVMPairETH pair = sweeperPools[collections[i]];
 
                 uint pairBalance = payable(pair).balance;
-                if (pair.spotPrice() > pairBalance) {
+                (,,, uint spotPrice,,) = pair.getSellNFTQuote(0, 1);
+                if (spotPrice > pairBalance) {
                     // If the pair balance is below the initial starting threshold, then we will
                     // reset the spot price to that as a minimum.
                     if (pairBalance < initialSpotPrice) {

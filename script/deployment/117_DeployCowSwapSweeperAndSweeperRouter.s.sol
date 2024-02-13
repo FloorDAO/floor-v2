@@ -19,6 +19,7 @@ contract DeployCowSwapSweeperAndSweeperRouter is DeploymentScript {
         // Deploy our sweeper contract. The CowSwap addresses are the same across all
         // relevant blockchains.
         CowSwapSweeper cowswapSweeper = new CowSwapSweeper({
+            _authority: requireDeployment('AuthorityRegistry'),
             _treasury: payable(address(treasury)),
             _relayer: 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110,
             _composableCow: 0xfdaFc9d1902f4e0b84f65F49f244b32b31013b74,
