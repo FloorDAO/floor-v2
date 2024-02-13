@@ -213,7 +213,7 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
      * @param _orderHash The hash of the order to withdraw against
      * @param _amount The amount of WETH to claim back from the order
      */
-    function rescueWethFromOrder(bytes32 _orderHash, uint _amount) public onlyRole(TREASURY_MANAGER) {
+    function rescueWethFromOrder(bytes32 _orderHash, uint _amount) public onlyRole(STRATEGY_MANAGER) {
         // Ensure that this contract is the owner
         PoolExit memory poolExit = swaps[_orderHash];
         require(poolExit.maxAmount != 0, 'Invalid order hash');
