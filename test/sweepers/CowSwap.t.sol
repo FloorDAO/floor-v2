@@ -15,6 +15,7 @@ import {FloorTest} from '../utilities/Environments.sol';
 contract CowSwapSweeperTest is FloorTest {
 
     uint constant BLOCK_NUMBER = 19176494;
+    bytes32 constant ORDER_HASH = 0x154e8979194e895c7e83487f984a51e642d726a1cfefdc1824a7eb3af22325e9;
 
     CowSwapSweeper internal sweeper;
 
@@ -42,7 +43,7 @@ contract CowSwapSweeperTest is FloorTest {
         IConditionalOrder.ConditionalOrderParams memory conditionalOrderParams = IConditionalOrder.ConditionalOrderParams({
             handler: IConditionalOrder(0x6cF1e9cA41f7611dEf408122793c358a3d11E5a5),
             salt: 0xc24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d,
-            staticInput: hex'000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d6800000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000000000aca00bcf12520000000000000000000000000000000000000000000000000000000065c37fcb000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d'
+            staticInput: hex'000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d6800000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000000000aca00bcf12520000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d'
         });
 
         // Confirm that the single order exists
@@ -75,17 +76,14 @@ contract CowSwapSweeperTest is FloorTest {
         // Create an order
         _createOrder(_wethAmount);
 
-        // Register the hash of the order, taken from the onchain event fired from this test
-        bytes32 orderHash = 0xf436705361ff2a284d04fca9c04c06549cbebd457636629b061b12f6a02db522;
-
         // Move forward past our unlock time
-        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(orderHash);
+        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(ORDER_HASH);
         assertEq(maxAmount, _wethAmount);
         assertEq(unlockTime, 1707397450);
         vm.warp(unlockTime);
 
         // Confirm that we can withdraw the desired amount
-        sweeper.rescueWethFromOrder(orderHash, _withdrawAmount);
+        sweeper.rescueWethFromOrder(ORDER_HASH, _withdrawAmount);
 
         // Confirm that the expected amount is now in the {Treasury} and remaining in the pool
         assertEq(sweeper.weth().balanceOf(address(sweeper)), _wethAmount - _withdrawAmount);
@@ -93,7 +91,7 @@ contract CowSwapSweeperTest is FloorTest {
 
         // Confirm that we cannot rescue from the same order again
         vm.expectRevert('Invalid order hash');
-        sweeper.rescueWethFromOrder(orderHash, _withdrawAmount);
+        sweeper.rescueWethFromOrder(ORDER_HASH, _withdrawAmount);
     }
 
     function test_CannotWithdrawFromUnknownOrderHash() public {
@@ -121,29 +119,23 @@ contract CowSwapSweeperTest is FloorTest {
         // Create an order
         _createOrder(_wethAmount);
 
-        // Register the hash of the order, taken from the onchain event fired from this test
-        bytes32 orderHash = 0xf436705361ff2a284d04fca9c04c06549cbebd457636629b061b12f6a02db522;
-
         // Move forward past our unlock time
-        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(orderHash);
+        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(ORDER_HASH);
         assertEq(maxAmount, _wethAmount);
         assertEq(unlockTime, 1707397450);
         vm.warp(unlockTime);
 
         // Confirm that we can withdraw the desired amount
         vm.expectRevert('Withdraw amount too high');
-        sweeper.rescueWethFromOrder(orderHash, _withdrawAmount);
+        sweeper.rescueWethFromOrder(ORDER_HASH, _withdrawAmount);
     }
 
     function test_CannotWithdrawWethWithoutPermissions() public {
         // Create an order
         _createOrder(10 ether);
 
-        // Register the hash of the order, taken from the onchain event fired from this test
-        bytes32 orderHash = 0xf436705361ff2a284d04fca9c04c06549cbebd457636629b061b12f6a02db522;
-
         // Move forward past our unlock time
-        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(orderHash);
+        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(ORDER_HASH);
         assertEq(maxAmount, 10 ether);
         assertEq(unlockTime, 1707397450);
         vm.warp(unlockTime);
@@ -151,7 +143,7 @@ contract CowSwapSweeperTest is FloorTest {
         // Confirm that we can withdraw the desired amount
         vm.startPrank(address(4));
         vm.expectRevert();
-        sweeper.rescueWethFromOrder(orderHash, 1 ether);
+        sweeper.rescueWethFromOrder(ORDER_HASH, 1 ether);
         vm.stopPrank();
     }
 
@@ -159,18 +151,15 @@ contract CowSwapSweeperTest is FloorTest {
         // Create an order
         _createOrder(10 ether);
 
-        // Register the hash of the order, taken from the onchain event fired from this test
-        bytes32 orderHash = 0xf436705361ff2a284d04fca9c04c06549cbebd457636629b061b12f6a02db522;
-
         // Move to a time that is before our unlock time
-        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(orderHash);
+        (uint192 maxAmount, uint64 unlockTime) = sweeper.swaps(ORDER_HASH);
         assertEq(maxAmount, 10 ether);
         assertEq(unlockTime, 1707397450);
         vm.warp(bound(seed, block.timestamp, unlockTime - 1));
 
         // Confirm that we can withdraw the desired amount
         vm.expectRevert('Withdraw not unlocked');
-        sweeper.rescueWethFromOrder(orderHash, 1 ether);
+        sweeper.rescueWethFromOrder(ORDER_HASH, 1 ether);
     }
 
     function _createOrder(uint _amount) internal {
@@ -201,7 +190,7 @@ contract CowSwapSweeperTest is FloorTest {
 
 contract CowSwapSweeperSepoliaTest is FloorTest {
 
-    uint constant BLOCK_NUMBER = 5251146;
+    uint constant BLOCK_NUMBER = 5281052;
 
     CowSwapSweeper internal sweeper;
 
@@ -211,14 +200,14 @@ contract CowSwapSweeperSepoliaTest is FloorTest {
     }
 
     function test_CanGetTradeableOrderWithSignature() public {
-        bytes memory _bytes = hex'00000000000000000000000000000000000000000000000000000000000000200000000000000000000000006cf1e9ca41f7611def408122793c358a3d11e5a5c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000140000000000000000000000000fff9976782d46cc05630d1f6ebab18b2324d6b140000000000000000000000001f9840a85d5af5bf1d1762f925bdaddc4201f9840000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d68000000000000000000000000000000000000000000000000003b363eb8ee951c0000000000000000000000000000000000000000000000000a5a94a9b2efb4cd0000000000000000000000000000000000000000000000000000000065c5fee4000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d';
+        bytes memory _bytes = hex'00000000000000000000000000000000000000000000000000000000000000200000000000000000000000006cf1e9ca41f7611def408122793c358a3d11e5a5c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000140000000000000000000000000fff9976782d46cc05630d1f6ebab18b2324d6b140000000000000000000000001f9840a85d5af5bf1d1762f925bdaddc4201f9840000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d68000000000000000000000000000000000000000000000000003b363eb8ee951c0000000000000000000000000000000000000000000000000a5e074e3c7c1d470000000000000000000000000000000000000000000000000000000065cb9cf8000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d';
         IConditionalOrder.ConditionalOrderParams memory conditionalOrderParams = abi.decode(_bytes, (IConditionalOrder.ConditionalOrderParams));
 
         console.log('HASH:');
         console.logBytes32(sweeper.composableCow().hash(conditionalOrderParams));
 
         sweeper.composableCow().getTradeableOrderWithSignature({
-            owner: 0x3D85E9127797B546c3C8dE92B58bc7895471d2a6,
+            owner: 0x83347809ae4d08448046ef270abC05B64A222e59,
             params: conditionalOrderParams,
             offchainInput: bytes(''),
             proof: new bytes32[](0)

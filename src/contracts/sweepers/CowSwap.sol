@@ -8,6 +8,7 @@ import {GPv2Order} from 'cowprotocol/libraries/GPv2Order.sol';
 
 import {ComposableCoW} from '@composable-cow/ComposableCoW.sol';
 import {IConditionalOrder} from '@composable-cow/interfaces/IConditionalOrder.sol';
+import {IValueFactory} from '@composable-cow/interfaces/IValueFactory.sol';
 import {TWAP, TWAPOrder} from '@composable-cow/types/twap/TWAP.sol';
 import {TWAPOrderMathLib} from '@composable-cow/types/twap/libraries/TWAPOrderMathLib.sol';
 import {ERC1271Forwarder} from '@composable-cow/ERC1271Forwarder.sol';
@@ -173,7 +174,7 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
             receiver: address(treasury),
             partSellAmount: _sellAmount / _numberOfParts,
             minPartLimit: _buyAmount / _numberOfParts,
-            t0: block.timestamp,
+            t0: 0,
             n: _numberOfParts,
             t: 1 days,
             span: 0,  // We want to action the sweep all day
@@ -191,8 +192,10 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
         });
 
         // Create our CowSwap TWAP Order
-        composableCow.create({
+        composableCow.createWithContext({
             params: orderParams,
+            factory: IValueFactory(0x52eD56Da04309Aca4c3FECC595298d80C2f16BAc),
+            data: '',
             dispatch: true
         });
 
@@ -201,7 +204,7 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
         emit CowSwapOrderCreated(
             swaps[orderHash] = PoolExit({
                 maxAmount: uint192(_sellAmount),
-                unlockTimestamp: uint64(TWAPOrderMathLib.calculateValidTo(twapOrder.t0, twapOrder.n, twapOrder.t, twapOrder.span))
+                unlockTimestamp: uint64(TWAPOrderMathLib.calculateValidTo(block.timestamp, twapOrder.n, twapOrder.t, twapOrder.span))
             })
         );
     }

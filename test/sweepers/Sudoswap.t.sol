@@ -201,14 +201,14 @@ contract SudoswapSweeperTest is FloorTest, ERC721TokenReceiver {
         // ether balance before the addition. Again, there is a reduced dust amount
         // for the protocol fee.
         (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 80935263994039698);
+        assertEq(outputAmount, 0.049750000000000000 ether);
 
         // If we make another deposit after a short time now, we need to ensure that
         // the price does not increase to the maximum threshold.
         skip(4 weeks);
         _singleCollectionExecute(address(mock721), 10 ether);
         (,,, outputAmount,,) = pair.getSellNFTQuote(0, 1);
-        assertEq(outputAmount, 10.1888 ether);
+        assertEq(outputAmount, 50.944000000000000000 ether);
     }
 
     function test_CanReceiveEthFromErc721Pool() public {
