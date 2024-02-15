@@ -64,6 +64,10 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
     /// Our unique salt used to index orders
     bytes32 constant public salt = keccak256('floordao.cowswap.twap');
 
+    /// Our appData hash
+    /// @dev Generated from https://learn.cow.fi/tutorial/orderbook-upload-app-data
+    bytes32 public appDataHash = 0x112e2f400135ed78bac3dcbdd24389bd3afb029cc0ed7cefa6b1f71008ac36ec;
+
     /// Maintain a mapping of swap values for WETH rescue
     mapping (bytes32 => PoolExit) public swaps;
 
@@ -178,7 +182,7 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
             n: _numberOfParts,
             t: 1 days,
             span: 0,  // We want to action the sweep all day
-            appData: salt
+            appData: appDataHash
         });
 
         // Validate our TWAP order
@@ -207,6 +211,15 @@ contract CowSwapSweeper is AuthorityControl, ISweeper, ERC1271Forwarder {
                 unlockTimestamp: uint64(TWAPOrderMathLib.calculateValidTo(block.timestamp, twapOrder.n, twapOrder.t, twapOrder.span))
             })
         );
+    }
+
+    /**
+     * Allows an approved strategy manager to update our appData hash passed in our order.
+     *
+     * @param _appDataHash Our new `appDataHash` value
+     */
+    function setAppDataHash(bytes32 _appDataHash) public onlyRole(STRATEGY_MANAGER) {
+        appDataHash = _appDataHash;
     }
 
     /**

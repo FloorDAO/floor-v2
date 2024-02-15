@@ -15,7 +15,7 @@ import {FloorTest} from '../utilities/Environments.sol';
 contract CowSwapSweeperTest is FloorTest {
 
     uint constant BLOCK_NUMBER = 19176494;
-    bytes32 constant ORDER_HASH = 0x154e8979194e895c7e83487f984a51e642d726a1cfefdc1824a7eb3af22325e9;
+    bytes32 constant ORDER_HASH = 0xa96de60ba554c20cbc66f604ea6d965908ae7121fa7dab4efabe677558f46af2;
 
     CowSwapSweeper internal sweeper;
 
@@ -43,7 +43,7 @@ contract CowSwapSweeperTest is FloorTest {
         IConditionalOrder.ConditionalOrderParams memory conditionalOrderParams = IConditionalOrder.ConditionalOrderParams({
             handler: IConditionalOrder(0x6cF1e9cA41f7611dEf408122793c358a3d11E5a5),
             salt: 0xc24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d,
-            staticInput: hex'000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d6800000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000000000aca00bcf12520000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000c24d8e2aa014479d1f2f121e1e3589ddb390cf3334d1dc8d527cf385c8e8d76d'
+            staticInput: hex'000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480000000000000000000000003b91f74ae890dc97bb83e7b8edd36d8296902d6800000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000000000aca00bcf12520000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000000000000000000000000000000000000112e2f400135ed78bac3dcbdd24389bd3afb029cc0ed7cefa6b1f71008ac36ec'
         });
 
         // Confirm that the single order exists
@@ -160,6 +160,21 @@ contract CowSwapSweeperTest is FloorTest {
         // Confirm that we can withdraw the desired amount
         vm.expectRevert('Withdraw not unlocked');
         sweeper.rescueWethFromOrder(ORDER_HASH, 1 ether);
+    }
+
+    function test_CanSetAppDataHash(bytes32 _appDataHash1, bytes32 _appDataHash2) public {
+        sweeper.setAppDataHash(_appDataHash1);
+        assertEq(sweeper.appDataHash(), _appDataHash1);
+
+        sweeper.setAppDataHash(_appDataHash2);
+        assertEq(sweeper.appDataHash(), _appDataHash2);
+    }
+
+    function test_CannotSetAppDataHashWithoutPermissions(bytes32 _appDataHash) public {
+        vm.startPrank(address(4));
+        vm.expectRevert();
+        sweeper.setAppDataHash(_appDataHash);
+        vm.stopPrank();
     }
 
     function _createOrder(uint _amount) internal {
