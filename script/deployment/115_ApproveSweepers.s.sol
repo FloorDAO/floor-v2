@@ -17,7 +17,7 @@ contract ApproveSweepers is DeploymentScript {
         Treasury treasury = Treasury(requireDeployment('Treasury'));
 
         // Load our sweepers and approve for sweeping
-        address manualSweeper = address(new ManualSweeper());
+        address manualSweeper = address(new ManualSweeper(payable(address(treasury))));
         treasury.approveSweeper(manualSweeper, true);
 
         address sudoswapSweeper = address(new SudoswapSweeper({

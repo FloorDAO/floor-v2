@@ -10,7 +10,6 @@ import {LlamapayWithdraw} from '@floor/actions/llamapay/Withdraw.sol';
 import {NFTXSellNftsForEth} from '@floor/actions/nftx/SellNftsForEth.sol';
 import {SushiswapAddLiquidity} from '@floor/actions/sushiswap/AddLiquidity.sol';
 import {SushiswapRemoveLiquidity} from '@floor/actions/sushiswap/RemoveLiquidity.sol';
-import {GemSweeper} from '@floor/sweepers/Gem.sol';
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 import {UniswapAddLiquidity} from '@floor/actions/uniswap/AddLiquidity.sol';
 import {UniswapClaimPoolRewards} from '@floor/actions/uniswap/ClaimPoolRewards.sol';
@@ -54,8 +53,7 @@ contract DeployTreasuryActions is DeploymentScript {
             address(new SushiswapRemoveLiquidity(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F, 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac))
         );
 
-        storeDeployment('GemSweeper', address(new GemSweeper()));
-        storeDeployment('ManualSweeper', address(new ManualSweeper()));
+        storeDeployment('ManualSweeper', address(new ManualSweeper(requireDeployment('Treasury'))));
 
         storeDeployment('UniswapAddLiquidity', address(new UniswapAddLiquidity(uniswapPositionManager)));
         storeDeployment('UniswapClaimPoolRewards', address(new UniswapClaimPoolRewards(uniswapPositionManager)));
