@@ -20,6 +20,20 @@ import {ISweeper} from '@floor-interfaces/actions/Sweeper.sol';
  * the `msg.value` should be returned to the sender.
  */
 contract ManualSweeper is ISweeper {
+
+    /// The address of our {Treasury} that will receive assets
+    address payable public immutable treasury;
+
+    /**
+     * Registers our internal {Treasury} contract that will receive ETH refunds.
+     *
+     * @param _treasury Our {Treasury} contract
+     */
+    constructor (address payable _treasury) {
+        // Set our {Treasury} address that will receive ETH refunds
+        treasury = _treasury;
+    }
+
     /**
      * Our execute function call will just return the provided bytes data that should unpack
      * into a string message to be subsequently stored onchain against the sweep.
@@ -35,7 +49,7 @@ contract ManualSweeper is ISweeper {
 
         // Return any fees from the sender. This ensures that no fees are retained in the contract
         if (msg.value != 0) {
-            (bool success,) = payable(msg.sender).call{value: msg.value}('');
+            (bool success,) = treasury.call{value: msg.value}('');
             if (!success) revert TransferFailed();
         }
 

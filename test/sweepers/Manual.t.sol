@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import {ManualSweeper} from '@floor/sweepers/Manual.sol';
 
+import {TreasuryMock} from '../mocks/TreasuryMock.sol';
 import {FloorTest} from '../utilities/Environments.sol';
 
 contract ManualSweeperTest is FloorTest {
@@ -11,14 +12,20 @@ contract ManualSweeperTest is FloorTest {
     /// Define our sweeper that we will be testing
     ManualSweeper manualSweeper;
 
+    /// Define our internal Treasury mock contract
+    TreasuryMock internal treasury;
+
     /// Define some empty arrays for the sweep data, as we won't require
     /// these to test anything with.
     address[] collections;
     uint[] amounts;
 
     constructor() {
+        // Deploy our mock Treasury
+        treasury = new TreasuryMock();
+
         // Deploy our sweeper
-        manualSweeper = new ManualSweeper();
+        manualSweeper = new ManualSweeper(payable(address(treasury)));
     }
 
     /**

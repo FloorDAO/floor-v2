@@ -151,7 +151,7 @@ contract EpochManagerTest is FloorTest, FoundryRandom {
         collectionRegistry.approveCollection(approvedCollection);
 
         // Set our manual sweeper and approve it for use
-        manualSweeper = address(new ManualSweeper());
+        manualSweeper = address(new ManualSweeper(payable(address(treasury))));
         treasury.approveSweeper(manualSweeper, true);
 
         // Set up our sweeper mock that will return tokens

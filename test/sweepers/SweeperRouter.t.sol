@@ -34,8 +34,8 @@ contract SweeperRouterTest is FloorTest {
         router = new SweeperRouter(address(authorityRegistry), payable(address(treasury)));
 
         // Deploy our sweeper contract
-        APPROVED_SWEEPER_ONE = address(new ManualSweeper());
-        APPROVED_SWEEPER_TWO = address(new ManualSweeper());
+        APPROVED_SWEEPER_ONE = address(new ManualSweeper(payable(address(treasury))));
+        APPROVED_SWEEPER_TWO = address(new ManualSweeper(payable(address(treasury))));
 
         // Approve our sweepers
         treasury.approveSweeper(APPROVED_SWEEPER_ONE, true);
@@ -184,6 +184,37 @@ contract SweeperRouterTest is FloorTest {
         vm.expectRevert();
         router.setSweeper(_collection, _sweeper, _data);
         vm.stopPrank();
+    }
+
+    function test_CanReceiveEthBackFromManualSweeper() public {
+        // Approve a new manual sweeper
+        address manualSweeper = address(new ManualSweeper(payable(address(treasury))));
+        treasury.approveSweeper(manualSweeper, true);
+
+        // Set up our collections array and define our amounts
+        address[] memory collections = new address[](2);
+        collections[0] = payable(address(1));
+        collections[1] = payable(address(2));
+
+        uint[] memory amounts = new uint[](2);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
+
+        // Map our collection to the sweeper
+        router.setSweeper(collections[0], manualSweeper, 'ONE');
+        router.setSweeper(collections[1], manualSweeper, 'TWO');
+
+        // Transfer enough funds to the {Treasury} to just fund the sweeps
+        deal(address(treasury), 3 ether);
+
+        // Execute our router against 2 manual sweepers, triggered from the {Treasury}
+        treasury.sweepEpoch(address(router), collections, amounts, '');
+
+        // Confirm that no ETH remains in the manual sweeper and that instead the ETH has
+        // moved to the {Treasury}.
+        assertEq(payable(address(router)).balance, 0);
+        assertEq(payable(address(treasury)).balance, 3 ether);
+
     }
 
 }
