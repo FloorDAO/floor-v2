@@ -140,8 +140,6 @@ contract SudoswapSweeper is ISweeper, Ownable, ReentrancyGuard {
     /**
      * Withdraws any remaining ETH from the pool and transfers it to a recipient. This
      * will almost always be the {Treasury}.
-     *
-     * @dev This will be run as a {Treasury} {Action}.
      */
     function endSweep(address collection) public onlyOwner {
         // Withdraw all ETH from the pool
