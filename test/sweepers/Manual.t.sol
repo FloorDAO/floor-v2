@@ -79,7 +79,8 @@ contract ManualSweeperTest is FloorTest {
         // for a marginal offset used for gas in the execution. The cost of this
         // execution in gas is not factored into Foundry tests, so we don't
         // accommodate for it.
-        assertEq(startBalance, address(this).balance);
+        assertEq(address(this).balance, startBalance - amount);
+        assertEq(payable(address(treasury)).balance, amount);
     }
 
     receive () external payable {}
