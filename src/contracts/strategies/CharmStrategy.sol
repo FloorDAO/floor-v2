@@ -9,12 +9,9 @@ import {AlphaProVault} from '@charmfi-v2/contracts/AlphaProVault.sol';
 import {BaseStrategy, InsufficientPosition} from '@floor/strategies/BaseStrategy.sol';
 import {CannotDepositZeroAmount} from '@floor/utils/Errors.sol';
 
-import {TickMath} from '@uniswap-v3/v3-core/contracts/libraries/TickMath.sol';
-import {LiquidityAmounts} from '@uniswap-v3/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
-
 
 /**
- * Sets up a strategy that interacts with Uniswap.
+ * Sets up a strategy that interacts with Charm vaults.
  */
 contract CharmStrategy is BaseStrategy {
     /// Once our token has been minted, we can store the ID
@@ -59,7 +56,9 @@ contract CharmStrategy is BaseStrategy {
     }
 
     /**
-     * Adds liquidity against an existing Uniswap ERC721 position.
+     * Adds liquidity against an existing Charm position.
+     *
+     * @dev We cannot deposit single sided.
      *
      * @param _amount0Desired - The desired amount of token0 that should be supplied
      * @param _amount1Desired - The desired amount of token1 that should be supplied
@@ -90,23 +89,24 @@ contract CharmStrategy is BaseStrategy {
         });
 
         // Send leftovers back to the caller
-        token0.transferFrom(address(this), msg.sender, _amount0Desired - amount0_);
-        token1.transferFrom(address(this), msg.sender, _amount1Desired - amount1_);
+        token0.transfer(msg.sender, _amount0Desired - amount0_);
+        token1.transfer(msg.sender, _amount1Desired - amount1_);
 
         // Emit our token Deposit events
         emit Deposit(address(token0), amount0_, msg.sender);
         emit Deposit(address(token1), amount1_, msg.sender);
 
-        // After we have successfully deposited, we should rebalance the vault. A `rebalance()`
-        // will need to be triggered to add the deposit to the Uniswap pool. Note `rebalance()`
-        // will also trigger the vault to select new positions (according to the vault's strategy).
-        charmVault.rebalance();
+        // After we have successfully deposited, we should rebalance the vault if it is possible
+        // to do so without reverting. This needs to be triggered to add the deposit to the Uniswap
+        // pool. Note `rebalance()` will also trigger the vault to select new positions (according
+        // to the vault's strategy).
+        try charmVault.rebalance() {} catch {}
 
         return (shares_, amount0_, amount1_);
     }
 
     /**
-     * Makes a withdrawal of both tokens from our Uniswap token position.
+     * Makes a withdrawal of both tokens from our Charm token position.
      *
      * @dev Implements `nonReentrant` through `_withdraw`
      *
@@ -173,20 +173,6 @@ contract CharmStrategy is BaseStrategy {
      */
     function harvest(address _recipient) external override onlyOwner {
         //
-    }
-
-    /**
-     * Gets the token balance currently in the Uniswap V3 pool.
-     *
-     * @return token0Amount_ The amount of token0 in the pool
-     * @return token1Amount_ The amount of token0 in the pool
-     */
-    function tokenBalances() public view returns (uint token0Amount_, uint token1Amount_) {
-        // We calculate the token balances, but rather than directly calling `getBalance0` and
-        // `getBalance1` functions on the `CharmVault`, we want to include the accrued protocol
-        // and manager fees.
-        token0Amount_ = token0.balanceOf(address(charmVault));
-        token1Amount_ = token1.balanceOf(address(charmVault));
     }
 
     /**
