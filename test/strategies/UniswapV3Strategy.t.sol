@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import {Test} from 'forge-std/Test.sol';
-
 import {ERC20Mock} from './../mocks/erc/ERC20Mock.sol';
 import {UniswapV3StrategyMock} from './../mocks/UniswapV3StrategyMock.sol';
 
@@ -23,10 +21,6 @@ import {IUniswapV3NonfungiblePositionManager} from '@floor-interfaces/uniswap/IU
 import {FloorTest} from '../utilities/Environments.sol';
 
 
-/**
- * @dev This is defined as {Test} rather than {FloorTest} as there was a Foundry
- * bug with the block fork that was causing the contracts to read incorrectly.
- */
 contract UniswapV3StrategyTest is FloorTest {
     /// The mainnet contract address of our Uniswap Position Manager
     address internal constant UNISWAP_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
