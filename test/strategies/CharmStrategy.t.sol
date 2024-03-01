@@ -77,7 +77,7 @@ contract CharmStrategyTest is FloorTest {
         (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
             bytes32('USDC/WETH Charm Vault'),
             strategyImplementation,
-            abi.encode(CHARM_VAULT),
+            abi.encode(CHARM_VAULT, address(this)),
             APPROVED_COLLECTION
         );
 
@@ -199,6 +199,21 @@ contract CharmStrategyTest is FloorTest {
     function test_CanHarvestWithoutOutput() public {
         vm.prank(address(strategyFactory));
         strategy.harvest(address(treasury));
+    }
+
+    function test_CanCallRebalance() public {
+        // Confirm that we have the expected address set
+        assertEq(strategy.rebalancer(), address(this));
+
+        // We can call rebalance with our approved address
+        strategy.rebalance();
+    }
+
+    function test_CannotCallRebalanceWithInvalidCaller() public {
+        // Try and rebalance the strategy
+        vm.expectRevert('Invalid caller');
+        vm.prank(address(1));
+        strategy.rebalance();
     }
 
     function _deposit(uint _amount0Desired, uint _amount1Desired) internal returns (uint shares_, uint amount0_, uint amount1_) {
