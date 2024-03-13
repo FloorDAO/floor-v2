@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 import {INFTXRouter} from '@nftx-protocol-v3/interfaces/INFTXRouter.sol';
 import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
@@ -30,11 +31,11 @@ interface ApprovalToken {
 }
 
 /**
- * Sets up a strategy that interacts with Uniswap.
+ * Sets up a strategy that interacts with NFTXV3 to create and manage liquidity positions.
  */
 contract NFTXV3LiquidityStrategy is BaseStrategy {
 
-    /// Once our position ID has been minted onve we initially add liquidity
+    /// Our position ID that will be minted when we add liquidity
     uint public positionId;
 
     /// Store our NFTX vault
@@ -53,8 +54,8 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
     /// Store our WETH token
     IWETH public weth;
 
-    /// Store our pool address
-    address private _pool;
+    /// Store our Uniswap pool address
+    address public pool;
 
     /// Stores our NFTX router and {PositionManager}
     INFTXRouter public router;
@@ -87,12 +88,8 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         vToken = IERC20(address(vault));
         weth = IWETH(address(router.WETH()));
 
-        // Get our pool address
-        _pool = IUniswapV3Factory(router.router().factory()).getPool(
-            address(vToken),
-            address(weth),
-            fee
-        );
+        // Get our deterministic pool address. It doesn't matter if this pool currently exists.
+        pool = router.computePool(address(vault), fee);
 
         // Max approve our tokens
         vToken.approve(address(router), type(uint).max);
@@ -124,8 +121,11 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         // Ensure we have sent enough (w)ETH
         require(msg.value >= wethMin, 'Insufficient ETH');
 
+        // Store the number of NFT IDs being depositted
+        uint nftIdsLength = nftIds.length;
+
         // Check that we aren't trying to deposit nothing
-        if (vTokenDesired + msg.value == 0) {
+        if (nftIdsLength + vTokenDesired + msg.value == 0) {
             revert CannotDepositZeroAmount();
         }
 
@@ -133,8 +133,19 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         uint vTokenStartBalance = vToken.balanceOf(address(this));
         uint ethStartBalance = payable(address(this)).balance - msg.value;
 
-        // We can use remaining vToken balance if present
-        vToken.transferFrom(msg.sender, address(this), vTokenDesired);
+        // Pull in the amount of vToken we are looking to use
+        if (vTokenDesired != 0) {
+            vToken.transferFrom(msg.sender, address(this), vTokenDesired);
+        }
+
+        // Pull in any NFTs that we have requested to deposit
+        if (nftIdsLength != 0) {
+            IERC721 asset = IERC721(vault.assetAddress());
+            for (uint i; i < nftIdsLength;) {
+                asset.transferFrom(msg.sender, address(this), nftIds[i]);
+                unchecked { ++i; }
+            }
+        }
 
         // If we don't currently have a token ID for this strategy, then we need to mint one
         // when we first add liquidity.
@@ -187,13 +198,16 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
             require(success, 'Unable to refund ETH');
         }
 
-        emit Deposit(address(vToken), vTokenDesired - (vTokenRemaining - vTokenStartBalance), msg.sender);
-        emit Deposit(address(weth), msg.value - (ethRemaining - ethStartBalance), msg.sender);
+        // Calculate the number of vTokens received, based on the ERC20 and ERC721 provided
+        uint vTokensStaked = (vTokenDesired + (nftIds.length * 1 ether)) - (vTokenRemaining - vTokenStartBalance);
 
-        return (
-            vTokenDesired - (vTokenRemaining - vTokenStartBalance),
-            msg.value - (ethRemaining - ethStartBalance)
-        );
+        // Calculate the amount of ETH that was taken by the target contract
+        uint ethStaked = msg.value - (ethRemaining - ethStartBalance);
+
+        emit Deposit(address(vToken), vTokensStaked, msg.sender);
+        emit Deposit(address(weth), ethStaked, msg.sender);
+
+        return (vTokensStaked, ethStaked);
     }
 
     /**
@@ -309,13 +323,13 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
 
             // If we have liquidity in our position, then we need additional calculation
             if (liquidity > 0) {
-                //
-                IUniswapV3Pool pool = IUniswapV3Pool(_pool);
+                // Load our Uniswap Pool information
+                IUniswapV3Pool _pool = IUniswapV3Pool(pool);
 
                 // Get our slot0 tick and the global feeGrowth for both tokens
-                (, int24 tickCurrent,,,,,) = pool.slot0();
-                uint feeGrowthGlobal0X128 = pool.feeGrowthGlobal0X128();
-                uint feeGrowthGlobal1X128 = pool.feeGrowthGlobal1X128();
+                (, int24 tickCurrent,,,,,) = _pool.slot0();
+                uint feeGrowthGlobal0X128 = _pool.feeGrowthGlobal0X128();
+                uint feeGrowthGlobal1X128 = _pool.feeGrowthGlobal1X128();
 
                 // We need to store our inside growth outside of unchecked statement so
                 // that it persists.
@@ -324,8 +338,8 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
 
                 unchecked {
                     // Get the outside growth from the upper and lower ticks
-                    (,, uint feeGrowthOutsideLower0, uint feeGrowthOutsideLower1,,,,) = pool.ticks(tickLower);
-                    (,, uint feeGrowthOutsideUpper0, uint feeGrowthOutsideUpper1,,,,) = pool.ticks(tickUpper);
+                    (,, uint feeGrowthOutsideLower0, uint feeGrowthOutsideLower1,,,,) = _pool.ticks(tickLower);
+                    (,, uint feeGrowthOutsideUpper0, uint feeGrowthOutsideUpper1,,,,) = _pool.ticks(tickUpper);
 
                     // Calculate fee growth below from the lower tick
                     uint256 feeGrowthBelow0X128;
@@ -412,8 +426,7 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
         }
 
         // Get our `sqrtPriceX96` from the `slot0`
-        IUniswapV3Pool pool = IUniswapV3Pool(_pool);
-        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
+        (uint160 _sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
 
         // Using TickMath, we can get the sqrtRatio for each token
         uint160 _sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(tickLower);

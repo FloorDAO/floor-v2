@@ -6,6 +6,7 @@ import {ERC20Mock} from './../mocks/erc/ERC20Mock.sol';
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {INFTXRouter} from "@nftx-protocol-v3/interfaces/INFTXRouter.sol";
 import {INFTXVaultV3} from '@nftx-protocol-v3/interfaces/INFTXVaultV3.sol';
@@ -139,11 +140,98 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         assertEq(tokens[1], TOKEN_B);
     }
 
+    function test_CanGetPoolInformation() public {
+        // We have no positionId currently minted
+        assertEq(strategy.positionId(), 0);
+
+        // We have our mapped NFTX data
+        assertEq(strategy.vaultId(), 3);
+        assertEq(address(strategy.vault()), 0xEa0bb4De9f595439059aF786614DaF2FfADa72d5);
+
+        // We have our position / vault data
+        assertEq(strategy.fee(), POOL_FEE);
+        assertEq(strategy.sqrtPriceX96(), 0);
+        assertEq(strategy.tickLower(), -887220);
+        assertEq(strategy.tickUpper(), 887220);
+
+        // Our vault Token address is the same as the vault
+        assertEq(address(strategy.vToken()), address(strategy.vault()));
+
+        // The WETH token is taken from the NFTX contracts and is correct for network
+        assertEq(address(strategy.weth()), 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14);
+
+        // Our pool address is deterministic, but in this instance it already exists
+        assertEq(address(strategy.pool()), 0x5dAaeaCE8DD7CC1A3E1Ec70dd5423Be44F3c564D);
+
+        // Get our NFTX contract references
+        assertEq(address(strategy.router()), NFTX_ROUTER);
+        assertEq(address(strategy.positionManager()), 0x55BDc76262B1e6e791D0636A0bC61cee23CDFa87);
+    }
+
     /**
      * Ensures that we can correctly find the strategy ID that was deployed with the strategy.
      */
     function test_CanGetStrategyId() public {
         assertEq(strategy.strategyId(), 0);
+    }
+
+    /**
+     * A previous issue that we had with the contract that was not tested, was that if a strategy was
+     * deployed
+     */
+    function test_CanInitializeWithPoolThatDoesNotExist() public {
+        uint newVaultId = 5;
+        address newVaultToken = 0xdCA1A3D2b0FF6b4ca62C697811f7680d7990CCF7;
+        uint24 newPoolFee = 3_000;
+
+        // Deploy a new strategy implementation with a pool that does not exist. The collection referenced
+        // is not the same as the NFTX pool, but this is only checked in our {CollectionRegistry}.
+        uint _tickDistance = _getTickDistance(newPoolFee);
+        (, address _strategy) = strategyFactory.deployStrategy(
+            bytes32('CAT/WETH Full Range Pool'),
+            strategyImplementation,
+            abi.encode(
+                newVaultId, // vaultId
+                NFTX_ROUTER, // router
+                newPoolFee,
+                0,
+                _getLowerTick(_tickDistance),
+                _getUpperTick(_tickDistance)
+            ),
+            0xEa0bb4De9f595439059aF786614DaF2FfADa72d5
+        );
+
+        // Map the newly created strategy to our contract
+        strategy = NFTXV3LiquidityStrategy(payable(_strategy));
+
+        // Set our expected deterministic address
+        address expectedAddress = 0x177Ce401302E994c90C426525e526bfFe2698627;
+
+        // Confirm that we have a deterministic pool address
+        assertEq(strategy.pool(), expectedAddress);
+
+        // Confirm that the pool does not actually exist
+        (address _pool, bool _exists) = strategy.router().getPoolExists(newVaultId, newPoolFee);
+        assertEq(_pool, address(0));
+        assertEq(_exists, false);
+
+        // After placing a deposit tx with the below data, we can see that the `expectedAddress`
+        // is the Pool that is created. The below code can be uncommented to confirm this. This
+        // currently reverts due to `R()`.
+
+        /*
+        deal(address(this), 10 ether);
+        deal(newVaultToken, address(this), 1 ether);
+        IERC20(newVaultToken).approve(address(strategy), type(uint).max);
+        strategy.deposit{value: 10 ether}({
+            vTokenDesired: 1 ether,
+            nftIds: new uint[](0),
+            nftAmounts: new uint[](0),
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
+        */
     }
 
     function test_CanCreateNewPosition() external {
@@ -179,6 +267,112 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // Confirm our callback results
         assertEq(amount0, 1 ether, 'Invalid vToken (amount0) added');
         assertEq(amount1, 633606347970233477, 'Invalid WETH (amount1) added');
+    }
+
+    function test_CanCreateNewPositionWithNftDeposit() public {
+        // Ensure that we have a position amount of NFTs and limit to realistic size
+        // for test speed
+        uint _nftIds = 10;
+
+        // Before our first deposit our positionId should be 0
+        assertEq(strategy.positionId(), 0);
+
+        // Mint some NFTs
+        uint[] memory nftIds = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(_nftIds);
+        uint[] memory nftAmounts = new uint[](_nftIds);
+        for (uint i; i < _nftIds; ++i) {
+            nftAmounts[i] = 1;
+        }
+
+        // Approve our ERC721's to be used
+        ERC721(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).setApprovalForAll(address(strategy), true);
+
+        // Deal us some ETH to deposit
+        deal(address(this), 100 ether);
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), type(uint).max);
+
+        // Make our initial deposit that will mint our token
+        (uint amount0, uint amount1) = strategy.deposit{value: 100 ether}({
+            vTokenDesired: 0,
+            nftIds: nftIds,
+            nftAmounts: nftAmounts,
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp + 3600
+        });
+
+        // Confirm the positionId that has been minted and that our strategy contract is the owner
+        assertEq(strategy.positionId(), 35, 'Incorrect position ID');
+        assertEq(
+            ERC721(address(strategy.positionManager())).ownerOf(strategy.positionId()),
+            address(strategy),
+            'Owner of the position ID NFT is incorrect'
+        );
+
+        // Confirm our callback results
+        assertEq(amount0, _nftIds * 1 ether, 'Invalid vToken (amount0) added');
+        assertEq(amount1, 6336063479702334768, 'Invalid WETH (amount1) added');
+    }
+
+    function test_CanCreateNewPositionWithHybridTokenAndNft() external {
+        // Before our first deposit our positionId should be 0
+        assertEq(strategy.positionId(), 0);
+
+        // Deal us some assets to deposit
+        deal(TOKEN_A, address(this), 100 ether);
+        deal(address(this), 100 ether);
+
+        // Mint some NFTs
+        uint _nftIds = 6;
+        uint[] memory nftIds = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(_nftIds);
+        uint[] memory nftAmounts = new uint[](_nftIds);
+        for (uint i; i < _nftIds; ++i) {
+            nftAmounts[i] = 1;
+        }
+
+        // Set our max approvals
+        IERC20(TOKEN_A).approve(address(strategy), type(uint).max);
+
+        // Approve our ERC721's to be used
+        ERC721(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).setApprovalForAll(address(strategy), true);
+
+        // Make our initial deposit that will mint our token (1 vToken + 100 ETH). As this is
+        // our first deposit, this will also mint a token.
+        (uint amount0, uint amount1) = strategy.deposit{value: 100 ether}({
+            vTokenDesired: 4 ether,
+            nftIds: nftIds,
+            nftAmounts: nftAmounts,
+            vTokenMin: 3 ether,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
+
+        // Confirm the positionId that has been minted and that our strategy contract is the owner
+        assertEq(strategy.positionId(), 35, 'Incorrect position ID');
+        assertEq(
+            ERC721(address(strategy.positionManager())).ownerOf(strategy.positionId()),
+            address(strategy),
+            'Owner of the position ID NFT is incorrect'
+        );
+
+        // Confirm our callback results
+        assertEq(amount0, 10 ether, 'Invalid vToken (amount0) added');
+        assertEq(amount1, 6336063479702334768, 'Invalid WETH (amount1) added');
+
+        // Mint some new NFTs
+        nftIds = IMintable(0xeA9aF8dBDdE2A8d3515C3B4E446eCd41afEdB1C6).mint(_nftIds);
+
+        // Make a subsequent deposit
+        strategy.deposit{value: 50 ether}({
+            vTokenDesired: 3 ether,
+            nftIds: nftIds,
+            nftAmounts: nftAmounts,
+            vTokenMin: 3 ether,
+            wethMin: 0,
+            deadline: block.timestamp
+        });
     }
 
     function test_CanDepositIntoExistingPosition() public {
@@ -666,4 +860,118 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
         // ..
     }
 
+}
+
+
+contract NFTXV3LiquidityStrategyDeploymentTest is FloorTest {
+    /// Register our pool address
+    address internal constant POOL = 0x7a804F54d1f002C429DC1ca8B989afF779dFBf1B;  // MILADY/ETH @ 3% (18 decimals)
+    uint internal constant POOL_ID = 8;
+
+    /// Store our mainnet fork information
+    uint internal constant BLOCK_NUMBER = 19_386_305;
+
+    /// Store our internal contracts
+    StrategyFactory strategyFactory;
+    NFTXV3LiquidityStrategy strategy;
+
+    /// Store our strategy ID
+    uint strategyId;
+
+    /**
+     * Sets up our mainnet fork and register our action contract.
+     */
+    constructor() forkBlock(BLOCK_NUMBER) {}
+
+    function setUp() public {
+        // Create our {StrategyFactory}
+        strategyFactory = StrategyFactory(0xdf2e023Ea56d752D0B5bE79f65557987976676CC);
+
+        // Deploy our strategy
+        vm.startPrank(0x81B14b278081e2052Dcd3C430b4d13efA1BC392D);
+        (uint _strategyId, address _strategy) = strategyFactory.deployStrategy(
+            bytes32('NFTX V3 - YAYO/WETH'),
+            0x663c650f1b765B1a4209c33bADEafFca58C433BB,
+            abi.encode(
+                POOL_ID,
+                0x70A741A12262d4b5Ff45C0179c783a380EebE42a,
+                3000,
+                38400000000000000000000000000,
+                -887220,
+                887220
+            ),
+            0x09f66a094a0070EBDdeFA192a33fa5d75b59D46b
+        );
+        vm.stopPrank();
+
+        // Cast our strategy to the NFTX Inventory Staking Strategy contract
+        strategy = NFTXV3LiquidityStrategy(payable(_strategy));
+        strategyId = _strategyId;
+    }
+
+    function test_CanDoStuff() public {
+        // Before our first deposit our positionId should be 0
+        assertEq(strategy.positionId(), 0);
+
+        address payable holder = payable(0x0781B192F48706310082268A4C037078F2e8B9B0);
+
+        vm.startPrank(holder);
+
+        // Deal us some assets to deposit
+        deal(holder, 100 ether);
+
+        // Approve our ERC721's to be used
+        ERC721(0x09f66a094a0070EBDdeFA192a33fa5d75b59D46b).setApprovalForAll(address(strategy), true);
+
+        uint[] memory nftIds = new uint[](5);
+        nftIds[0] = 1066;
+        nftIds[1] = 1077;
+        nftIds[2] = 1150;
+        nftIds[3] = 1231;
+        nftIds[4] = 1276;
+
+        uint[] memory nftAmounts = new uint[](5);
+        nftAmounts[0] = 1;
+        nftAmounts[1] = 1;
+        nftAmounts[2] = 1;
+        nftAmounts[3] = 1;
+        nftAmounts[4] = 1;
+
+        // Make our initial deposit that will mint our token
+        (uint amount0, uint amount1) = strategy.deposit{value: 1.5 ether}({
+            vTokenDesired: 0,
+            nftIds: nftIds,
+            nftAmounts: nftAmounts,
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp + 3600
+        });
+
+        // Confirm the positionId that has been minted and that our strategy contract is the owner
+        assertEq(
+            ERC721(address(strategy.positionManager())).ownerOf(strategy.positionId()),
+            address(strategy),
+            'Owner of the position ID NFT is incorrect'
+        );
+
+        // Confirm our callback results
+        assertEq(amount0, 5 ether, 'Invalid vToken (amount0) added');
+        assertEq(amount1, 1.174554804239734415 ether, 'Invalid WETH (amount1) added');
+
+        nftIds[0] = 1279;
+        nftIds[1] = 1282;
+        nftIds[2] = 1283;
+        nftIds[3] = 1343;
+        nftIds[4] = 1369;
+
+        // Make a subsequent deposit
+        strategy.deposit{value: 2 ether}({
+            vTokenDesired: 0,
+            nftIds: nftIds,
+            nftAmounts: nftAmounts,
+            vTokenMin: 0,
+            wethMin: 0,
+            deadline: block.timestamp + 3600
+        });
+    }
 }
