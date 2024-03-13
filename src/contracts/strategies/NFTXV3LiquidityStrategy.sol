@@ -211,29 +211,6 @@ contract NFTXV3LiquidityStrategy is BaseStrategy {
     }
 
     /**
-     * Allows an existing positionId to be deposited.
-     *
-     * @param _positionId The existing positionId to be migrated in
-     */
-    function depositPosition(uint _positionId) public {
-        // We cannot have an existing position
-        require(positionId == 0, 'PositionId already set');
-
-        // Check that it conforms to the expected format and pool
-        (,, address token0,, uint24 _fee, int24 _tickLower, int24 _tickUpper,,,,,) = positionManager.positions(_positionId);
-        require(_fee == fee, 'fee mismatch');
-        require(_tickLower == tickLower, 'tickLower mismatch');
-        require(_tickUpper == tickUpper, 'tickUpper mismatch');
-        require(router.computePool(token0, fee) == pool, 'pool mismatch');
-
-        // Transfer the ERC721 from our sender
-        positionManager.transferFrom(msg.sender, address(this), _positionId);
-
-        // Set our updated positionId
-        positionId = _positionId;
-    }
-
-    /**
      * Makes a withdrawal of both tokens from our Uniswap token position.
      *
      * @dev Implements `nonReentrant` through `_withdraw`

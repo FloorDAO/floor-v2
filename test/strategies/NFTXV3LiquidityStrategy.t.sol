@@ -176,68 +176,6 @@ contract NFTXV3LiquidityStrategyTest is FloorTest {
     }
 
     /**
-     * If a strategy wants to adopt an existing position, then we can do so by just sending the ERC721
-     * NFT into the contract.
-     */
-    function test_CanDepositWithErc721() public {
-        // Before our first deposit our positionId should be 0
-        assertEq(strategy.positionId(), 0);
-
-        // Deal us some assets to deposit
-        deal(TOKEN_A, address(this), 100 ether);
-        deal(address(this), 100 ether);
-
-        // Set our max approvals
-        IERC20(TOKEN_A).approve(address(strategy), type(uint).max);
-
-        // Deploy into our Milady position to create a positionId
-        strategy.deposit{value: 100 ether}({
-            vTokenDesired: 4 ether,
-            nftIds: new uint[](0),
-            nftAmounts: new uint[](0),
-            vTokenMin: 3 ether,
-            wethMin: 0,
-            deadline: block.timestamp
-        });
-
-        // Confirm that the current strategy owns the positionId
-        assertEq(strategy.positionManager().ownerOf(strategy.positionId()), address(strategy));
-
-        // We can be naughty and prank the withdrawal of the positionId out of the existing strategy
-        vm.startPrank(address(strategy));
-        strategy.positionManager().transferFrom(address(strategy), address(this), strategy.positionId());
-        vm.stopPrank();
-
-        // Confirm that we now own the positionId
-        assertEq(strategy.positionManager().ownerOf(strategy.positionId()), address(this));
-
-        // Deploy a new strategy implementation that references the positionId
-        uint _tickDistance = _getTickDistance(POOL_FEE);
-        (, address _strategy) = strategyFactory.deployStrategy(
-            bytes32('MILADY/WETH Full Range Pool'),
-            strategyImplementation,
-            abi.encode(
-                3, // vaultId
-                NFTX_ROUTER, // router
-                POOL_FEE,
-                0,
-                _getLowerTick(_tickDistance),
-                _getUpperTick(_tickDistance)
-            ),
-            0xEa0bb4De9f595439059aF786614DaF2FfADa72d5
-        );
-
-        // Approve our Strategy to use our newly acquired positionId
-        strategy.positionManager().approve(_strategy, strategy.positionId());
-
-        // Make our deposit
-        NFTXV3LiquidityStrategy(payable(_strategy)).depositPosition(strategy.positionId());
-
-        // Confirm that the position has transferred
-        assertEq(strategy.positionManager().ownerOf(strategy.positionId()), _strategy);
-    }
-
-    /**
      * A previous issue that we had with the contract that was not tested, was that if a strategy was
      * deployed
      */
