@@ -192,8 +192,8 @@ contract CharmStrategyTest is FloorTest {
 
         // Ensure that both tokens show zero amount withdrawn
         assertEq(amounts.length, 2);
-        assertEq(amounts[0], 414105120);
-        assertEq(amounts[1], 226974701814370686);
+        assertEq(amounts[0], 418288000);
+        assertEq(amounts[1], 229267375570071400);
     }
 
     function test_CanHarvestWithoutOutput() public {

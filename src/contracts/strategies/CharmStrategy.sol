@@ -174,9 +174,13 @@ contract CharmStrategy is BaseStrategy {
      */
     function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         tokens_ = validTokens();
+
+        // Get our protocol fee
+        uint protocolFee = charmVault.protocolFee();
+
         amounts_ = new uint[](2);
-        amounts_[0] = charmVault.accruedProtocolFees0() * 99;
-        amounts_[1] = charmVault.accruedProtocolFees1() * 99;
+        amounts_[0] = charmVault.accruedProtocolFees0() * 1e6 / protocolFee;
+        amounts_[1] = charmVault.accruedProtocolFees1() * 1e6 / protocolFee;
     }
 
     /**
