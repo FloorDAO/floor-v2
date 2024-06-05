@@ -628,4 +628,36 @@ contract VeFloorStakingTest is FloorTest {
         veFloor.setMinLockPeriodRatio(value);
     }
 
+    /**
+     * Performs a live chain scenario test to confirm that our emergency exit
+     * will complete and perform as expected.
+     */
+    function test_CanSetEmergencyExitInLiveScenario() public forkBlock(20028323) {
+        // Set our test address
+        address testAddress = 0x0f294726A2E3817529254F81e0C195b6cd0C834f;
+
+        // We need to update our contract addresses to reflect the live ones
+        floor = FLOOR(0x3B0fCCBd5DAE0570A70f1FB6D8D666a33c89d71e);
+        veFloor = VeFloorStaking(0x2B7E22610Db92169b87A27Df1929c9315B59509f);
+
+        // Confirm that the account has the expected balance
+        assertEq(floor.balanceOf(testAddress), 0);
+        assertEq(veFloor.balanceOf(testAddress), 4290.895749446 ether);
+
+        // Enable emergency exit
+        assertEq(veFloor.emergencyExit(), false);
+        vm.prank(0x81B14b278081e2052Dcd3C430b4d13efA1BC392D);
+        veFloor.setEmergencyExit(true);
+        assertEq(veFloor.emergencyExit(), true);
+
+        // Action a withdrawal as the user
+        vm.prank(testAddress);
+        veFloor.withdraw();
+
+        // Confirm that we have withdrawn the complete whole balance of tokens with
+        // no penalty applied.
+        assertEq(floor.balanceOf(testAddress), 4290.895749446 ether);
+        assertEq(veFloor.balanceOf(testAddress), 0);
+    }
+
 }
