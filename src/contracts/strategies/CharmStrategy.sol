@@ -21,6 +21,9 @@ contract CharmStrategy is BaseStrategy {
     IERC20Upgradeable public token0;
     IERC20Upgradeable public token1;
 
+    /// Store the address of our valid rebalancer
+    address public rebalancer;
+
     /**
      * Sets up our contract variables.
      *
@@ -36,8 +39,9 @@ contract CharmStrategy is BaseStrategy {
         strategyId = _strategyId;
 
         // Extract the CharmVault from our initialisation bytes data, and map it the contract
-        (address charmVaultAddress) = abi.decode(_initData, (address));
+        (address charmVaultAddress, address _rebalancer) = abi.decode(_initData, (address, address));
         charmVault = AlphaProVault(charmVaultAddress);
+        rebalancer = _rebalancer;
 
         // Assign our tokens based on the vault
         token0 = charmVault.token0();
@@ -96,13 +100,20 @@ contract CharmStrategy is BaseStrategy {
         emit Deposit(address(token0), amount0_, msg.sender);
         emit Deposit(address(token1), amount1_, msg.sender);
 
-        // After we have successfully deposited, we should rebalance the vault if it is possible
-        // to do so without reverting. This needs to be triggered to add the deposit to the Uniswap
-        // pool. Note `rebalance()` will also trigger the vault to select new positions (according
-        // to the vault's strategy).
-        try charmVault.rebalance() {} catch {}
-
         return (shares_, amount0_, amount1_);
+    }
+
+    /**
+     * After we have successfully deposited, we should rebalance the vault if it is possible
+     * to do so without reverting. This needs to be triggered to add the deposit to the Uniswap
+     * pool.
+     *
+     * Note `rebalance()` will also trigger the vault to select new positions, according to
+     * the vault's strategy.
+     */
+    function rebalance() public {
+        require(msg.sender == rebalancer, 'Invalid caller');
+        charmVault.rebalance();
     }
 
     /**
@@ -163,9 +174,13 @@ contract CharmStrategy is BaseStrategy {
      */
     function available() public view override returns (address[] memory tokens_, uint[] memory amounts_) {
         tokens_ = validTokens();
+
+        // Get our protocol fee
+        uint protocolFee = charmVault.protocolFee();
+
         amounts_ = new uint[](2);
-        amounts_[0] = charmVault.accruedProtocolFees0() * 99;
-        amounts_[1] = charmVault.accruedProtocolFees1() * 99;
+        amounts_[0] = charmVault.accruedProtocolFees0() * 1e6 / protocolFee;
+        amounts_[1] = charmVault.accruedProtocolFees1() * 1e6 / protocolFee;
     }
 
     /**
